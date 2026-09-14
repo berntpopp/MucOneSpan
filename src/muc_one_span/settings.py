@@ -43,6 +43,11 @@ def _string(name: str, value: object, *, optional: bool = False, empty: bool = F
         raise ValueError(f"{name} must be a nonempty string" + (" or null" if optional else ""))
 
 
+def _choice(name: str, value: object, allowed: tuple[str, ...]) -> None:
+    if not isinstance(value, str) or value not in allowed:
+        raise ValueError(f"{name} must be one of {allowed!r}")
+
+
 @dataclass(frozen=True)
 class RunSettings:
     """Execution defaults; an empty model lets the existing tool choose its default."""
@@ -76,12 +81,26 @@ class AlleleSelectionSettings:
     valley_min_points: int = 3
     valley_min_separation: int = 3
     refinement_max_shift: int = 1
+    refinement_metric: str = "auto"
+    score_margin_hifi: int = 43
+    score_margin_ont: int = 42
+    min_dominant_reads_hifi: int = 3
+    min_dominant_reads_ont: int = 4
+    min_dominance_ratio: float = 0.01
 
     def __post_init__(self) -> None:
         _integer("allele_selection.min_gap", self.min_gap, 1)
         _integer("allele_selection.valley_min_points", self.valley_min_points, 3)
         _integer("allele_selection.valley_min_separation", self.valley_min_separation, 1)
         _integer("allele_selection.refinement_max_shift", self.refinement_max_shift)
+        _choice(
+            "allele_selection.refinement_metric", self.refinement_metric, ("auto", "as", "indel")
+        )
+        _integer("allele_selection.score_margin_hifi", self.score_margin_hifi, 0)
+        _integer("allele_selection.score_margin_ont", self.score_margin_ont, 0)
+        _integer("allele_selection.min_dominant_reads_hifi", self.min_dominant_reads_hifi, 1)
+        _integer("allele_selection.min_dominant_reads_ont", self.min_dominant_reads_ont, 1)
+        _number("allele_selection.min_dominance_ratio", self.min_dominance_ratio, 0.0, 1.0)
 
 
 @dataclass(frozen=True)
@@ -116,11 +135,17 @@ class ConsensusSettings:
     flank_length: int = 500
     anchor_bases: int = 20
     anchor_tolerance: int = 50
+    proximal_flank: bool = True
+    haploid_majority: bool = True
+    haploid_min_qual: float = 4.0
 
     def __post_init__(self) -> None:
         _integer("consensus.flank_length", self.flank_length)
         _integer("consensus.anchor_bases", self.anchor_bases, 1)
         _integer("consensus.anchor_tolerance", self.anchor_tolerance)
+        _boolean("consensus.proximal_flank", self.proximal_flank)
+        _boolean("consensus.haploid_majority", self.haploid_majority)
+        _number("consensus.haploid_min_qual", self.haploid_min_qual, 0.0)
 
     def validate_flanks(self, left: str, right: str, *, flank_length: int | None = None) -> None:
         """Require the effective extent to fit both known dictionary flanks.
@@ -172,6 +197,8 @@ class CallingSettings:
 
     sample_name: str = "sample"
     read_phase: bool = False
+    haploid_majority: bool = True
+    haploid_min_qual: float = 4.0
 
     def __post_init__(self) -> None:
         _string("calling.sample_name", self.sample_name)
@@ -180,6 +207,8 @@ class CallingSettings:
                 "calling.sample_name must not contain whitespace or control characters"
             )
         _boolean("calling.read_phase", self.read_phase)
+        _boolean("calling.haploid_majority", self.haploid_majority)
+        _number("calling.haploid_min_qual", self.haploid_min_qual, 0.0)
 
 
 @dataclass(frozen=True)

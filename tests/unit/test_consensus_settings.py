@@ -173,7 +173,7 @@ def test_short_flank_anchor_uses_same_prefix_as_ladder(tmp_path: Path) -> None:
         output,
         rd,
         context=context,
-        settings=ConsensusSettings(anchor_bases=2, anchor_tolerance=1),
+        settings=ConsensusSettings(anchor_bases=2, anchor_tolerance=1, proximal_flank=False),
         reference_layout=ReferenceLayoutSettings(pre=("A",), after=("B",)),
     )
     assert output.read_text() == ">c_vntr\nCGTTGAAC\n"
@@ -184,7 +184,7 @@ def test_short_flank_anchor_uses_same_prefix_as_ladder(tmp_path: Path) -> None:
 def test_default_prefix_anchor_corrects_one_base_flank_insertion(tmp_path: Path) -> None:
     rd = load_repeat_dictionary()
     vntr = rd.repeats["1"] + rd.repeats["X"] + rd.repeats["9"]
-    left = rd.flanking_left[:500]
+    left = rd.flanking_left[-500:]
     source = tmp_path / "full.fa"
     source.write_text(
         ">c\n" + left[:250] + "A" + left[250:] + vntr + rd.flanking_right[:500] + "\n"

@@ -18,10 +18,17 @@ class TestBuildContig:
     """Tests for building a single ladder contig."""
 
     def test_contig_contains_flanking(self, repeat_dict):
-        """Contig starts with left flank and ends with right flank."""
+        """Contig starts with proximal left flank and ends with right flank."""
         contig = build_contig(5, repeat_dict, flank_length=100)
-        assert contig["sequence"].startswith(repeat_dict.flanking_left[:100])
+        assert contig["sequence"].startswith(repeat_dict.flanking_left[-100:])
         assert contig["sequence"].endswith(repeat_dict.flanking_right[:100])
+
+        from muc_one_span.settings import ConsensusSettings
+
+        legacy_contig = build_contig(
+            5, repeat_dict, flank_length=100, settings=ConsensusSettings(proximal_flank=False)
+        )
+        assert legacy_contig["sequence"].startswith(repeat_dict.flanking_left[:100])
 
     def test_contig_contains_pre_and_after_repeats(self, repeat_dict):
         """Contig contains pre-repeats and after-repeats."""

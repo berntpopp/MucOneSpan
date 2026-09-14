@@ -241,3 +241,42 @@ def test_explicit_sample_is_selected():
     with patch("muc_one_span.vcf.run_tool", side_effect=["A\nB\n", ""]) as run:
         assert parse_vcf_variants(Path("fake.vcf"), sample="B") == []
         assert run.call_args.args[0][-3:] == ["-s", "B", "fake.vcf"]
+
+
+def test_filter_vcf_haploid_majority(tmp_path):
+    vcf = tmp_path / "input.vcf.gz"
+    vcf.touch()
+    ref = tmp_path / "ref.fa"
+    ref.touch()
+    out_dir = tmp_path / "out"
+
+    vcf_content = (
+        "##fileformat=VCFv4.2\n"
+        "#CHROM\tPOS\tID\tREF\tALT\tQUAL\tFILTER\tINFO\tFORMAT\tSAMPLE\n"
+        "contig_1\t10\t.\tC\tG\t15.0\tPASS\t.\tGT:AF\t0/1:0.8\n"
+        "contig_1\t20\t.\tA\tT\t12.0\tPASS\t.\tGT:AF\t0/1:0.2\n"
+    )
+
+    written_lines: list[str] = []
+
+    def side_effect(cmd):
+        if cmd[0] == "bcftools" and cmd[1] == "norm":
+            (out_dir / "normalized.vcf.gz").write_bytes(b"data")
+            return ""
+        if cmd[0] == "bcftools" and cmd[1] == "view" and str(cmd[-1]).endswith("normalized.vcf.gz"):
+            (out_dir / "variants.vcf.gz").write_bytes(b"data")
+            return ""
+        if cmd[0] == "bcftools" and cmd[1] == "view" and str(cmd[-1]).endswith("variants.vcf.gz"):
+            return vcf_content
+        if cmd[0] == "bcftools" and cmd[1] == "view" and str(cmd[-1]).endswith("mod_haploid.vcf"):
+            mod_file = Path(cmd[-1])
+            written_lines.extend(mod_file.read_text().splitlines())
+            (out_dir / "variants.vcf.gz").touch()
+            return ""
+        return ""
+
+    with patch("muc_one_span.vcf.run_tool", side_effect=side_effect):
+        filter_vcf(vcf, ref, out_dir, min_qual=5.0, haploid_majority=True)
+
+    assert any("0/1:0.8" not in line and "1/1:0.8" in line for line in written_lines)
+    assert any("0/1:0.2" not in line and "0/0:0.2" in line for line in written_lines)

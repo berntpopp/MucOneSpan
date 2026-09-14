@@ -1,23 +1,4 @@
-"""Allele length detection from samtools idxstats output.
-
-Peak contig selection uses two alignment quality metrics extracted from the
-BAM file:
-
-- **Alignment score (AS):** Higher AS means the read aligns better to the
-  contig.  Reads from a 60-repeat allele produce the highest AS when
-  aligned to the contig whose length matches the allele (contig_51 for
-  51 canonical X repeats + 9 fixed = 60 total).
-
-- **Indel length:** Lower mean indel length indicates a better length
-  match between read and reference.  Reads aligned to a contig that is
-  too short or too long accumulate large insertions or deletions in the
-  CIGAR string.
-
-Both metrics independently identify the correct contig in testing.  We
-use AS as the primary selector because it integrates all alignment
-factors (matches, mismatches, gaps) into a single score.  Mean indel
-length is reported alongside for transparency.
-"""
+"""Allele length detection from samtools idxstats output and alignment metrics."""
 
 from __future__ import annotations
 
@@ -26,6 +7,11 @@ import re
 from pathlib import Path
 from typing import TypedDict
 
+from muc_one_span.length_candidates import _length_selection_evidence
+from muc_one_span.read_dominance import (
+    evaluate_candidate_pair_dominance,
+    extract_read_scores_for_contigs,
+)
 from muc_one_span.run_status import InsufficientEvidenceError
 from muc_one_span.settings import DEFAULT_SETTINGS, AlleleSelectionSettings, ReferenceLayoutSettings
 from muc_one_span.tools import run_tool_iter
@@ -107,23 +93,17 @@ def _parse_cigar_indel_bp(cigar: str) -> int:
 def refine_peak_contig(
     bam_path: Path,
     cluster_contigs: list[str],
+    *,
+    metric: str = "auto",
+    platform: str = "hifi",
 ) -> dict:
     """Select the best contig from a cluster using alignment quality metrics.
 
     Scans all reads mapped to the cluster contigs and computes per-contig
     mean alignment score (AS tag) and mean indel length (from CIGAR).
-    The contig with the **highest mean AS** is selected as the best match.
-
-    Args:
-        bam_path: Path to the ladder mapping BAM (indexed).
-        cluster_contigs: List of contig names in the cluster
-            (e.g. ``["contig_48", ..., "contig_54"]``).
-
-    Returns:
-        Dictionary with:
-
-        - ``best_contig`` (str): name of the best-matching contig
-        - ``metrics`` (dict): per-contig ``{mean_as, mean_indel_bp, reads}``
+    For HiFi, the contig with the highest mean AS is selected.
+    For ONT (or metric='indel'), the contig with the minimum mean indel bp
+    among supported contigs is selected to correct for homopolymer drift.
     """
     # Accumulate per-contig stats
     contig_stats: dict[str, dict] = {
@@ -164,13 +144,15 @@ def refine_peak_contig(
         # Parse AS tag
         for tag in fields[11:]:
             if tag.startswith("AS:i:"):
-                contig_stats[contig]["as_sum"] += int(tag[5:])
+                val_str = tag[5:]
+                if val_str.lstrip("-").isdigit():
+                    contig_stats[contig]["as_sum"] += int(val_str)
                 break
 
     # Compute means and pick best
     metrics: dict[str, dict] = {}
+    valid_contigs = [c for c, stats in contig_stats.items() if stats["count"] > 0]
     best_contig = cluster_contigs[0]
-    best_as = -1.0
 
     for contig, stats in contig_stats.items():
         n = stats["count"]
@@ -186,11 +168,32 @@ def refine_peak_contig(
             "secondary_alignment_records": stats["secondary"],
             "supplementary_alignment_records": stats["supplementary"],
         }
-        if mean_as > best_as:
-            best_as = mean_as
-            best_contig = contig
 
-    logger.debug("Refined peak contig: %s (AS=%.1f)", best_contig, best_as)
+    use_indel = metric == "indel" or (metric == "auto" and platform == "ont")
+    if valid_contigs:
+        max_reads = max(contig_stats[c]["count"] for c in valid_contigs)
+        threshold = max(3, int(0.25 * max_reads))
+        supported = [
+            c for c in valid_contigs if contig_stats[c]["count"] >= threshold
+        ] or valid_contigs
+        if use_indel:
+            best_contig = min(
+                supported,
+                key=lambda c: (
+                    contig_stats[c]["indel_sum"] / contig_stats[c]["count"],
+                    -contig_stats[c]["as_sum"] / contig_stats[c]["count"],
+                ),
+            )
+        else:
+            best_contig = max(
+                supported,
+                key=lambda c: (
+                    contig_stats[c]["as_sum"] / contig_stats[c]["count"],
+                    -contig_stats[c]["indel_sum"] / contig_stats[c]["count"],
+                ),
+            )
+
+    logger.debug("Refined peak contig: %s (metric=%s)", best_contig, "indel" if use_indel else "as")
     return {"best_contig": best_contig, "metrics": metrics}
 
 
@@ -351,13 +354,17 @@ def _build_allele_info(
     *,
     settings: AlleleSelectionSettings | None = None,
     reference_layout: ReferenceLayoutSettings | None = None,
+    platform: str = "hifi",
 ) -> dict:
-    """Build allele info dict from a cluster.
+    """Combine cluster properties, contig names, and repeat conversions.
 
     Args:
-        cluster: Cluster dict from _find_clusters.
+        cluster: Cluster dict with center, total_reads, contigs.
         best_contig: Contig name selected by refine_peak_contig.
             If None, falls back to the weighted center.
+        settings: Optional allele selection settings.
+        reference_layout: Optional reference layout settings.
+        platform: 'hifi' or 'ont'.
     """
     settings = settings or DEFAULT_SETTINGS.allele_selection
     layout = reference_layout or DEFAULT_SETTINGS.reference_layout
@@ -366,16 +373,18 @@ def _build_allele_info(
 
     # When refine_peak_contig has identified a specific best contig,
     # derive canonical_repeats from its name rather than the cluster
-    # center.  ONT reads produce wider distributions that can shift
-    # the weighted center by ±1 vs the AS-refined best contig.
-    # However, at longer allele lengths the AS metric itself can be
-    # unreliable for ONT (off by 2+), so only trust the refinement
-    # when it agrees within the configured shift (default ±1).
+    # center. ONT reads produce wider distributions that can shift
+    # the weighted center by ±1-2 vs the indel-refined best contig.
     if best_contig is not None:
         match = re.search(r"_(\d+)$", best_contig)
         if match:
             refined_canonical = int(match.group(1))
-            if abs(refined_canonical - canonical) <= settings.refinement_max_shift:
+            max_shift = (
+                max(settings.refinement_max_shift, 2)
+                if platform == "ont"
+                else settings.refinement_max_shift
+            )
+            if abs(refined_canonical - canonical) <= max_shift:
                 canonical = refined_canonical
 
     return {
@@ -392,65 +401,6 @@ def _build_allele_info(
     }
 
 
-def _length_selection_evidence(
-    counts: dict[int, int],
-    min_coverage: int,
-    bam_path: Path | None,
-    unselected_clusters: list[dict],
-) -> dict:
-    """Describe evidence omitted by the existing length-selection decisions."""
-    excluded = sorted(
-        (repeat, count) for repeat, count in counts.items() if 0 < count < min_coverage
-    )
-    primary_counts: dict[str, int] | None = None
-    if excluded and bam_path is not None and bam_path.exists():
-        contig_names = [f"contig_{repeat}" for repeat, _ in excluded]
-        primary_counts = dict.fromkeys(contig_names, 0)
-        for line in run_tool_iter(["samtools", "view", str(bam_path), *contig_names]):
-            fields = line.strip().split("\t")
-            if len(fields) < 3 or fields[2] not in primary_counts:
-                continue
-            flag = int(fields[1])
-            if not flag & (4 | 256 | 2048):
-                primary_counts[fields[2]] += 1
-
-    excluded_rows = [
-        {
-            "contig_name": f"contig_{repeat}",
-            "alignment_records": count,
-            "primary_alignment_records": (
-                primary_counts[f"contig_{repeat}"] if primary_counts is not None else None
-            ),
-            "molecule_count": None,
-        }
-        for repeat, count in excluded
-    ]
-    if primary_counts is not None:
-        excluded_primary: int | None = sum(primary_counts.values())
-    else:
-        excluded_primary = 0 if not excluded else None
-
-    return {
-        "minimum_coverage": min_coverage,
-        "support_unit": "alignment_records_not_molecules",
-        "molecule_count": None,
-        "excluded_subthreshold_contigs": excluded_rows,
-        "excluded_subthreshold_alignment_records": sum(count for _, count in excluded),
-        "excluded_subthreshold_primary_alignment_records": excluded_primary,
-        "unselected_passing_clusters": [
-            {
-                "center": cluster["center"],
-                "alignment_records": cluster["total_reads"],
-                "contigs": [
-                    {"contig_name": f"contig_{repeat}", "alignment_records": count}
-                    for repeat, count in cluster["contigs"]
-                ],
-            }
-            for cluster in unselected_clusters
-        ],
-    }
-
-
 def detect_alleles(
     counts: dict[int, int],
     min_coverage: int = DEFAULT_SETTINGS.run.min_coverage,
@@ -458,6 +408,7 @@ def detect_alleles(
     *,
     settings: AlleleSelectionSettings | None = None,
     reference_layout: ReferenceLayoutSettings | None = None,
+    platform: str = "hifi",
 ) -> dict:
     """Detect allele lengths from read count distribution across ladder contigs.
 
@@ -518,25 +469,121 @@ def detect_alleles(
         if bam_path is None:
             return None
         contig_names = [f"contig_{c}" for c, _ in cluster["contigs"]]
-        refined = refine_peak_contig(bam_path, contig_names)
+        refined = refine_peak_contig(
+            bam_path,
+            contig_names,
+            metric=settings.refinement_metric,
+            platform=platform,
+        )
         fit_metrics.update(refined["metrics"])
         best: str = refined["best_contig"]
         return best
 
+    delta_val = settings.score_margin_hifi if platform == "hifi" else settings.score_margin_ont
+    min_reads_val = (
+        settings.min_dominant_reads_hifi if platform == "hifi" else settings.min_dominant_reads_ont
+    )
+    min_ratio_val = settings.min_dominance_ratio
+
     # If only one cluster found but BAM is available, try indel-valley splitting
     if len(clusters) == 1 and bam_path is not None:
+        primary_peak_contig = _get_best_contig(clusters[0]) or f"contig_{clusters[0]['center']}"
         sub_clusters = _split_cluster_by_indel(bam_path, clusters[0], settings=settings)
         if sub_clusters is not None:
-            clusters = sub_clusters
-            clusters.sort(key=lambda x: x["total_reads"], reverse=True)
+            c_center = int(primary_peak_contig.split("_")[-1])
+            sub_clusters.sort(key=lambda sc: abs(sc["center"] - c_center))
+            c1_name = primary_peak_contig
+            c2_name = _get_best_contig(sub_clusters[1]) or f"contig_{sub_clusters[1]['center']}"
+            c2_primary = sum(
+                fit_metrics.get(f"contig_{c}", {}).get("primary_alignment_records", 0)
+                for c, _ in sub_clusters[1]["contigs"]
+            )
+            if c1_name != c2_name and c2_primary >= min_reads_val:
+                sub_scores = extract_read_scores_for_contigs(
+                    bam_path, [c1_name, c2_name], run_tool_iter_func=run_tool_iter
+                )
+                if sub_scores:
+                    dom = evaluate_candidate_pair_dominance(
+                        sub_scores,
+                        c1_name,
+                        c2_name,
+                        platform=platform,
+                        delta=delta_val,
+                        min_dominant_reads=min_reads_val,
+                        min_ratio=min_ratio_val,
+                        c2_primary_records=c2_primary,
+                    )
+                    if dom.is_valid_second_allele:
+                        clusters = sub_clusters
+                        clusters.sort(key=lambda x: x["total_reads"], reverse=True)
+                    else:
+                        logger.info(
+                            "Spurious indel split rejected by read dominance: %s vs %s (%s)",
+                            c1_name,
+                            c2_name,
+                            dom.rejection_reason,
+                        )
+
+        if len(clusters) == 1:
+            c1_center = clusters[0]["center"]
+            min_gap = settings.min_gap if settings else DEFAULT_SETTINGS.allele_selection.min_gap
+            minority_counts = {
+                c: r for c, r in int_counts.items() if r >= 3 and abs(c - c1_center) >= min_gap
+            }
+            if minority_counts:
+                minority_sub_clusters = _find_clusters(
+                    minority_counts, min_coverage=3, min_gap=min_gap
+                )
+                for sc in minority_sub_clusters:
+                    c1_name = primary_peak_contig
+                    c2_name = _get_best_contig(sc) or f"contig_{sc['center']}"
+                    c2_primary = sum(
+                        fit_metrics.get(f"contig_{c}", {}).get("primary_alignment_records", 0)
+                        for c, _ in sc["contigs"]
+                    )
+                    if c2_primary < min_reads_val:
+                        logger.info(
+                            "Minority candidate %s rejected: insufficient primary records (%d < %d)",
+                            c2_name,
+                            c2_primary,
+                            min_reads_val,
+                        )
+                        continue
+                    sub_scores = extract_read_scores_for_contigs(
+                        bam_path,
+                        [c1_name, c2_name],
+                        run_tool_iter_func=run_tool_iter,
+                    )
+                    if sub_scores:
+                        dom_sub = evaluate_candidate_pair_dominance(
+                            sub_scores,
+                            c1_name,
+                            c2_name,
+                            platform=platform,
+                            delta=delta_val,
+                            min_dominant_reads=min_reads_val,
+                            min_ratio=min_ratio_val,
+                            c2_primary_records=c2_primary,
+                        )
+                        if dom_sub.is_valid_second_allele:
+                            clusters.append(sc)
+                            break
 
     selection_evidence = _length_selection_evidence(
-        int_counts, min_coverage, bam_path, clusters[2:]
+        int_counts,
+        min_coverage,
+        bam_path,
+        clusters[2:],
+        run_tool_iter_func=run_tool_iter,
     )
 
     def _with_support(cluster: dict) -> dict:
         info = _build_allele_info(
-            cluster, _get_best_contig(cluster), settings=settings, reference_layout=reference_layout
+            cluster,
+            _get_best_contig(cluster),
+            settings=settings,
+            reference_layout=reference_layout,
+            platform=platform,
         )
         info["primary_alignment_records"] = (
             sum(

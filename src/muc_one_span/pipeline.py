@@ -98,6 +98,7 @@ def execute_pipeline(
         bam_path=bam,
         settings=settings.allele_selection,
         reference_layout=settings.reference_layout,
+        platform=settings.run.platform,
     )
     (out / "alleles.json").write_text(json.dumps(alleles_result, indent=2) + "\n")
     click.echo(f"  Alleles: {alleles_result}")

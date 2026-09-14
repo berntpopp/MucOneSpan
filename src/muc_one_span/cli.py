@@ -196,6 +196,7 @@ def alleles(input_path: str, min_coverage: int, output_dir: str) -> None:
         bam_path=bam,
         settings=settings.allele_selection,
         reference_layout=settings.reference_layout,
+        platform=settings.run.platform,
     )
 
     out_dir = Path(output_dir)
@@ -584,3 +585,7 @@ def _bundled_reference() -> Path:
         )
         sys.exit(1)
     return ref
+
+
+if __name__ == "__main__":
+    main()

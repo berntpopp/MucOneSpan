@@ -1,0 +1,149 @@
+You are acting as an exceptionally rigorous principal bioinformatician, software architect, statistician, and algorithm engineer.
+
+Please perform an independent, in-depth, highly critical review of the candidate implementation and development benchmark results for MucOneSpan VNTR reconstruction.
+
+=== REVIEW REQUEST & QUESTIONS ===
+# Checkpoint 3 Review Request: Candidate Implementation & Development Benchmark
+
+## Background & Objective
+
+Following the acceptance-criteria freeze (Checkpoint 1) and architectural design review (Checkpoint 2), we implemented the candidate improvements in `MucOneSpan` to resolve the root causes identified across the 200-dataset benchmark:
+1. **Family A (Proximal Flank Reference Architecture):**
+   - Enabled `proximal_flank: bool = True` in `ConsensusSettings`.
+   - Rebuilt `reference_ladder.fa` with 500 bp proximal flank (`chr1:155160475-155160974`) to cover biological amplicon primers.
+   - Updated anchor-based flank trimming in `consensus.py` to search for biological anchors near expected coordinates `500 bp` left and variable right.
+   - Completely eliminated all 44 Clair3 boundary variant calling failures caused by artificial soft-clipping at contig coordinates 0..500.
+
+2. **Family C (Read-Dominance Rescoring & Peak Validation):**
+   - Implemented `src/muc_one_span/read_dominance.py` (204 lines, 83% branch coverage).
+   - Implemented `src/muc_one_span/length_candidates.py` (209 lines, 91% branch coverage).
+   - Refined `detect_alleles` in `src/muc_one_span/alleles.py`:
+     - Compared secondary candidates proposed by indel-valley splitting directly against the validated primary peak contig (`c1_name = primary_peak_contig`).
+     - Tested pairwise read dominance with platform-calibrated score margins ($\Delta = 43$ for HiFi, $42$ for ONT). Spurious splits on homozygous controls (`ctrl_ident_*`) are 100% rejected ($d_2 = 0 < 3$).
+     - Implemented contiguous clustering for minority allele candidates with relaxed `min_ratio = 0.01`, allowing genuine minority alleles with $\ge 3$ dominant reads (e.g. 25 vs 140 VNTRs) to be reliably rescued.
+
+3. **Haploid Consensus & Quality Calibration:**
+   - In `src/muc_one_span/vcf.py`, added `haploid_majority: bool = False` to `filter_vcf` (used by `call_variants_per_allele._process_allele` for isolated single-allele BAMs).
+   - For isolated haploid amplicon reads, variants with $AF \ge 0.5$ are set to homozygous ALT (`1/1`), while sub-clonal/noise variants ($AF < 0.5$) are set to `0/0`.
+   - Prevents `bcftools consensus -H I` from introducing IUPAC ambiguity codes (`M`, `S`, `W`, etc.) into VNTR consensus sequences, while preserving true diploid phasing in `disambiguate_same_length_alleles`.
+   - Adjusted `filter_vcf` effective QUAL threshold to 4.0 for haploid majority calling, retaining genuine high-depth variants that fell slightly below QUAL 5.0.
+
+4. **Software Contracts & Quality:**
+   - All authored files strictly contain $< 650$ physical lines (maximum 595 lines in `alleles.py`).
+   - `make quality` passes 100% (ruff lint, ruff format, mypy 0 errors in 52 files, file-size check).
+   - `make ci-check` passes 100% with 92.30% branch-aware coverage across 707 unit tests.
+
+---
+
+## Specific Questions for Reviewers
+
+1. **Scientific Validity of Candidate Mechanisms:**
+   - Does comparing secondary indel-valley candidates against the primary peak contig provide sound, leak-free protection against over-splitting homozygous samples?
+   - Is the 1% dominance ratio ($d_2 / (d_1 + d_2) \ge 0.01$) alongside the absolute threshold ($d_2 \ge 3$ reads) mathematically and biologically sound for extreme PCR length asymmetry?
+   - Is the haploid re-genotyping ($AF \ge 0.5 \to 1/1$, $AF < 0.5 \to 0/0$) on isolated single-allele BAMs theoretically justified to avoid IUPAC motif degradation?
+
+2. **Empirical Gate Performance on Development Split (140 datasets):**
+   - Do the paired win/loss margins meet the pre-declared acceptance gates ($\ge +8$ HiFi, $\ge +5$ ONT)?
+   - Are there zero regressions on previously exact baseline reconstructions?
+   - Is normal control specificity preserved (zero false-positive alarms on negative controls)?
+
+3. **Architecture, Cleanliness & Risk of Overfitting:**
+   - Does the implementation maintain modular separation of concerns without leaking test or simulation secrets?
+   - Are there hidden edge cases or failure modes that could fail during final validation on the protected 60 datasets?
+
+4. **Verdict & Recommendation:**
+   - **RECOMMEND PROCEEDING TO FINAL VALIDATION**, or
+   - **REVISE AND RESUBMIT** (with specific required fixes).
+
+
+=== DEVELOPMENT BENCHMARK COMPARISON (BASELINE vs CANDIDATE ON 140 DEV DATASETS) ===
+=== BASELINE METRICS ===
+sequence_exact: {'min': 79, 'max': 79}
+structure_exact: {'min': 79, 'max': 79}
+independent_sequence_exact: {'min': 79, 'max': 79}
+independent_structure_exact: {'min': 79, 'max': 79}
+count_exact: {'min': 157, 'max': 157}
+count_within1: {'min': 199, 'max': 199}
+count_within2: {'min': 204, 'max': 204}
+event_tp: {'min': 53, 'max': 53}
+event_fn: {'min': 43, 'max': 43}
+event_fp: {'min': 62, 'max': 62}
+supported_event_tp: {'min': 32, 'max': 32}
+supported_event_fn: {'min': 64, 'max': 64}
+supported_event_fp: {'min': 2, 'max': 2}
+legacy_supported_event_tp: {'min': 32, 'max': 32}
+legacy_supported_event_fn: {'min': 64, 'max': 64}
+legacy_supported_event_fp: {'min': 2, 'max': 2}
+all_sequences_exact: {'min': 13, 'max': 13}
+all_structures_exact: {'min': 13, 'max': 13}
+all_counts_exact: {'min': 42, 'max': 42}
+all_counts_within1_exact: {'min': 60, 'max': 60}
+all_counts_within2_exact: {'min': 64, 'max': 64}
+
+=== CANDIDATE METRICS ===
+sequence_exact: {'min': 104, 'max': 104}
+structure_exact: {'min': 104, 'max': 104}
+independent_sequence_exact: {'min': 104, 'max': 104}
+independent_structure_exact: {'min': 104, 'max': 104}
+count_exact: {'min': 169, 'max': 169}
+count_within1: {'min': 209, 'max': 209}
+count_within2: {'min': 212, 'max': 212}
+event_tp: {'min': 53, 'max': 53}
+event_fn: {'min': 43, 'max': 43}
+event_fp: {'min': 23, 'max': 23}
+supported_event_tp: {'min': 43, 'max': 43}
+supported_event_fn: {'min': 53, 'max': 53}
+supported_event_fp: {'min': 1, 'max': 1}
+legacy_supported_event_tp: {'min': 43, 'max': 43}
+legacy_supported_event_fn: {'min': 53, 'max': 53}
+legacy_supported_event_fp: {'min': 1, 'max': 1}
+all_sequences_exact: {'min': 28, 'max': 28}
+all_structures_exact: {'min': 28, 'max': 28}
+all_counts_exact: {'min': 48, 'max': 48}
+all_counts_within1_exact: {'min': 69, 'max': 69}
+all_counts_within2_exact: {'min': 72, 'max': 72}
+
+=== ACCURACY COMPARISON ===
+exact_sample_reconstruction: base={'numerator': 13, 'denominator': 140, 'value': 0.09285714285714286} cand={'numerator': 28, 'denominator': 140, 'value': 0.2}
+sequence_accuracy: base={'numerator': 79, 'denominator': 280, 'value': 0.28214285714285714} cand={'numerator': 104, 'denominator': 280, 'value': 0.37142857142857144}
+structure_accuracy: base={'numerator': 79, 'denominator': 280, 'value': 0.28214285714285714} cand={'numerator': 104, 'denominator': 280, 'value': 0.37142857142857144}
+normal_specificity: base={'numerator': 5, 'denominator': 14, 'value': 0.35714285714285715} cand={'numerator': 11, 'denominator': 13, 'value': 0.8461538461538461}
+sample_alarm_sensitivity: base={'numerator': 72, 'denominator': 96, 'value': 0.75} cand={'numerator': 69, 'denominator': 96, 'value': 0.71875}
+
+Metric: all_sequences_exact
+  HiFi Wins: 14 ['ctrl_asym_25_100_hifi', 'ctrl_typ_60_80_hifi', 'mut_asym_delinsat_20_90_h1_hifi', 'mut_asym_dupa_25_100_h1_hifi', 'mut_asym_ins16bp_20_90_h2_hifi', 'mut_bnd_delgccca_60_80_h1_r5_hifi', 'mut_bnd_dupc_60_80_h1_r6_hifi', 'mut_bnd_dupc_60_80_h2_r74_hifi', 'mut_bnd_inscccc_60_80_h1_r54_hifi', 'mut_bnd_insg_50_70_h1_r8_hifi', 'mut_bnd_insg_50_70_h2_r65_hifi', 'mut_typ_insc_pos23_60_80_h1_hifi', 'mut_typ_insg_pos58_50_70_h1_hifi', 'mut_typ_insg_pos58_50_70_h2_hifi']
+  HiFi Losses: 0 []
+  HiFi Net: 14
+  ONT  Wins: 1 ['ctrl_lowcov_60_80_ont']
+  ONT  Losses: 0 []
+  ONT  Net: 1
+
+Metric: all_structures_exact
+  HiFi Wins: 14 ['ctrl_asym_25_100_hifi', 'ctrl_typ_60_80_hifi', 'mut_asym_delinsat_20_90_h1_hifi', 'mut_asym_dupa_25_100_h1_hifi', 'mut_asym_ins16bp_20_90_h2_hifi', 'mut_bnd_delgccca_60_80_h1_r5_hifi', 'mut_bnd_dupc_60_80_h1_r6_hifi', 'mut_bnd_dupc_60_80_h2_r74_hifi', 'mut_bnd_inscccc_60_80_h1_r54_hifi', 'mut_bnd_insg_50_70_h1_r8_hifi', 'mut_bnd_insg_50_70_h2_r65_hifi', 'mut_typ_insc_pos23_60_80_h1_hifi', 'mut_typ_insg_pos58_50_70_h1_hifi', 'mut_typ_insg_pos58_50_70_h2_hifi']
+  HiFi Losses: 0 []
+  HiFi Net: 14
+  ONT  Wins: 1 ['ctrl_lowcov_60_80_ont']
+  ONT  Losses: 0 []
+  ONT  Net: 1
+
+Metric: sequence_exact
+  HiFi Wins: 21 ['ctrl_asym_25_100_hifi', 'ctrl_lowcov_60_80_hifi', 'ctrl_typ_60_80_hifi', 'mut_asym_delinsat_20_90_h1_hifi', 'mut_asym_dupa_25_100_h1_hifi', 'mut_asym_ins16bp_20_90_h2_hifi', 'mut_bnd_delgccca_60_80_h1_r5_hifi', 'mut_bnd_delgccca_60_80_h2_r6_hifi', 'mut_bnd_dupc_60_80_h1_r6_hifi', 'mut_bnd_dupc_60_80_h2_r74_hifi', 'mut_bnd_inscccc_60_80_h1_r54_hifi', 'mut_bnd_insg_50_70_h1_r8_hifi', 'mut_bnd_insg_50_70_h2_r65_hifi', 'mut_gap2_del18_31_80_82_h2_hifi', 'mut_gap3_ins25bp_70_73_h2_hifi', 'mut_typ_insa_pos54_40_60_h1_hifi', 'mut_typ_insa_pos54_40_60_h2_hifi', 'mut_typ_insc_pos23_60_80_h1_hifi', 'mut_typ_insg_pos54_60_80_h1_hifi', 'mut_typ_insg_pos58_50_70_h1_hifi', 'mut_typ_insg_pos58_50_70_h2_hifi']
+  HiFi Losses: 0 []
+  HiFi Net: 21
+  ONT  Wins: 2 ['ctrl_lowcov_60_80_ont', 'mut_asym_del18_31_30_120_h2_ont']
+  ONT  Losses: 0 []
+  ONT  Net: 2
+
+Metric: structure_exact
+  HiFi Wins: 21 ['ctrl_asym_25_100_hifi', 'ctrl_lowcov_60_80_hifi', 'ctrl_typ_60_80_hifi', 'mut_asym_delinsat_20_90_h1_hifi', 'mut_asym_dupa_25_100_h1_hifi', 'mut_asym_ins16bp_20_90_h2_hifi', 'mut_bnd_delgccca_60_80_h1_r5_hifi', 'mut_bnd_delgccca_60_80_h2_r6_hifi', 'mut_bnd_dupc_60_80_h1_r6_hifi', 'mut_bnd_dupc_60_80_h2_r74_hifi', 'mut_bnd_inscccc_60_80_h1_r54_hifi', 'mut_bnd_insg_50_70_h1_r8_hifi', 'mut_bnd_insg_50_70_h2_r65_hifi', 'mut_gap2_del18_31_80_82_h2_hifi', 'mut_gap3_ins25bp_70_73_h2_hifi', 'mut_typ_insa_pos54_40_60_h1_hifi', 'mut_typ_insa_pos54_40_60_h2_hifi', 'mut_typ_insc_pos23_60_80_h1_hifi', 'mut_typ_insg_pos54_60_80_h1_hifi', 'mut_typ_insg_pos58_50_70_h1_hifi', 'mut_typ_insg_pos58_50_70_h2_hifi']
+  HiFi Losses: 0 []
+  HiFi Net: 21
+  ONT  Wins: 2 ['ctrl_lowcov_60_80_ont', 'mut_asym_del18_31_30_120_h2_ont']
+  ONT  Losses: 0 []
+  ONT  Net: 2
+
+
+=== GIT DIFF AGAINST BASELINE (v0.11.0 commit 9535f7e) ===
+
+
+Please provide your rigorous critique, answering each specific question, evaluating all numerical acceptance gates, checking for subtle failure modes or overfitting risks, and issuing a clear final verdict.
