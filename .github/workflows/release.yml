@@ -7,17 +7,24 @@ on:
 permissions:
   contents: read
 
+concurrency:
+  group: release-${{ github.ref }}
+  cancel-in-progress: false
+
 jobs:
   release:
     name: Create GitHub Release
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     timeout-minutes: 10
     permissions:
       contents: write
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
-        with:
-          fetch-depth: 0
+
+      - name: Verify tag matches the package version
+        run: |
+          PACKAGE_VERSION="$(python3 -c 'import runpy; print(runpy.run_path("src/open_pacmuci/version.py")["__version__"])')"
+          test "$GITHUB_REF" = "refs/tags/v$PACKAGE_VERSION"
 
       - name: Create release
         uses: softprops/action-gh-release@efb35369e0ad2afab669f228072c1b0d510eae64 # v3

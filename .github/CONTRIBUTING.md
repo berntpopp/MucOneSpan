@@ -17,7 +17,7 @@ make hooks
 make ci-check
 ```
 
-`make dev` installs the locked environment with all extras. `make hooks` installs
+`make dev` installs the locked environment with all dependency groups and extras. `make hooks` installs
 pre-commit checks and a pre-push unit test gate using the same targets as CI.
 When changing dependencies, update `pyproject.toml`, run `make lock`, review
 `uv.lock`, and repeat `make dev`.

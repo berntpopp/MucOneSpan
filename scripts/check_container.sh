@@ -2,13 +2,16 @@
 # Smoke-test the installed image, including Clair3 inference, using Docker only.
 set -euo pipefail
 
-container_image=${1:?Usage: bash scripts/check_container.sh IMAGE}
+if [[ ${1:-} != --inside-container ]]; then
+    container_image=${1:?Usage: bash scripts/check_container.sh IMAGE}
+    docker run --rm "$container_image" --help
+    docker run --rm "$container_image" --version
+    docker run --rm -i --entrypoint bash "$container_image" -s -- --inside-container < "$0"
+    exit
+fi
 
-docker run --rm "$container_image" --help
-docker run --rm "$container_image" --version
-
-docker run --rm -i --entrypoint bash "$container_image" -s <<'CONTAINER'
-set -euo pipefail
+open-pacmuci --help
+open-pacmuci --version
 
 # Check the runtime stage, not the builder's source tree or Python environment.
 test "$(id -u)" -ne 0
@@ -25,14 +28,23 @@ cd "$smoke_dir"
 python - <<'PY'
 from importlib.metadata import version
 from pathlib import Path
+import os
 import random
 import shutil
 import subprocess
+
+from open_pacmuci.report import generate_report
+from open_pacmuci.tools import _clean_path_for_externals
 
 assert subprocess.check_output(["open-pacmuci", "--version"], text=True).strip() == (
     f"open-pacmuci, version {version('open-pacmuci')}"
 )
 model_root = Path(shutil.which("run_clair3.sh")).parent / "models"
+external_path = _clean_path_for_externals(os.environ["PATH"])
+assert "/opt/venv/bin" not in external_path.split(os.pathsep)
+assert Path(shutil.which("python3", path=external_path)).parent == model_root.parent
+generate_report({"alleles": {}, "classifications": {}}, Path("report.html"))
+assert "--bg: #ffffff" in Path("report.html").read_text()
 for platform in ("hifi", "ont"):
     for model in ("pileup", "full_alignment"):
         assert (model_root / platform / f"{model}.index").is_file()
@@ -64,16 +76,21 @@ PY
 minimap2 -ax map-hifi ref.fa reads.fq | samtools sort -o reads.bam
 samtools index reads.bam
 samtools faidx ref.fa
-clair3_models="$(dirname "$(command -v run_clair3.sh)")/models"
-run_clair3.sh \
-    --bam_fn="$smoke_dir/reads.bam" \
-    --ref_fn="$smoke_dir/ref.fa" \
-    --output="$smoke_dir/calls" \
-    --threads=2 \
-    --platform=hifi \
-    --model_path="$clair3_models/hifi" \
-    --include_all_ctgs \
-    --chunk_size=5000
+# Exercise the application's command boundary: Clair3 must inherit its conda
+# Python rather than the smaller application venv, which has no TensorFlow.
+python - <<'PY'
+from pathlib import Path
+import shutil
+
+from open_pacmuci.calling import run_clair3
+
+root = Path.cwd()
+models = Path(shutil.which("run_clair3.sh")).parent / "models"
+run_clair3(
+    root / "reads.bam", root / "ref.fa", root / "calls",
+    model_path=str(models / "hifi"), threads=2,
+)
+PY
 bcftools query -f '%CHROM\t%POS\t%REF\t%ALT\t%FILTER[\t%GT\t%DP]\n' \
     calls/merge_output.vcf.gz > observed.tsv
 python - <<'PY'
@@ -86,4 +103,3 @@ assert observed[0][:4] == expected, observed
 assert observed[0][4:] == ["PASS", "1/1", "20"], observed
 print("Container smoke test passed: packaged tools, data, models, and Clair3 SNP call.")
 PY
-CONTAINER

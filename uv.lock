@@ -973,6 +973,16 @@ dependencies = [
 ]
 
 [package.optional-dependencies]
+docs = [
+    { name = "mkdocs-click" },
+    { name = "mkdocs-material" },
+    { name = "mkdocstrings", extra = ["python"] },
+]
+report = [
+    { name = "jinja2" },
+]
+
+[package.dev-dependencies]
 dev = [
     { name = "actionlint-py" },
     { name = "mypy" },
@@ -984,34 +994,56 @@ dev = [
     { name = "ruff" },
     { name = "types-pyyaml" },
 ]
-docs = [
-    { name = "mkdocs-click" },
-    { name = "mkdocs-material" },
-    { name = "mkdocstrings", extra = ["python"] },
+quality = [
+    { name = "actionlint-py" },
+    { name = "mypy" },
+    { name = "ruff" },
+    { name = "types-pyyaml" },
 ]
-report = [
-    { name = "jinja2" },
+security = [
+    { name = "pip-audit" },
+]
+test = [
+    { name = "pytest" },
+    { name = "pytest-cov" },
+    { name = "pytest-mock" },
 ]
 
 [package.metadata]
 requires-dist = [
-    { name = "actionlint-py", marker = "extra == 'dev'", specifier = "==1.7.12.24" },
     { name = "click", specifier = ">=8.3.3,<9.0" },
     { name = "jinja2", marker = "extra == 'report'", specifier = ">=3.1.0" },
     { name = "mkdocs-click", marker = "extra == 'docs'", specifier = ">=0.8.0" },
     { name = "mkdocs-material", marker = "extra == 'docs'", specifier = ">=9.7.7" },
     { name = "mkdocstrings", extras = ["python"], marker = "extra == 'docs'", specifier = ">=0.24.0" },
-    { name = "mypy", marker = "extra == 'dev'", specifier = ">=1.8.0" },
-    { name = "pip-audit", marker = "extra == 'dev'", specifier = ">=2.9,<3" },
-    { name = "pre-commit", marker = "extra == 'dev'", specifier = ">=4.0,<5" },
-    { name = "pytest", marker = "extra == 'dev'", specifier = ">=9.0.3" },
-    { name = "pytest-cov", marker = "extra == 'dev'", specifier = ">=5.0.0" },
-    { name = "pytest-mock", marker = "extra == 'dev'", specifier = ">=3.14.0" },
     { name = "pyyaml", specifier = ">=6.0" },
-    { name = "ruff", marker = "extra == 'dev'", specifier = "==0.15.11" },
-    { name = "types-pyyaml", marker = "extra == 'dev'", specifier = ">=6.0" },
 ]
-provides-extras = ["dev", "docs", "report"]
+provides-extras = ["docs", "report"]
+
+[package.metadata.requires-dev]
+dev = [
+    { name = "actionlint-py", specifier = "==1.7.12.24" },
+    { name = "mypy", specifier = ">=1.8.0" },
+    { name = "pip-audit", specifier = ">=2.9,<3" },
+    { name = "pre-commit", specifier = ">=4.0,<5" },
+    { name = "pytest", specifier = ">=9.0.3" },
+    { name = "pytest-cov", specifier = ">=5.0.0" },
+    { name = "pytest-mock", specifier = ">=3.14.0" },
+    { name = "ruff", specifier = "==0.15.11" },
+    { name = "types-pyyaml", specifier = ">=6.0" },
+]
+quality = [
+    { name = "actionlint-py", specifier = "==1.7.12.24" },
+    { name = "mypy", specifier = ">=1.8.0" },
+    { name = "ruff", specifier = "==0.15.11" },
+    { name = "types-pyyaml", specifier = ">=6.0" },
+]
+security = [{ name = "pip-audit", specifier = ">=2.9,<3" }]
+test = [
+    { name = "pytest", specifier = ">=9.0.3" },
+    { name = "pytest-cov", specifier = ">=5.0.0" },
+    { name = "pytest-mock", specifier = ">=3.14.0" },
+]
 
 [[package]]
 name = "packageurl-python"

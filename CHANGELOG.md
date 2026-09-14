@@ -12,6 +12,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 ### Fixed
 - Docker build permission failure during unnecessary builder cleanup.
 - Vulnerable Python dependencies in the runtime, test, and documentation lockfile.
+- Refresh editable package metadata when the dynamically loaded version changes.
 
 ### Changed
 - Share concise agent instructions across Codex, Claude Code, and Gemini CLI.
@@ -19,6 +20,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 - Use locked dependencies and matching local/CI lint, format, type, workflow,
   coverage, packaging, documentation, and dependency audit checks.
 - Test Python 3.10–3.14 and build/test containers on pull requests before publishing.
+- Reduce CI setup with targeted uv groups, one coverage run, cached tool environments,
+  and checks selected by changed files; keep stable gates for every pull request.
+- Preserve Docker tool layers across source changes, use locked application dependencies,
+  and avoid uploading large build caches from pull requests.
 - Replace placeholder integration tests with real tool and pipeline assertions;
   expose documented scientific limitations as strict expected failures.
 

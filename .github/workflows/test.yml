@@ -4,7 +4,6 @@ on:
   push:
     branches: [main, dev, 'dev/*']
   pull_request:
-    branches: [main, dev]
   workflow_dispatch:
 
 permissions:
@@ -20,22 +19,76 @@ env:
 jobs:
   quality:
     name: Code Quality Checks
-    runs-on: ubuntu-latest
+    runs-on: ubuntu-24.04
     timeout-minutes: 10
+    permissions:
+      contents: read
+      pull-requests: read
+    outputs:
+      runtime: ${{ steps.changes.outputs.runtime }}
+      package: ${{ steps.changes.outputs.package }}
+      dependencies: ${{ steps.changes.outputs.dependencies }}
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+      # Filter jobs, not workflow triggers: CI Gate must report on every PR base.
+      # Pushes and manual runs always exercise the complete suite.
+      - uses: dorny/paths-filter@ceb8a2b8f2d89434be7ff52d3de7ec3738c5cc9d # v4
+        if: github.event_name == 'pull_request'
+        id: changes
+        with:
+          filters: |
+            runtime:
+              - 'src/**'
+              - 'tests/**'
+              - 'scripts/**'
+              - 'conda/**'
+              - 'pyproject.toml'
+              - 'uv.lock'
+              - 'requirements*.txt'
+              - 'requirements/**'
+              - '.python-version'
+              - 'Makefile'
+              - '.github/workflows/**'
+              - '.github/actions/**'
+              - '.pre-commit-config.yaml'
+            package:
+              - 'src/**'
+              - 'scripts/**'
+              - 'pyproject.toml'
+              - 'uv.lock'
+              - 'requirements*.txt'
+              - 'requirements/**'
+              - '.python-version'
+              - 'Makefile'
+              - 'README.md'
+              - 'LICENSE*'
+              - '.github/workflows/**'
+              - '.github/actions/**'
+            dependencies:
+              - 'pyproject.toml'
+              - 'uv.lock'
+              - 'requirements*.txt'
+              - 'requirements/**'
+              - '.python-version'
+              - 'Makefile'
+              - 'src/open_pacmuci/version.py'
+              - '.github/workflows/**'
+              - '.github/actions/**'
       - uses: astral-sh/setup-uv@bec219d24cd3e171d82865faccec33120bb574f4 # v10.1.0
         with:
           version: ${{ env.UV_VERSION }}
           python-version: '3.10'
           enable-cache: true
-      - run: make dev
+          cache-dependency-glob: uv.lock
+          cache-suffix: quality
       - run: make quality
 
   test:
     name: Test Suite (Python ${{ matrix.python }})
-    runs-on: ubuntu-latest
-    timeout-minutes: 15
+    needs: quality
+    if: github.event_name != 'pull_request' || needs.quality.outputs.runtime == 'true'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
     strategy:
       fail-fast: false
       matrix:
@@ -47,8 +100,13 @@ jobs:
           version: ${{ env.UV_VERSION }}
           python-version: ${{ matrix.python }}
           enable-cache: true
-      - run: make dev
-      - run: make test-unit
+          cache-dependency-glob: uv.lock
+          cache-suffix: test-${{ matrix.python }}
+      # Measure coverage once; every supported interpreter still runs all units.
+      - if: matrix.python == '3.10'
+        run: make test-unit
+      - if: matrix.python != '3.10'
+        run: make test-fast
       - name: Upload coverage
         if: matrix.python == '3.10'
         uses: codecov/codecov-action@fb8b3582c8e4def4969c97caa2f19720cb33a72f # v7
@@ -60,34 +118,43 @@ jobs:
 
   integration:
     name: Integration Tests
-    runs-on: ubuntu-latest
-    timeout-minutes: 20
+    needs: quality
+    if: github.event_name != 'pull_request' || needs.quality.outputs.runtime == 'true'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
-      - uses: conda-incubator/setup-miniconda@8ee1f361103df19b6f8c8655fd3967a8ecb162d5 # v4
+      # Restore the solved environment; its file/spec hash is appended by the action.
+      - uses: mamba-org/setup-micromamba@f457c30a868e4760d3a6fcea5f25dc655b8edf39 # v3
         with:
-          miniforge-version: latest
-          activate-environment: open-pacmuci-tools
+          micromamba-version: '2.9.0-0'
           environment-file: conda/environment.yml
-          channels: conda-forge,bioconda
-          channel-priority: strict
+          condarc: |
+            channel_priority: strict
+          cache-environment: true
+          cache-environment-key: integration-ubuntu24-micromamba2.9
+          cache-downloads: false
+          init-shell: bash
       - uses: astral-sh/setup-uv@bec219d24cd3e171d82865faccec33120bb574f4 # v10.1.0
         with:
           version: ${{ env.UV_VERSION }}
           python-version: '3.10'
           enable-cache: true
+          cache-dependency-glob: uv.lock
+          cache-suffix: integration
       - name: Verify tools and run integration tests
         shell: bash -el {0}
         run: |
           minimap2 --version
           samtools --version
           bcftools --version
-          make dev
           make test-int
 
   package:
     name: Package Build
-    runs-on: ubuntu-latest
+    needs: quality
+    if: github.event_name != 'pull_request' || needs.quality.outputs.package == 'true'
+    runs-on: ubuntu-24.04
     timeout-minutes: 10
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
@@ -96,11 +163,15 @@ jobs:
           version: ${{ env.UV_VERSION }}
           python-version: '3.12'
           enable-cache: true
-      - run: make dev build-check
+          cache-dependency-glob: uv.lock
+          cache-suffix: package
+      - run: make build-check
 
   security:
     name: Dependency Audit
-    runs-on: ubuntu-latest
+    needs: quality
+    if: github.event_name != 'pull_request' || needs.quality.outputs.dependencies == 'true'
+    runs-on: ubuntu-24.04
     timeout-minutes: 10
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
@@ -109,4 +180,37 @@ jobs:
           version: ${{ env.UV_VERSION }}
           python-version: '3.10'
           enable-cache: true
-      - run: make dev security-check
+          cache-dependency-glob: uv.lock
+          cache-suffix: security
+      - run: make security-check
+
+  gate:
+    name: CI Gate
+    if: always()
+    needs: [quality, test, integration, package, security]
+    runs-on: ubuntu-24.04
+    timeout-minutes: 2
+    steps:
+      - name: Require every applicable check to pass
+        env:
+          QUALITY: ${{ needs.quality.result }}
+          TEST: ${{ needs.test.result }}
+          INTEGRATION: ${{ needs.integration.result }}
+          PACKAGE: ${{ needs.package.result }}
+          SECURITY: ${{ needs.security.result }}
+          RUNTIME_REQUIRED: ${{ github.event_name != 'pull_request' || needs.quality.outputs.runtime == 'true' }}
+          PACKAGE_REQUIRED: ${{ github.event_name != 'pull_request' || needs.quality.outputs.package == 'true' }}
+          SECURITY_REQUIRED: ${{ github.event_name != 'pull_request' || needs.quality.outputs.dependencies == 'true' }}
+        run: |
+          test "$QUALITY" = success
+          check_result() {
+            if [ "$1" = true ]; then
+              test "$2" = success
+            else
+              test "$2" = skipped || test "$2" = success
+            fi
+          }
+          check_result "$RUNTIME_REQUIRED" "$TEST"
+          check_result "$RUNTIME_REQUIRED" "$INTEGRATION"
+          check_result "$PACKAGE_REQUIRED" "$PACKAGE"
+          check_result "$SECURITY_REQUIRED" "$SECURITY"

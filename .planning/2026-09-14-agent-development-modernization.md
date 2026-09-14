@@ -13,7 +13,7 @@ PR while preserving scientific behavior and public interfaces.
 - Put architecture, scientific invariants, setup, and test details in maintained
   developer docs. Keep historical benchmark snapshots in `.planning/` and avoid
   presenting them as fresh evidence.
-- Use `uv.lock` with all extras for local checks, hooks, and CI. Dependency
+- Use `uv.lock` with all dependency groups and extras for local checks, hooks, and CI. Dependency
   changes must update the project manifest and lock together.
 - Enforce fewer than 650 physical lines for authored code, configuration, and
   templates, including blank lines/comments. Scan tracked plus untracked
@@ -35,10 +35,13 @@ PR while preserving scientific behavior and public interfaces.
 6. Commit the reviewed change and open the user-authorized draft PR.
 7. Per the follow-up instruction, bump the minor version to 0.9.0 and merge the
    PR only after all applicable tests and GitHub Actions pass.
+8. Per the performance follow-up, compare `../hum-clinical-reporting`, optimize
+   dependency groups and container layers/cache, measure cold/incremental behavior,
+   and require the optimized head to pass before merging all outstanding PRs.
 
 ## Validation contract
 
-- `make dev`: reproduce the locked environment with all extras.
+- `make dev`: reproduce the locked environment with all dependency groups and extras.
 - `make ci-check`: lint, format, configured mypy, file-size/workflow checks, and
   unit tests with at least 80% branch-aware coverage.
 - `make docs-check`: strict documentation build.

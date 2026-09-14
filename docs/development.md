@@ -16,9 +16,14 @@ make dev
 make ci-check
 ```
 
-`make dev` synchronizes `uv.lock` with all extras, including development, report,
+`make dev` synchronizes `uv.lock` with all dependency groups and extras, including development, report,
 and documentation dependencies. Normal development uses the lock without
-updating dependency resolution. When intentionally changing dependencies, edit
+updating dependency resolution. Individual Make targets install only their required
+group (`quality`, `test`, or `security`) or extra (`docs` or `report`); developer
+tooling is managed with uv dependency groups rather than a published `dev` extra.
+The local `dev` group includes all tool groups and pre-commit.
+
+When intentionally changing dependencies, edit
 `pyproject.toml`, run `make lock`, review the lock diff, and run `make dev` again.
 
 | Command | Purpose |
@@ -31,6 +36,8 @@ updating dependency resolution. When intentionally changing dependencies, edit
 | `make docs-check` | Strict documentation build |
 | `make security-check` | Audit all locked extras against published Python advisories |
 | `make build-check` | Distribution build and package validation |
+| `make docker-test` | BuildKit runtime checks without image export/load |
+| `make docker-build docker-smoke` | Build and test an image through Docker |
 | `make format` | Apply Ruff formatting |
 | `make lint-fix` | Apply supported Ruff fixes; review the resulting diff |
 
@@ -145,6 +152,44 @@ Inspect skip reasons. A successful invocation in an environment missing tools,
 models, or generated data does not demonstrate that those behaviors work.
 Report the commands, pass/fail/skip counts, and missing prerequisites in a PR.
 See [benchmarking](guides/benchmarking.md) for portable generation and batch runs.
+
+## CI and container efficiency
+
+The workflow design was compared with the sibling `hum-clinical-reporting`
+repository. Both benefit from locked dependency layers, small build contexts,
+lock-keyed caches, explicit runner versions, and separate routine checks from
+expensive tool checks. This pipeline retains Debian for its Conda/TensorFlow
+bioinformatics stack; the reporting application's Alpine runtime is specific to
+its own dependency set.
+
+- Each Make target selects its required uv group or extra. A fresh Python 3.10
+  unit environment installs 16 distributions, compared with 76 when all tooling
+  and documentation dependencies were installed in every job.
+- All five supported Python versions run the unit suite for runtime changes.
+  Python 3.10 alone measures coverage; the other four avoid redundant coverage
+  instrumentation and HTML/XML generation.
+- PR file filters skip unrelated integration, package, dependency-audit, and
+  container work. The always-running CI Gate rejects failures and unexpected
+  skips. Branch pushes and manual runs execute all applicable checks.
+- The solved integration Conda environment is cached by its specification.
+  Python caches depend on `uv.lock`, so a version-only edit does not discard
+  third-party packages. The editable project's metadata cache separately tracks
+  `version.py`, keeping the installed version accurate after a bump.
+- The Docker tools layer depends only on the pinned base and Conda inputs. The
+  locked application and report dependencies live in a separate small virtualenv;
+  external tool calls use the Conda interpreter. Source edits preserve the large
+  tool layer. The smoke test verifies both interpreters, report rendering, and
+  real Clair3 inference.
+- PR container builds restore cache only and run the smoke test in a BuildKit
+  test stage, without exporting/loading a Docker image. This stage adds no
+  dependencies to the runtime it tests. Trusted main builds publish that same
+  runtime ancestor and export final layers without duplicate builder environments.
+
+Before optimization, the measured GitHub container build step took 424 seconds:
+197 seconds were cache export and 119 seconds were image export/loading. The PR
+BuildKit test target avoids both export tasks. Cold builds still need
+to obtain the bioinformatics tools and models; their size is an inherent cost,
+so compare cold and cached builds separately when measuring future changes.
 
 ## Changes and review
 
