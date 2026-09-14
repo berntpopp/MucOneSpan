@@ -1,136 +1,122 @@
 # Benchmarking with MucOneUp
 
-[MucOneUp](https://github.com/berntpopp/muconeup) is a companion tool that generates simulated MUC1 VNTR haplotypes and PacBio HiFi amplicon reads with known ground truth, for benchmarking and validation of open-pacmuci.
-
----
+[MucOneUp](https://github.com/berntpopp/muconeup) generates simulated MUC1 VNTR
+haplotypes and amplicon reads with known ground truth. Use it to evaluate allele
+length detection and mutation classification separately from unit tests.
 
 ## Prerequisites
 
-| Tool | Version | Purpose | Install |
-|------|---------|---------|---------|
-| MucOneUp | >= 0.44.0 | VNTR simulation + amplicon reads | `pip install muc-one-up` |
-| pbsim3 | latest | PacBio HiFi read simulation | `conda install -c bioconda pbsim3` |
-| minimap2 | >= 2.28 | Read alignment | `conda install -c bioconda minimap2` |
-| samtools | >= 1.21 | BAM processing | `conda install -c bioconda samtools` |
+Run `make dev` for the locked open-pacmuci environment. The simulation workflow
+also requires MucOneUp, its `config.json`, and pbsim3 in a suitable external tool
+environment. Install minimap2 and samtools for alignment; full pipeline runs also
+need bcftools, Clair3, and the appropriate model. The repository's
+`conda/environment.yml` supplies the core alignment/consensus tools, but does not
+install the simulator or Clair3.
 
-!!! note "MucOneUp config.json"
-    MucOneUp requires a `config.json` file defining repeat sequences and probabilities. This file is included in the [MucOneUp repository](https://github.com/berntpopp/muconeup).
-
----
-
-## Generating Test Data
-
-open-pacmuci includes a test data generation script that creates 10 simulated samples covering a range of mutation types and allele configurations.
-
-### Run the Generator
+Activate the tool environment before running commands. Point to your MucOneUp
+configuration explicitly rather than relying on a developer's directory layout:
 
 ```bash
-# Ensure pbsim3 is on PATH
-export PATH="/path/to/conda/envs/env_pacbio/bin:$PATH"
-
-# Generate all test samples
-python scripts/generate_testdata.py
+export MUCONEUP_CONFIG=/path/to/muconeup/config.json
+make generate-testdata
 ```
 
-### Test Samples Generated
+The documented historical runs used MucOneUp 0.44.2. Record your exact simulator,
+pbsim3, alignment, caller, and model versions when producing new results. The
+current generator needs a MucOneUp version supporting the ONT amplicon option.
 
-| Sample | Allele 1 | Allele 2 | Mutation | Purpose |
-|--------|----------|----------|----------|---------|
-| `sample_dupc_60_80` | 60 repeats | 80 repeats | dupC at repeat 25 | Common mutation, well-separated alleles |
-| `sample_dupa_60_80` | 60 repeats | 80 repeats | dupA at repeat 25 | Alternative single-base mutation |
-| `sample_insg_60_80` | 60 repeats | 80 repeats | insG at repeat 25 | G insertion mutation |
-| `sample_dupcccc_60_80` | 60 repeats | 80 repeats | insCCCC at repeat 25 | Multi-base insertion |
-| `sample_del_60_80` | 60 repeats | 80 repeats | del18_31 at repeat 25 | Large deletion |
-| `sample_normal_60_80` | 60 repeats | 80 repeats | None | Negative control |
-| `sample_homozygous_60_60` | 60 repeats | 60 repeats | dupC at repeat 25 | Same-length alleles |
-| `sample_asymmetric_25_140` | 25 repeats | 140 repeats | dupC at repeat 10 | Extreme length asymmetry |
-| `sample_short_25_30` | 25 repeats | 30 repeats | dupC at repeat 10 | Very close alleles |
-| `sample_long_120_140` | 120 repeats | 140 repeats | dupC at repeat 50 | Long alleles |
+## Generated samples
 
-All samples are generated at **200x template coverage** with realistic PCR length bias.
+`scripts/generate_testdata.py` is the source of truth for sample names, seeds,
+mutation targets, and coverage. It creates **26 HiFi samples and 3 ONT samples**
+under `tests/data/generated/`.
 
-**Output location:** `tests/data/generated/`
+| Group | Cases |
+| --- | --- |
+| Core mutations | dupC, dupA, insG, insCCCC, del18_31, normal |
+| Length edge cases | Same-length 60/60, asymmetric 25/140, short 25/30, long 120/140 |
+| Reproducibility | Additional dupC seeds and 40/50, 80/100, 100/120 lengths |
+| Close alleles | 50/55, 50/57, 50/60 with mutation and normal controls |
+| Long allele mutations | dupA and insG at 100/120, plus a normal control |
+| Low coverage | dupC at 50x |
+| ONT | dupC, dupA, and normal at 60/80 |
 
----
+Default coverage is 200x, with the named low-coverage sample at 50x. Ground truth
+includes simulated haplotype FASTA and simulation statistics. Keep generated
+reads and results out of Git; record parameters and summaries needed to reproduce
+an experiment.
 
-## Running Integration Tests
-
-Integration tests exercise the full pipeline against the generated test data.
+## Integration tests
 
 ```bash
-# Ensure external tools are on PATH
-export PATH="/path/to/conda/envs/env_pacbio/bin:$PATH"
-
-# Run integration tests
-uv run pytest tests/integration/ -v --no-cov
+make test-int
 ```
 
----
-
-## Validation Results
-
-Tested against MucOneUp-simulated PacBio HiFi amplicon data:
-
-| Metric | Result |
-|--------|--------|
-| VNTR classification (given correct sequence) | 20/20 haplotypes perfect (100% exact match) |
-| Allele length detection (gap >= 5 repeats) | Exact match |
-| Allele length detection (gap 3-4 repeats) | Within +/- 2 repeats |
-| Full pipeline with Clair3 (dupC sample) | dupC detected at correct position, 100% confidence |
-| Close allele pairs (gap 3-12 repeats) | 12/12 resolved by indel-valley splitting |
-
-### Known Limitations
-
-!!! warning "Edge cases in allele detection"
-    These limitations affect allele detection from BAM files, not classification:
-
-    - **`sample_asymmetric_25_140`**: The 140-repeat allele is undetectable (only ~2 reads due to extreme PCR bias favoring the 25-repeat allele)
-    - **`sample_short_25_30`**: Alleles 5 repeats apart may merge into one cluster when the gap between them contains no zero-count contigs
-
-These are fundamental limitations of the PCR amplicon approach, not software bugs.
-
----
-
-## Custom Benchmarking
-
-### Generate Specific Test Cases
-
-Use MucOneUp directly to create custom scenarios:
+`make test-int` selects the `integration` marker. To request generated-data
+end-to-end tests as well, run:
 
 ```bash
-# Generate a diploid haplotype with specific lengths and mutation
-muconeup --config config.json simulate \
-  --out-base custom_test \
-  --out-dir my_output/ \
-  --num-haplotypes 2 \
-  --fixed-lengths 45 \
-  --fixed-lengths 65 \
-  --mutation-name dupC \
-  --mutation-targets 1,20 \
-  --output-structure \
-  --seed 42
-
-# Simulate PacBio HiFi amplicon reads
-muconeup --config config.json reads amplicon \
-  custom_test.001.simulated.fa \
-  --coverage 200 \
-  --out-base custom_reads
-
-# Run open-pacmuci on the simulated data
-open-pacmuci run \
-  --input custom_reads.amplicon.bam \
-  --output-dir custom_results/ \
-  --clair3-model /path/to/models/hifi
-
-# Compare to ground truth
-jq '.mutations' custom_test.001.simulation_stats.json
-cat custom_results/repeats.txt
+uv run --locked --all-extras pytest tests/integration -m "integration or e2e" --no-cov
 ```
 
----
+Tests declare required tools and fixtures. Inspect skip reasons: missing tools,
+models, or generated data can leave scientific behavior untested. pbsim3 is only
+needed to generate reads; tests using existing reads do not need to rerun it.
+The unit suite is independent and runs with `make ci-check`.
 
-## Next Steps
+## Batch analysis
 
-- **[Known Mutations](../reference/mutations.md)** -- Full mutation catalog
-- **[CLI Reference](../reference/cli.md)** -- All command options
-- **[Core Concepts](../getting-started/concepts.md)** -- Pipeline architecture
+Set the model location appropriate for the platform and invoke the batch script
+from the repository root:
+
+```bash
+export CLAIR3_MODEL=/path/to/clair3/models/hifi
+uv run --locked --all-extras python scripts/batch_analyze.py \
+  /path/to/hifi_samples tests/results/hifi --platform hifi
+```
+
+The generator writes HiFi and ONT samples together. Before a platform-specific
+batch run, prepare an input directory containing only that platform's samples;
+do not analyze ONT reads with the HiFi preset. For an ONT-only directory:
+
+```bash
+export CLAIR3_MODEL=/path/to/clair3/models/ont
+uv run --locked --all-extras python scripts/batch_analyze.py \
+  /path/to/ont_samples tests/results/ont --platform ont
+```
+
+The batch output includes `batch_results.json` and per-sample pipeline results.
+Inspect error counts as well as TP/FN/FP/TN categories. A completed batch is not
+necessarily an accurate or error-free batch. Avoid reusing stale outputs when
+comparing implementations; use separate result directories.
+
+For a single sample:
+
+```bash
+uv run --locked --all-extras open-pacmuci run \
+  --input /path/to/sample_reads.bam \
+  --output-dir tests/results/single \
+  --clair3-model "$CLAIR3_MODEL" \
+  --platform hifi
+```
+
+## Interpretation and historical results
+
+Assess repeat classification against known sequences, allele lengths against
+ground truth, and full pipeline mutation calls separately. Record false positives,
+false negatives, partial matches, errors, model/tool versions, seeds, and coverage.
+Pay particular attention to same-length alleles, nearby lengths, long tandem
+repeats, low coverage, and PCR bias.
+
+The [historical benchmark report](https://github.com/berntpopp/open-pacmuci/blob/main/.planning/BENCHMARK_RESULTS.md)
+records a 44-sample v0.3.0 run: 25/28 mutation detections and 15/16 correct normal
+calls. That dataset includes additional experiments beyond the generator's core
+catalog. Its observations include a same-length allele splitting failure and
+missed single-base insertions in long repeats. These are version-specific
+observations, not current validation results or clinical performance claims.
+
+See [limitations](../reference/limitations.md),
+[known mutations](../reference/mutations.md), and
+[CLI reference](../reference/cli.md) for context. The longer
+[historical testing notes](https://github.com/berntpopp/open-pacmuci/blob/main/.planning/TESTING_WITH_MUCONEUP.md)
+retain past experiments; use the portable commands here for new work.

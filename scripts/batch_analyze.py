@@ -105,7 +105,8 @@ def run_pipeline(sample_dir: Path, output_dir: Path, platform: str = "hifi") -> 
     if not summary_file.exists():
         return {"error": "no summary.json produced"}
 
-    return json.loads(summary_file.read_text())
+    summary: dict = json.loads(summary_file.read_text())
+    return summary
 
 
 def analyze_results(
@@ -187,7 +188,7 @@ def analyze_results(
     return analysis
 
 
-def main():
+def main() -> None:
     import argparse
 
     parser = argparse.ArgumentParser(description="Batch analyze test samples")

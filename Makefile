@@ -1,116 +1,86 @@
-.PHONY: help init install-uv install dev conda-setup test test-fast test-unit test-int lint lint-fix format format-check type-check check ci-check clean generate-testdata lock sync
+.DEFAULT_GOAL := help
+UV_RUN = uv run --locked --all-extras
+PYTHON_PATHS = src tests scripts
 
-help:  ## Show this help message
-	@echo "Usage: make [target]"
-	@echo ""
-	@echo "Targets:"
-	@grep -E '^[a-zA-Z_-]+:.*?## .*$$' $(MAKEFILE_LIST) | sort | \
-		awk 'BEGIN {FS = ":.*?## "}; {printf "  \033[36m%-20s\033[0m %s\n", $$1, $$2}'
+.PHONY: help init install-uv install dev conda-setup test test-fast test-unit test-int lint lint-fix format format-check type-check file-size workflow-check quality check ci-check docs-check security-check build-check hooks clean generate-testdata lock sync
 
-# ==================== INSTALLATION ====================
+help:  ## Show available commands
+	@awk 'BEGIN {FS = ":.*## "} /^[a-zA-Z_-]+:.*## / {printf "%-22s %s\n", $$1, $$2}' $(MAKEFILE_LIST)
 
-init: install-uv dev  ## Initialize complete development environment
+init: dev hooks  ## Set up development dependencies and Git hooks (requires uv)
 
-install-uv:  ## Install uv package manager (if not present)
-	@command -v uv >/dev/null 2>&1 || { \
-		echo "Installing uv..."; \
-		curl -LsSf https://astral.sh/uv/install.sh | sh; \
-	}
-	@echo "uv installed"
+install-uv:  ## Show the uv installation documentation
+	@echo "Install uv: https://docs.astral.sh/uv/getting-started/installation/"
 
-install:  ## Install package in production mode
-	uv pip install .
+install:  ## Install the locked runtime and report dependencies
+	uv sync --locked --extra report
 
-dev:  ## Install package with development dependencies
-	uv pip install -e ".[dev]"
-	@echo "Development environment ready"
+dev:  ## Install all locked development, report, and documentation dependencies
+	uv sync --locked --all-extras
 
-conda-setup:  ## Create conda environment for bioinformatics tools
-	@command -v mamba >/dev/null 2>&1 || command -v conda >/dev/null 2>&1 || { \
-		echo "ERROR: conda/mamba not found."; \
-		exit 1; \
-	}
-	@if command -v mamba >/dev/null 2>&1; then \
-		mamba env create -f conda/environment.yml --force; \
-	else \
-		conda env create -f conda/environment.yml --force; \
-	fi
-	@echo "Conda environment created: open-pacmuci-tools"
+conda-setup:  ## Create bioinformatics tools environment
+	conda env create -f conda/environment.yml
 
-# ==================== TESTING ====================
+sync: dev  ## Synchronize the development environment without changing uv.lock
 
-test:  ## Run all tests with coverage
-	uv run pytest
-
-test-fast:  ## Run unit tests only, no coverage (fast)
-	uv run pytest tests/unit/ --no-cov -x
-
-test-unit:  ## Run unit tests with coverage
-	uv run pytest tests/unit/
-
-test-int:  ## Run integration tests only
-	uv run pytest tests/integration/ -m "integration or e2e"
-
-# ==================== CODE QUALITY ====================
-
-lint:  ## Run ruff linter
-	uv run ruff check src/open_pacmuci/ tests/
-
-lint-fix:  ## Run ruff linter and auto-fix issues
-	uv run ruff check --fix src/open_pacmuci/ tests/
-
-format:  ## Format code with ruff
-	uv run ruff format src/open_pacmuci/ tests/
-
-format-check:  ## Check if code is formatted (no changes)
-	uv run ruff format --check src/open_pacmuci/ tests/
-
-type-check:  ## Run mypy type checker
-	uv run mypy src/open_pacmuci/
-
-check: lint format-check type-check test  ## Run all quality checks
-
-ci-check:  ## Run EXACT same checks as GitHub Actions CI
-	@echo "Running CI checks locally..."
-	@echo ""
-	@echo "=== Code Quality Checks ==="
-	@echo "1. Ruff linter..."
-	uv run ruff check src/open_pacmuci/ tests/
-	@echo "2. Ruff formatter check..."
-	uv run ruff format --check src/open_pacmuci/ tests/
-	@echo "3. Mypy type checker..."
-	uv run mypy src/open_pacmuci/
-	@echo ""
-	@echo "=== Test Suite ==="
-	@echo "4. Running pytest with coverage (>=80%)..."
-	uv run pytest tests/unit/ --cov=open_pacmuci --cov-report=term-missing --cov-fail-under=80
-	@echo ""
-	@echo "All CI checks passed!"
-
-# ==================== TEST DATA ====================
-
-generate-testdata:  ## Generate test data via MucOneUp (requires conda env + MucOneUp)
-	uv run python scripts/generate_testdata.py
-
-# ==================== CLEANUP ====================
-
-clean:  ## Remove build artifacts and caches
-	rm -rf build/ dist/ *.egg-info
-	find . -type d -name __pycache__ -exec rm -rf {} + 2>/dev/null || true
-	find . -type f -name "*.pyc" -delete
-	find . -type d -name ".pytest_cache" -exec rm -rf {} + 2>/dev/null || true
-	find . -type d -name ".mypy_cache" -exec rm -rf {} + 2>/dev/null || true
-	find . -type d -name ".ruff_cache" -exec rm -rf {} + 2>/dev/null || true
-	find . -type d -name "htmlcov" -exec rm -rf {} + 2>/dev/null || true
-	rm -f .coverage coverage.xml
-	@echo "Cleaned build artifacts"
-
-# ==================== UTILITIES ====================
-
-lock:  ## Update uv.lock file
+lock:  ## Resolve dependency changes deliberately
 	uv lock
 
-sync:  ## Sync environment with uv.lock
-	uv sync
+hooks: dev  ## Install pre-commit and pre-push hooks
+	$(UV_RUN) pre-commit install --install-hooks
 
-.DEFAULT_GOAL := help
+lint:  ## Lint package, tests, and helper scripts
+	$(UV_RUN) ruff check $(PYTHON_PATHS)
+
+lint-fix:  ## Apply Ruff lint fixes
+	$(UV_RUN) ruff check --fix $(PYTHON_PATHS)
+
+format:  ## Format package, tests, and helper scripts
+	$(UV_RUN) ruff format $(PYTHON_PATHS)
+
+format-check:  ## Verify formatting without editing files
+	$(UV_RUN) ruff format --check $(PYTHON_PATHS)
+
+type-check:  ## Check package and helper script types
+	$(UV_RUN) mypy src/open_pacmuci scripts
+
+file-size:  ## Reject source/configuration files with 650 or more physical lines
+	$(UV_RUN) python scripts/check_file_size.py
+
+workflow-check:  ## Validate GitHub Actions syntax and expressions
+	$(UV_RUN) actionlint -shellcheck=
+
+quality: lint format-check type-check file-size workflow-check  ## Run the same static checks as CI
+
+test:  ## Run all tests (external tests skip when prerequisites are absent)
+	$(UV_RUN) pytest
+
+test-fast:  ## Run unit tests without coverage
+	$(UV_RUN) pytest tests/unit --no-cov -x
+
+test-unit:  ## Run unit tests with the CI coverage gate
+	$(UV_RUN) pytest tests/unit --cov-fail-under=80
+
+test-int:  ## Run bioinformatics tool integration tests
+	$(UV_RUN) pytest tests/integration -m integration --no-cov
+
+ci-check: quality test-unit  ## Run CI static checks and unit coverage gate locally
+
+check: ci-check docs-check security-check build-check  ## Run all portable release checks
+
+docs-check:  ## Build documentation with warnings treated as errors
+	$(UV_RUN) mkdocs build --strict
+
+security-check:  ## Audit every locked extra against published Python advisories
+	uv export --locked --all-extras --no-emit-project --format requirements-txt --output-file .audit-requirements.txt --quiet
+	$(UV_RUN) pip-audit --disable-pip --require-hashes -r .audit-requirements.txt
+
+build-check:  ## Build wheel/sdist and verify bundled resources in an isolated environment
+	uv build
+	$(UV_RUN) python scripts/check_distribution.py
+
+generate-testdata:  ## Generate MucOneUp test data (requires external tools)
+	$(UV_RUN) python scripts/generate_testdata.py
+
+clean:  ## Remove build, coverage and documentation artifacts
+	rm -rf build dist htmlcov site .coverage coverage.xml .audit-requirements.txt

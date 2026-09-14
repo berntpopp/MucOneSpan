@@ -162,6 +162,7 @@ nav:
     - Deviations from PacMUCI: getting-started/deviations.md
 
   - Guides:
+    - Development: development.md
     - Benchmarking with MucOneUp: guides/benchmarking.md
 
   - Reference:

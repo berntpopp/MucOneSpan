@@ -94,7 +94,7 @@ def main() -> None:
         from open_pacmuci.classify import classify_sequence
 
         t0 = time.perf_counter()
-        for allele_key, fa_path in consensus.items():
+        for fa_path in consensus.values():
             fa_lines = fa_path.read_text().strip().splitlines()
             sequence = "".join(line for line in fa_lines if not line.startswith(">"))
             classify_sequence(sequence, rd)

@@ -24,8 +24,9 @@ COPY --chown=$MAMBA_USER:$MAMBA_USER pyproject.toml README.md /app/
 COPY --chown=$MAMBA_USER:$MAMBA_USER src/ /app/src/
 
 WORKDIR /app
-RUN micromamba run -n open-pacmuci-tools pip install --no-cache-dir . && \
-    rm -rf /app
+# /app stays in the builder; only the installed environment reaches the runtime.
+# The unprivileged build user cannot remove a directory directly under /.
+RUN micromamba run -n open-pacmuci-tools pip install --no-cache-dir .
 
 # ============================================================================
 # Runtime stage -- slim image with only the resolved environment

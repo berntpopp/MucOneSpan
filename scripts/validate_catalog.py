@@ -54,14 +54,16 @@ def main() -> None:
             m.get("mutation_name", "unknown")
             for m in entry.get("details", {}).get("detected_mutations", [])
         )
-        rows.append([
-            entry["sample"],
-            entry.get("expected_mutation", "none"),
-            entry["status"],
-            detected or "none",
-            str(entry.get("details", {}).get("allele_1_structure_len", "")),
-            str(entry.get("details", {}).get("allele_2_structure_len", "")),
-        ])
+        rows.append(
+            [
+                entry["sample"],
+                entry.get("expected_mutation", "none"),
+                entry["status"],
+                detected or "none",
+                str(entry.get("details", {}).get("allele_1_structure_len", "")),
+                str(entry.get("details", {}).get("allele_2_structure_len", "")),
+            ]
+        )
 
     tp = sum(1 for r in results if r["status"] == "TP")
     tn = sum(1 for r in results if r["status"] == "TN")
