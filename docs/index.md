@@ -8,7 +8,7 @@
 
 MucOneSpan analyzes MUC1 VNTR long-read amplicon data from PacBio HiFi and ONT sequencing. It implements and extends the methods described by Vrbacka et al. (2025), including **indel-valley allele splitting**, **mutation template matching**, and **per-repeat confidence scoring**.
 
-The current release is **0.10.0**. Install the Python package `muc_one_span` and run the `muconespan` command. See the [installation guide](getting-started/installation.md) and [software citation](about/citation.md).
+Start with the [installation guide](getting-started/installation.md) or [quickstart](getting-started/quickstart.md).
 
 ### Why MucOneSpan?
 
