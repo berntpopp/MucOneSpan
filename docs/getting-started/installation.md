@@ -10,16 +10,6 @@ pip install 'muc_one_span[report] @ git+https://github.com/berntpopp/MucOneSpan.
 muconespan --version
 ```
 
-The project uses these names consistently with its companion MucOneUp:
-
-| Context | Name |
-| --- | --- |
-| Tool and GitHub repository | `MucOneSpan` |
-| Command | `muconespan` |
-| Python package and imports | `muc_one_span` |
-| Normalized Python distribution | `muc-one-span` |
-| Container image | `ghcr.io/berntpopp/muconespan` |
-
 The `[report]` extra enables HTML reports through Jinja2. Python installation
 includes Click, PyYAML, and packaged reference/repeat data. External alignment
 and variant-calling tools are installed separately.
