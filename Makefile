@@ -76,7 +76,7 @@ security-check:  ## Audit every locked extra against published Python advisories
 	$(UV_RUN) pip-audit --disable-pip --require-hashes -r .audit-requirements.txt
 
 build-check:  ## Build wheel/sdist and verify bundled resources in an isolated environment
-	uv build
+	uv build --clear
 	$(UV_RUN) python scripts/check_distribution.py
 
 generate-testdata:  ## Generate MucOneUp test data (requires external tools)

@@ -32,8 +32,9 @@ PR while preserving scientific behavior and public interfaces.
    docs, and a PR template recording actual validation and skips.
 5. Run portable static/unit/docs/security/distribution checks and available real
    integration tests. Review the final diff and document missing prerequisites.
-6. Commit the reviewed change and open the user-authorized draft PR. Do not merge
-   that PR or publish a release as part of this modernization.
+6. Commit the reviewed change and open the user-authorized draft PR.
+7. Per the follow-up instruction, bump the minor version to 0.9.0 and merge the
+   PR only after all applicable tests and GitHub Actions pass.
 
 ## Validation contract
 
