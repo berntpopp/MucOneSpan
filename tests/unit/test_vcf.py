@@ -5,6 +5,8 @@ from __future__ import annotations
 from pathlib import Path
 from unittest.mock import patch
 
+import pytest
+
 from muc_one_span.vcf import filter_vcf, parse_vcf_genotypes, parse_vcf_variants
 
 
@@ -176,52 +178,66 @@ class TestFilterVcfQuality:
         filter_vcf(vcf, ref, tmp_path)
 
 
-class TestParseVcfGenotypes:
-    """Tests for parse_vcf_genotypes."""
-
-    @patch("muc_one_span.vcf.run_tool")
-    def test_parses_genotype_fields(self, mock_run_tool):
-        mock_run_tool.return_value = "contig_51\t100\tA\tT\t0/1\n"
-        result = parse_vcf_genotypes(Path("/fake.vcf"))
-        assert len(result) == 1
-        assert result[0]["pos"] == 100
-        assert result[0]["genotype"] == "0/1"
-
-    @patch("muc_one_span.vcf.run_tool")
-    def test_handles_runtime_error(self, mock_run_tool):
-        mock_run_tool.side_effect = RuntimeError("fail")
-        assert parse_vcf_genotypes(Path("/fake.vcf")) == []
+@pytest.mark.parametrize("parser", [parse_vcf_genotypes, parse_vcf_variants])
+def test_query_error_is_not_an_empty_call(parser):
+    with (
+        patch("muc_one_span.vcf.run_tool", side_effect=RuntimeError("query failed")),
+        pytest.raises(RuntimeError, match="query failed"),
+    ):
+        parser(Path("fake.vcf"))
 
 
-class TestParseVcfVariants:
-    """Tests for parse_vcf_variants."""
+@pytest.mark.parametrize("parser", [parse_vcf_genotypes, parse_vcf_variants])
+def test_retains_variant_identity_missing_quality_and_phase(parser):
+    with patch(
+        "muc_one_span.vcf.run_tool", side_effect=["SAMPLE\n", "chr1\t2\tA\tC,G\t.\t1|2\t17\n"]
+    ):
+        assert parser(Path("fake.vcf")) == [
+            {
+                "chrom": "chr1",
+                "pos": 2,
+                "ref": "A",
+                "alt": "C,G",
+                "qual": None,
+                "genotype": "1|2",
+                "phase_set": "17",
+                "sample": "SAMPLE",
+            }
+        ]
 
-    @patch("muc_one_span.vcf.run_tool")
-    def test_parses_pos_and_qual(self, mock_run_tool):
-        """Parses position and quality from bcftools query output."""
-        mock_run_tool.return_value = "100\t23.4\n200\t15.7\n"
-        result = parse_vcf_variants(Path("/fake.vcf"))
-        assert len(result) == 2
-        assert result[0] == {"pos": 100, "qual": 23.4}
-        assert result[1] == {"pos": 200, "qual": 15.7}
 
-    @patch("muc_one_span.vcf.run_tool")
-    def test_handles_runtime_error(self, mock_run_tool):
-        """Returns empty list on RuntimeError."""
-        mock_run_tool.side_effect = RuntimeError("fail")
-        assert parse_vcf_variants(Path("/fake.vcf")) == []
+@pytest.mark.parametrize(
+    "record",
+    [
+        "bad",
+        "c\t0\tA\tC\t3\t0/1\t.",
+        "c\t2\tA\tC\tnan\t0/1\t.",
+        "c\t2\tA\tC\t3\t0/x\t.",
+        "c\t2\tA\tC\t3\t0/2\t.",
+    ],
+)
+def test_malformed_query_fails_visibly(record):
+    with (
+        patch("muc_one_span.vcf.run_tool", side_effect=["SAMPLE\n", record]),
+        pytest.raises(ValueError),
+    ):
+        parse_vcf_variants(Path("fake.vcf"))
 
-    @patch("muc_one_span.vcf.run_tool")
-    def test_skips_malformed_lines(self, mock_run_tool):
-        """Skips lines with non-numeric values."""
-        mock_run_tool.return_value = "100\t23.4\nbad\tline\n300\t10.0\n"
-        result = parse_vcf_variants(Path("/fake.vcf"))
-        assert len(result) == 2
-        assert result[0]["pos"] == 100
-        assert result[1]["pos"] == 300
 
-    @patch("muc_one_span.vcf.run_tool")
-    def test_empty_output(self, mock_run_tool):
-        """Returns empty list for empty output."""
-        mock_run_tool.return_value = ""
-        assert parse_vcf_variants(Path("/fake.vcf")) == []
+def test_successful_empty_vcf_retains_empty_result():
+    with patch("muc_one_span.vcf.run_tool", side_effect=["SAMPLE\n", ""]):
+        assert parse_vcf_variants(Path("fake.vcf")) == []
+
+
+def test_multiple_samples_require_selection():
+    with (
+        patch("muc_one_span.vcf.run_tool", return_value="A\nB\n"),
+        pytest.raises(ValueError, match="sample"),
+    ):
+        parse_vcf_variants(Path("fake.vcf"))
+
+
+def test_explicit_sample_is_selected():
+    with patch("muc_one_span.vcf.run_tool", side_effect=["A\nB\n", ""]) as run:
+        assert parse_vcf_variants(Path("fake.vcf"), sample="B") == []
+        assert run.call_args.args[0][-3:] == ["-s", "B", "fake.vcf"]

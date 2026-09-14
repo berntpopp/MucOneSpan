@@ -176,3 +176,25 @@ class TestGenerateReport:
 
         assert "Detailed Repeats" in content
         assert "Quality Metrics" in content
+
+
+def test_report_exposes_evidence_without_homozygosity_claim(sample_summary, tmp_path):
+    sample_summary["alleles"].update(sequence_identity_status="unresolved", phase_status="unphased")
+    html = generate_report(sample_summary, tmp_path / "report.html").read_text()
+    assert "Sequence identity: unresolved" in html
+    assert "Phase: unphased" in html
+    assert "Alignment records" in html
+
+
+def test_report_distinguishes_unavailable_from_absent_support(sample_summary, tmp_path):
+    mutation = sample_summary["classifications"]["allele_1"]["mutations"][0]
+    mutation.update(vcf_support=False, vcf_support_status="projection_unavailable", vcf_qual=0.0)
+    absent = {**mutation, "repeat_index": 9, "vcf_support_status": "absent"}
+    ambiguous = {**mutation, "repeat_index": 10, "vcf_support_status": "localization_ambiguous"}
+    sample_summary["classifications"]["allele_1"]["mutations"].append(absent)
+    sample_summary["classifications"]["allele_1"]["mutations"].append(ambiguous)
+
+    html = generate_report(sample_summary, tmp_path / "report.html").read_text()
+    assert html.count(">Support unavailable<") == 1
+    assert html.count(">Support ambiguous<") == 1
+    assert html.count(">Unsupported<") == 1

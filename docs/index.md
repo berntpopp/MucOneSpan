@@ -6,7 +6,7 @@
 
 ## What is MucOneSpan?
 
-MucOneSpan analyzes MUC1 VNTR long-read amplicon data from PacBio HiFi and ONT sequencing. It implements and extends the methods described by Vrbacka et al. (2025), including **indel-valley allele splitting**, **mutation template matching**, and **per-repeat confidence scoring**.
+MucOneSpan analyzes MUC1 VNTR long-read amplicon data from PacBio HiFi and ONT sequencing. It draws on some ideas from Vrbacka et al. (2025). Features include **indel-valley allele splitting**, **mutation template matching**, and **per-repeat confidence scoring**.
 
 Start with the [installation guide](getting-started/installation.md) or [quickstart](getting-started/quickstart.md).
 
@@ -82,23 +82,9 @@ muconespan run \
 
 ---
 
-## Citation
+## Acknowledgment
 
-If you use MucOneSpan, please cite:
-
-```bibtex
-@article{vrbacka2025muc1,
-  author = {Vrbacka, A. and Pristoupilova, A. and Kidd, K.O. and others},
-  title = {Long-Read Sequencing of the MUC1 VNTR: Genomic Variation,
-           Mutational Landscape, and Its Impact on ADTKD Diagnosis
-           and Progression},
-  journal = {bioRxiv},
-  year = {2025},
-  doi = {10.1101/2025.09.06.673538}
-}
-```
-
-See [Citation Guide](about/citation.md)
+MucOneSpan draws on some ideas from [Vrbacka et al. (2025)](https://doi.org/10.1101/2025.09.06.673538).
 
 ---
 

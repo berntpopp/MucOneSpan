@@ -1,0 +1,473 @@
+{
+  "schema_version": 1,
+  "cases": [
+    {
+      "sample": "sample_dupc_60_80",
+      "platform": "hifi",
+      "seed": 1001,
+      "lengths": [
+        60,
+        80
+      ],
+      "mutation": "dupC",
+      "targets": [
+        [
+          1,
+          25
+        ]
+      ],
+      "requested_templates": 200
+    },
+    {
+      "sample": "sample_dupa_60_80",
+      "platform": "hifi",
+      "seed": 1002,
+      "lengths": [
+        60,
+        80
+      ],
+      "mutation": "dupA",
+      "targets": [
+        [
+          1,
+          25
+        ]
+      ],
+      "requested_templates": 200
+    },
+    {
+      "sample": "sample_insg_60_80",
+      "platform": "hifi",
+      "seed": 1003,
+      "lengths": [
+        60,
+        80
+      ],
+      "mutation": "insG",
+      "targets": [
+        [
+          1,
+          25
+        ]
+      ],
+      "requested_templates": 200
+    },
+    {
+      "sample": "sample_dupcccc_60_80",
+      "platform": "hifi",
+      "seed": 1004,
+      "lengths": [
+        60,
+        80
+      ],
+      "mutation": "insCCCC",
+      "targets": [
+        [
+          1,
+          25
+        ]
+      ],
+      "requested_templates": 200
+    },
+    {
+      "sample": "sample_del_60_80",
+      "platform": "hifi",
+      "seed": 1005,
+      "lengths": [
+        60,
+        80
+      ],
+      "mutation": "del18_31",
+      "targets": [
+        [
+          1,
+          25
+        ]
+      ],
+      "requested_templates": 200
+    },
+    {
+      "sample": "sample_normal_60_80",
+      "platform": "hifi",
+      "seed": 1006,
+      "lengths": [
+        60,
+        80
+      ],
+      "mutation": null,
+      "targets": [],
+      "requested_templates": 200
+    },
+    {
+      "sample": "sample_homozygous_60_60",
+      "platform": "hifi",
+      "seed": 1007,
+      "lengths": [
+        60,
+        60
+      ],
+      "mutation": "dupC",
+      "targets": [
+        [
+          1,
+          25
+        ]
+      ],
+      "requested_templates": 200
+    },
+    {
+      "sample": "sample_asymmetric_25_140",
+      "platform": "hifi",
+      "seed": 1008,
+      "lengths": [
+        25,
+        140
+      ],
+      "mutation": "dupC",
+      "targets": [
+        [
+          1,
+          10
+        ]
+      ],
+      "requested_templates": 200
+    },
+    {
+      "sample": "sample_short_25_30",
+      "platform": "hifi",
+      "seed": 1009,
+      "lengths": [
+        25,
+        30
+      ],
+      "mutation": "dupC",
+      "targets": [
+        [
+          1,
+          10
+        ]
+      ],
+      "requested_templates": 200
+    },
+    {
+      "sample": "sample_long_120_140",
+      "platform": "hifi",
+      "seed": 1010,
+      "lengths": [
+        120,
+        140
+      ],
+      "mutation": "dupC",
+      "targets": [
+        [
+          1,
+          50
+        ]
+      ],
+      "requested_templates": 200
+    },
+    {
+      "sample": "sample_dupc_60_80_s2",
+      "platform": "hifi",
+      "seed": 2001,
+      "lengths": [
+        60,
+        80
+      ],
+      "mutation": "dupC",
+      "targets": [
+        [
+          1,
+          25
+        ]
+      ],
+      "requested_templates": 200
+    },
+    {
+      "sample": "sample_dupc_60_80_s3",
+      "platform": "hifi",
+      "seed": 3001,
+      "lengths": [
+        60,
+        80
+      ],
+      "mutation": "dupC",
+      "targets": [
+        [
+          1,
+          25
+        ]
+      ],
+      "requested_templates": 200
+    },
+    {
+      "sample": "sample_dupc_60_80_s4",
+      "platform": "hifi",
+      "seed": 4001,
+      "lengths": [
+        60,
+        80
+      ],
+      "mutation": "dupC",
+      "targets": [
+        [
+          1,
+          25
+        ]
+      ],
+      "requested_templates": 200
+    },
+    {
+      "sample": "sample_dupc_60_80_s5",
+      "platform": "hifi",
+      "seed": 5001,
+      "lengths": [
+        60,
+        80
+      ],
+      "mutation": "dupC",
+      "targets": [
+        [
+          1,
+          25
+        ]
+      ],
+      "requested_templates": 200
+    },
+    {
+      "sample": "sample_dupc_40_50",
+      "platform": "hifi",
+      "seed": 1011,
+      "lengths": [
+        40,
+        50
+      ],
+      "mutation": "dupC",
+      "targets": [
+        [
+          1,
+          15
+        ]
+      ],
+      "requested_templates": 200
+    },
+    {
+      "sample": "sample_dupc_80_100",
+      "platform": "hifi",
+      "seed": 1012,
+      "lengths": [
+        80,
+        100
+      ],
+      "mutation": "dupC",
+      "targets": [
+        [
+          1,
+          35
+        ]
+      ],
+      "requested_templates": 200
+    },
+    {
+      "sample": "sample_dupc_100_120",
+      "platform": "hifi",
+      "seed": 1013,
+      "lengths": [
+        100,
+        120
+      ],
+      "mutation": "dupC",
+      "targets": [
+        [
+          1,
+          45
+        ]
+      ],
+      "requested_templates": 200
+    },
+    {
+      "sample": "sample_dupc_50_55",
+      "platform": "hifi",
+      "seed": 1014,
+      "lengths": [
+        50,
+        55
+      ],
+      "mutation": "dupC",
+      "targets": [
+        [
+          1,
+          20
+        ]
+      ],
+      "requested_templates": 200
+    },
+    {
+      "sample": "sample_dupc_50_57",
+      "platform": "hifi",
+      "seed": 1015,
+      "lengths": [
+        50,
+        57
+      ],
+      "mutation": "dupC",
+      "targets": [
+        [
+          1,
+          20
+        ]
+      ],
+      "requested_templates": 200
+    },
+    {
+      "sample": "sample_dupc_50_60",
+      "platform": "hifi",
+      "seed": 1016,
+      "lengths": [
+        50,
+        60
+      ],
+      "mutation": "dupC",
+      "targets": [
+        [
+          1,
+          20
+        ]
+      ],
+      "requested_templates": 200
+    },
+    {
+      "sample": "sample_normal_50_55",
+      "platform": "hifi",
+      "seed": 1017,
+      "lengths": [
+        50,
+        55
+      ],
+      "mutation": null,
+      "targets": [],
+      "requested_templates": 200
+    },
+    {
+      "sample": "sample_normal_50_60",
+      "platform": "hifi",
+      "seed": 1018,
+      "lengths": [
+        50,
+        60
+      ],
+      "mutation": null,
+      "targets": [],
+      "requested_templates": 200
+    },
+    {
+      "sample": "sample_dupa_100_120",
+      "platform": "hifi",
+      "seed": 1019,
+      "lengths": [
+        100,
+        120
+      ],
+      "mutation": "dupA",
+      "targets": [
+        [
+          1,
+          45
+        ]
+      ],
+      "requested_templates": 200
+    },
+    {
+      "sample": "sample_insg_100_120",
+      "platform": "hifi",
+      "seed": 1020,
+      "lengths": [
+        100,
+        120
+      ],
+      "mutation": "insG",
+      "targets": [
+        [
+          1,
+          45
+        ]
+      ],
+      "requested_templates": 200
+    },
+    {
+      "sample": "sample_normal_100_120",
+      "platform": "hifi",
+      "seed": 1021,
+      "lengths": [
+        100,
+        120
+      ],
+      "mutation": null,
+      "targets": [],
+      "requested_templates": 200
+    },
+    {
+      "sample": "sample_dupc_60_80_cov50",
+      "platform": "hifi",
+      "seed": 1022,
+      "lengths": [
+        60,
+        80
+      ],
+      "mutation": "dupC",
+      "targets": [
+        [
+          1,
+          25
+        ]
+      ],
+      "requested_templates": 50
+    },
+    {
+      "sample": "sample_ont_dupc_60_80",
+      "platform": "ont",
+      "seed": 1001,
+      "lengths": [
+        60,
+        80
+      ],
+      "mutation": "dupC",
+      "targets": [
+        [
+          1,
+          25
+        ]
+      ],
+      "requested_templates": 200
+    },
+    {
+      "sample": "sample_ont_normal_60_80",
+      "platform": "ont",
+      "seed": 1006,
+      "lengths": [
+        60,
+        80
+      ],
+      "mutation": null,
+      "targets": [],
+      "requested_templates": 200
+    },
+    {
+      "sample": "sample_ont_dupa_60_80",
+      "platform": "ont",
+      "seed": 1002,
+      "lengths": [
+        60,
+        80
+      ],
+      "mutation": "dupA",
+      "targets": [
+        [
+          1,
+          25
+        ]
+      ],
+      "requested_templates": 200
+    }
+  ]
+}

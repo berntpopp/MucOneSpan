@@ -84,6 +84,47 @@ path = "src/muc_one_span/version.py"
 [tool.hatch.build.targets.wheel]
 packages = ["src/muc_one_span"]
 
+[tool.hatch.build.targets.sdist]
+include = [
+    "/src",
+    "/tests/__init__.py",
+    "/tests/conftest.py",
+    "/tests/unit",
+    "/tests/integration",
+    "/scripts",
+    "/docs",
+    "/examples",
+    "/pyproject.toml",
+    "/README.md",
+    "/LICENSE",
+    "/CHANGELOG.md",
+    "/CITATION.cff",
+    "/Makefile",
+    "/mkdocs.yml",
+    "/uv.lock",
+    "/.python-version",
+]
+exclude = [
+    "**/__pycache__",
+    "**/*.pyc",
+    "**/*.pyo",
+    "**/*.bam",
+    "**/*.bai",
+    "**/*.cram",
+    "**/*.crai",
+    "**/*.fastq",
+    "**/*.fastq.gz",
+    "**/*.fq",
+    "**/*.fq.gz",
+    "**/*.fai",
+    "**/*.mmi",
+    "**/*.bwt",
+    "**/*.pac",
+    "**/*.ann",
+    "**/*.amb",
+    "**/*.sa",
+]
+
 [tool.ruff]
 target-version = "py310"
 line-length = 100

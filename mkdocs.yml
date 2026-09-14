@@ -163,6 +163,9 @@ nav:
 
   - Guides:
     - Development: development.md
+    - Runtime Configuration: guides/configuration.md
+    - Simulation Experiments: guides/simulation-experiments.md
+    - Validation Results: guides/validation-results.md
     - Benchmarking with MucOneUp: guides/benchmarking.md
 
   - Reference:

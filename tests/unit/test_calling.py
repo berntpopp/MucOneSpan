@@ -5,6 +5,8 @@ from __future__ import annotations
 from pathlib import Path
 from unittest.mock import patch
 
+import pytest
+
 from muc_one_span.calling import (
     _extract_and_remap_reads,
     call_variants_per_allele,
@@ -84,6 +86,18 @@ class TestExtractAlleleReads:
 
 class TestRunClair3:
     """Tests for run_clair3."""
+
+    @patch("muc_one_span.calling.run_tool")
+    def test_configured_sample_name_is_forwarded(self, mock_run_tool, tmp_path):
+        from muc_one_span.settings import CallingSettings
+
+        run_clair3(
+            tmp_path / "reads.bam",
+            tmp_path / "ref.fa",
+            tmp_path / "out",
+            settings=CallingSettings(sample_name="configured_sample"),
+        )
+        assert "--sample_name=configured_sample" in mock_run_tool.call_args.args[0]
 
     @patch("muc_one_span.calling.run_tool")
     def test_builds_correct_command(self, mock_run_tool, tmp_path):
@@ -200,7 +214,7 @@ class TestCallVariantsPerAllele:
     def test_heterozygous_processes_both_alleles(self, mock_run_tool, mock_vcf_tool, tmp_path):
         """For a heterozygous sample, both allele_1 and allele_2 are processed."""
         mock_run_tool.return_value = ""
-        mock_vcf_tool.return_value = ""
+        mock_vcf_tool.side_effect = lambda cmd: "SAMPLE\n" if "-l" in cmd else ""
         bam = tmp_path / "mapping.bam"
         bam.touch()
         ref = tmp_path / "ref.fa"
@@ -217,7 +231,7 @@ class TestCallVariantsPerAllele:
     def test_homozygous_skips_allele_2(self, mock_run_tool, mock_vcf_tool, tmp_path):
         """For a homozygous sample, allele_2 is skipped."""
         mock_run_tool.return_value = ""
-        mock_vcf_tool.return_value = ""
+        mock_vcf_tool.side_effect = lambda cmd: "SAMPLE\n" if "-l" in cmd else ""
         bam = tmp_path / "mapping.bam"
         bam.touch()
         ref = tmp_path / "ref.fa"
@@ -234,7 +248,7 @@ class TestCallVariantsPerAllele:
     def test_returns_dict_of_vcf_paths(self, mock_run_tool, mock_vcf_tool, tmp_path):
         """Results map allele keys to Path objects."""
         mock_run_tool.return_value = ""
-        mock_vcf_tool.return_value = ""
+        mock_vcf_tool.side_effect = lambda cmd: "SAMPLE\n" if "-l" in cmd else ""
         bam = tmp_path / "mapping.bam"
         bam.touch()
         ref = tmp_path / "ref.fa"
@@ -251,7 +265,7 @@ class TestCallVariantsPerAllele:
     def test_fallback_contig_name_from_length(self, mock_run_tool, mock_vcf_tool, tmp_path):
         """When contig_name is absent, falls back to contig_<length>."""
         mock_run_tool.return_value = ""
-        mock_vcf_tool.return_value = ""
+        mock_vcf_tool.side_effect = lambda cmd: "SAMPLE\n" if "-l" in cmd else ""
         bam = tmp_path / "mapping.bam"
         bam.touch()
         ref = tmp_path / "ref.fa"
@@ -283,7 +297,7 @@ class TestCallVariantsPerAllele:
     def test_platform_and_preset_threaded_through(self, mock_run_tool, mock_vcf_tool, tmp_path):
         """platform and preset are forwarded: minimap2 gets -x lr:hq, clair3 gets --platform=ont."""
         mock_run_tool.return_value = ""
-        mock_vcf_tool.return_value = ""
+        mock_vcf_tool.side_effect = lambda cmd: "SAMPLE\n" if "-l" in cmd else ""
         bam = tmp_path / "mapping.bam"
         bam.touch()
         ref = tmp_path / "ref.fa"
@@ -405,22 +419,59 @@ class TestExtractAndRemapReads:
         assert minimap2_cmd[x_idx + 1] == "map-hifi"
 
 
+@pytest.fixture
+def bypass_read_phasing():
+    with patch(
+        "muc_one_span.calling.phase_same_length_reads",
+        side_effect=lambda vcf, *args: (vcf, {"status": "not_needed"}),
+    ):
+        yield
+
+
+@pytest.mark.usefixtures("bypass_read_phasing")
 class TestDisambiguateSameLengthAlleles:
     """Tests for disambiguate_same_length_alleles."""
 
     @patch("muc_one_span.vcf.run_tool", return_value="")
     @patch("muc_one_span.calling.run_tool", return_value="")
     @patch("muc_one_span.calling.parse_vcf_genotypes", return_value=[])
-    def test_no_het_variants_returns_homozygous(self, mock_geno, mock_run, mock_vcf_tool, tmp_path):
+    @pytest.mark.parametrize("stale", [False, True])
+    def test_empty_variants_leave_identity_unresolved(
+        self, mock_geno, mock_run, mock_vcf_tool, tmp_path, stale
+    ):
         alleles = {
             "allele_1": {"contig_name": "contig_51", "cluster_contigs": ["contig_51"]},
             "allele_2": {"contig_name": "contig_51", "cluster_contigs": ["contig_51"]},
         }
+        if stale:
+            alleles["allele_2"].update(
+                vcf_path="old.vcf.gz",
+                consensus_haplotype=2,
+                sequence_source="old:GT2",
+                vntr_phase_status="distinct_genotype_candidates",
+                independent_haplotype_evidence=True,
+                phase_status="phased",
+                consensus_context={"full_consensus_path": "old.fa"},
+            )
         result = disambiguate_same_length_alleles(
             tmp_path / "bam", tmp_path / "ref.fa", alleles, tmp_path
         )
         assert "allele_1" in result
-        assert result.get("homozygous") is True
+        assert "homozygous" not in result
+        assert alleles["sequence_identity_status"] == "unresolved"
+        assert alleles["allele_1"]["genotype_status"] == "no_retained_variants"
+        assert alleles["allele_2"]["reconstruction_status"] == "not_separately_resolved"
+        assert alleles["allele_2"]["candidate_duplicate_of"] == "allele_1"
+        assert not alleles["allele_2"]["independent_haplotype_evidence"]
+        assert alleles["allele_2"]["phase_status"] != "phased"
+        for field in (
+            "vcf_path",
+            "consensus_haplotype",
+            "sequence_source",
+            "consensus_context",
+            "vntr_phase_status",
+        ):
+            assert field not in alleles["allele_2"]
 
     @patch("muc_one_span.vcf.run_tool", return_value="")
     @patch("muc_one_span.calling.run_tool", return_value="")
@@ -438,7 +489,10 @@ class TestDisambiguateSameLengthAlleles:
         )
         assert "allele_1" in result
         assert "allele_2" in result
-        assert result.get("homozygous") is False
+        assert "homozygous" not in result
+        assert alleles["allele_1"]["phase_status"] == "single_heterozygous_unordered"
+        assert alleles["allele_1"]["consensus_haplotype"] == 1
+        assert alleles["allele_2"]["consensus_haplotype"] == 2
 
     @patch("muc_one_span.vcf.run_tool", return_value="")
     @patch("muc_one_span.calling.run_tool", return_value="")
@@ -471,3 +525,49 @@ class TestDisambiguateSameLengthAlleles:
 
         assert clair3_calls, "run_clair3.sh was not called"
         assert any("--platform=ont" in cmd for cmd in clair3_calls)
+
+
+def test_same_length_uses_read_phase_selected_vcf(tmp_path):
+    selected = tmp_path / "phased.vcf.gz"
+    evidence = {"status": "phased", "method": "whatshap"}
+    variants = [
+        {"chrom": "c", "pos": p, "ref": "A", "alt": "C", "genotype": "1|0", "phase_set": "2"}
+        for p in (2, 8)
+    ]
+    alleles = {
+        "allele_1": {"contig_name": "c", "cluster_contigs": ["c"]},
+        "allele_2": {
+            "contig_name": "c",
+            "cluster_contigs": ["c"],
+            "candidate_duplicate_of": "allele_1",
+        },
+    }
+    with (
+        patch("muc_one_span.calling._extract_and_remap_reads", return_value=tmp_path / "reads.bam"),
+        patch("muc_one_span.calling.run_clair3", return_value=tmp_path / "raw.vcf.gz"),
+        patch("muc_one_span.calling.filter_vcf", return_value=tmp_path / "filtered.vcf.gz"),
+        patch("muc_one_span.calling.phase_same_length_reads", return_value=(selected, evidence)),
+        patch("muc_one_span.calling.parse_vcf_genotypes", return_value=variants) as parse,
+    ):
+        result = disambiguate_same_length_alleles(
+            tmp_path / "bam", tmp_path / "ref", alleles, tmp_path, read_phase=True
+        )
+    assert parse.call_args.args[0] == selected
+    assert result == {"allele_1": selected, "allele_2": selected}
+    assert alleles["allele_1"]["read_phasing"] == evidence
+    assert alleles["allele_2"]["read_phasing"] == evidence
+    assert "candidate_duplicate_of" not in alleles["allele_2"]
+
+
+def test_read_phase_is_not_promoted_by_default(tmp_path):
+    alleles = {"allele_1": {"contig_name": "c", "cluster_contigs": ["c"]}}
+    with (
+        patch("muc_one_span.calling._extract_and_remap_reads", return_value=tmp_path / "bam"),
+        patch("muc_one_span.calling.run_clair3", return_value=tmp_path / "raw"),
+        patch("muc_one_span.calling.filter_vcf", return_value=tmp_path / "filtered"),
+        patch("muc_one_span.calling.parse_vcf_genotypes", return_value=[]),
+        patch("muc_one_span.calling.phase_same_length_reads") as phase,
+    ):
+        disambiguate_same_length_alleles(tmp_path / "bam", tmp_path / "ref", alleles, tmp_path)
+    phase.assert_not_called()
+    assert alleles["allele_1"]["read_phasing"]["status"] == "experimental_disabled"

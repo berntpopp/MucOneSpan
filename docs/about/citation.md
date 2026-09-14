@@ -4,9 +4,9 @@ How to cite MucOneSpan in your research publications.
 
 ---
 
-## Primary Citation
+## Acknowledgment
 
-MucOneSpan implements and extends the methods described by Vrbacka et al. (2025). Please cite the original publication:
+MucOneSpan draws on some ideas from Vrbacka et al. (2025):
 
 ### Vrbacka et al. 2025
 
@@ -28,13 +28,13 @@ MucOneSpan implements and extends the methods described by Vrbacka et al. (2025)
 
 ## Software Citation
 
-To cite the open-source implementation specifically:
+Software citation information:
 
 ```bibtex
 @software{muconespan2026,
   author = {Popp, Bernt},
   title = {MucOneSpan: Open-Source MUC1 VNTR Analysis Pipeline},
-  version = {0.10.0},
+  version = {0.11.0},
   year = {2026},
   publisher = {GitHub},
   url = {https://github.com/berntpopp/MucOneSpan},
@@ -65,7 +65,7 @@ If you use MucOneUp for benchmarking or test data generation:
 
 Use this template when describing MucOneSpan in your methods:
 
-> MUC1 VNTR analysis was performed using MucOneSpan v[VERSION] (Popp, 2026; https://github.com/berntpopp/MucOneSpan), an open-source implementation of the methods described by Vrbacka et al. (2025). PacBio HiFi CCS reads were mapped to a synthetic reference ladder (150 contigs, 1-150 repeat units) using minimap2. Allele lengths were determined using gap-based clustering with indel-valley splitting. Variants were called per allele using Clair3 with the PacBio HiFi model. Consensus sequences were classified into repeat units using the Vrbacka nomenclature with pre-computed mutation template matching.
+> MUC1 VNTR analysis was performed using MucOneSpan v[VERSION] (Popp, 2026; https://github.com/berntpopp/MucOneSpan), an open-source pipeline informed by some ideas from Vrbacka et al. (2025). PacBio HiFi CCS reads were mapped to a synthetic reference ladder (150 contigs, 1-150 repeat units) using minimap2. Allele lengths were determined using gap-based clustering with indel-valley splitting. Variants were called per allele using Clair3 with the PacBio HiFi model. Consensus sequences were classified into repeat units using the Vrbacka nomenclature with pre-computed mutation template matching.
 
 ---
 

@@ -10,7 +10,7 @@ MucOneSpan analyzes the MUC1 VNTR from PacBio HiFi and Oxford Nanopore amplicon 
 ## Install
 
 ```bash
-pip install 'muc_one_span[report] @ git+https://github.com/berntpopp/MucOneSpan.git@v0.10.0'
+pip install 'muc_one_span[report] @ git+https://github.com/berntpopp/MucOneSpan.git@v0.11.0'
 ```
 
 The pipeline also requires minimap2, samtools, bcftools, and Clair3. See the [installation guide](https://berntpopp.github.io/MucOneSpan/getting-started/installation/) for setup and container options.
@@ -28,8 +28,14 @@ muconespan run \
 
 For Oxford Nanopore reads, add `--platform ont` and use a matching Clair3 model.
 
-## Citation
+## Acknowledgment
 
-Based on the methods of [Vrbacka et al. (2025)](https://doi.org/10.1101/2025.09.06.673538). Please cite the software and original method; details are in [CITATION.cff](CITATION.cff).
+MucOneSpan draws on some ideas from [Vrbacka et al. (2025)](https://doi.org/10.1101/2025.09.06.673538).
 
 [Documentation](https://berntpopp.github.io/MucOneSpan/) · [Development](docs/development.md) · [MIT license](LICENSE)
+
+
+Design reproducible HiFi and ONT simulation panels with the
+[experiment guide](docs/guides/simulation-experiments.md). Read the
+[0.11.0 validation results](docs/guides/validation-results.md) for measured
+improvements, rejected experiments and remaining reconstruction limitations.

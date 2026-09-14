@@ -9,9 +9,16 @@ from pathlib import Path
 
 import click
 
+from muc_one_span.cli_settings import (
+    configure_context,
+    current_configuration_path,
+    current_settings,
+    validate_stage_options,
+)
+from muc_one_span.mapping import PLATFORM_PRESETS
+from muc_one_span.run_status import record_run_status
+from muc_one_span.settings import DEFAULT_SETTINGS
 from muc_one_span.version import __version__
-
-PLATFORM_PRESETS: dict[str, str] = {"hifi": "map-hifi", "ont": "lr:hq"}
 
 
 @click.group()
@@ -20,9 +27,17 @@ PLATFORM_PRESETS: dict[str, str] = {"hifi": "map-hifi", "ont": "lr:hq"}
     "-v", "--verbose", count=True, help="Increase verbosity (-v for INFO, -vv for DEBUG)."
 )
 @click.option("-q", "--quiet", is_flag=True, help="Suppress non-error output.")
+@click.option(
+    "--config",
+    "configuration",
+    type=click.Path(path_type=Path, exists=True, dir_okay=False),
+    default=None,
+    help="Runtime settings JSON; explicit command options override file values.",
+)
 @click.pass_context
-def main(ctx: click.Context, verbose: int, quiet: bool) -> None:
+def main(ctx: click.Context, verbose: int, quiet: bool, configuration: Path | None) -> None:
     """MucOneSpan: MUC1 VNTR analysis pipeline for PacBio HiFi and ONT amplicon data."""
+    configure_context(ctx, configuration)
     if quiet:
         level = logging.ERROR
     elif verbose >= 2:
@@ -46,9 +61,24 @@ def main(ctx: click.Context, verbose: int, quiet: bool) -> None:
     default="reference_ladder.fa",
     help="Output FASTA path.",
 )
-@click.option("--min-units", type=int, default=1, help="Minimum repeat units.")
-@click.option("--max-units", type=int, default=150, help="Maximum repeat units.")
-@click.option("--flank-length", type=int, default=500, help="Flanking sequence length (bp).")
+@click.option(
+    "--min-units",
+    type=int,
+    default=DEFAULT_SETTINGS.reference_layout.min_units,
+    help="Minimum repeat units.",
+)
+@click.option(
+    "--max-units",
+    type=int,
+    default=DEFAULT_SETTINGS.reference_layout.max_units,
+    help="Maximum repeat units.",
+)
+@click.option(
+    "--flank-length",
+    type=int,
+    default=DEFAULT_SETTINGS.consensus.flank_length,
+    help="Flanking sequence length (bp).",
+)
 @click.option(
     "--repeats-db",
     type=click.Path(exists=True),
@@ -66,8 +96,18 @@ def ladder(
     from muc_one_span.config import load_repeat_dictionary
     from muc_one_span.ladder import generate_ladder_fasta
 
+    validate_stage_options()
     rd = load_repeat_dictionary(Path(repeats_db) if repeats_db else None)
-    out_path = generate_ladder_fasta(rd, Path(output), min_units, max_units, flank_length)
+    settings = current_settings()
+    out_path = generate_ladder_fasta(
+        rd,
+        Path(output),
+        min_units,
+        max_units,
+        flank_length,
+        settings=settings.consensus,
+        reference_layout=settings.reference_layout,
+    )
     click.echo(f"Ladder written to {out_path} ({max_units - min_units + 1} contigs)")
 
 
@@ -88,11 +128,13 @@ def ladder(
     help="Reference FASTA (defaults to bundled ladder).",
 )
 @click.option("--output-dir", "-o", type=click.Path(), default=".", help="Output directory.")
-@click.option("--threads", "-t", type=int, default=4, help="Number of threads.")
+@click.option(
+    "--threads", "-t", type=int, default=DEFAULT_SETTINGS.run.threads, help="Number of threads."
+)
 @click.option(
     "--platform",
     type=click.Choice(["hifi", "ont"], case_sensitive=False),
-    default="hifi",
+    default=DEFAULT_SETTINGS.run.platform,
     help="Sequencing platform (default: hifi).",
 )
 @click.option(
@@ -113,6 +155,7 @@ def map_cmd(
     from muc_one_span.mapping import map_reads
     from muc_one_span.tools import check_tools
 
+    validate_stage_options()
     check_tools(["minimap2", "samtools"])
 
     preset = minimap2_preset or PLATFORM_PRESETS[platform]
@@ -130,17 +173,30 @@ def map_cmd(
     type=click.Path(exists=True),
     help="Input BAM file (mapped to ladder).",
 )
-@click.option("--min-coverage", type=int, default=10, help="Minimum read coverage.")
+@click.option(
+    "--min-coverage",
+    type=int,
+    default=DEFAULT_SETTINGS.run.min_coverage,
+    help="Minimum read coverage.",
+)
 @click.option("--output-dir", "-o", type=click.Path(), default=".", help="Output directory.")
 def alleles(input_path: str, min_coverage: int, output_dir: str) -> None:
     """Determine allele lengths from mapping."""
     from muc_one_span.alleles import detect_alleles, parse_idxstats
     from muc_one_span.mapping import get_idxstats
 
+    validate_stage_options()
     bam = Path(input_path)
     idxstats_output = get_idxstats(bam)
     counts = parse_idxstats(idxstats_output)
-    result = detect_alleles(counts, min_coverage, bam_path=bam)
+    settings = current_settings()
+    result = detect_alleles(
+        counts,
+        min_coverage,
+        bam_path=bam,
+        settings=settings.allele_selection,
+        reference_layout=settings.reference_layout,
+    )
 
     out_dir = Path(output_dir)
     out_dir.mkdir(parents=True, exist_ok=True)
@@ -173,18 +229,25 @@ def alleles(input_path: str, min_coverage: int, output_dir: str) -> None:
     help="Alleles JSON from 'alleles' command.",
 )
 @click.option("--output-dir", "-o", type=click.Path(), default=".", help="Output directory.")
-@click.option("--clair3-model", type=str, default="", help="Path to Clair3 model.")
-@click.option("--threads", "-t", type=int, default=4, help="Number of threads.")
+@click.option(
+    "--clair3-model",
+    type=str,
+    default=DEFAULT_SETTINGS.run.clair3_model,
+    help="Path to Clair3 model.",
+)
+@click.option(
+    "--threads", "-t", type=int, default=DEFAULT_SETTINGS.run.threads, help="Number of threads."
+)
 @click.option(
     "--min-qual",
     type=float,
-    default=5.0,
+    default=DEFAULT_SETTINGS.run.min_qual,
     help="Minimum QUAL score for VCF filtering (default 5.0).",
 )
 @click.option(
     "--platform",
     type=click.Choice(["hifi", "ont"], case_sensitive=False),
-    default="hifi",
+    default=DEFAULT_SETTINGS.run.platform,
     help="Sequencing platform (default: hifi).",
 )
 @click.option(
@@ -208,6 +271,7 @@ def call(
     from muc_one_span.calling import call_variants_per_allele
     from muc_one_span.tools import check_tools
 
+    validate_stage_options()
     check_tools(["minimap2", "samtools", "bcftools", "run_clair3.sh"])
 
     try:
@@ -226,7 +290,10 @@ def call(
         min_qual=min_qual,
         platform=platform,
         preset=preset,
+        settings=current_settings().calling,
+        read_phasing_settings=current_settings().read_phasing,
     )
+    (Path(output_dir) / "alleles.json").write_text(json.dumps(alleles_data, indent=2) + "\n")
     for key, vcf in vcfs.items():
         click.echo(f"{key}: {vcf}")
 
@@ -255,16 +322,25 @@ def call(
     help="Alleles JSON.",
 )
 @click.option("--output-dir", "-o", type=click.Path(), default=".", help="Output directory.")
+@click.option(
+    "--repeats-db",
+    type=click.Path(exists=True),
+    default=None,
+    help="Custom repeat dictionary for anchor-aware trimming.",
+)
 def consensus(
     input_path: str,
     reference: str,
     alleles_json: str,
     output_dir: str,
+    repeats_db: str | None,
 ) -> None:
     """Build per-allele consensus sequences."""
+    from muc_one_span.config import load_repeat_dictionary
     from muc_one_span.consensus import build_consensus_per_allele
     from muc_one_span.tools import check_tools
 
+    rd = load_repeat_dictionary(Path(repeats_db) if repeats_db else None)
     check_tools(["samtools", "bcftools"])
 
     try:
@@ -275,10 +351,15 @@ def consensus(
     out = Path(output_dir)
     vcf_paths: dict[str, Path] = {}
     for key in ["allele_1", "allele_2"]:
-        vcf = out / key / "variants.vcf.gz"
+        info = alleles_data.get(key, {})
+        if info.get("candidate_duplicate_of"):
+            continue
+        vcf = Path(info["vcf_path"]) if info.get("vcf_path") else out / key / "variants.vcf.gz"
         if vcf.exists():
             vcf_paths[key] = vcf
 
+    if not vcf_paths and (out / "merged" / "variants.vcf.gz").exists():
+        vcf_paths["allele_1"] = out / "merged" / "variants.vcf.gz"
     if not vcf_paths:
         click.echo(
             "Warning: no VCF files found. Expected allele_1/variants.vcf.gz "
@@ -291,7 +372,11 @@ def consensus(
         vcf_paths,
         alleles_data,
         out,
+        repeat_dict=rd,
+        settings=current_settings().consensus,
+        reference_layout=current_settings().reference_layout,
     )
+    (out / "alleles.json").write_text(json.dumps(alleles_data, indent=2) + "\n")
     for key, fa in fastas.items():
         click.echo(f"{key}: {fa}")
 
@@ -326,7 +411,7 @@ def classify(
     lines = Path(input_path).read_text().strip().splitlines()
     sequence = "".join(line for line in lines if not line.startswith(">"))
 
-    result = classify_sequence(sequence, rd)
+    result = classify_sequence(sequence, rd, settings=current_settings().classification)
 
     out_dir = Path(output_dir)
     out_dir.mkdir(parents=True, exist_ok=True)
@@ -345,7 +430,7 @@ def classify(
     "-i",
     "input_path",
     required=True,
-    type=click.Path(exists=True),
+    type=click.Path(),
     help="Input FASTQ or BAM file.",
 )
 @click.option(
@@ -358,18 +443,29 @@ def classify(
 @click.option(
     "--reference",
     "-r",
-    type=click.Path(exists=True),
+    type=click.Path(),
     default=None,
     help="Reference FASTA (defaults to bundled ladder).",
 )
-# TODO: --config support for YAML configuration is planned for a future release
-@click.option("--clair3-model", type=str, default="", help="Path to Clair3 model.")
-@click.option("--threads", "-t", type=int, default=4, help="Number of threads.")
-@click.option("--min-coverage", type=int, default=10, help="Minimum read coverage.")
+@click.option(
+    "--clair3-model",
+    type=str,
+    default=DEFAULT_SETTINGS.run.clair3_model,
+    help="Path to Clair3 model.",
+)
+@click.option(
+    "--threads", "-t", type=int, default=DEFAULT_SETTINGS.run.threads, help="Number of threads."
+)
+@click.option(
+    "--min-coverage",
+    type=int,
+    default=DEFAULT_SETTINGS.run.min_coverage,
+    help="Minimum read coverage.",
+)
 @click.option(
     "--min-qual",
     type=float,
-    default=5.0,
+    default=DEFAULT_SETTINGS.run.min_qual,
     help="Minimum QUAL score for VCF filtering (default 5.0).",
 )
 @click.option(
@@ -380,7 +476,7 @@ def classify(
 @click.option(
     "--platform",
     type=click.Choice(["hifi", "ont"], case_sensitive=False),
-    default="hifi",
+    default=DEFAULT_SETTINGS.run.platform,
     help="Sequencing platform (default: hifi).",
 )
 @click.option(
@@ -389,6 +485,7 @@ def classify(
     default=None,
     help="minimap2 -x preset (auto-selected from --platform if not set).",
 )
+@record_run_status
 def run(
     input_path: str,
     output_dir: str,
@@ -402,113 +499,22 @@ def run(
     minimap2_preset: str | None,
 ) -> None:
     """Run the full MucOneSpan pipeline."""
-    from muc_one_span.alleles import detect_alleles, parse_idxstats
-    from muc_one_span.calling import call_variants_per_allele
-    from muc_one_span.classify import classify_sequence
-    from muc_one_span.config import load_repeat_dictionary
-    from muc_one_span.consensus import build_consensus_per_allele
-    from muc_one_span.mapping import get_idxstats, map_reads
-    from muc_one_span.tools import check_tools, get_tool_versions
-    from muc_one_span.vcf import parse_vcf_variants
+    from muc_one_span.pipeline import execute_pipeline
 
-    preset = minimap2_preset or PLATFORM_PRESETS[platform]
-
-    check_tools(["minimap2", "samtools", "bcftools", "run_clair3.sh"])
-    tool_versions = get_tool_versions(["minimap2", "samtools", "bcftools", "run_clair3.sh"])
-
-    out = Path(output_dir)
-    out.mkdir(parents=True, exist_ok=True)
-    ref = Path(reference) if reference else _bundled_reference()
-    rd = load_repeat_dictionary()
-
-    # Step 1: Map reads
-    click.echo("Step 1/5: Mapping reads...")
-    bam = map_reads(Path(input_path), ref, out, threads, preset=preset)
-
-    # Step 2: Detect alleles
-    click.echo("Step 2/5: Detecting alleles...")
-    idxstats = get_idxstats(bam)
-    counts = parse_idxstats(idxstats)
-    alleles_result = detect_alleles(counts, min_coverage, bam_path=bam)
-    (out / "alleles.json").write_text(json.dumps(alleles_result, indent=2) + "\n")
-    click.echo(f"  Alleles: {alleles_result}")
-
-    # Step 3: Call variants
-    click.echo("Step 3/5: Calling variants...")
-    vcf_paths = call_variants_per_allele(
-        bam,
-        ref,
-        alleles_result,
-        out,
+    execute_pipeline(
+        input_path,
+        output_dir,
+        reference,
         clair3_model,
         threads,
-        min_qual=min_qual,
-        platform=platform,
-        preset=preset,
+        min_coverage,
+        min_qual,
+        report,
+        platform,
+        minimap2_preset,
+        settings=current_settings(),
+        configuration=current_configuration_path(),
     )
-
-    # Step 4: Build consensus
-    click.echo("Step 4/5: Building consensus...")
-    consensus_paths = build_consensus_per_allele(
-        ref, vcf_paths, alleles_result, out, repeat_dict=rd
-    )
-
-    # Step 5: Classify repeats
-    click.echo("Step 5/5: Classifying repeats...")
-    from muc_one_span.classify import validate_mutations_against_vcf
-
-    all_results: dict[str, dict] = {}
-    for allele_key, fa_path in consensus_paths.items():
-        fa_lines = fa_path.read_text().strip().splitlines()
-        sequence = "".join(line for line in fa_lines if not line.startswith(">"))
-        result = classify_sequence(sequence, rd)
-
-        # VCF-backed validation if VCF available
-        if allele_key in vcf_paths:
-            vcf_variants = parse_vcf_variants(vcf_paths[allele_key])
-            result = validate_mutations_against_vcf(result, vcf_variants=vcf_variants)
-
-        all_results[allele_key] = result
-        click.echo(f"  {allele_key}: {result['structure']}")
-        if result.get("allele_confidence") is not None:
-            click.echo(f"    confidence: {result['allele_confidence']:.2f}")
-
-    # Write combined outputs
-    (out / "repeats.json").write_text(json.dumps(all_results, indent=2) + "\n")
-    structures = {k: v["structure"] for k, v in all_results.items()}
-    (out / "repeats.txt").write_text("\n".join(f"{k}: {v}" for k, v in structures.items()) + "\n")
-
-    # Summary
-    summary = {
-        "alleles": alleles_result,
-        "classifications": {
-            k: {
-                "structure": v["structure"],
-                "mutations": v["mutations_detected"],
-            }
-            for k, v in all_results.items()
-        },
-        "tool_versions": tool_versions,
-        "pipeline_version": __version__,
-    }
-    (out / "summary.json").write_text(json.dumps(summary, indent=2) + "\n")
-
-    if report:
-        try:
-            from muc_one_span.report import generate_report
-
-            report_path = out / "report.html"
-            generate_report(
-                summary,
-                report_path,
-                sample_name=Path(input_path).stem,
-                detailed_repeats=all_results,
-            )
-            click.echo(f"Report: {report_path}")
-        except ImportError as e:
-            click.echo(f"Warning: {e}", err=True)
-
-    click.echo("Pipeline complete.")
 
 
 @main.command()

@@ -7,6 +7,7 @@ import logging
 from pathlib import Path
 
 from muc_one_span.config import RepeatDictionary
+from muc_one_span.settings import DEFAULT_SETTINGS, ConsensusSettings, ReferenceLayoutSettings
 
 logger = logging.getLogger(__name__)
 
@@ -14,7 +15,10 @@ logger = logging.getLogger(__name__)
 def build_contig(
     num_repeats: int,
     repeat_dict: RepeatDictionary,
-    flank_length: int = 500,
+    flank_length: int | None = None,
+    *,
+    settings: ConsensusSettings | None = None,
+    reference_layout: ReferenceLayoutSettings | None = None,
 ) -> dict[str, str]:
     """Build a single ladder contig for a given repeat count.
 
@@ -23,11 +27,20 @@ def build_contig(
     Args:
         num_repeats: Number of canonical X repeats in the variable region.
         repeat_dict: Loaded repeat dictionary with sequences and flanking.
-        flank_length: Length of flanking sequence on each side (bp).
+        flank_length: Explicit flank length; None uses settings (default 500 bp).
+        settings: Optional consensus flank defaults.
+        reference_layout: Ordered fixed repeat IDs (default 1-5 then 6-9).
 
     Returns:
         Dict with 'name' and 'sequence' keys.
     """
+    settings = settings or DEFAULT_SETTINGS.consensus
+    layout = reference_layout or DEFAULT_SETTINGS.reference_layout
+    layout.validate_repeats(repeat_dict.repeats)
+    flank_length = settings.flank_length if flank_length is None else flank_length
+    settings.validate_flanks(
+        repeat_dict.flanking_left, repeat_dict.flanking_right, flank_length=flank_length
+    )
     parts: list[str] = []
 
     # Left flanking
@@ -35,21 +48,17 @@ def build_contig(
         left = repeat_dict.flanking_left[:flank_length]
         parts.append(left)
 
-    # Pre-repeats: 1, 2, 3, 4, 5
-    pre_ids = ["1", "2", "3", "4", "5"]
-    for rid in pre_ids:
-        if rid in repeat_dict.repeats:
-            parts.append(repeat_dict.repeats[rid])
+    # Selected fixed repeats before the variable region.
+    for rid in layout.pre:
+        parts.append(repeat_dict.repeats[rid])
 
     # N canonical X repeats
     x_seq = repeat_dict.repeats[repeat_dict.canonical_repeat]
     parts.append(x_seq * num_repeats)
 
-    # After-repeats: 6, 7, 8, 9
-    after_ids = ["6", "7", "8", "9"]
-    for rid in after_ids:
-        if rid in repeat_dict.repeats:
-            parts.append(repeat_dict.repeats[rid])
+    # Selected fixed repeats after the variable region.
+    for rid in layout.after:
+        parts.append(repeat_dict.repeats[rid])
 
     # Right flanking
     if flank_length > 0 and repeat_dict.flanking_right:
@@ -65,10 +74,13 @@ def build_contig(
 def generate_ladder_fasta(
     repeat_dict: RepeatDictionary,
     output_path: Path,
-    min_units: int = 1,
-    max_units: int = 150,
-    flank_length: int = 500,
+    min_units: int | None = None,
+    max_units: int | None = None,
+    flank_length: int | None = None,
     line_width: int = 80,
+    *,
+    settings: ConsensusSettings | None = None,
+    reference_layout: ReferenceLayoutSettings | None = None,
 ) -> Path:
     """Generate a multi-contig FASTA reference ladder.
 
@@ -79,10 +91,21 @@ def generate_ladder_fasta(
         max_units: Maximum number of canonical repeats (default 150).
         flank_length: Flanking sequence length per side (default 500bp).
         line_width: FASTA line width (default 80).
+        settings: Optional flank defaults; explicit flank_length takes precedence.
+        reference_layout: Selected fixed repeats and default ladder range.
+            Explicit min_units/max_units take precedence.
 
     Returns:
         Path to the generated FASTA file.
     """
+    settings = settings or DEFAULT_SETTINGS.consensus
+    settings.validate_flanks(
+        repeat_dict.flanking_left, repeat_dict.flanking_right, flank_length=flank_length
+    )
+    layout = reference_layout or DEFAULT_SETTINGS.reference_layout
+    layout.validate_repeats(repeat_dict.repeats)
+    min_units = layout.min_units if min_units is None else min_units
+    max_units = layout.max_units if max_units is None else max_units
     output_path.parent.mkdir(parents=True, exist_ok=True)
     logger.info(
         "Generating reference ladder (%d-%d repeats) -> %s",
@@ -93,7 +116,9 @@ def generate_ladder_fasta(
 
     with output_path.open("w") as f:
         for n in range(min_units, max_units + 1):
-            contig = build_contig(n, repeat_dict, flank_length)
+            contig = build_contig(
+                n, repeat_dict, flank_length, settings=settings, reference_layout=layout
+            )
             f.write(f">{contig['name']}\n")
             seq = contig["sequence"]
             for i in range(0, len(seq), line_width):

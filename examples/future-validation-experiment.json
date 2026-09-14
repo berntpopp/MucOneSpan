@@ -1,0 +1,509 @@
+{
+  "schema_version": 1,
+  "cases": [
+    {
+      "sample": "fresh_hifi_normal_60_60",
+      "platform": "hifi",
+      "seed": 2026091401,
+      "lengths": [
+        60,
+        60
+      ],
+      "mutation": null,
+      "targets": [],
+      "requested_templates": 200
+    },
+    {
+      "sample": "fresh_hifi_normal_60_61",
+      "platform": "hifi",
+      "seed": 2026091402,
+      "lengths": [
+        60,
+        61
+      ],
+      "mutation": null,
+      "targets": [],
+      "requested_templates": 200
+    },
+    {
+      "sample": "fresh_hifi_normal_60_62",
+      "platform": "hifi",
+      "seed": 2026091403,
+      "lengths": [
+        60,
+        62
+      ],
+      "mutation": null,
+      "targets": [],
+      "requested_templates": 200
+    },
+    {
+      "sample": "fresh_hifi_dupc_60_63",
+      "platform": "hifi",
+      "seed": 2026091404,
+      "lengths": [
+        60,
+        63
+      ],
+      "mutation": "dupC",
+      "targets": [
+        [
+          1,
+          25
+        ]
+      ],
+      "requested_templates": 200
+    },
+    {
+      "sample": "fresh_hifi_dupc_h2_60_80",
+      "platform": "hifi",
+      "seed": 2026091405,
+      "lengths": [
+        60,
+        80
+      ],
+      "mutation": "dupC",
+      "targets": [
+        [
+          2,
+          25
+        ]
+      ],
+      "requested_templates": 200
+    },
+    {
+      "sample": "fresh_hifi_inscccc_terminal_60_80",
+      "platform": "hifi",
+      "seed": 2026091406,
+      "lengths": [
+        60,
+        80
+      ],
+      "mutation": "insCCCC",
+      "targets": [
+        [
+          1,
+          55
+        ]
+      ],
+      "requested_templates": 200
+    },
+    {
+      "sample": "fresh_hifi_dupa_25_30",
+      "platform": "hifi",
+      "seed": 2026091407,
+      "lengths": [
+        25,
+        30
+      ],
+      "mutation": "dupA",
+      "targets": [
+        [
+          2,
+          10
+        ]
+      ],
+      "requested_templates": 200
+    },
+    {
+      "sample": "fresh_hifi_insg_100_120",
+      "platform": "hifi",
+      "seed": 2026091408,
+      "lengths": [
+        100,
+        120
+      ],
+      "mutation": "insG",
+      "targets": [
+        [
+          1,
+          45
+        ]
+      ],
+      "requested_templates": 200
+    },
+    {
+      "sample": "fresh_hifi_del18_31_60_80",
+      "platform": "hifi",
+      "seed": 2026091409,
+      "lengths": [
+        60,
+        80
+      ],
+      "mutation": "del18_31",
+      "targets": [
+        [
+          2,
+          25
+        ]
+      ],
+      "requested_templates": 200
+    },
+    {
+      "sample": "fresh_hifi_dupc_25_140",
+      "platform": "hifi",
+      "seed": 2026091410,
+      "lengths": [
+        25,
+        140
+      ],
+      "mutation": "dupC",
+      "targets": [
+        [
+          2,
+          100
+        ]
+      ],
+      "requested_templates": 200
+    },
+    {
+      "sample": "fresh_hifi_normal_low_60_80",
+      "platform": "hifi",
+      "seed": 2026091411,
+      "lengths": [
+        60,
+        80
+      ],
+      "mutation": null,
+      "targets": [],
+      "requested_templates": 20
+    },
+    {
+      "sample": "fresh_hifi_dupc_120_140",
+      "platform": "hifi",
+      "seed": 2026091412,
+      "lengths": [
+        120,
+        140
+      ],
+      "mutation": "dupC",
+      "targets": [
+        [
+          1,
+          50
+        ]
+      ],
+      "requested_templates": 200
+    },
+    {
+      "sample": "fresh_ont_normal_60_60",
+      "platform": "ont",
+      "seed": 2026091413,
+      "lengths": [
+        60,
+        60
+      ],
+      "mutation": null,
+      "targets": [],
+      "requested_templates": 200
+    },
+    {
+      "sample": "fresh_ont_normal_60_61",
+      "platform": "ont",
+      "seed": 2026091414,
+      "lengths": [
+        60,
+        61
+      ],
+      "mutation": null,
+      "targets": [],
+      "requested_templates": 200
+    },
+    {
+      "sample": "fresh_ont_normal_60_62",
+      "platform": "ont",
+      "seed": 2026091415,
+      "lengths": [
+        60,
+        62
+      ],
+      "mutation": null,
+      "targets": [],
+      "requested_templates": 200
+    },
+    {
+      "sample": "fresh_ont_dupc_60_63",
+      "platform": "ont",
+      "seed": 2026091416,
+      "lengths": [
+        60,
+        63
+      ],
+      "mutation": "dupC",
+      "targets": [
+        [
+          1,
+          25
+        ]
+      ],
+      "requested_templates": 200
+    },
+    {
+      "sample": "fresh_ont_dupc_h2_60_80",
+      "platform": "ont",
+      "seed": 2026091417,
+      "lengths": [
+        60,
+        80
+      ],
+      "mutation": "dupC",
+      "targets": [
+        [
+          2,
+          25
+        ]
+      ],
+      "requested_templates": 200
+    },
+    {
+      "sample": "fresh_ont_inscccc_terminal_60_80",
+      "platform": "ont",
+      "seed": 2026091418,
+      "lengths": [
+        60,
+        80
+      ],
+      "mutation": "insCCCC",
+      "targets": [
+        [
+          1,
+          55
+        ]
+      ],
+      "requested_templates": 200
+    },
+    {
+      "sample": "fresh_ont_dupa_25_30",
+      "platform": "ont",
+      "seed": 2026091419,
+      "lengths": [
+        25,
+        30
+      ],
+      "mutation": "dupA",
+      "targets": [
+        [
+          2,
+          10
+        ]
+      ],
+      "requested_templates": 200
+    },
+    {
+      "sample": "fresh_ont_insg_100_120",
+      "platform": "ont",
+      "seed": 2026091420,
+      "lengths": [
+        100,
+        120
+      ],
+      "mutation": "insG",
+      "targets": [
+        [
+          1,
+          45
+        ]
+      ],
+      "requested_templates": 200
+    },
+    {
+      "sample": "fresh_ont_del18_31_60_80",
+      "platform": "ont",
+      "seed": 2026091421,
+      "lengths": [
+        60,
+        80
+      ],
+      "mutation": "del18_31",
+      "targets": [
+        [
+          2,
+          25
+        ]
+      ],
+      "requested_templates": 200
+    },
+    {
+      "sample": "fresh_ont_dupc_25_140",
+      "platform": "ont",
+      "seed": 2026091422,
+      "lengths": [
+        25,
+        140
+      ],
+      "mutation": "dupC",
+      "targets": [
+        [
+          2,
+          100
+        ]
+      ],
+      "requested_templates": 200
+    },
+    {
+      "sample": "fresh_ont_normal_low_60_80",
+      "platform": "ont",
+      "seed": 2026091423,
+      "lengths": [
+        60,
+        80
+      ],
+      "mutation": null,
+      "targets": [],
+      "requested_templates": 20
+    },
+    {
+      "sample": "fresh_ont_dupc_120_140",
+      "platform": "ont",
+      "seed": 2026091424,
+      "lengths": [
+        120,
+        140
+      ],
+      "mutation": "dupC",
+      "targets": [
+        [
+          1,
+          50
+        ]
+      ],
+      "requested_templates": 200
+    },
+    {
+      "sample": "fresh_hifi_ins25bp_60_80",
+      "platform": "hifi",
+      "seed": 2026091425,
+      "lengths": [
+        60,
+        80
+      ],
+      "mutation": "ins25bp",
+      "targets": [
+        [
+          1,
+          25
+        ]
+      ],
+      "requested_templates": 200
+    },
+    {
+      "sample": "fresh_hifi_nonx_insc_pos23_60_80",
+      "platform": "hifi",
+      "seed": 2026091426,
+      "lengths": [
+        60,
+        80
+      ],
+      "mutation": "insC_pos23",
+      "targets": [
+        [
+          2,
+          25
+        ]
+      ],
+      "requested_templates": 200
+    },
+    {
+      "sample": "fresh_hifi_delgccca_60_80",
+      "platform": "hifi",
+      "seed": 2026091427,
+      "lengths": [
+        60,
+        80
+      ],
+      "mutation": "delGCCCA",
+      "targets": [
+        [
+          1,
+          25
+        ]
+      ],
+      "requested_templates": 200
+    },
+    {
+      "sample": "fresh_hifi_dupc_h2_equal_60_60",
+      "platform": "hifi",
+      "seed": 2026091428,
+      "lengths": [
+        60,
+        60
+      ],
+      "mutation": "dupC",
+      "targets": [
+        [
+          2,
+          25
+        ]
+      ],
+      "requested_templates": 200
+    },
+    {
+      "sample": "fresh_ont_ins25bp_60_80",
+      "platform": "ont",
+      "seed": 2026091429,
+      "lengths": [
+        60,
+        80
+      ],
+      "mutation": "ins25bp",
+      "targets": [
+        [
+          1,
+          25
+        ]
+      ],
+      "requested_templates": 200
+    },
+    {
+      "sample": "fresh_ont_nonx_insc_pos23_60_80",
+      "platform": "ont",
+      "seed": 2026091430,
+      "lengths": [
+        60,
+        80
+      ],
+      "mutation": "insC_pos23",
+      "targets": [
+        [
+          2,
+          25
+        ]
+      ],
+      "requested_templates": 200
+    },
+    {
+      "sample": "fresh_ont_delgccca_60_80",
+      "platform": "ont",
+      "seed": 2026091431,
+      "lengths": [
+        60,
+        80
+      ],
+      "mutation": "delGCCCA",
+      "targets": [
+        [
+          1,
+          25
+        ]
+      ],
+      "requested_templates": 200
+    },
+    {
+      "sample": "fresh_ont_dupc_h2_equal_60_60",
+      "platform": "ont",
+      "seed": 2026091432,
+      "lengths": [
+        60,
+        60
+      ],
+      "mutation": "dupC",
+      "targets": [
+        [
+          2,
+          25
+        ]
+      ],
+      "requested_templates": 200
+    }
+  ]
+}

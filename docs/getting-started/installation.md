@@ -6,7 +6,7 @@ analysis also needs external bioinformatics tools and a Clair3 model.
 ## Install the Python package
 
 ```bash
-pip install 'muc_one_span[report] @ git+https://github.com/berntpopp/MucOneSpan.git@v0.10.0'
+pip install 'muc_one_span[report] @ git+https://github.com/berntpopp/MucOneSpan.git@v0.11.0'
 muconespan --version
 ```
 
@@ -82,7 +82,7 @@ docker run --rm \
   run --input /data/reads.bam --output-dir /data/results/
 ```
 
-Use a version tag such as `0.10.0` in place of `latest` to select a release.
+Use a version tag such as `0.11.0` in place of `latest` to select a release.
 
 ## Verify installation
 

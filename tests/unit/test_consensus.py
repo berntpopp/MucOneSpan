@@ -5,7 +5,16 @@ from __future__ import annotations
 from pathlib import Path
 from unittest.mock import patch
 
+import pytest
+
 from muc_one_span.consensus import build_consensus, build_consensus_per_allele, trim_flanking
+
+
+@pytest.fixture(autouse=True)
+def selected_sample():
+    # Sample header inspection is an external bcftools operation.
+    with patch("muc_one_span.consensus.select_vcf_sample", return_value="SAMPLE"):
+        yield
 
 
 class TestBuildConsensus:
@@ -311,3 +320,69 @@ class TestBuildConsensusPerAllele:
             flank_length=flanks,
         )
         assert "allele_1" in result
+
+
+def test_consensus_uses_explicit_sample_and_genotype_haplotype(tmp_path):
+    with patch("muc_one_span.consensus.run_tool", return_value=">c\nAC\n") as run:
+        build_consensus(
+            Path("ref.fa"), Path("calls.vcf"), tmp_path / "out.fa", sample="SAMPLE", haplotype=2
+        )
+        command = run.call_args.args[0]
+        assert command[command.index("-s") + 1] == "SAMPLE"
+        assert command[command.index("-H") + 1] == "2"
+
+
+def test_trim_records_actual_anchor_interval(tmp_path):
+    from muc_one_span.config import load_repeat_dictionary
+
+    rd = load_repeat_dictionary()
+    left = rd.flanking_left[:500]
+    vntr = rd.repeats["1"] + rd.repeats["X"] + rd.repeats["9"]
+    sequence = left[:250] + "A" + left[250:] + vntr + rd.flanking_right[:500]
+    full = tmp_path / "full.fa"
+    full.write_text(f">c\n{sequence}\n")
+    context = {}
+    trim_flanking(full, 500, tmp_path / "trim.fa", repeat_dict=rd, context=context)
+    assert context == {
+        "trim_start": 501,
+        "trim_end": 681,
+        "left_trim_method": "exact_anchor",
+        "right_trim_method": "exact_anchor",
+    }
+
+
+def test_default_consensus_explicitly_uses_genotype_iupac(tmp_path):
+    with patch("muc_one_span.consensus.run_tool", return_value=">c\nAM\n") as run:
+        build_consensus(Path("ref.fa"), Path("calls.vcf"), tmp_path / "out.fa")
+        command = run.call_args.args[0]
+        assert command[command.index("-H") + 1] == "I"
+        assert command[command.index("-s") + 1] == "SAMPLE"
+
+
+def test_trim_exposes_failed_anchor_fallback(tmp_path):
+    from muc_one_span.config import load_repeat_dictionary
+
+    full = tmp_path / "full.fa"
+    full.write_text(">c\n" + "A" * 1200 + "\n")
+    context = {}
+    trim_flanking(full, 500, tmp_path / "trim.fa", load_repeat_dictionary(), context=context)
+    assert context["left_trim_method"] == "fixed_anchor_not_found"
+    assert context["right_trim_method"] == "fixed_anchor_not_found"
+
+
+def test_identical_trimmed_candidates_do_not_inherit_flank_phase(tmp_path):
+    fake = ">c\nAACCGGTT\n"
+    alleles = {
+        key: {"length": 1, "contig_name": "c", "independent_haplotype_evidence": True}
+        for key in ("allele_1", "allele_2")
+    }
+    with patch("muc_one_span.consensus.run_tool", return_value=fake):
+        build_consensus_per_allele(
+            tmp_path / "ref.fa",
+            dict.fromkeys(alleles, tmp_path / "v.vcf.gz"),
+            alleles,
+            tmp_path / "out",
+            flank_length=2,
+        )
+    assert all(not a["independent_haplotype_evidence"] for a in alleles.values())
+    assert all(a["vntr_phase_status"] == "no_sequence_distinction" for a in alleles.values())

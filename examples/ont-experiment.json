@@ -1,0 +1,22 @@
+{
+  "schema_version": 1,
+  "cases": [
+    {
+      "sample": "ont_development_25_30",
+      "platform": "ont",
+      "seed": 19200902,
+      "lengths": [
+        25,
+        30
+      ],
+      "mutation": "dupC",
+      "targets": [
+        [
+          1,
+          10
+        ]
+      ],
+      "requested_templates": 12
+    }
+  ]
+}

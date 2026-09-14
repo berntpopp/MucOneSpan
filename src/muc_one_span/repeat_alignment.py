@@ -13,22 +13,50 @@ def edit_distance(s1: str, s2: str) -> int:
     Returns:
         Minimum number of single-character edits (insert, delete, substitute).
     """
-    m, n = len(s1), len(s2)
+    return _edit_distance_bitvector(s1, s2)
 
-    # Use single-row optimization for memory efficiency
-    prev = list(range(n + 1))
-    curr = [0] * (n + 1)
 
-    for i in range(1, m + 1):
-        curr[0] = i
-        for j in range(1, n + 1):
-            if s1[i - 1] == s2[j - 1]:
-                curr[j] = prev[j - 1]
-            else:
-                curr[j] = 1 + min(prev[j], curr[j - 1], prev[j - 1])
-        prev, curr = curr, prev
+def _edit_distance_bitvector(s1: str, s2: str) -> int:
+    """Compute exact Levenshtein distance with Myers' bit-vector recurrence."""
+    if s1 == s2:
+        return 0
+    if not s1:
+        return len(s2)
+    if not s2:
+        return len(s1)
 
-    return prev[n]
+    # Fewer pattern positions mean smaller integer bit operations. Distance is
+    # symmetric, so the shorter input can always be used as the pattern.
+    if len(s1) > len(s2):
+        s1, s2 = s2, s1
+
+    pattern_masks: dict[str, int] = {}
+    for position, symbol in enumerate(s1):
+        pattern_masks[symbol] = pattern_masks.get(symbol, 0) | (1 << position)
+
+    positive = ~0
+    negative = 0
+    distance = len(s1)
+    final_bit = 1 << (len(s1) - 1)
+
+    for symbol in s2:
+        matches = pattern_masks.get(symbol, 0)
+        vertical = matches | negative
+        horizontal = (((matches & positive) + positive) ^ positive) | matches
+        positive_horizontal = negative | ~(horizontal | positive)
+        negative_horizontal = positive & horizontal
+
+        if positive_horizontal & final_bit:
+            distance += 1
+        elif negative_horizontal & final_bit:
+            distance -= 1
+
+        positive_horizontal = (positive_horizontal << 1) | 1
+        negative_horizontal <<= 1
+        positive = negative_horizontal | ~(vertical | positive_horizontal)
+        negative = positive_horizontal & vertical
+
+    return distance
 
 
 def characterize_differences(ref: str, query: str) -> list[dict]:
@@ -86,7 +114,7 @@ def characterize_differences(ref: str, query: str) -> list[dict]:
             # Insertion in query
             diffs.append(
                 {
-                    "pos": i + 1,  # position after which insertion occurs
+                    "pos": i + 1,  # 1-based reference position before insertion
                     "ref": "",
                     "alt": query[j - 1],
                     "type": "insertion",

@@ -27,8 +27,9 @@ current generator needs a MucOneUp version supporting the ONT amplicon option.
 
 ## Generated samples
 
-`scripts/generate_testdata.py` is the source of truth for sample names, seeds,
-mutation targets, and coverage. It creates **26 HiFi samples and 3 ONT samples**
+`examples/development-experiment.json` defines sample names, seeds, mutation
+targets and requested templates. The configurable runner
+`scripts/generate_testdata.py` preserves its **26 HiFi samples and 3 ONT samples**
 under `tests/data/generated/`.
 
 | Group | Cases |
@@ -38,10 +39,14 @@ under `tests/data/generated/`.
 | Reproducibility | Additional dupC seeds and 40/50, 80/100, 100/120 lengths |
 | Close alleles | 50/55, 50/57, 50/60 with mutation and normal controls |
 | Long allele mutations | dupA and insG at 100/120, plus a normal control |
-| Low coverage | dupC at 50x |
+| Low coverage | dupC with 50 requested templates |
 | ONT | dupC, dupA, and normal at 60/80 |
 
-Default coverage is 200x, with the named low-coverage sample at 50x. Ground truth
+The default requests 200 template molecules; the low-coverage sample requests50.
+These are pre-filter simulation requests, not retained reads or measured depth.
+The manifest records actual usable reads and failed generation. See the
+[simulation experiment guide](simulation-experiments.md) for custom JSON designs
+and explicit per-platform simulator configurations. Ground truth
 includes simulated haplotype FASTA and simulation statistics. Keep generated
 reads and results out of Git; record parameters and summaries needed to reproduce
 an experiment.
@@ -120,3 +125,57 @@ See [limitations](../reference/limitations.md),
 [CLI reference](../reference/cli.md) for context. The longer
 [historical testing notes](https://github.com/berntpopp/MucOneSpan/blob/main/.planning/TESTING_WITH_MUCONEUP.md)
 retain past experiments; use the portable commands here for new work.
+
+## Strict offline accuracy evaluation
+
+The historical batch substring categories (`TP_partial`, or a template name found
+anywhere in a sample) are not exact mutation accuracy. Use the versioned evaluator:
+
+```bash
+uv run --locked --all-extras python scripts/evaluate.py tests/results/run \
+  --truth-root tests/data/generated --expected-samples samples.json \
+  --output tests/results/run/evaluation.json
+```
+
+`samples.json` explicitly lists every expected sample. Objects can point to distinct
+truth/output roots for perturbations and record exact input, platform, model and
+execution metadata. Missing/invalid truth, execution failures and unattempted
+samples remain visible. Nonzero status indicates evaluation/input/execution
+failure; completed evaluation with poor biological accuracy is a valid report.
+
+Compare total `length` to simulator total repeats; `contig_N` and
+`canonical_repeats` exclude nine fixed units. Use actual truth FASTA/structures,
+not filenames, stale per-repeat lengths or requested coverage metadata. Requested
+simulator coverage may be template molecules before filtering. Measure retained
+records and support instead of calling that value achieved sequencing depth.
+
+Report exact full sequences, ordered structures and count pairs separately from
+exact event annotation and broad mutation alarms. Keep positives' extra calls,
+missing/extra alleles, ambiguity, no-calls and normal false positives. Report
+platforms separately and preserve sample denominators. Related seeds and depth
+subsets do not supply independent clinical performance estimates.
+
+For classification timing, `scripts/benchmark_classification.py --help` documents
+paired scalar/bit-vector runs with complete result equality. A local scorer gain
+is not a whole-pipeline speedup. Pipeline comparisons require identical inputs,
+model/reference hashes, thread budgets, stage/wall measurements and paired runs.
+
+The current `scripts/batch_analyze.py` writes a versioned evaluation object in
+`batch_results.json`, replacing the legacy array containing partial true-positive
+labels. `scripts/validate_catalog.py` accepts both formats for display; accuracy
+claims must use the strict schema. Exact annotation requires parent, name and
+1-based total-repeat position on a one-to-one matched allele. All positive extras
+remain false positives, including on mutation-positive samples.
+
+Specificity uses confident TN/(TN+FP), retaining false positive alarms even when
+sequence reconstruction is ambiguous. The confident-negative rate additionally
+uses all normal controls as its denominator. Unresolved negatives are reported
+separately and cannot improve either result by becoming no-calls. Candidate-output
+call rate and resolved-reconstruction call rate answer different questions.
+
+### Driver exit status
+
+Batch and benchmark drivers return nonzero when any caller exits nonzero, including
+a typed `insufficient_evidence` no-call. The offline evaluator can still complete
+successfully and score that no-call as a scientific outcome. Use the evaluation
+report's execution and no-call fields alongside the driver exit status.

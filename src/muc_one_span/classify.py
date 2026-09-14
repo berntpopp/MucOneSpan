@@ -17,6 +17,12 @@ from __future__ import annotations
 
 import logging
 
+from muc_one_span.classification_summary import (
+    _compute_classification_summary as _compute_classification_summary,
+)
+from muc_one_span.classification_summary import (
+    _qual_to_confidence as _qual_to_confidence,
+)
 from muc_one_span.classify_types import (
     MutationDetected as MutationDetected,
 )
@@ -39,6 +45,7 @@ from muc_one_span.repeat_alignment import (
 from muc_one_span.repeat_alignment import (
     edit_distance as edit_distance,
 )
+from muc_one_span.settings import DEFAULT_SETTINGS, ClassificationSettings, ConfidenceSettings
 
 logger = logging.getLogger(__name__)
 
@@ -46,6 +53,8 @@ logger = logging.getLogger(__name__)
 def classify_repeat(
     sequence: str,
     repeat_dict: RepeatDictionary,
+    *,
+    settings: ClassificationSettings | None = None,
 ) -> dict:
     """Classify a single repeat unit against the known dictionary.
 
@@ -57,6 +66,8 @@ def classify_repeat(
         Classification result dict with type, match, and (for unknowns)
         closest_match, edit_distance, identity_pct, differences.
     """
+    effective = settings or DEFAULT_SETTINGS.classification
+
     # O(1) exact-match lookup via cached reverse map (sequence -> ID)
     if sequence in repeat_dict.seq_to_id:
         return {"type": repeat_dict.seq_to_id[sequence], "match": "exact", "confidence": 1.0}
@@ -93,13 +104,9 @@ def classify_repeat(
     # Determine if differences contain indels
     has_indels = any(d["type"] in ("insertion", "deletion") for d in diffs)
 
-    # Calculate total indel length for frameshift check
-    indel_bases = sum(
-        len(d["alt"]) if d["type"] == "insertion" else len(d["ref"])
-        for d in diffs
-        if d["type"] in ("insertion", "deletion")
-    )
-    is_frameshift = has_indels and (indel_bases % 3 != 0)
+    # Signed net change determines the downstream reading frame.
+    net_indel_bases = _compute_net_indel(diffs)
+    is_frameshift = has_indels and (net_indel_bases % 3 != 0)
 
     result: dict = {
         "type": "unknown",
@@ -109,23 +116,33 @@ def classify_repeat(
         "identity_pct": identity_pct,
         "confidence": identity_pct / 100,
         "differences": diffs,
+        "net_indel_bases": net_indel_bases,
     }
 
     if has_indels:
         result["classification"] = "mutation"
         result["frameshift"] = is_frameshift
     else:
-        result["classification"] = "novel_repeat" if best_dist > 2 else "variant"
+        result["classification"] = (
+            "novel_repeat" if best_dist > effective.novel_repeat_edit_distance else "variant"
+        )
 
     return result
 
 
-def _probe_sizes_generator(unit_length: int, max_indel_probe: int, remaining: int) -> list[int]:
+def _probe_sizes_generator(
+    unit_length: int,
+    remaining: int,
+    settings: ClassificationSettings,
+    *,
+    max_indel_probe: int | None = None,
+) -> list[int]:
     """Generate probe sizes: canonical first, then small-to-large."""
+    probe_limit = settings.max_indel_probe if max_indel_probe is None else max_indel_probe
     sizes = [min(unit_length, remaining)]
     for ps in range(
-        max(unit_length - max_indel_probe, unit_length // 2),
-        min(unit_length + max_indel_probe + 1, remaining + 1),
+        max(unit_length - probe_limit, max(1, int(unit_length * settings.minimum_unit_fraction))),
+        min(unit_length + probe_limit + 1, remaining + 1),
     ):
         if ps != unit_length:
             sizes.append(ps)
@@ -136,14 +153,17 @@ def _classify_backward(
     sequence: str,
     repeat_dict: RepeatDictionary,
     stop_pos: int,
+    *,
+    settings: ClassificationSettings | None = None,
 ) -> list[tuple[dict, int, int]]:
     """Classify repeats from 3' end backward, anchored on after-repeats.
 
     Returns list of (result, start_pos, end_pos) tuples in forward order.
     Stops when reaching stop_pos or when confidence drops.
     """
+    effective = settings or DEFAULT_SETTINGS.classification
     unit_length = repeat_dict.repeat_length_bp
-    max_indel_probe = 30
+    minimum_size = max(1, int(unit_length * effective.minimum_unit_fraction))
     after_ids = list(reversed(repeat_dict.after_repeat_ids))
 
     results: list[tuple[dict, int, int]] = []
@@ -162,16 +182,16 @@ def _classify_backward(
             break
 
     # Continue backward through canonical region
-    while pos - unit_length // 2 > stop_pos:
+    while pos - minimum_size > stop_pos:
         remaining_back = pos - stop_pos
-        if remaining_back < unit_length // 2:
+        if remaining_back < minimum_size:
             break
 
         best_result: dict | None = None
         best_size = unit_length
         best_dist: float = float("inf")
 
-        for probe_size in _probe_sizes_generator(unit_length, max_indel_probe, remaining_back):
+        for probe_size in _probe_sizes_generator(unit_length, remaining_back, effective):
             start = pos - probe_size
             if start < stop_pos:
                 continue
@@ -201,11 +221,11 @@ def _classify_backward(
         if best_dist > 0:
             # Edit distance fallback
             window = sequence[max(stop_pos, pos - unit_length) : pos]
-            best_result = classify_repeat(window, repeat_dict)
+            best_result = classify_repeat(window, repeat_dict, settings=effective)
             best_size = len(window)
             best_dist = best_result.get("edit_distance", 999)
 
-        if best_result is None or best_dist > 3:
+        if best_result is None or best_dist > effective.max_fit_edit_distance:
             break
 
         results.append((best_result, pos - best_size, pos))
@@ -219,7 +239,10 @@ def _forward_classify(
     sequence: str,
     repeat_dict: RepeatDictionary,
     unit_length: int,
-    max_indel_probe: int,
+    max_indel_probe: int | None = None,
+    strict_segmentation: bool | None = None,
+    *,
+    settings: ClassificationSettings | None = None,
 ) -> tuple[list[dict], list[dict], list[str], int, int]:
     """Classify repeats in a forward pass from 5' to 3'.
 
@@ -234,6 +257,10 @@ def _forward_classify(
         *pos* is the position where the forward pass stopped and
         *cumulative_offset* is the total net indel accumulated.
     """
+    effective = settings or DEFAULT_SETTINGS.classification
+    probe_limit = effective.max_indel_probe if max_indel_probe is None else max_indel_probe
+    strict = effective.strict_segmentation if strict_segmentation is None else strict_segmentation
+    minimum_size = max(1, int(unit_length * effective.minimum_unit_fraction))
     repeats: list[dict] = []
     mutations: list[dict] = []
     labels: list[str] = []
@@ -246,7 +273,7 @@ def _forward_classify(
         repeat_index += 1
 
         remaining = len(sequence) - pos
-        if remaining < unit_length // 2:
+        if remaining < minimum_size:
             break
 
         best_result: dict | None = None
@@ -261,7 +288,9 @@ def _forward_classify(
         exact_found = False
         canonical_result: dict | None = None
 
-        for probe_size in _probe_sizes_generator(unit_length, max_indel_probe, remaining):
+        for probe_size in _probe_sizes_generator(
+            unit_length, remaining, effective, max_indel_probe=probe_limit
+        ):
             window = sequence[pos : pos + probe_size]
             # Check mutation templates first (variable-length exact matches)
             if repeat_dict.mutated_sequences and window in repeat_dict.mutated_sequences:
@@ -297,7 +326,7 @@ def _forward_classify(
             # Try canonical size first
             if remaining >= unit_length:
                 window = sequence[pos : pos + unit_length]
-                result = classify_repeat(window, repeat_dict)
+                result = classify_repeat(window, repeat_dict, settings=effective)
                 if result is not None:
                     dist = 0 if result["match"] == "exact" else result.get("edit_distance", 999)
                     best_dist = dist
@@ -306,13 +335,13 @@ def _forward_classify(
 
             if best_dist > 0:
                 for probe_size in range(
-                    max(unit_length - max_indel_probe, unit_length // 2),
-                    min(unit_length + max_indel_probe + 1, remaining + 1),
+                    max(unit_length - probe_limit, minimum_size),
+                    min(unit_length + probe_limit + 1, remaining + 1),
                 ):
                     if probe_size == unit_length:
                         continue
                     window = sequence[pos : pos + probe_size]
-                    result = classify_repeat(window, repeat_dict)
+                    result = classify_repeat(window, repeat_dict, settings=effective)
                     if result is None:
                         continue
                     dist = 0 if result["match"] == "exact" else result.get("edit_distance", 999)
@@ -320,7 +349,7 @@ def _forward_classify(
                         best_dist = dist
                         best_result = result
                         best_window_size = probe_size
-                    if best_dist <= 1:
+                    if best_dist <= effective.early_stop_edit_distance:
                         break
 
         if best_result is None:
@@ -328,6 +357,11 @@ def _forward_classify(
                 f"Classification failed: no match found at position {pos} "
                 f"(remaining: {remaining} bp, repeat index: {repeat_index})"
             )
+        if strict and (
+            best_dist > effective.max_fit_edit_distance
+            or any(b not in "ACGT" for b in sequence[pos : pos + best_window_size])
+        ):
+            break
         result = best_result
         advance = best_window_size
 
@@ -337,6 +371,14 @@ def _forward_classify(
             cumulative_offset += net_indel
 
         result["index"] = repeat_index
+        result["start"] = pos
+        result["end"] = pos + advance
+        result["fit_status"] = (
+            "unresolved"
+            if best_dist > effective.max_fit_edit_distance
+            or any(b not in "ACGT" for b in sequence[pos : pos + advance])
+            else "accepted"
+        )
 
         if result["match"] == "exact":
             labels.append(result["type"])
@@ -348,7 +390,11 @@ def _forward_classify(
                         "closest_type": result.get("parent_repeat", result["type"]),
                         "mutation_name": result["mutation_name"],
                         "template_match": True,
-                        "frameshift": True,  # known mutations are frameshifts
+                        "frameshift": (
+                            best_window_size - len(repeat_dict.repeats[result["parent_repeat"]])
+                        )
+                        % 3
+                        != 0,
                     }
                 )
         elif result.get("classification") == "mutation":
@@ -396,86 +442,17 @@ def _apply_bidirectional_fallback(
     Returns:
         Tuple of (repeats, mutations, labels) with fallback results appended.
     """
-    unit_length = repeat_dict.repeat_length_bp
-    pos = forward_pos
-    repeat_index = len(repeats)
-
-    # --- Bidirectional fallback ---
-    # If the forward pass stopped with significant unconsumed sequence,
-    # try classifying from the 3' end backward.
-    if pos < len(sequence) - unit_length // 2:
-        backward = _classify_backward(sequence, repeat_dict, pos)
-        if backward:
-            # Gap between forward and backward = mutated region
-            gap_start = pos
-            gap_end = backward[0][1]
-            if gap_end > gap_start:
-                gap_seq = sequence[gap_start:gap_end]
-                gap_result = classify_repeat(gap_seq, repeat_dict)
-                repeat_index += 1
-                gap_result["index"] = repeat_index
-                if gap_result.get("classification") == "mutation" or gap_result["match"] != "exact":
-                    labels.append(f"{gap_result.get('closest_match', '?')}m")
-                    mutations.append(
-                        {
-                            "repeat_index": repeat_index,
-                            "closest_type": gap_result.get("closest_match", "?"),
-                            "differences": gap_result.get("differences", []),
-                            "frameshift": gap_result.get("frameshift", False),
-                        }
-                    )
-                else:
-                    labels.append(gap_result["type"])
-                repeats.append(gap_result)
-
-            # Append backward results
-            for bwd_result, _bwd_start, _bwd_end in backward:
-                repeat_index += 1
-                bwd_result["index"] = repeat_index
-                if bwd_result["match"] == "exact":
-                    labels.append(bwd_result["type"])
-                else:
-                    labels.append(f"?{bwd_result.get('closest_match', '?')}")
-                repeats.append(bwd_result)
-
+    # Kept as a compatibility import. An unknown gap cannot safely be treated as
+    # one mutated repeat or assigned a biological repeat count.
     return repeats, mutations, labels
-
-
-def _compute_classification_summary(
-    repeats: list[dict],
-    mutations: list[dict],
-    labels: list[str],
-    cumulative_offset: int,
-) -> dict:
-    """Compute summary statistics and build the final classification result dict.
-
-    Args:
-        repeats: Per-repeat classification results.
-        mutations: Mutations detected during classification.
-        labels: Label string for each repeat.
-        cumulative_offset: Net cumulative indel offset accumulated during classification.
-
-    Returns:
-        Final classification result dict.
-    """
-    confidences = [r.get("confidence", 1.0) for r in repeats]
-    exact_count = sum(1 for r in repeats if r.get("match") == "exact")
-    allele_confidence = sum(confidences) / len(confidences) if confidences else 0.0
-    exact_match_pct = (exact_count / len(repeats) * 100) if repeats else 0.0
-
-    return {
-        "structure": " ".join(labels),
-        "repeats": repeats,
-        "mutations_detected": mutations,
-        "cumulative_offset": cumulative_offset,
-        "allele_confidence": round(allele_confidence, 4),
-        "exact_match_pct": round(exact_match_pct, 1),
-    }
 
 
 def classify_sequence(
     sequence: str,
     repeat_dict: RepeatDictionary,
+    *,
+    strict_segmentation: bool | None = None,
+    settings: ClassificationSettings | None = None,
 ) -> dict:
     """Classify all repeat units in a consensus sequence.
 
@@ -506,42 +483,79 @@ def classify_sequence(
         Dict with structure string, per-repeat details, and mutation report.
     """
     logger.info("Classifying sequence of %d bp", len(sequence))
+    effective = settings or DEFAULT_SETTINGS.classification
+    strict = effective.strict_segmentation if strict_segmentation is None else strict_segmentation
     unit_length = repeat_dict.repeat_length_bp
-    # Maximum indel size to probe.  Covers all known MUC1 mutations
-    # (largest known: 25bp insertion, 14bp deletion).
-    max_indel_probe = 30
 
     repeats, mutations, labels, pos, cumulative_offset = _forward_classify(
-        sequence, repeat_dict, unit_length, max_indel_probe
+        sequence, repeat_dict, unit_length, strict_segmentation=strict, settings=effective
     )
 
-    repeats, mutations, labels = _apply_bidirectional_fallback(
-        sequence, repeat_dict, repeats, mutations, labels, pos
+    # A variable-length template immediately before an unresolved gap can borrow
+    # the gap's first bases (e.g. X followed by a long A insertion looks like dupA).
+    # Keep it as an unresolved candidate, not a localized mutation assertion.
+    unresolved_candidates = []
+    if strict and pos < len(sequence) and repeats and repeats[-1].get("mutation_name"):
+        last = repeats.pop()
+        labels.pop()
+        unresolved_candidates = [m for m in mutations if m["repeat_index"] == last["index"]]
+        mutations = [m for m in mutations if m["repeat_index"] != last["index"]]
+        cumulative_offset -= last["end"] - last["start"] - unit_length
+        pos = last["start"]
+    result = _compute_classification_summary(repeats, mutations, labels, cumulative_offset)
+    suffix: list[dict] = []
+    suffix_start = len(sequence)
+    if pos < len(sequence):
+        backward = _classify_backward(sequence, repeat_dict, pos, settings=effective)
+        for repeat, start, end in reversed(backward):
+            if repeat["match"] != "exact" or end != suffix_start:
+                break
+            suffix.append({**repeat, "start": start, "end": end, "index": None})
+            suffix_start = start
+        suffix.reverse()
+    unresolved = (
+        [{"start": pos, "end": suffix_start, "reason": "unresolved_sequence"}]
+        if pos < suffix_start
+        else []
     )
-
-    return _compute_classification_summary(repeats, mutations, labels, cumulative_offset)
-
-
-def _qual_to_confidence(qual: float) -> float:
-    """Map VCF QUAL score to a confidence weight in [0, 1].
-
-    Uses linear interpolation between QUAL=5 (0.5) and QUAL=20 (1.0).
-    Below QUAL=5, returns 0.3 as a floor. Above 20, returns 1.0.
-
-    This replaces the previous binary threshold (QUAL>=20 → 1.0, else 0.7)
-    to give a continuous signal that better reflects Clair3's confidence.
-
-    Args:
-        qual: VCF QUAL score.
-
-    Returns:
-        Confidence weight between 0.3 and 1.0.
-    """
-    if qual >= 20.0:
-        return 1.0
-    if qual >= 5.0:
-        return 0.5 + 0.5 * (qual - 5.0) / 15.0
-    return 0.3
+    unresolved_fit = [r for r in repeats if r.get("fit_status") == "unresolved"]
+    uncertain_index = min((r["index"] for r in unresolved_fit), default=len(repeats) + 1)
+    for repeat in repeats:
+        repeat["localization_status"] = (
+            "ambiguous" if repeat["index"] >= uncertain_index else "resolved"
+        )
+    for mutation in mutations:
+        mutation["localization_status"] = (
+            "ambiguous" if mutation["repeat_index"] >= uncertain_index else "resolved"
+        )
+    result.update(
+        {
+            "sequence_length": len(sequence),
+            "classified_bases": pos,
+            "classification_coverage": pos / len(sequence) if sequence else 0.0,
+            "unclassified_regions": unresolved,
+            "unresolved_candidates": unresolved_candidates,
+            "unresolved_regions": [
+                *unresolved,
+                *[
+                    {"start": r["start"], "end": r["end"], "reason": "uncertain_repeat_fit"}
+                    for r in unresolved_fit
+                ],
+            ],
+            "segmentation_policy": "strict_experimental" if strict else "candidate_windows",
+            "recovered_suffix": suffix,
+            "ambiguous_bases": sum(b not in "ACGT" for b in sequence),
+            "reconstruction_status": (
+                "complete_segmentation"
+                if pos == len(sequence) and sequence and not unresolved_fit
+                else "ambiguous_reconstruction"
+                if sequence
+                else "insufficient_evidence"
+            ),
+            "confidence_semantics": "heuristic_dictionary_fit_not_probability",
+        }
+    )
+    return result
 
 
 def validate_mutations_against_vcf(
@@ -549,34 +563,23 @@ def validate_mutations_against_vcf(
     vcf_variants: list[dict] | None = None,
     flank_length: int = 500,
     unit_length: int = 60,
-    boundary_repeats: int = 3,
-    boundary_penalty: float = 0.5,
+    boundary_repeats: int | None = None,
+    boundary_penalty: float | None = None,
+    *,
+    sequence: str | None = None,
+    repeat_dict: RepeatDictionary | None = None,
+    consensus_context: dict | None = None,
+    settings: ConfidenceSettings | None = None,
 ) -> dict:
-    """Cross-validate detected mutations against VCF variant positions.
+    """Annotate exact VCF sequence concordance and heuristic evidence weights.
 
-    For each mutation, check if a VCF variant overlaps the repeat's
-    genomic position.  Adds ``vcf_support`` flag and adjusts confidence
-    using the continuous :func:`_qual_to_confidence` function.
-
-    Mutations near the ends of an allele (within *boundary_repeats* of
-    the last repeat) receive an additional confidence penalty because
-    Clair3 produces systematic artifacts at contig boundaries where
-    read alignment quality degrades.
-
-    Args:
-        classification_result: Output from :func:`classify_sequence`.
-        vcf_variants: List of dicts with ``pos`` (int) and ``qual`` (float).
-            If None, VCF validation is skipped (standalone classify mode).
-        flank_length: Flanking bp on each side of the contig.
-        unit_length: Expected repeat unit length (60bp).
-        boundary_repeats: Number of repeats at allele ends subject to
-            boundary penalty (default 3).
-        boundary_penalty: Confidence multiplier for boundary mutations
-            (default 0.5).
-
-    Returns:
-        Updated classification result with VCF validation annotations.
+    Exact support requires actual reference/consensus replay context, the observed
+    VNTR sequence and dictionary. Legacy position/QUAL-only records cannot prove
+    variant identity. This is concordance with the source VCF, not independent
+    validation. ``flank_length``/``unit_length`` remain compatibility arguments.
     """
+    from muc_one_span.variant_support import mutation_concordance
+
     result = classification_result.copy()
     result["mutations_detected"] = [m.copy() for m in result.get("mutations_detected", [])]
     result["repeats"] = [r.copy() for r in result.get("repeats", [])]
@@ -584,24 +587,24 @@ def validate_mutations_against_vcf(
     if vcf_variants is None:
         return result
 
+    effective = settings or DEFAULT_SETTINGS.confidence
+    boundary_count = effective.boundary_repeats if boundary_repeats is None else boundary_repeats
+    boundary_weight = effective.boundary_penalty if boundary_penalty is None else boundary_penalty
     total_repeats = len(result["repeats"])
+    support = mutation_concordance(result, vcf_variants, sequence, repeat_dict, consensus_context)
 
     for mutation in result["mutations_detected"]:
         repeat_idx = mutation["repeat_index"]
-        # Map repeat index to contig coordinates
-        repeat_start = flank_length + (repeat_idx - 1) * unit_length
-        repeat_end = repeat_start + unit_length + 30  # allow for indels
-
-        # Check if any VCF variant overlaps this repeat
-        supporting = [v for v in vcf_variants if repeat_start <= v["pos"] <= repeat_end]
-        mutation["vcf_support"] = len(supporting) > 0
-        mutation["vcf_qual"] = max((v["qual"] for v in supporting), default=0.0)
+        status, supporting = support[repeat_idx]
+        mutation["vcf_support"] = bool(supporting)
+        mutation["vcf_support_status"] = status
+        mutation["vcf_qual"] = max((v.get("qual") or 0.0 for v in supporting), default=0.0)
 
         # Check if mutation is near the allele boundary.
         # Only apply to alleles long enough for boundary to be meaningful
         # (at least 2x boundary_repeats).
         is_boundary = (
-            total_repeats > 2 * boundary_repeats and repeat_idx > total_repeats - boundary_repeats
+            total_repeats > 2 * boundary_count and repeat_idx > total_repeats - boundary_count
         )
         mutation["boundary"] = is_boundary
 
@@ -609,11 +612,16 @@ def validate_mutations_against_vcf(
         if repeat_idx - 1 < len(result["repeats"]):
             repeat_result = result["repeats"][repeat_idx - 1]
             base_confidence = repeat_result.get("confidence", 1.0)
-            vcf_score = _qual_to_confidence(mutation["vcf_qual"]) if supporting else 0.3
+            if supporting:
+                vcf_score = _qual_to_confidence(mutation["vcf_qual"], settings=effective)
+            elif status == "absent":
+                vcf_score = effective.absent_weight
+            else:
+                vcf_score = 1.0
             confidence = base_confidence * vcf_score
             # Apply boundary penalty for mutations near allele ends
             if is_boundary:
-                confidence *= boundary_penalty
+                confidence *= boundary_weight
             repeat_result["confidence"] = round(confidence, 4)
 
     # Recompute allele_confidence

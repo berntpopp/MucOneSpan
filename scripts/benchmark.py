@@ -1,115 +1,64 @@
 #!/usr/bin/env python3
-"""Benchmark pipeline stage timings on MucOneUp test samples.
-
-Usage:
-    export PATH="/path/to/conda/env/bin:$PATH"
-    python scripts/benchmark.py [--data-dir tests/data/generated]
-"""
+"""Benchmark the full pipeline while retaining stage timings and artifacts."""
 
 from __future__ import annotations
 
 import argparse
 import json
-import time
+import os
+import sys
 from pathlib import Path
 
+from muc_one_span.benchmarking import read_sample_inventory, run_inventory
 
-def main() -> None:
-    parser = argparse.ArgumentParser(description="Benchmark pipeline stages")
-    parser.add_argument(
-        "--data-dir",
-        type=Path,
-        default=Path("tests/data/generated"),
-        help="Directory containing generated test samples",
+
+def parser() -> argparse.ArgumentParser:
+    """Build the maintained benchmark command parser."""
+    result = argparse.ArgumentParser(description=__doc__)
+    result.add_argument(
+        "--data-dir", type=Path, default=Path("tests/data/generated"), help="Sample root"
     )
-    parser.add_argument(
+    result.add_argument(
         "--output-dir",
         type=Path,
         default=Path("tests/results/benchmarks"),
-        help="Output directory for benchmark results",
+        help="Benchmark output root",
     )
-    args = parser.parse_args()
+    result.add_argument(
+        "--expected-samples", type=Path, help="JSON inventory with explicit sample inputs"
+    )
+    result.add_argument("--platform", choices=("hifi", "ont"), help="Platform for all samples")
+    result.add_argument(
+        "--clair3-model", default=None, help="Clair3 model (defaults to CLAIR3_MODEL)"
+    )
+    result.add_argument("--threads", type=int, default=None, help="Threads for every sample")
+    return result
 
-    if not args.data_dir.exists():
-        print(f"Error: {args.data_dir} not found. Generate test data first.")
-        return
 
-    args.output_dir.mkdir(parents=True, exist_ok=True)
-
-    from muc_one_span.config import load_repeat_dictionary
-    from muc_one_span.tools import check_tools
-
-    check_tools(["minimap2", "samtools", "bcftools", "run_clair3.sh"])
-    rd = load_repeat_dictionary()
-
-    samples = sorted(args.data_dir.glob("sample_*"))
-    results = []
-
-    for sample_dir in samples:
-        bam_files = list(sample_dir.glob("*.bam"))
-        if not bam_files:
-            continue
-
-        bam = bam_files[0]
-        sample_name = sample_dir.name
-        out = args.output_dir / sample_name
-        out.mkdir(parents=True, exist_ok=True)
-
-        timings: dict[str, float] = {}
-        print(f"\n{sample_name}:")
-
-        from muc_one_span.ladder import generate_ladder_fasta
-        from muc_one_span.mapping import get_idxstats, map_reads
-
-        ref = out / "ladder.fa"
-        t0 = time.perf_counter()
-        generate_ladder_fasta(rd, ref)
-        mapped = map_reads(bam, ref, out, threads=4)
-        timings["mapping"] = time.perf_counter() - t0
-        print(f"  mapping: {timings['mapping']:.2f}s")
-
-        from muc_one_span.alleles import detect_alleles, parse_idxstats
-
-        t0 = time.perf_counter()
-        idxstats = get_idxstats(mapped)
-        counts = parse_idxstats(idxstats)
-        alleles_result = detect_alleles(counts, min_coverage=10, bam_path=mapped)
-        timings["alleles"] = time.perf_counter() - t0
-        print(f"  alleles: {timings['alleles']:.2f}s")
-
-        from muc_one_span.calling import call_variants_per_allele
-
-        t0 = time.perf_counter()
-        vcf_paths = call_variants_per_allele(mapped, ref, alleles_result, out, threads=4)
-        timings["calling"] = time.perf_counter() - t0
-        print(f"  calling: {timings['calling']:.2f}s")
-
-        from muc_one_span.consensus import build_consensus_per_allele
-
-        t0 = time.perf_counter()
-        consensus = build_consensus_per_allele(ref, vcf_paths, alleles_result, out, repeat_dict=rd)
-        timings["consensus"] = time.perf_counter() - t0
-        print(f"  consensus: {timings['consensus']:.2f}s")
-
-        from muc_one_span.classify import classify_sequence
-
-        t0 = time.perf_counter()
-        for fa_path in consensus.values():
-            fa_lines = fa_path.read_text().strip().splitlines()
-            sequence = "".join(line for line in fa_lines if not line.startswith(">"))
-            classify_sequence(sequence, rd)
-        timings["classify"] = time.perf_counter() - t0
-        print(f"  classify: {timings['classify']:.2f}s")
-
-        timings["total"] = sum(timings.values())
-        print(f"  TOTAL: {timings['total']:.2f}s")
-
-        results.append({"sample": sample_name, "timings": timings})
-
-    summary_path = args.output_dir / "benchmark_results.json"
-    summary_path.write_text(json.dumps(results, indent=2) + "\n")
-    print(f"\nResults written to {summary_path}")
+def main(argv: list[str] | None = None) -> int:
+    """Run inventoried samples and return nonzero if any sample did not complete."""
+    args = parser().parse_args(argv)
+    try:
+        entries = read_sample_inventory(args.data_dir, args.expected_samples)
+        records = run_inventory(
+            entries,
+            args.data_dir,
+            args.output_dir,
+            platform=args.platform,
+            model=args.clair3_model if args.clair3_model is not None else os.getenv("CLAIR3_MODEL"),
+            threads=args.threads,
+        )
+    except (OSError, ValueError) as exc:
+        print(f"Error: {exc}", file=sys.stderr)
+        return 2
+    path = args.output_dir / "benchmark_results.json"
+    path.write_text(json.dumps(records, indent=2, allow_nan=False) + "\n")
+    for record in records:
+        timing = {key: round(value, 2) for key, value in record.get("timings", {}).items()}
+        print(record["sample"], record["status"], timing)
+    print(f"Results written to {path}")
+    return int(any(record["status"] != "completed" for record in records))
 
 
 if __name__ == "__main__":
-    main()
+    raise SystemExit(main())

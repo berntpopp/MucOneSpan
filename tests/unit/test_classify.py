@@ -266,21 +266,14 @@ class TestMutationTemplateMatching:
 class TestVcfMutationValidation:
     """Tests for VCF-backed mutation validation."""
 
-    def test_confirmed_mutation_keeps_high_confidence(self, repeat_dict):
-        """Mutation with VCF support keeps confidence unchanged."""
-        x_seq = repeat_dict.repeats["X"]
-        # Novel 2bp insertion (not in template catalog) -> lands in mutations_detected
-        mutated = x_seq[:40] + "TT" + x_seq[40:]  # 62bp
-        result = classify_sequence(x_seq + mutated + x_seq, repeat_dict)
-
-        # Simulate VCF with a variant at repeat 2 position
-        vcf_variants = [{"pos": 560, "qual": 25.0}]  # flank(500) + 60bp
-
+    def test_confirmed_mutation_keeps_high_confidence(self, indel_concordance):
+        """Evidence weighting uses a replay-verified indel, not a nearby position."""
+        result, variants, sequence, rd, context = indel_concordance
+        variants[0]["qual"] = 25.0
         validated = validate_mutations_against_vcf(
-            result, vcf_variants=vcf_variants, flank_length=500, unit_length=60
+            result, variants, sequence=sequence, repeat_dict=rd, consensus_context=context
         )
-        mut = validated["mutations_detected"][0]
-        assert mut.get("vcf_support") is True
+        assert validated["mutations_detected"][0]["vcf_support"] is True
 
     def test_unsupported_mutation_gets_low_confidence(self, repeat_dict):
         """Mutation without VCF support gets reduced confidence."""
@@ -367,40 +360,36 @@ class TestQualToConfidence:
 class TestContinuousQualScoring:
     """Tests for continuous QUAL scoring in validate_mutations_against_vcf."""
 
-    def test_high_qual_variant_gives_full_confidence(self, repeat_dict):
-        """QUAL=25 variant gives confidence weight 1.0."""
-        x_seq = repeat_dict.repeats["X"]
-        mutated = x_seq[:40] + "TT" + x_seq[40:]
-        result = classify_sequence(x_seq + mutated + x_seq, repeat_dict)
-        vcf_variants = [{"pos": 560, "qual": 25.0}]
+    def test_high_qual_variant_gives_full_confidence(self, indel_concordance):
+        """Evidence weighting uses a replay-verified indel, not a nearby position."""
+        result, variants, sequence, rd, context = indel_concordance
+        variants[0]["qual"] = 25.0
         validated = validate_mutations_against_vcf(
-            result, vcf_variants=vcf_variants, flank_length=500, unit_length=60
+            result, variants, sequence=sequence, repeat_dict=rd, consensus_context=context
         )
-        mut_repeat = validated["repeats"][1]
-        # base_confidence * 1.0 (QUAL>=20)
-        assert mut_repeat["confidence"] > 0.9
+        assert validated["repeats"][1]["confidence"] > 0.9
 
-    def test_moderate_qual_variant_penalizes_confidence(self, repeat_dict):
-        """QUAL=11 variant gets intermediate confidence (not 1.0, not 0.3)."""
-        x_seq = repeat_dict.repeats["X"]
-        mutated = x_seq[:40] + "TT" + x_seq[40:]
-        result = classify_sequence(x_seq + mutated + x_seq, repeat_dict)
-        vcf_variants = [{"pos": 560, "qual": 11.0}]
+    def test_moderate_qual_variant_penalizes_confidence(self, indel_concordance):
+        """Evidence weighting uses a replay-verified indel, not a nearby position."""
+        result, variants, sequence, rd, context = indel_concordance
+        variants[0]["qual"] = 11.0
         validated = validate_mutations_against_vcf(
-            result, vcf_variants=vcf_variants, flank_length=500, unit_length=60
+            result, variants, sequence=sequence, repeat_dict=rd, consensus_context=context
         )
-        mut_repeat = validated["repeats"][1]
-        # Should be between 0.3 and 1.0 (moderate penalty)
-        assert 0.3 < mut_repeat["confidence"] < 0.9
+        assert 0.3 < validated["repeats"][1]["confidence"] < 0.9
 
-    def test_no_vcf_support_gives_low_confidence(self, repeat_dict):
-        """No VCF variant at mutation position gives 0.3 weight."""
-        x_seq = repeat_dict.repeats["X"]
-        mutated = x_seq[:40] + "TT" + x_seq[40:]
-        result = classify_sequence(x_seq + mutated + x_seq, repeat_dict)
+    def test_no_vcf_support_gives_low_confidence(self, indel_concordance):
+        """Verified replay with no VCF edit supporting the event gives 0.3 weight."""
+        from pathlib import Path
+
+        result, _, sequence, rd, context = indel_concordance
+        # A reference already containing the sequence replays without VCF edits.
+        Path(context["reference_path"]).write_text(Path(context["full_consensus_path"]).read_text())
         validated = validate_mutations_against_vcf(
-            result, vcf_variants=[], flank_length=500, unit_length=60
+            result, vcf_variants=[], sequence=sequence, repeat_dict=rd, consensus_context=context
         )
+        assert validated["vcf_projection"]["status"] == "available"
+        assert validated["mutations_detected"][0]["vcf_support_status"] == "absent"
         mut_repeat = validated["repeats"][1]
         base = result["repeats"][1].get("confidence", 1.0)
         assert mut_repeat["confidence"] == pytest.approx(base * 0.3, abs=0.01)

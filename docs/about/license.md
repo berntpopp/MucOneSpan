@@ -37,20 +37,6 @@ MucOneSpan uses several open-source libraries. See individual package licenses f
 
 ---
 
-## Citation
+## Acknowledgment
 
-If you use MucOneSpan in your research, please cite:
-
-```bibtex
-@article{vrbacka2025muc1,
-  author = {Vrbacka, A. and Pristoupilova, A. and Kidd, K.O. and others},
-  title = {Long-Read Sequencing of the MUC1 VNTR: Genomic Variation,
-           Mutational Landscape, and Its Impact on ADTKD Diagnosis
-           and Progression},
-  journal = {bioRxiv},
-  year = {2025},
-  doi = {10.1101/2025.09.06.673538}
-}
-```
-
-See [Citation Guide](citation.md) for more details.
+MucOneSpan draws on some ideas from [Vrbacka et al. (2025)](https://doi.org/10.1101/2025.09.06.673538).

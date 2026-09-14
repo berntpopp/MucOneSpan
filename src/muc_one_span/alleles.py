@@ -26,6 +26,8 @@ import re
 from pathlib import Path
 from typing import TypedDict
 
+from muc_one_span.run_status import InsufficientEvidenceError
+from muc_one_span.settings import DEFAULT_SETTINGS, AlleleSelectionSettings, ReferenceLayoutSettings
 from muc_one_span.tools import run_tool_iter
 
 # TypedDicts below document the expected structure of return values.
@@ -57,7 +59,7 @@ logger = logging.getLogger(__name__)
 # Number of fixed repeat units in the ladder reference (pre-repeats 1-5 + after-repeats 6-9).
 # Each contig_N has N canonical X repeats plus these fixed repeats,
 # so total allele length = N + PRE_AFTER_REPEAT_COUNT.
-PRE_AFTER_REPEAT_COUNT = 9
+PRE_AFTER_REPEAT_COUNT = DEFAULT_SETTINGS.reference_layout.fixed_repeat_count
 
 
 def parse_idxstats(idxstats_output: str) -> dict[int, int]:
@@ -70,8 +72,8 @@ def parse_idxstats(idxstats_output: str) -> dict[int, int]:
         idxstats_output: Raw text output from ``samtools idxstats``.
 
     Returns:
-        Dictionary mapping canonical repeat count (int) to mapped read
-        count (int).  The '*' unmapped line is excluded.
+        Dictionary mapping canonical repeat count (int) to mapped alignment
+        record count (int), including secondary alignments.  The '*' unmapped line is excluded.
     """
     counts: dict[int, int] = {}
 
@@ -125,7 +127,15 @@ def refine_peak_contig(
     """
     # Accumulate per-contig stats
     contig_stats: dict[str, dict] = {
-        c: {"as_sum": 0, "indel_sum": 0, "count": 0} for c in cluster_contigs
+        c: {
+            "as_sum": 0,
+            "indel_sum": 0,
+            "count": 0,
+            "primary": 0,
+            "secondary": 0,
+            "supplementary": 0,
+        }
+        for c in cluster_contigs
     }
 
     for line in run_tool_iter(["samtools", "view", str(bam_path), *cluster_contigs]):
@@ -140,6 +150,13 @@ def refine_peak_contig(
         if contig not in contig_stats:
             continue
 
+        flag = int(fields[1])
+        if flag & 256:
+            contig_stats[contig]["secondary"] += 1
+        if flag & 2048:
+            contig_stats[contig]["supplementary"] += 1
+        if not flag & (4 | 256 | 2048):
+            contig_stats[contig]["primary"] += 1
         cigar = fields[5]
         contig_stats[contig]["indel_sum"] += _parse_cigar_indel_bp(cigar)
         contig_stats[contig]["count"] += 1
@@ -165,6 +182,9 @@ def refine_peak_contig(
             "mean_as": round(mean_as, 1),
             "mean_indel_bp": round(mean_indel, 1),
             "reads": n,
+            "primary_alignment_records": stats["primary"],
+            "secondary_alignment_records": stats["secondary"],
+            "supplementary_alignment_records": stats["supplementary"],
         }
         if mean_as > best_as:
             best_as = mean_as
@@ -177,7 +197,7 @@ def refine_peak_contig(
 def _find_clusters(
     counts: dict[int, int],
     min_coverage: int,
-    min_gap: int = 5,
+    min_gap: int = DEFAULT_SETTINGS.allele_selection.min_gap,
 ) -> list[dict]:
     """Identify read-count clusters in the contig distribution.
 
@@ -234,6 +254,8 @@ def _find_clusters(
 def _split_cluster_by_indel(
     bam_path: Path,
     cluster: dict,
+    *,
+    settings: AlleleSelectionSettings | None = None,
 ) -> list[dict] | None:
     """Attempt to split a single cluster into two alleles using indel valleys.
 
@@ -243,9 +265,10 @@ def _split_cluster_by_indel(
     per-contig mean indel length, we can resolve close alleles that
     gap-based clustering merges into one cluster.
 
-    Returns two sub-clusters if a clear split is found, or None if the
-    cluster is genuinely homozygous (single indel valley).
+    Returns two sub-clusters if a clear split is found, or None when two strictly distinct valleys are not established.
+    Failure to split does not establish sequence homozygosity.
     """
+    settings = settings or DEFAULT_SETTINGS.allele_selection
     contig_names = [f"contig_{c}" for c, _ in cluster["contigs"]]
 
     # Compute per-contig mean indel bp
@@ -278,7 +301,7 @@ def _split_cluster_by_indel(
             continue
         indel_series.append((c, contig_stats[c]["indel_sum"] / n))
 
-    if len(indel_series) < 3:
+    if len(indel_series) < settings.valley_min_points:
         return None
 
     # Find local minima (valleys) in mean indel
@@ -287,7 +310,7 @@ def _split_cluster_by_indel(
         c, val = indel_series[i]
         left = indel_series[i - 1][1] if i > 0 else float("inf")
         right = indel_series[i + 1][1] if i < len(indel_series) - 1 else float("inf")
-        if val <= left and val <= right:
+        if val < left and val < right:
             valleys.append((c, val))
 
     logger.debug("Indel valley splitting: found %d valleys", len(valleys))
@@ -303,7 +326,7 @@ def _split_cluster_by_indel(
     split = (v1 + v2) // 2
 
     # Verify the valleys are meaningfully separated (at least 3 contigs apart)
-    if abs(v2 - v1) < 3:
+    if abs(v2 - v1) < settings.valley_min_separation:
         return None
 
     # Split cluster contigs into two sub-clusters
@@ -322,7 +345,13 @@ def _split_cluster_by_indel(
     return [_make_sub_cluster(sub1), _make_sub_cluster(sub2)]
 
 
-def _build_allele_info(cluster: dict, best_contig: str | None = None) -> dict:
+def _build_allele_info(
+    cluster: dict,
+    best_contig: str | None = None,
+    *,
+    settings: AlleleSelectionSettings | None = None,
+    reference_layout: ReferenceLayoutSettings | None = None,
+) -> dict:
     """Build allele info dict from a cluster.
 
     Args:
@@ -330,6 +359,8 @@ def _build_allele_info(cluster: dict, best_contig: str | None = None) -> dict:
         best_contig: Contig name selected by refine_peak_contig.
             If None, falls back to the weighted center.
     """
+    settings = settings or DEFAULT_SETTINGS.allele_selection
+    layout = reference_layout or DEFAULT_SETTINGS.reference_layout
     canonical = cluster["center"]
     contig_name = best_contig if best_contig is not None else f"contig_{canonical}"
 
@@ -339,33 +370,100 @@ def _build_allele_info(cluster: dict, best_contig: str | None = None) -> dict:
     # the weighted center by ±1 vs the AS-refined best contig.
     # However, at longer allele lengths the AS metric itself can be
     # unreliable for ONT (off by 2+), so only trust the refinement
-    # when it agrees with the cluster center within ±1.
+    # when it agrees within the configured shift (default ±1).
     if best_contig is not None:
         match = re.search(r"_(\d+)$", best_contig)
         if match:
             refined_canonical = int(match.group(1))
-            if abs(refined_canonical - canonical) <= 1:
+            if abs(refined_canonical - canonical) <= settings.refinement_max_shift:
                 canonical = refined_canonical
 
     return {
-        "length": canonical + PRE_AFTER_REPEAT_COUNT,
+        "length": canonical + layout.fixed_repeat_count,
+        "fixed_repeat_count": layout.fixed_repeat_count,
         "reads": cluster["total_reads"],
+        "alignment_records": cluster["total_reads"],
+        "support_basis": "alignment_records",
+        "molecule_count": None,
+        "reference_length": int(contig_name.rsplit("_", 1)[1]) + layout.fixed_repeat_count,
         "canonical_repeats": canonical,
         "contig_name": contig_name,
         "cluster_contigs": [f"contig_{c}" for c, _ in cluster["contigs"]],
     }
 
 
+def _length_selection_evidence(
+    counts: dict[int, int],
+    min_coverage: int,
+    bam_path: Path | None,
+    unselected_clusters: list[dict],
+) -> dict:
+    """Describe evidence omitted by the existing length-selection decisions."""
+    excluded = sorted(
+        (repeat, count) for repeat, count in counts.items() if 0 < count < min_coverage
+    )
+    primary_counts: dict[str, int] | None = None
+    if excluded and bam_path is not None and bam_path.exists():
+        contig_names = [f"contig_{repeat}" for repeat, _ in excluded]
+        primary_counts = dict.fromkeys(contig_names, 0)
+        for line in run_tool_iter(["samtools", "view", str(bam_path), *contig_names]):
+            fields = line.strip().split("\t")
+            if len(fields) < 3 or fields[2] not in primary_counts:
+                continue
+            flag = int(fields[1])
+            if not flag & (4 | 256 | 2048):
+                primary_counts[fields[2]] += 1
+
+    excluded_rows = [
+        {
+            "contig_name": f"contig_{repeat}",
+            "alignment_records": count,
+            "primary_alignment_records": (
+                primary_counts[f"contig_{repeat}"] if primary_counts is not None else None
+            ),
+            "molecule_count": None,
+        }
+        for repeat, count in excluded
+    ]
+    if primary_counts is not None:
+        excluded_primary: int | None = sum(primary_counts.values())
+    else:
+        excluded_primary = 0 if not excluded else None
+
+    return {
+        "minimum_coverage": min_coverage,
+        "support_unit": "alignment_records_not_molecules",
+        "molecule_count": None,
+        "excluded_subthreshold_contigs": excluded_rows,
+        "excluded_subthreshold_alignment_records": sum(count for _, count in excluded),
+        "excluded_subthreshold_primary_alignment_records": excluded_primary,
+        "unselected_passing_clusters": [
+            {
+                "center": cluster["center"],
+                "alignment_records": cluster["total_reads"],
+                "contigs": [
+                    {"contig_name": f"contig_{repeat}", "alignment_records": count}
+                    for repeat, count in cluster["contigs"]
+                ],
+            }
+            for cluster in unselected_clusters
+        ],
+    }
+
+
 def detect_alleles(
     counts: dict[int, int],
-    min_coverage: int = 10,
+    min_coverage: int = DEFAULT_SETTINGS.run.min_coverage,
     bam_path: Path | None = None,
+    *,
+    settings: AlleleSelectionSettings | None = None,
+    reference_layout: ReferenceLayoutSettings | None = None,
 ) -> dict:
     """Detect allele lengths from read count distribution across ladder contigs.
 
     Finds two peak clusters in the read distribution. Each cluster represents
-    one allele. Reports the total allele length (canonical repeats + 9 fixed
-    pre/after repeats) and the contig names needed for downstream processing.
+    one allele. Reports the total allele length (canonical repeats + configured
+    fixed pre/after repeats) and the contig names needed for downstream processing.
 
     If *bam_path* is provided, the best contig within each cluster is refined
     using alignment scores (AS) and indel lengths from the BAM.  Without a
@@ -375,6 +473,8 @@ def detect_alleles(
         counts: Canonical repeat count -> mapped reads mapping from
             :func:`parse_idxstats`.
         min_coverage: Minimum mapped reads to include a contig.
+        settings: Optional separation and refinement parameters.
+        reference_layout: Selected fixed repeats used by the reference ladder.
         bam_path: Optional path to the indexed ladder mapping BAM.
             When provided, enables alignment-quality-based peak refinement.
 
@@ -383,26 +483,35 @@ def detect_alleles(
         Each allele has:
 
         - ``length`` (int): total repeat units including pre/after
-        - ``reads`` (int): total mapped reads across the cluster
+        - ``reads`` (int): legacy count of alignment records across the cluster
+        - ``alignment_records`` (int): explicit name for that same fit count
+        - ``molecule_count``: unavailable without validated molecular identity
+        - ``reference_length`` (int): total repeats in the selected reference
+        - ``fixed_repeat_count`` (int): selected fixed pre/after repeat count
         - ``canonical_repeats`` (int): number of canonical X repeats
         - ``contig_name`` (str): best-matching contig (e.g. ``"contig_51"``)
         - ``cluster_contigs`` (list[str]): all contig names in the cluster
+        - ``length_selection_evidence``: diagnostic accounting for sub-threshold
+          contigs and passing clusters not selected among the first two
 
     Raises:
         ValueError: If no contig meets the minimum coverage threshold.
     """
+    settings = settings or DEFAULT_SETTINGS.allele_selection
     # Handle mixed-key dicts (legacy compat): only use integer keys
     int_counts = {k: v for k, v in counts.items() if isinstance(k, int)}
 
-    clusters = _find_clusters(int_counts, min_coverage)
+    clusters = _find_clusters(int_counts, min_coverage, settings.min_gap)
     logger.info("Detected %d peak(s) from %d contigs", len(clusters), len(int_counts))
 
     if not clusters:
         max_observed = max(int_counts.values()) if int_counts else 0
-        raise ValueError(
+        raise InsufficientEvidenceError(
             f"No contig has >= {min_coverage} mapped reads (minimum coverage). "
             f"Max observed: {max_observed} reads."
         )
+
+    fit_metrics: dict[str, dict] = {}
 
     # Refine peak contig selection using alignment quality if BAM available
     def _get_best_contig(cluster: dict) -> str | None:
@@ -410,33 +519,69 @@ def detect_alleles(
             return None
         contig_names = [f"contig_{c}" for c, _ in cluster["contigs"]]
         refined = refine_peak_contig(bam_path, contig_names)
+        fit_metrics.update(refined["metrics"])
         best: str = refined["best_contig"]
         return best
 
     # If only one cluster found but BAM is available, try indel-valley splitting
     if len(clusters) == 1 and bam_path is not None:
-        sub_clusters = _split_cluster_by_indel(bam_path, clusters[0])
+        sub_clusters = _split_cluster_by_indel(bam_path, clusters[0], settings=settings)
         if sub_clusters is not None:
             clusters = sub_clusters
             clusters.sort(key=lambda x: x["total_reads"], reverse=True)
 
-    allele_1 = _build_allele_info(clusters[0], _get_best_contig(clusters[0]))
+    selection_evidence = _length_selection_evidence(
+        int_counts, min_coverage, bam_path, clusters[2:]
+    )
+
+    def _with_support(cluster: dict) -> dict:
+        info = _build_allele_info(
+            cluster, _get_best_contig(cluster), settings=settings, reference_layout=reference_layout
+        )
+        info["primary_alignment_records"] = (
+            sum(
+                fit_metrics.get(c, {}).get("primary_alignment_records", 0)
+                for c in info["cluster_contigs"]
+            )
+            if bam_path is not None
+            else None
+        )
+        info["fit_metrics"] = {
+            c: fit_metrics[c] for c in info["cluster_contigs"] if c in fit_metrics
+        }
+        info["length_selection_evidence"] = selection_evidence
+        return info
+
+    allele_1 = _with_support(clusters[0])
 
     if len(clusters) < 2:
         return {
             "allele_1": allele_1,
-            "allele_2": {**allele_1},
+            "allele_2": {**allele_1, "candidate_duplicate_of": "allele_1"},
+            "observed_length_candidates": 1,
+            "allele_multiplicity_status": "unresolved",
             "homozygous": False,
             "same_length": True,
         }
 
-    allele_2 = _build_allele_info(clusters[1], _get_best_contig(clusters[1]))
+    allele_2 = _with_support(clusters[1])
 
     if allele_1["length"] == allele_2["length"]:
         allele_1["reads"] += allele_2["reads"]
+        allele_1["alignment_records"] = allele_1["reads"]
+        allele_1["cluster_contigs"] = sorted(
+            set(allele_1["cluster_contigs"] + allele_2["cluster_contigs"])
+        )
+        allele_1["fit_metrics"].update(allele_2["fit_metrics"])
+        if bam_path is not None:
+            allele_1["primary_alignment_records"] = sum(
+                m.get("primary_alignment_records", 0) for m in allele_1["fit_metrics"].values()
+            )
         return {
             "allele_1": allele_1,
-            "allele_2": {**allele_1},
+            "allele_2": {**allele_1, "candidate_duplicate_of": "allele_1"},
+            "observed_length_candidates": 1,
+            "allele_multiplicity_status": "unresolved",
             "homozygous": False,
             "same_length": True,
         }
@@ -446,4 +591,6 @@ def detect_alleles(
         "allele_2": allele_2,
         "homozygous": False,
         "same_length": False,
+        "observed_length_candidates": len(clusters),
+        "allele_multiplicity_status": "two_selected_candidates",
     }

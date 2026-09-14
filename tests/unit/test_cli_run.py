@@ -111,6 +111,7 @@ class TestRunReportFallback:
 
     def test_report_flag_warns_when_jinja2_missing(self, tmp_path):
         """--report warns and continues when Jinja2 is not installed."""
+        (tmp_path / "ref.fa").write_text(">c51\nACGT\n")
         input_file = tmp_path / "reads.fastq"
         input_file.touch()
         output_dir = tmp_path / "results"

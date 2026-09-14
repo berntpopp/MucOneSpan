@@ -347,7 +347,9 @@ class TestCallSubcommand:
         with (
             patch("muc_one_span.tools.check_tools", return_value=True),
             patch("muc_one_span.calling.run_tool", return_value=""),
-            patch("muc_one_span.vcf.run_tool", return_value=""),
+            patch(
+                "muc_one_span.vcf.run_tool", side_effect=lambda cmd: "S\n" if "-l" in cmd else ""
+            ),
         ):
             bam = tmp_path / "mapping.bam"
             bam.touch()
@@ -497,6 +499,40 @@ class TestPlatformOptions:
 class TestConsensusSubcommand:
     """Tests for the consensus subcommand with mocked tools."""
 
+    def test_unresolved_alias_cannot_reuse_stale_vcf(self, tmp_path):
+        bam, ref, stale = (tmp_path / name for name in ("reads.bam", "ref.fa", "old.vcf.gz"))
+        for path in (bam, ref, stale):
+            path.touch()
+        saved = tmp_path / "alleles.json"
+        saved.write_text(
+            json.dumps(
+                {
+                    "allele_1": {},
+                    "allele_2": {"candidate_duplicate_of": "allele_1", "vcf_path": str(stale)},
+                }
+            )
+        )
+        with (
+            patch("muc_one_span.tools.check_tools"),
+            patch("muc_one_span.consensus.build_consensus_per_allele", return_value={}) as build,
+        ):
+            result = CliRunner().invoke(
+                main,
+                [
+                    "consensus",
+                    "--input",
+                    str(bam),
+                    "--reference",
+                    str(ref),
+                    "--alleles-json",
+                    str(saved),
+                    "--output-dir",
+                    str(tmp_path),
+                ],
+            )
+        assert result.exit_code == 0, result.output
+        assert build.call_args.args[1] == {}
+
     def test_consensus_invokes_build(self, tmp_path):
         """consensus subcommand runs without error when tools are mocked."""
         flanks = 10
@@ -505,6 +541,7 @@ class TestConsensusSubcommand:
         with (
             patch("muc_one_span.tools.check_tools", return_value=True),
             patch("muc_one_span.consensus.run_tool", return_value=fake_fasta),
+            patch("muc_one_span.vcf.run_tool", return_value="S\n"),
         ):
             ref = tmp_path / "ref.fa"
             ref.touch()

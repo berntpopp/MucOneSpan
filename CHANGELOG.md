@@ -7,6 +7,70 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+## [0.11.0] - 2026-09-14
+
+### Added
+
+- Add strict JSON simulation designs for reproducible MucOneUp HiFi/ONT experiments,
+  preserving the 29 historical cases and providing a larger ungenerated example.
+  Record requested templates separately from usable reads, exact commands, hashes,
+  truth consistency and all failed cases; reject overwrites and changed artifacts.
+- Restrict source-distribution contents to maintained files and verify both source
+  and wheel archives exclude generated reads, results, indexes and private data.
+- Document measured improvements, unsuccessful experiments and remaining failures.
+  Fresh final scientific validation was not performed for this scoped release;
+  general diploid reconstruction accuracy and two known length failures remain open.
+
+- Add immutable validated runtime settings and global `--config` JSON input;
+  explicit CLI options override file values. Record effective settings and
+  configuration, read, reference and dictionary hashes in `run_configuration.json`.
+- Centralize classification, confidence, length-selection, reference-layout,
+  consensus and optional phasing tunables; reject invalid stage overrides.
+- Correct boundary-anchor coordinates and sliced lengths, matching the actual
+  ladder flank prefix; preserve cached development FASTAs and repair flanking
+  indel trimming in regression fixtures.
+- Standalone consensus now uses the configured or bundled repeat dictionary for
+  anchor-aware trimming, matching the full pipeline; `--repeats-db` remains an
+  additive override. Failed reruns invalidate stale configuration provenance.
+
+- Add experimental opt-in WhatsHap phasing for unresolved same-length
+  candidates, disabled by default after a development false-call regression.
+- Version strict batch evaluation outputs and update catalog display compatibility.
+- Report trimming provenance and exact VCF-projection failure reasons; prevent
+  flank-only variants from establishing independent identical VNTR reconstructions.
+- Add `length_selection_evidence` for excluded candidate-reference records and
+  `phasing_selected_records_by_phase_set` for the experimental phaser's internal
+  read selection, with explicit denominator limits.
+- Distinguish literal missing outputs from `independent_missing_alleles` and
+  `unproven_duplicate_alleles` in evaluation; unknown evidence states cannot count
+  as completed negatives.
+- Clear stale phase/VCF evidence on unresolved aliases during subcommand reruns.
+- Label unavailable VCF projection separately from unsupported mutations and
+  preserve dictionary-fit confidence when support cannot be assessed.
+
+### Changed
+
+- Exact bit-vector Levenshtein scoring preserves literal distances and traceback;
+  classification benchmarks distinguish local from pipeline speedups.
+- Signed net insertion/deletion length now determines downstream frameshift.
+  Classification reports consumed spans, unresolved regions and heuristic-score
+  semantics; uncertain sequence is not proof of complete reconstruction.
+- VCF query and malformed-record failures propagate. Mutation support now requires
+  exact sequence concordance through a replay-verified reference projection;
+  position-only support callers receive an unavailable status. Confidence weights
+  consequently change; they remain uncalibrated.
+- Consensus explicitly selects sample/genotype alleles. Same-length calls preserve
+  common phase-block evidence and expose unresolved phase; absence of heterozygous
+  calls no longer establishes sequence homozygosity. Consensus context records the
+  actual trimming coordinates, and final allele metadata is persisted.
+- Allele fit counts are explicitly alignment records; primary record counts and
+  actual selected-reference length are separate fields. Flat indel profiles no
+  longer cause an arbitrary split.
+- Strict offline evaluation includes failed/missing samples, tied one-to-one
+  assignments, missing/extra alleles and exact event annotation rather than
+  substring detection. Generated-data benchmarking metrics are versioned.
+
+
 ## [0.10.0] - 2026-09-14
 
 ### Changed
@@ -158,7 +222,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 - Project scaffolding with uv, ruff, mypy, pytest, CI
 - Initial pipeline implementation
 
-[Unreleased]: https://github.com/berntpopp/MucOneSpan/compare/v0.10.0...HEAD
+[Unreleased]: https://github.com/berntpopp/MucOneSpan/compare/v0.11.0...HEAD
+[0.11.0]: https://github.com/berntpopp/MucOneSpan/compare/v0.10.0...v0.11.0
 [0.10.0]: https://github.com/berntpopp/MucOneSpan/compare/v0.9.0...v0.10.0
 [0.9.0]: https://github.com/berntpopp/MucOneSpan/compare/v0.8.0...v0.9.0
 [0.8.0]: https://github.com/berntpopp/MucOneSpan/compare/v0.7.0...v0.8.0

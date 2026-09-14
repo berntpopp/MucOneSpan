@@ -6,6 +6,10 @@ import logging
 from concurrent.futures import ThreadPoolExecutor
 from pathlib import Path
 
+from muc_one_span.mapping import DEFAULT_MINIMAP2_PRESET
+from muc_one_span.phasing import annotate_consensus_candidate, phase_evidence
+from muc_one_span.read_phasing import phase_same_length_reads
+from muc_one_span.settings import DEFAULT_SETTINGS, CallingSettings, ReadPhasingSettings
 from muc_one_span.tools import run_tool
 from muc_one_span.vcf import filter_vcf, parse_vcf_genotypes, parse_vcf_variants
 
@@ -68,8 +72,8 @@ def _extract_and_remap_reads(
     peak_contig: str,
     reference_path: Path,
     output_dir: Path,
-    threads: int = 4,
-    preset: str = "map-hifi",
+    threads: int = DEFAULT_SETTINGS.run.threads,
+    preset: str = DEFAULT_MINIMAP2_PRESET,
 ) -> Path:
     """Extract reads from cluster contigs, convert to FASTQ, remap to peak contig.
 
@@ -156,9 +160,11 @@ def run_clair3(
     bam_path: Path,
     reference_path: Path,
     output_dir: Path,
-    model_path: str = "",
-    platform: str = "hifi",
-    threads: int = 4,
+    model_path: str = DEFAULT_SETTINGS.run.clair3_model,
+    platform: str = DEFAULT_SETTINGS.run.platform,
+    threads: int = DEFAULT_SETTINGS.run.threads,
+    *,
+    settings: CallingSettings | None = None,
 ) -> Path:
     """Run the Clair3 variant caller on a BAM file.
 
@@ -175,6 +181,7 @@ def run_clair3(
     """
     output_dir.mkdir(parents=True, exist_ok=True)
     logger.info("Running Clair3 on %s", bam_path.name)
+    settings = settings or DEFAULT_SETTINGS.calling
 
     cmd = [
         "run_clair3.sh",
@@ -183,7 +190,7 @@ def run_clair3(
         f"--output={output_dir}",
         f"--threads={threads}",
         f"--platform={platform}",
-        "--sample_name=sample",
+        f"--sample_name={settings.sample_name}",
         # Our contigs are named contig_N, not chr1..22/X/Y, so Clair3
         # must be told to process all contigs.
         "--include_all_ctgs",
@@ -201,22 +208,32 @@ def disambiguate_same_length_alleles(
     reference_path: Path,
     alleles: dict,
     output_dir: Path,
-    clair3_model: str = "",
-    threads: int = 4,
-    min_qual: float = 5.0,
+    clair3_model: str = DEFAULT_SETTINGS.run.clair3_model,
+    threads: int = DEFAULT_SETTINGS.run.threads,
+    min_qual: float = float(DEFAULT_SETTINGS.run.min_qual),
     min_dp: int = 5,
-    platform: str = "hifi",
-    preset: str = "map-hifi",
-) -> dict:
+    platform: str = DEFAULT_SETTINGS.run.platform,
+    preset: str = DEFAULT_MINIMAP2_PRESET,
+    *,
+    read_phase: bool | None = None,
+    settings: CallingSettings | None = None,
+    read_phasing_settings: ReadPhasingSettings | None = None,
+) -> dict[str, Path]:
     """Disambiguate same-length alleles using Clair3 genotype calls.
 
-    Runs Clair3 on all reads, checks for heterozygous (0/1) variants.
-    If found, creates two VCFs: one with only hom-alt variants (WT allele),
-    one with all variants (mutant allele).
+    ``read_phase=True`` enables experimental read-backed phase, disabled by
+    default after an extra mutation call in cached development validation.
 
-    Returns dict mapping allele key to filtered VCF path, plus a
-    ``"homozygous"`` boolean key indicating whether the alleles are identical.
+    Runs Clair3 on the cluster reads and interprets complete genotype indices.
+    Cross-site phase requires a common phase set; a single heterozygous site
+    provides an unordered pair. Missing or disconnected evidence stays mixed.
+
+    Returns only allele-key to VCF-path mappings. Allele dictionaries receive
+    explicit phase and sequence-evidence status. Unresolved multiple sites keep
+    one mixed candidate; supported haplotypes share a VCF and select GT indices.
     """
+    settings = settings or DEFAULT_SETTINGS.calling
+    read_phase = settings.read_phase if read_phase is None else read_phase
     allele_info = alleles["allele_1"]
     contig_name = allele_info["contig_name"]
     cluster_contigs = allele_info["cluster_contigs"]
@@ -243,68 +260,56 @@ def disambiguate_same_length_alleles(
         model_path=clair3_model,
         platform=platform,
         threads=threads,
+        settings=settings,
     )
     filtered_vcf = filter_vcf(raw_vcf, contig_ref, merged_dir, min_qual=min_qual, min_dp=min_dp)
 
-    # Check genotypes
+    read_phasing = {"status": "experimental_disabled", "method": "whatshap"}
+    if read_phase:
+        filtered_vcf, read_phasing = phase_same_length_reads(
+            filtered_vcf,
+            merged_bam,
+            contig_ref,
+            merged_dir / "read_phasing",
+            settings=read_phasing_settings,
+        )
     variants = parse_vcf_genotypes(filtered_vcf)
-    het_variants = [
-        v
-        for v in variants
-        if any(sep in v["genotype"] for sep in ("/", "|"))
-        and v["genotype"] not in ("0/0", "1/1", "./.", "0|0", "1|1", ".|.")
-    ]
-
-    results: dict = {}
-
-    if not het_variants:
-        # Truly homozygous -- no het variants found
-        results["allele_1"] = filtered_vcf
-        results["homozygous"] = True
-        return results
-
-    # Compound heterozygous -- split into two VCFs
-
-    # allele_1 (WT): exclude het variants, keep only hom-alt
-    wt_vcf = output_dir / "allele_1" / "variants.vcf.gz"
-    wt_vcf.parent.mkdir(parents=True, exist_ok=True)
-    run_tool(
-        [
-            "bcftools",
-            "view",
-            "-i",
-            'GT="1/1" || GT="1|1"',
-            "-o",
-            str(wt_vcf),
-            "-O",
-            "z",
-            str(filtered_vcf),
-        ]
-    )
-    run_tool(["bcftools", "index", str(wt_vcf)])
-    results["allele_1"] = wt_vcf
-
-    # allele_2 (mutant): include all variants
-    mut_vcf = output_dir / "allele_2" / "variants.vcf.gz"
-    mut_vcf.parent.mkdir(parents=True, exist_ok=True)
-    run_tool(
-        [
-            "bcftools",
-            "view",
-            "-o",
-            str(mut_vcf),
-            "-O",
-            "z",
-            str(filtered_vcf),
-        ]
-    )
-    run_tool(["bcftools", "index", str(mut_vcf)])
-    results["allele_2"] = mut_vcf
-
-    # Note: bcftools consensus applies the ALT allele for het (0/1) calls
-    # by default, so the allele_2 VCF with het genotypes will produce the
-    # correct mutant consensus without needing to force hom-alt genotypes.
-    results["homozygous"] = False
+    evidence = phase_evidence(variants)
+    # A single observed length is not evidence of sequence identity.
+    alleles["homozygous"] = False
+    alleles["sequence_identity_status"] = "unresolved"
+    alleles["phase_status"] = evidence["phase_status"]
+    sample = variants[0].get("sample") if variants else None
+    results: dict[str, Path] = {}
+    for index, haplotype in enumerate(evidence["haplotypes"], start=1):
+        key = f"allele_{index}"
+        if key not in alleles:
+            alleles[key] = dict(allele_info)
+        if haplotype in (1, 2):
+            alleles[key].pop("candidate_duplicate_of", None)
+        annotate_consensus_candidate(alleles[key], evidence, haplotype, sample, str(filtered_vcf))
+        alleles[key]["read_phasing"] = read_phasing
+        results[key] = filtered_vcf
+    if "allele_2" in alleles and "allele_2" not in results:
+        alias = alleles["allele_2"]
+        alias.update({key: value for key, value in evidence.items() if key != "haplotypes"})
+        alias.update(
+            reconstruction_status="not_separately_resolved",
+            candidate_duplicate_of="allele_1",
+            independent_haplotype_evidence=False,
+        )
+        for field in (
+            "vcf_path",
+            "consensus_haplotype",
+            "consensus_sample",
+            "sequence_source",
+            "variant_observation_group",
+            "consensus_context",
+            "consensus_policy",
+            "read_phasing",
+            "vntr_phase_status",
+        ):
+            alias.pop(field, None)
     return results
 
 
@@ -313,12 +318,16 @@ def call_variants_per_allele(
     reference_path: Path,
     alleles: dict,
     output_dir: Path,
-    clair3_model: str = "",
-    threads: int = 4,
-    min_qual: float = 5.0,
+    clair3_model: str = DEFAULT_SETTINGS.run.clair3_model,
+    threads: int = DEFAULT_SETTINGS.run.threads,
+    min_qual: float = float(DEFAULT_SETTINGS.run.min_qual),
     min_dp: int = 5,
-    platform: str = "hifi",
-    preset: str = "map-hifi",
+    platform: str = DEFAULT_SETTINGS.run.platform,
+    preset: str = DEFAULT_MINIMAP2_PRESET,
+    *,
+    read_phase: bool | None = None,
+    settings: CallingSettings | None = None,
+    read_phasing_settings: ReadPhasingSettings | None = None,
 ) -> dict[str, Path]:
     """Run variant calling for each detected allele.
 
@@ -341,14 +350,17 @@ def call_variants_per_allele(
         min_qual: Minimum QUAL score for VCF filtering (default 5.0).
             Low-confidence variants are retained but penalized in the
             confidence scoring system rather than hard-filtered.
-        min_dp: Minimum INFO/DP for VCF filtering (default 5).
+        min_dp: Accepted for API compatibility; not applied by VCF filtering.
         platform: Sequencing platform for Clair3 (default ``"hifi"``).
         preset: minimap2 preset for remapping (default ``"map-hifi"``).
+        read_phase: Experimental library-only read phasing, disabled by default.
 
     Returns:
         Dictionary mapping allele key (``"allele_1"`` / ``"allele_2"``) to
         the filtered VCF path.
     """
+    settings = settings or DEFAULT_SETTINGS.calling
+    read_phase = settings.read_phase if read_phase is None else read_phase
     if alleles.get("same_length"):
         logger.info("Same-length alleles detected, using disambiguation")
         disambig = disambiguate_same_length_alleles(
@@ -362,8 +374,10 @@ def call_variants_per_allele(
             min_dp,
             platform=platform,
             preset=preset,
+            read_phase=read_phase,
+            settings=settings,
+            read_phasing_settings=read_phasing_settings,
         )
-        alleles["homozygous"] = disambig.pop("homozygous")
         return disambig
 
     # Collect allele keys to process (skip allele_2 when homozygous)
@@ -410,10 +424,15 @@ def call_variants_per_allele(
             model_path=clair3_model,
             platform=platform,
             threads=per_allele_threads,
+            settings=settings,
         )
 
         # Filter VCF
         filtered = filter_vcf(vcf, contig_ref, allele_dir, min_qual=min_qual, min_dp=min_dp)
+        variants = parse_vcf_genotypes(filtered)
+        evidence = phase_evidence(variants)
+        sample = variants[0].get("sample") if variants else None
+        annotate_consensus_candidate(allele_info, evidence, "I", sample, str(filtered))
         return allele_key, filtered
 
     # Process both alleles in parallel when they are independent

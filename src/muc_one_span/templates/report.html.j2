@@ -26,14 +26,16 @@
      2. ALLELE SUMMARY
      ════════════════════════════════════════════════════════ -->
 <section aria-label="Allele summary">
-  <h2>Allele Summary <span class="help-icon tip tip-wide" data-tip="Two alleles detected from read alignment to the reference ladder. Each allele's repeat count and read support are shown.">?</span></h2>
+  <h2>Allele Summary <span class="help-icon tip tip-wide" data-tip="Candidate alleles from reference-ladder fit. A second candidate does not by itself establish two reconstructed sequences.">?</span></h2>
   {% set alleles = summary.get("alleles", {}) %}
   {% set a1 = alleles.get("allele_1", {}) %}
   {% set a2 = alleles.get("allele_2", {}) %}
   {% set total_reads = (a1.get("reads", 0) + a2.get("reads", 0)) or 1 %}
 
-  {% if alleles.get("homozygous") %}
-  <p><span class="badge badge-info">Homozygous</span></p>
+  {% if alleles.get("sequence_identity_status") %}
+  <p>Sequence identity: {{ alleles.get("sequence_identity_status") }}; Phase: {{ alleles.get("phase_status", "unverified") }}</p>
+  {% elif alleles.get("homozygous") %}
+  <p><span class="badge badge-info">Legacy homozygous designation (unverified)</span></p>
   {% endif %}
 
   <div class="card-grid" style="margin-top:0.75rem;">
@@ -49,7 +51,7 @@
         <div class="value">{{ a1.get("canonical_repeats", "N/A") }}</div>
       </div>
       <div class="allele-stat">
-        <div class="label">Reads <span class="help-icon tip" data-tip="Total HiFi reads mapped to this allele's contig cluster">?</span></div>
+        <div class="label">Alignment records <span class="help-icon tip" data-tip="Alignment records assigned to the candidate contig cluster; secondary alignments are reference-fit evidence, not independent molecules">?</span></div>
         <div class="value">{{ a1.get("reads", 0) }}</div>
       </div>
       <div class="allele-stat">
@@ -81,7 +83,7 @@
         <div class="value">{{ a2.get("canonical_repeats", "N/A") }}</div>
       </div>
       <div class="allele-stat">
-        <div class="label">Reads <span class="help-icon tip" data-tip="Total HiFi reads mapped to this allele's contig cluster">?</span></div>
+        <div class="label">Alignment records <span class="help-icon tip" data-tip="Alignment records assigned to the candidate contig cluster; secondary alignments are reference-fit evidence, not independent molecules">?</span></div>
         <div class="value">{{ a2.get("reads", 0) }}</div>
       </div>
       <div class="allele-stat">
@@ -170,7 +172,7 @@
         <th class="tip" data-tip="The canonical repeat type before mutation occurred">Parent type</th>
         <th class="tip" data-tip="Name of the detected mutation (e.g. dupC = cytosine duplication)">Mutation</th>
         <th class="tip" data-tip="Frameshift: indel length not divisible by 3, disrupts reading frame">Frameshift</th>
-        <th class="tip" data-tip="Whether Clair3 variant caller independently detected this mutation">VCF support</th>
+        <th class="tip" data-tip="Exact sequence concordance with the VCF used to construct the consensus, or unavailable when projection cannot be verified">VCF support</th>
         <th class="tip" data-tip="Clair3 quality score: higher = more confident variant call">QUAL</th>
         <th class="tip" data-tip="Mutations near allele boundaries may be alignment artifacts (0.5x penalty)">Boundary</th>
       </tr>
@@ -193,6 +195,10 @@
         <td>
           {% if m.get("vcf_support") %}
             <span class="badge badge-success">Supported</span>
+          {% elif m.get("vcf_support_status") == "projection_unavailable" %}
+            <span class="badge badge-info">Support unavailable</span>
+          {% elif m.get("vcf_support_status") == "localization_ambiguous" %}
+            <span class="badge badge-info">Support ambiguous</span>
           {% else %}
             <span class="badge badge-warning">Unsupported</span>
           {% endif %}

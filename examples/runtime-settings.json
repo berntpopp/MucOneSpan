@@ -1,0 +1,68 @@
+{
+  "schema_version": 1,
+  "run": {
+    "threads": 4,
+    "platform": "hifi",
+    "min_coverage": 10,
+    "min_qual": 5,
+    "clair3_model": "",
+    "reference": null,
+    "minimap2_preset": null,
+    "report": false
+  },
+  "allele_selection": {
+    "min_gap": 5,
+    "valley_min_points": 3,
+    "valley_min_separation": 3,
+    "refinement_max_shift": 1
+  },
+  "classification": {
+    "max_indel_probe": 30,
+    "max_fit_edit_distance": 3,
+    "novel_repeat_edit_distance": 2,
+    "minimum_unit_fraction": 0.5,
+    "early_stop_edit_distance": 1,
+    "strict_segmentation": false
+  },
+  "consensus": {
+    "flank_length": 500,
+    "anchor_bases": 20,
+    "anchor_tolerance": 50
+  },
+  "confidence": {
+    "qual_low": 5,
+    "qual_high": 20,
+    "weight_below": 0.3,
+    "weight_low": 0.5,
+    "weight_high": 1,
+    "absent_weight": 0.3,
+    "boundary_repeats": 3,
+    "boundary_penalty": 0.5
+  },
+  "calling": {
+    "sample_name": "sample",
+    "read_phase": false
+  },
+  "read_phasing": {
+    "internal_downsampling": null,
+    "mapping_quality": null
+  },
+  "reference_layout": {
+    "pre": [
+      "1",
+      "2",
+      "3",
+      "4",
+      "5"
+    ],
+    "after": [
+      "6",
+      "7",
+      "8",
+      "9"
+    ],
+    "min_units": 1,
+    "max_units": 150
+  },
+  "repeat_dictionary": null
+}

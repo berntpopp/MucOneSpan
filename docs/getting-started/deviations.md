@@ -1,6 +1,6 @@
 # Differences from the Published Method
 
-MucOneSpan follows the architecture described in Vrbacka et al. 2025 (Figure 1) but makes several deliberate changes to improve accuracy, reproducibility, and usability.
+MucOneSpan draws on some ideas from Vrbacka et al. (2025). The comparison below describes differences in implementation and design; it does not establish improved accuracy.
 
 ---
 

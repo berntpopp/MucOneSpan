@@ -59,7 +59,7 @@ the checked-in Makefile targets and CI remain the common verification contract.
 
 ## Architecture
 
-MucOneSpan reconstructs the published method described by Vrbacka et al. and supports HiFi and ONT
+MucOneSpan draws on some ideas from Vrbacka et al. and supports HiFi and ONT
 amplicons. The current implementation uses minimap2. The historical bwa-mem
 description is not the implementation contract; see
 [differences from the published method](getting-started/deviations.md).
@@ -203,3 +203,78 @@ hardcoded local paths, and compatibility breaks. Run `make ci-check` and any
 additional checks relevant to the change. Update the changelog for user-visible
 changes. PR descriptions should explain the concrete result and include actual
 validation evidence, including skips and follow-up work.
+
+## Evaluation and evidence contracts
+
+Use `scripts/evaluate.py RESULT_ROOT --truth-root TRUTH_ROOT
+--expected-samples INVENTORY.json --output REPORT.json` for offline scientific
+scoring. The inventory is a JSON array of sample names or objects with `sample`,
+`truth_dir`, `result_dir`, `platform`, `input` and optional `run_record` fields.
+Explicit inventories retain unattempted samples in denominators. Truth validation
+reconstructs each full haplotype from actual repeat and mutated-unit sequences.
+
+The version1 report separates exact event annotation (parent, full mutation name,
+1-based total-repeat index on the sequence-matched haplotype), literal full
+sequence equality, ordered structure equality, count error, extra/missing alleles,
+assignment ambiguity and execution status. Event annotation is not a claim of
+normalized arbitrary biological-event equivalence. Every sequence-optimal
+assignment is retained; conservative metric bounds govern acceptance. A failed
+normal sample is not a true negative, and duplicate sequence observations do not
+prove two independently reconstructed haplotypes.
+
+`run_status.json` records `running`, `completed`, `insufficient_evidence` or
+`execution_failed`. The latter two keep the existing nonzero CLI outcome; the
+status file distinguishes a coverage no-call from a tool failure. Old successful
+artifacts cannot override a known failed execution. `alleles.json` is persisted
+after calling and consensus so it agrees with final summary evidence.
+
+Consensus uses explicit sample selection and `-H I` for unresolved mixed calls.
+Single-site heterozygosity permits an unordered pair; multiple heterozygous loci
+require one common phase set before genotype-index haplotypes are emitted. This
+implements the [bcftools consensus selectors](https://samtools.github.io/bcftools/bcftools.html#consensus)
+with additional phase checks; bcftools selectors alone do not establish phase.
+Experimental read-backed phase is available through the Python library's explicit
+`read_phase=True` or JSON `calling.read_phase: true`. It remains disabled by default
+after failing the development false-positive gate; there is no dedicated CLI flag. `consensus_context` records the
+actual reference, full consensus, selected sample/haplotype and half-open trim
+interval. VCF support verifies replay, then exact event reversion in sequence
+context. It describes concordance with the same VCF used to make consensus,
+not independent experimental support. Unprojectable indels remain unresolved.
+
+Classifier `allele_confidence` and `exact_match_pct` describe dictionary fit among
+candidate windows; neither is a calibrated probability. Use reconstruction status,
+`unresolved_regions`, ambiguous-base count and coverage together. Candidate-window
+scanning remains the default. The opt-in experimental strict segmentation
+mode rejected on development evidence must not be advertised as an accuracy fix.
+
+Strict evaluation distinguishes `sequence_accuracy` (independently recoverable
+allele observations) from `literal_sequence_accuracy` (raw assigned-pair equality).
+An unsupported second copy of one sequence cannot receive independent recovery
+credit. `supported_*` metrics require `exact_sequence_concordance` status;
+`missing_alleles` reports literal output cardinality; `independent_missing_alleles`
+also excludes unproven duplicates, which receive explicit counts and warnings.
+`legacy_supported_*` preserves historical boolean-only comparison. A resolved
+reconstruction must have neither missing nor extra alleles. Parse-level CLI errors
+must be supplied as nonzero run records by evaluation drivers; only invocations
+that enter the pipeline callback can update its execution sidecar.
+
+
+### Runtime configuration
+
+See the [configuration guide](guides/configuration.md) for the strict JSON schema,
+central defaults, command precedence and custom reference layout contract. Both
+JSON values and explicit stage options use the same range validation. Standalone
+consensus now loads the bundled dictionary by default, or `--repeats-db`/configured
+`repeat_dictionary`, and applies the same anchor-aware trimming as the full run.
+This corrects its prior fixed-trimming-only behavior. CLI flag names remain valid.
+
+`run_configuration.json` records effective values and hashes of the supplied
+configuration, input reads, reference and dictionary before tools execute. A new
+invocation removes stale configuration provenance before validating its inputs;
+failed input validation can therefore leave only the new execution failure status.
+`reference_layout.min_units` and `max_units` control ladder generation only; changing
+them alone does not require a different reference for a full run. Changing actual
+layout IDs, dictionary or flank length requires an explicit compatible reference.
+The evaluator records `fixed_repeat_count` and the generic
+`canonical_plus_fixed_matches_reported` diagnostic; the older
+`canonical_plus9_matches_reported` field remains a literal legacy diagnostic.

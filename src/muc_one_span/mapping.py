@@ -6,7 +6,13 @@ import logging
 import subprocess
 from pathlib import Path
 
+from muc_one_span.settings import DEFAULT_SETTINGS
 from muc_one_span.tools import run_tool
+
+PLATFORM_PRESETS: dict[str, str] = {"hifi": "map-hifi", "ont": "lr:hq"}
+DEFAULT_MINIMAP2_PRESET = (
+    DEFAULT_SETTINGS.run.minimap2_preset or PLATFORM_PRESETS[DEFAULT_SETTINGS.run.platform]
+)
 
 logger = logging.getLogger(__name__)
 
@@ -35,8 +41,8 @@ def map_reads(
     input_path: Path,
     reference_path: Path,
     output_dir: Path,
-    threads: int = 4,
-    preset: str = "map-hifi",
+    threads: int = DEFAULT_SETTINGS.run.threads,
+    preset: str = DEFAULT_MINIMAP2_PRESET,
 ) -> Path:
     """Map reads to reference using minimap2 and sort/index with samtools.
 
@@ -82,7 +88,7 @@ def _run_mapping_pipeline(
     reference_path: Path,
     bam_path: Path,
     threads: int,
-    preset: str = "map-hifi",
+    preset: str = DEFAULT_MINIMAP2_PRESET,
 ) -> None:
     """Run minimap2 | samtools sort as a streaming pipeline.
 

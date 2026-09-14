@@ -1,5 +1,5 @@
 cff-version: 1.2.0
-message: "If you use this software, please cite it as below."
+message: "Software citation metadata for MucOneSpan."
 type: software
 title: "MucOneSpan"
 abstract: "Open-source MUC1 VNTR analysis pipeline for PacBio HiFi and ONT amplicon data"
@@ -10,7 +10,7 @@ authors:
 repository-code: "https://github.com/berntpopp/MucOneSpan"
 url: "https://berntpopp.github.io/MucOneSpan/"
 license: MIT
-version: "0.10.0"
+version: "0.11.0"
 date-released: "2026-09-14"
 keywords:
   - MUC1

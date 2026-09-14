@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+import math
+import re
 from pathlib import Path
 
 from muc_one_span.tools import run_tool
@@ -93,57 +95,71 @@ def filter_vcf(
     return filtered
 
 
-def parse_vcf_genotypes(vcf_path: Path) -> list[dict]:
-    """Parse VCF to extract variant positions and genotypes.
+def select_vcf_sample(vcf_path: Path, sample: str | None = None) -> str:
+    """Select one VCF sample, rejecting missing or ambiguous selections."""
+    samples = run_tool(["bcftools", "query", "-l", str(vcf_path)]).splitlines()
+    if sample is not None:
+        if sample not in samples:
+            raise ValueError(f"VCF sample {sample!r} is not present in {vcf_path}")
+        return sample
+    if len(samples) != 1:
+        raise ValueError(f"Select an explicit sample: VCF has {len(samples)} samples")
+    return samples[0]
 
-    Returns list of dicts with keys: chrom, pos, ref, alt, genotype.
+
+def parse_vcf_genotypes(vcf_path: Path, sample: str | None = None) -> list[dict]:
+    """Return selected-sample variant identity, quality, genotype and phase set.
+
+    Missing QUAL and PS are represented by None. Tool failures and malformed
+    records propagate; an empty list means a successful query with no records.
     """
-    try:
-        output = run_tool(
-            [
-                "bcftools",
-                "query",
-                "-f",
-                "%CHROM\\t%POS\\t%REF\\t%ALT\\t[%GT]\\n",
-                str(vcf_path),
-            ]
-        )
-    except RuntimeError:
-        return []
+    return parse_vcf_variants(vcf_path, sample=sample)
 
+
+def parse_vcf_variants(vcf_path: Path, sample: str | None = None) -> list[dict]:
+    """Parse CHROM/POS/REF/ALT/QUAL/GT/PS without silently dropping bad records."""
+    selected_sample = select_vcf_sample(vcf_path, sample)
+    output = run_tool(
+        [
+            "bcftools",
+            "query",
+            "-u",
+            "-f",
+            "%CHROM\\t%POS\\t%REF\\t%ALT\\t%QUAL[\\t%GT\\t%PS]\\n",
+            "-s",
+            selected_sample,
+            str(vcf_path),
+        ]
+    )
     variants: list[dict] = []
-    for line in output.strip().splitlines():
-        if not line:
-            continue
+    for line in output.splitlines():
         fields = line.split("\t")
-        if len(fields) < 5:
-            continue
+        if len(fields) != 7:
+            raise ValueError(f"Malformed VCF query record: {line!r}")
+        chrom, position, ref, alt, quality, genotype, phase_set = fields
+        pos = int(position)
+        qual = None if quality == "." else float(quality)
+        if not chrom or pos < 1 or not ref or not alt:
+            raise ValueError(f"Invalid VCF variant identity: {line!r}")
+        if qual is not None and (not math.isfinite(qual) or qual < 0):
+            raise ValueError(f"Invalid VCF quality: {quality!r}")
+        if re.fullmatch(r"(?:[0-9]+|\.)(?:[/|](?:[0-9]+|\.))*", genotype) is None:
+            raise ValueError(f"Invalid VCF genotype: {genotype!r}")
+        if "/" in genotype and "|" in genotype:
+            raise ValueError(f"Mixed genotype separators: {genotype!r}")
+        indices = re.split(r"[/|]", genotype)
+        if any(int(index) > len(alt.split(",")) for index in indices if index != "."):
+            raise ValueError(f"Genotype allele index exceeds ALT count: {genotype!r}")
         variants.append(
             {
-                "chrom": fields[0],
-                "pos": int(fields[1]),
-                "ref": fields[2],
-                "alt": fields[3],
-                "genotype": fields[4],
+                "chrom": chrom,
+                "pos": pos,
+                "ref": ref,
+                "alt": alt,
+                "qual": qual,
+                "genotype": genotype,
+                "phase_set": None if phase_set == "." else phase_set,
+                "sample": selected_sample,
             }
         )
-    return variants
-
-
-def parse_vcf_variants(vcf_path: Path) -> list[dict]:
-    """Parse VCF to extract variant positions and quality scores."""
-    try:
-        output = run_tool(["bcftools", "query", "-f", "%POS\\t%QUAL\\n", str(vcf_path)])
-    except RuntimeError:
-        return []
-    variants = []
-    for line in output.strip().splitlines():
-        if not line:
-            continue
-        parts = line.split("\t")
-        if len(parts) >= 2:
-            try:
-                variants.append({"pos": int(parts[0]), "qual": float(parts[1])})
-            except ValueError:
-                continue
     return variants
