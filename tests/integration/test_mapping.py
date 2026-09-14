@@ -7,7 +7,7 @@ from pathlib import Path
 
 import pytest
 
-from open_pacmuci.mapping import bam_to_fastq, map_reads
+from muc_one_span.mapping import bam_to_fastq, map_reads
 from tests.conftest import requires_minimap2, requires_samtools
 
 

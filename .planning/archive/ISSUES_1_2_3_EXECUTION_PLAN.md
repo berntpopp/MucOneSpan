@@ -2,7 +2,7 @@
 
 ## Context
 
-Three open GitHub issues need fixing in the open-pacmuci pipeline:
+Three open GitHub issues need fixing in the MucOneSpan pipeline:
 - **Issue #1**: Homozygous (same-length) alleles miss mutations because Clair3 is never run on them
 - **Issue #2**: Large insertions (e.g., 16bp, 25bp) misclassified because only 60bp windows are probed
 - **Issue #3**: False positive mutations from low-quality VCF calls and flanking region indels
@@ -127,10 +127,10 @@ After all tasks complete:
 
 | File | Current Lines | Changes |
 |------|--------------|---------|
-| `src/open_pacmuci/data/repeats/repeats.json` | 62 | Add `mutations` section (~70 lines) |
-| `src/open_pacmuci/config.py` | ~110 | Add 2 fields, 2 functions, update loader |
-| `src/open_pacmuci/classify.py` | ~342 | Add confidence, templates, VCF validation, bidirectional |
-| `src/open_pacmuci/calling.py` | ~314 | Add quality params, genotype parsing, disambiguation |
-| `src/open_pacmuci/consensus.py` | ~158 | Add anchor-based trim, repeat_dict param |
-| `src/open_pacmuci/alleles.py` | ~305 | Add same_length flag |
-| `src/open_pacmuci/cli.py` | ~386 | Wire new features |
+| `src/muc_one_span/data/repeats/repeats.json` | 62 | Add `mutations` section (~70 lines) |
+| `src/muc_one_span/config.py` | ~110 | Add 2 fields, 2 functions, update loader |
+| `src/muc_one_span/classify.py` | ~342 | Add confidence, templates, VCF validation, bidirectional |
+| `src/muc_one_span/calling.py` | ~314 | Add quality params, genotype parsing, disambiguation |
+| `src/muc_one_span/consensus.py` | ~158 | Add anchor-based trim, repeat_dict param |
+| `src/muc_one_span/alleles.py` | ~305 | Add same_length flag |
+| `src/muc_one_span/cli.py` | ~386 | Wire new features |

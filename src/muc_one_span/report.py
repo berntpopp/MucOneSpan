@@ -1,7 +1,7 @@
 """Self-contained HTML report generation.
 
 Requires the ``jinja2`` package, which is an optional dependency.
-Install with: ``pip install open-pacmuci[report]``
+Install with: ``pip install muc_one_span[report]``
 """
 
 from __future__ import annotations
@@ -16,7 +16,7 @@ try:
 except ImportError:
     _HAS_JINJA2 = False
 
-from open_pacmuci.version import __version__
+from muc_one_span.version import __version__
 
 
 def generate_report(
@@ -52,11 +52,11 @@ def generate_report(
     if not _HAS_JINJA2:
         raise ImportError(
             "Jinja2 is required for report generation. "
-            "Install with: pip install open-pacmuci[report]"
+            "Install with: pip install muc_one_span[report]"
         )
 
     env = Environment(
-        loader=PackageLoader("open_pacmuci", "templates"),
+        loader=PackageLoader("muc_one_span", "templates"),
         autoescape=True,
     )
     template = env.get_template("report.html.j2")

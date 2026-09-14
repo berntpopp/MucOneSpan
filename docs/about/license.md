@@ -1,6 +1,6 @@
 # License
 
-open-pacmuci is licensed under the MIT License.
+MucOneSpan is licensed under the MIT License.
 
 ---
 
@@ -30,7 +30,7 @@ SOFTWARE.
 
 ## Third-Party Licenses
 
-open-pacmuci uses several open-source libraries. See individual package licenses for details:
+MucOneSpan uses several open-source libraries. See individual package licenses for details:
 
 - **Click** -- BSD-3-Clause License
 - **PyYAML** -- MIT License
@@ -39,10 +39,10 @@ open-pacmuci uses several open-source libraries. See individual package licenses
 
 ## Citation
 
-If you use open-pacmuci in your research, please cite:
+If you use MucOneSpan in your research, please cite:
 
 ```bibtex
-@article{vrbacka2025pacmuci,
+@article{vrbacka2025muc1,
   author = {Vrbacka, A. and Pristoupilova, A. and Kidd, K.O. and others},
   title = {Long-Read Sequencing of the MUC1 VNTR: Genomic Variation,
            Mutational Landscape, and Its Impact on ADTKD Diagnosis

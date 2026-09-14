@@ -8,7 +8,7 @@ from pathlib import Path
 
 import pytest
 
-from open_pacmuci.config import (
+from muc_one_span.config import (
     RepeatDictionary,
     classify_repeat_id,
     load_repeat_dictionary,

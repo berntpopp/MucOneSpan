@@ -3,7 +3,7 @@ UV_RUN = uv run --locked --no-default-groups
 UV_TEST = $(UV_RUN) --group test --extra report
 UV_QUALITY = $(UV_RUN) --group quality --extra report
 PYTHON_PATHS = src tests scripts
-DOCKER_IMAGE ?= open-pacmuci:local
+DOCKER_IMAGE ?= muconespan:local
 
 .PHONY: help init install-uv install dev conda-setup test test-fast test-unit test-int lint lint-fix format format-check type-check file-size workflow-check quality check ci-check docs-check security-check build-check hooks clean generate-testdata lock sync docker-build docker-test docker-smoke
 
@@ -45,7 +45,7 @@ format-check:  ## Verify formatting without editing files
 	$(UV_QUALITY) ruff format --check $(PYTHON_PATHS)
 
 type-check:  ## Check package and helper script types
-	$(UV_QUALITY) mypy src/open_pacmuci scripts
+	$(UV_QUALITY) mypy src/muc_one_span scripts
 
 file-size:  ## Reject source/configuration files with 650 or more physical lines
 	$(UV_RUN) python scripts/check_file_size.py

@@ -1,4 +1,4 @@
-"""Click CLI for open-pacmuci pipeline."""
+"""Click CLI for MucOneSpan pipeline."""
 
 from __future__ import annotations
 
@@ -9,20 +9,20 @@ from pathlib import Path
 
 import click
 
-from open_pacmuci.version import __version__
+from muc_one_span.version import __version__
 
 PLATFORM_PRESETS: dict[str, str] = {"hifi": "map-hifi", "ont": "lr:hq"}
 
 
 @click.group()
-@click.version_option(version=__version__, prog_name="open-pacmuci")
+@click.version_option(version=__version__, prog_name="muconespan")
 @click.option(
     "-v", "--verbose", count=True, help="Increase verbosity (-v for INFO, -vv for DEBUG)."
 )
 @click.option("-q", "--quiet", is_flag=True, help="Suppress non-error output.")
 @click.pass_context
 def main(ctx: click.Context, verbose: int, quiet: bool) -> None:
-    """open-pacmuci: MUC1 VNTR analysis pipeline for PacBio HiFi and ONT amplicon data."""
+    """MucOneSpan: MUC1 VNTR analysis pipeline for PacBio HiFi and ONT amplicon data."""
     if quiet:
         level = logging.ERROR
     elif verbose >= 2:
@@ -63,8 +63,8 @@ def ladder(
     repeats_db: str | None,
 ) -> None:
     """Generate or regenerate the reference ladder FASTA."""
-    from open_pacmuci.config import load_repeat_dictionary
-    from open_pacmuci.ladder import generate_ladder_fasta
+    from muc_one_span.config import load_repeat_dictionary
+    from muc_one_span.ladder import generate_ladder_fasta
 
     rd = load_repeat_dictionary(Path(repeats_db) if repeats_db else None)
     out_path = generate_ladder_fasta(rd, Path(output), min_units, max_units, flank_length)
@@ -110,8 +110,8 @@ def map_cmd(
     minimap2_preset: str | None,
 ) -> None:
     """Map reads to the ladder reference with minimap2."""
-    from open_pacmuci.mapping import map_reads
-    from open_pacmuci.tools import check_tools
+    from muc_one_span.mapping import map_reads
+    from muc_one_span.tools import check_tools
 
     check_tools(["minimap2", "samtools"])
 
@@ -134,8 +134,8 @@ def map_cmd(
 @click.option("--output-dir", "-o", type=click.Path(), default=".", help="Output directory.")
 def alleles(input_path: str, min_coverage: int, output_dir: str) -> None:
     """Determine allele lengths from mapping."""
-    from open_pacmuci.alleles import detect_alleles, parse_idxstats
-    from open_pacmuci.mapping import get_idxstats
+    from muc_one_span.alleles import detect_alleles, parse_idxstats
+    from muc_one_span.mapping import get_idxstats
 
     bam = Path(input_path)
     idxstats_output = get_idxstats(bam)
@@ -205,8 +205,8 @@ def call(
     minimap2_preset: str | None,
 ) -> None:
     """Call variants with Clair3."""
-    from open_pacmuci.calling import call_variants_per_allele
-    from open_pacmuci.tools import check_tools
+    from muc_one_span.calling import call_variants_per_allele
+    from muc_one_span.tools import check_tools
 
     check_tools(["minimap2", "samtools", "bcftools", "run_clair3.sh"])
 
@@ -262,8 +262,8 @@ def consensus(
     output_dir: str,
 ) -> None:
     """Build per-allele consensus sequences."""
-    from open_pacmuci.consensus import build_consensus_per_allele
-    from open_pacmuci.tools import check_tools
+    from muc_one_span.consensus import build_consensus_per_allele
+    from muc_one_span.tools import check_tools
 
     check_tools(["samtools", "bcftools"])
 
@@ -318,8 +318,8 @@ def classify(
     output_dir: str,
 ) -> None:
     """Classify repeat units in a consensus sequence."""
-    from open_pacmuci.classify import classify_sequence
-    from open_pacmuci.config import load_repeat_dictionary
+    from muc_one_span.classify import classify_sequence
+    from muc_one_span.config import load_repeat_dictionary
 
     rd = load_repeat_dictionary(Path(repeats_db) if repeats_db else None)
 
@@ -375,7 +375,7 @@ def classify(
 @click.option(
     "--report/--no-report",
     default=False,
-    help="Generate HTML report (requires jinja2: pip install open-pacmuci[report]).",
+    help="Generate HTML report (requires jinja2: pip install muc_one_span[report]).",
 )
 @click.option(
     "--platform",
@@ -401,15 +401,15 @@ def run(
     platform: str,
     minimap2_preset: str | None,
 ) -> None:
-    """Run the full open-pacmuci pipeline."""
-    from open_pacmuci.alleles import detect_alleles, parse_idxstats
-    from open_pacmuci.calling import call_variants_per_allele
-    from open_pacmuci.classify import classify_sequence
-    from open_pacmuci.config import load_repeat_dictionary
-    from open_pacmuci.consensus import build_consensus_per_allele
-    from open_pacmuci.mapping import get_idxstats, map_reads
-    from open_pacmuci.tools import check_tools, get_tool_versions
-    from open_pacmuci.vcf import parse_vcf_variants
+    """Run the full MucOneSpan pipeline."""
+    from muc_one_span.alleles import detect_alleles, parse_idxstats
+    from muc_one_span.calling import call_variants_per_allele
+    from muc_one_span.classify import classify_sequence
+    from muc_one_span.config import load_repeat_dictionary
+    from muc_one_span.consensus import build_consensus_per_allele
+    from muc_one_span.mapping import get_idxstats, map_reads
+    from muc_one_span.tools import check_tools, get_tool_versions
+    from muc_one_span.vcf import parse_vcf_variants
 
     preset = minimap2_preset or PLATFORM_PRESETS[platform]
 
@@ -455,7 +455,7 @@ def run(
 
     # Step 5: Classify repeats
     click.echo("Step 5/5: Classifying repeats...")
-    from open_pacmuci.classify import validate_mutations_against_vcf
+    from muc_one_span.classify import validate_mutations_against_vcf
 
     all_results: dict[str, dict] = {}
     for allele_key, fa_path in consensus_paths.items():
@@ -495,7 +495,7 @@ def run(
 
     if report:
         try:
-            from open_pacmuci.report import generate_report
+            from muc_one_span.report import generate_report
 
             report_path = out / "report.html"
             generate_report(
@@ -533,7 +533,7 @@ def report(input_path: str, output: str, sample_name: str | None, repeats: str |
     import json
 
     try:
-        from open_pacmuci.report import generate_report
+        from muc_one_span.report import generate_report
     except ImportError as e:
         click.echo(f"Error: {e}", err=True)
         raise SystemExit(1) from e
@@ -569,11 +569,11 @@ def _bundled_reference() -> Path:
     """
     import importlib.resources
 
-    res = importlib.resources.files("open_pacmuci.data.reference").joinpath("reference_ladder.fa")
+    res = importlib.resources.files("muc_one_span.data.reference").joinpath("reference_ladder.fa")
     ref = Path(str(res))
     if not ref.exists():
         click.echo(
-            f"Bundled reference not found at {ref}. Run 'open-pacmuci ladder' to generate it.",
+            f"Bundled reference not found at {ref}. Run 'muconespan ladder' to generate it.",
             err=True,
         )
         sys.exit(1)

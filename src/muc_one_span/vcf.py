@@ -1,10 +1,10 @@
-"""VCF parsing and filtering utilities for open-pacmuci."""
+"""VCF parsing and filtering utilities for muconespan."""
 
 from __future__ import annotations
 
 from pathlib import Path
 
-from open_pacmuci.tools import run_tool
+from muc_one_span.tools import run_tool
 
 
 def filter_vcf(

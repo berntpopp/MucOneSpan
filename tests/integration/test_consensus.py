@@ -6,8 +6,8 @@ from pathlib import Path
 
 import pytest
 
-from open_pacmuci.consensus import build_consensus, build_consensus_per_allele
-from open_pacmuci.vcf import filter_vcf
+from muc_one_span.consensus import build_consensus, build_consensus_per_allele
+from muc_one_span.vcf import filter_vcf
 from tests.conftest import requires_bcftools, requires_samtools
 
 

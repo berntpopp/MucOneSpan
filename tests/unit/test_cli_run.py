@@ -6,7 +6,7 @@ from unittest.mock import patch
 
 from click.testing import CliRunner
 
-from open_pacmuci.cli import main
+from muc_one_span.cli import main
 
 
 class TestRunSubcommand:
@@ -51,48 +51,48 @@ class TestRunSubcommand:
         }
 
         with (
-            patch("open_pacmuci.tools.check_tools", return_value=True),
+            patch("muc_one_span.tools.check_tools", return_value=True),
             patch(
-                "open_pacmuci.tools.get_tool_versions",
+                "muc_one_span.tools.get_tool_versions",
                 return_value={"minimap2": "2.24", "samtools": "1.17"},
             ),
             patch(
-                "open_pacmuci.mapping.map_reads",
+                "muc_one_span.mapping.map_reads",
                 return_value=tmp_path / "mapping.bam",
             ),
             patch(
-                "open_pacmuci.mapping.get_idxstats",
+                "muc_one_span.mapping.get_idxstats",
                 return_value="contig_51\t3120\t200\t0\ncontig_71\t4320\t150\t0\n*\t0\t0\t50\n",
             ),
             patch(
-                "open_pacmuci.alleles.parse_idxstats",
+                "muc_one_span.alleles.parse_idxstats",
                 return_value={51: 200, 71: 150},
             ),
             patch(
-                "open_pacmuci.alleles.detect_alleles",
+                "muc_one_span.alleles.detect_alleles",
                 return_value=fake_alleles_result,
             ),
             patch(
-                "open_pacmuci.calling.call_variants_per_allele",
+                "muc_one_span.calling.call_variants_per_allele",
                 return_value={
                     "allele_1": tmp_path / "allele_1" / "variants.vcf.gz",
                     "allele_2": tmp_path / "allele_2" / "variants.vcf.gz",
                 },
             ),
             patch(
-                "open_pacmuci.consensus.build_consensus_per_allele",
+                "muc_one_span.consensus.build_consensus_per_allele",
                 return_value={"allele_1": allele1_fa, "allele_2": allele2_fa},
             ),
             patch(
-                "open_pacmuci.classify.classify_sequence",
+                "muc_one_span.classify.classify_sequence",
                 return_value=fake_classify_result,
             ),
             patch(
-                "open_pacmuci.classify.validate_mutations_against_vcf",
+                "muc_one_span.classify.validate_mutations_against_vcf",
                 return_value=fake_classify_result,
             ),
             patch(
-                "open_pacmuci.vcf.parse_vcf_variants",
+                "muc_one_span.vcf.parse_vcf_variants",
                 return_value=[],
             ),
         ):
@@ -143,26 +143,26 @@ class TestRunReportFallback:
         }
 
         with (
-            patch("open_pacmuci.tools.check_tools"),
-            patch("open_pacmuci.tools.get_tool_versions", return_value={}),
-            patch("open_pacmuci.mapping.map_reads", return_value=tmp_path / "m.bam"),
-            patch("open_pacmuci.mapping.get_idxstats", return_value="c51\t3060\t100\t0\n"),
-            patch("open_pacmuci.alleles.parse_idxstats", return_value={51: 100}),
-            patch("open_pacmuci.alleles.detect_alleles", return_value=fake_alleles),
+            patch("muc_one_span.tools.check_tools"),
+            patch("muc_one_span.tools.get_tool_versions", return_value={}),
+            patch("muc_one_span.mapping.map_reads", return_value=tmp_path / "m.bam"),
+            patch("muc_one_span.mapping.get_idxstats", return_value="c51\t3060\t100\t0\n"),
+            patch("muc_one_span.alleles.parse_idxstats", return_value={51: 100}),
+            patch("muc_one_span.alleles.detect_alleles", return_value=fake_alleles),
             patch(
-                "open_pacmuci.calling.call_variants_per_allele",
+                "muc_one_span.calling.call_variants_per_allele",
                 return_value={"allele_1": tmp_path / "a.vcf.gz"},
             ),
             patch(
-                "open_pacmuci.consensus.build_consensus_per_allele",
+                "muc_one_span.consensus.build_consensus_per_allele",
                 return_value={"allele_1": allele1_fa},
             ),
-            patch("open_pacmuci.classify.classify_sequence", return_value=fake_cls),
-            patch("open_pacmuci.classify.validate_mutations_against_vcf", return_value=fake_cls),
-            patch("open_pacmuci.vcf.parse_vcf_variants", return_value=[]),
-            patch("open_pacmuci.cli._bundled_reference", return_value=tmp_path / "ref.fa"),
+            patch("muc_one_span.classify.classify_sequence", return_value=fake_cls),
+            patch("muc_one_span.classify.validate_mutations_against_vcf", return_value=fake_cls),
+            patch("muc_one_span.vcf.parse_vcf_variants", return_value=[]),
+            patch("muc_one_span.cli._bundled_reference", return_value=tmp_path / "ref.fa"),
             patch.dict("sys.modules", {"jinja2": None}),
-            patch("open_pacmuci.report._HAS_JINJA2", False),
+            patch("muc_one_span.report._HAS_JINJA2", False),
         ):
             runner = CliRunner()
             result = runner.invoke(

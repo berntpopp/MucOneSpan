@@ -1,4 +1,4 @@
-# src/open_pacmuci/config.py
+# src/muc_one_span/config.py
 """Configuration module for repeat dictionary loading and classification."""
 
 from __future__ import annotations
@@ -15,7 +15,7 @@ def _bundled_repeats_path() -> Path:
     Works both in editable installs and when installed as a package
     (e.g., from Docker or pip install).
     """
-    ref = importlib.resources.files("open_pacmuci.data.repeats").joinpath("repeats.json")
+    ref = importlib.resources.files("muc_one_span.data.repeats").joinpath("repeats.json")
     # as_posix() returns a Traversable; for Path compatibility use the context
     return Path(str(ref))
 

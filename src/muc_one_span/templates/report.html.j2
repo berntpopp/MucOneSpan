@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
-<title>open-pacmuci Report &ndash; {{ sample_name }}</title>
+<title>MucOneSpan Report &ndash; {{ sample_name }}</title>
 <style>
 {% include "report.css" %}
 </style>
@@ -14,7 +14,7 @@
      1. HEADER
      ════════════════════════════════════════════════════════ -->
 <header class="report-header" aria-label="Report header">
-  <h1>open-pacmuci Report</h1>
+  <h1>MucOneSpan Report</h1>
   <p class="meta">
     <span>Sample: <strong>{{ sample_name }}</strong></span>
     <span>Pipeline v{{ pipeline_version }}</span>
@@ -313,7 +313,7 @@
 <footer class="report-footer" aria-label="Reproducibility information">
   <dl>
     <dt>Pipeline</dt>
-    <dd>open-pacmuci v{{ pipeline_version }}</dd>
+    <dd>MucOneSpan v{{ pipeline_version }}</dd>
     <dt>Generated</dt>
     <dd>{{ generated_at }}</dd>
     {% for name, version in tool_versions.items() %}

@@ -1,12 +1,12 @@
 # Core Concepts
 
-Understanding the fundamental concepts behind open-pacmuci helps you interpret results accurately and troubleshoot edge cases.
+Understanding the fundamental concepts behind MucOneSpan helps you interpret results accurately and troubleshoot edge cases.
 
 ---
 
 ## Pipeline Architecture
 
-open-pacmuci executes five stages sequentially. Each stage produces intermediate files that feed into the next.
+MucOneSpan executes five stages sequentially. Each stage produces intermediate files that feed into the next.
 
 ```mermaid
 graph TD
@@ -35,7 +35,7 @@ The first stage maps reads against a **synthetic reference ladder** -- a FASTA f
 Reads from a given allele will map best to the contig whose repeat count matches the allele length. By counting how many reads align to each contig (via `samtools idxstats`), the pipeline identifies the two allele lengths as peaks in the read count distribution.
 
 !!! note "Ladder range"
-    The default ladder spans 1-150 repeat units, covering the full observed range of MUC1 VNTR alleles (Vrbacka et al. report alleles up to 125 repeats). The original PacMUCI used 1-120.
+    The default ladder spans 1-150 repeat units, covering the full observed range of MUC1 VNTR alleles (Vrbacka et al. report alleles up to 125 repeats). The workflow described by Vrbacka et al. used 1-120.
 
 ---
 
@@ -49,7 +49,7 @@ The primary allele detection method looks for a **gap** in the read count distri
 
 When two alleles differ by fewer than ~10 repeats, their read count distributions overlap, creating a single broad peak instead of two. **Gap-based clustering cannot separate them.**
 
-open-pacmuci solves this with **indel-valley analysis**:
+MucOneSpan solves this with **indel-valley analysis**:
 
 1. For each contig with mapped reads, compute the **mean CIGAR indel length** of all reads
 2. Reads aligned to the correct-length contig have near-zero indels
@@ -135,7 +135,7 @@ The **allele confidence** is the mean of all per-repeat confidences. VCF cross-v
 
 ## Next Steps
 
-- **[Deviations from PacMUCI](deviations.md)** -- What changed and why
+- **[Differences from the Published Method](deviations.md)** -- What changed and why
 - **[Known Mutations](../reference/mutations.md)** -- Full mutation catalog
 - **[Repeat Nomenclature](../reference/nomenclature.md)** -- Classification system details
 - **[Benchmarking](../guides/benchmarking.md)** -- Validate with simulated data

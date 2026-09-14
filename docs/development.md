@@ -1,7 +1,7 @@
 # Development
 
 The repository uses one shared development contract in
-[`AGENTS.md`](https://github.com/berntpopp/open-pacmuci/blob/main/AGENTS.md).
+[`AGENTS.md`](https://github.com/berntpopp/MucOneSpan/blob/main/AGENTS.md).
 Claude Code and Gemini CLI import that file through their small vendor entry
 files; Codex reads it directly. Directory-level `AGENTS.md` files cover package,
 test, and script details. Change shared policy in its source rather than copying
@@ -59,10 +59,10 @@ the checked-in Makefile targets and CI remain the common verification contract.
 
 ## Architecture
 
-Open-pacmuci reconstructs the published PacMUCI method and supports HiFi and ONT
+MucOneSpan reconstructs the published method described by Vrbacka et al. and supports HiFi and ONT
 amplicons. The current implementation uses minimap2. The historical bwa-mem
 description is not the implementation contract; see
-[deviations from PacMUCI](getting-started/deviations.md).
+[differences from the published method](getting-started/deviations.md).
 
 | Component | Responsibility |
 | --- | --- |
@@ -78,8 +78,8 @@ description is not the implementation contract; see
 | `tools.py` | External command execution, environments, errors, tool versions |
 | `scripts/` | Reference generation, simulation, benchmark and maintenance helpers |
 
-Package resources live under `src/open_pacmuci/data/` and
-`src/open_pacmuci/templates/`; there is no top-level runtime `data/` directory.
+Package resources live under `src/muc_one_span/data/` and
+`src/muc_one_span/templates/`; there is no top-level runtime `data/` directory.
 Resource changes need distribution checks, since an editable installation can
 hide packaging omissions.
 
@@ -130,7 +130,7 @@ environment is separate from the Python environment created by uv.
 
 ```bash
 conda env create -f conda/environment.yml
-conda activate open-pacmuci-tools
+conda activate muconespan-tools
 make test-int
 ```
 

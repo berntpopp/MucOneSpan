@@ -36,8 +36,8 @@ def main() -> None:
 
     args.output_dir.mkdir(parents=True, exist_ok=True)
 
-    from open_pacmuci.config import load_repeat_dictionary
-    from open_pacmuci.tools import check_tools
+    from muc_one_span.config import load_repeat_dictionary
+    from muc_one_span.tools import check_tools
 
     check_tools(["minimap2", "samtools", "bcftools", "run_clair3.sh"])
     rd = load_repeat_dictionary()
@@ -58,8 +58,8 @@ def main() -> None:
         timings: dict[str, float] = {}
         print(f"\n{sample_name}:")
 
-        from open_pacmuci.ladder import generate_ladder_fasta
-        from open_pacmuci.mapping import get_idxstats, map_reads
+        from muc_one_span.ladder import generate_ladder_fasta
+        from muc_one_span.mapping import get_idxstats, map_reads
 
         ref = out / "ladder.fa"
         t0 = time.perf_counter()
@@ -68,7 +68,7 @@ def main() -> None:
         timings["mapping"] = time.perf_counter() - t0
         print(f"  mapping: {timings['mapping']:.2f}s")
 
-        from open_pacmuci.alleles import detect_alleles, parse_idxstats
+        from muc_one_span.alleles import detect_alleles, parse_idxstats
 
         t0 = time.perf_counter()
         idxstats = get_idxstats(mapped)
@@ -77,21 +77,21 @@ def main() -> None:
         timings["alleles"] = time.perf_counter() - t0
         print(f"  alleles: {timings['alleles']:.2f}s")
 
-        from open_pacmuci.calling import call_variants_per_allele
+        from muc_one_span.calling import call_variants_per_allele
 
         t0 = time.perf_counter()
         vcf_paths = call_variants_per_allele(mapped, ref, alleles_result, out, threads=4)
         timings["calling"] = time.perf_counter() - t0
         print(f"  calling: {timings['calling']:.2f}s")
 
-        from open_pacmuci.consensus import build_consensus_per_allele
+        from muc_one_span.consensus import build_consensus_per_allele
 
         t0 = time.perf_counter()
         consensus = build_consensus_per_allele(ref, vcf_paths, alleles_result, out, repeat_dict=rd)
         timings["consensus"] = time.perf_counter() - t0
         print(f"  consensus: {timings['consensus']:.2f}s")
 
-        from open_pacmuci.classify import classify_sequence
+        from muc_one_span.classify import classify_sequence
 
         t0 = time.perf_counter()
         for fa_path in consensus.values():

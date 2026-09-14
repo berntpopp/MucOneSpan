@@ -7,6 +7,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+## [0.10.0] - 2026-09-14
+
+### Changed
+- Name the tool and repository MucOneSpan, following the companion MucOneUp conventions.
+- Use `muconespan` for the CLI and `muc_one_span` for the Python distribution and imports
+  (normalized distribution name: `muc-one-span`).
+- Update package resources, containers, workflows, documentation, citations, and
+  repository links consistently; preserve the scientific pipeline behavior.
+
 ## [0.9.0] - 2026-09-14
 
 ### Fixed
@@ -55,7 +64,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ### Added
 - Self-contained HTML report with modern UI/UX, hover tooltips, dark/light mode, print stylesheet
-- Optional `[report]` extra for Jinja2 dependency (`pip install open-pacmuci[report]`)
+- Optional `[report]` extra for Jinja2 dependency (`pip install muc_one_span[report]`)
 - `--report` flag on `run` subcommand and standalone `report` subcommand
 - Rich hover tooltips throughout report (repeat blocks, metrics, section headers)
 - Parallel per-allele variant calling via ThreadPoolExecutor
@@ -132,7 +141,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 ## [0.1.0] - 2026-04-06
 
 ### Added
-- Initial release of open-pacmuci pipeline
+- Initial release of MucOneSpan pipeline
 - Reference ladder generation (20-150 repeat units)
 - Read mapping with minimap2
 - Allele length detection with peak finding
@@ -149,15 +158,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 - Project scaffolding with uv, ruff, mypy, pytest, CI
 - Initial pipeline implementation
 
-[Unreleased]: https://github.com/berntpopp/open-pacmuci/compare/v0.9.0...HEAD
-[0.9.0]: https://github.com/berntpopp/open-pacmuci/compare/v0.8.0...v0.9.0
-[0.8.0]: https://github.com/berntpopp/open-pacmuci/compare/v0.6.0...v0.8.0
-[0.6.0]: https://github.com/berntpopp/open-pacmuci/compare/v0.5.0...v0.6.0
-[0.5.0]: https://github.com/berntpopp/open-pacmuci/compare/v0.4.0...v0.5.0
-[0.4.0]: https://github.com/berntpopp/open-pacmuci/compare/v0.3.0...v0.4.0
-[0.3.0]: https://github.com/berntpopp/open-pacmuci/compare/v0.2.0...v0.3.0
-[0.2.0]: https://github.com/berntpopp/open-pacmuci/compare/v0.1.2...v0.2.0
-[0.1.2]: https://github.com/berntpopp/open-pacmuci/compare/v0.1.1...v0.1.2
-[0.1.1]: https://github.com/berntpopp/open-pacmuci/compare/v0.1.0...v0.1.1
-[0.1.0]: https://github.com/berntpopp/open-pacmuci/compare/v0.0.0...v0.1.0
-[0.0.0]: https://github.com/berntpopp/open-pacmuci/releases/tag/v0.0.0
+[Unreleased]: https://github.com/berntpopp/MucOneSpan/compare/v0.10.0...HEAD
+[0.10.0]: https://github.com/berntpopp/MucOneSpan/compare/v0.9.0...v0.10.0
+[0.9.0]: https://github.com/berntpopp/MucOneSpan/compare/v0.8.0...v0.9.0
+[0.8.0]: https://github.com/berntpopp/MucOneSpan/compare/v0.7.0...v0.8.0
+[0.7.0]: https://github.com/berntpopp/MucOneSpan/compare/v0.6.0...v0.7.0
+[0.6.0]: https://github.com/berntpopp/MucOneSpan/compare/v0.5.0...v0.6.0
+[0.5.0]: https://github.com/berntpopp/MucOneSpan/compare/v0.4.0...v0.5.0
+[0.4.0]: https://github.com/berntpopp/MucOneSpan/compare/v0.3.0...v0.4.0
+[0.3.0]: https://github.com/berntpopp/MucOneSpan/compare/v0.2.0...v0.3.0
+[0.2.0]: https://github.com/berntpopp/MucOneSpan/compare/v0.1.2...v0.2.0
+[0.1.2]: https://github.com/berntpopp/MucOneSpan/compare/v0.1.1...v0.1.2
+[0.1.1]: https://github.com/berntpopp/MucOneSpan/compare/v0.1.0...v0.1.1
+[0.1.0]: https://github.com/berntpopp/MucOneSpan/compare/v0.0.0...v0.1.0
+[0.0.0]: https://github.com/berntpopp/MucOneSpan/releases/tag/v0.0.0

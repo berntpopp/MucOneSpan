@@ -6,7 +6,7 @@ length detection and mutation classification separately from unit tests.
 
 ## Prerequisites
 
-Run `make dev` for the locked open-pacmuci environment. The simulation workflow
+Run `make dev` for the locked MucOneSpan environment. The simulation workflow
 also requires MucOneUp, its `config.json`, and pbsim3 in a suitable external tool
 environment. Install minimap2 and samtools for alignment; full pipeline runs also
 need bcftools, Clair3, and the appropriate model. The repository's
@@ -93,7 +93,7 @@ comparing implementations; use separate result directories.
 For a single sample:
 
 ```bash
-uv run --locked --all-extras open-pacmuci run \
+uv run --locked --all-extras muconespan run \
   --input /path/to/sample_reads.bam \
   --output-dir tests/results/single \
   --clair3-model "$CLAIR3_MODEL" \
@@ -108,7 +108,7 @@ false negatives, partial matches, errors, model/tool versions, seeds, and covera
 Pay particular attention to same-length alleles, nearby lengths, long tandem
 repeats, low coverage, and PCR bias.
 
-The [historical benchmark report](https://github.com/berntpopp/open-pacmuci/blob/main/.planning/BENCHMARK_RESULTS.md)
+The [historical benchmark report](https://github.com/berntpopp/MucOneSpan/blob/main/.planning/BENCHMARK_RESULTS.md)
 records a 44-sample v0.3.0 run: 25/28 mutation detections and 15/16 correct normal
 calls. That dataset includes additional experiments beyond the generator's core
 catalog. Its observations include a same-length allele splitting failure and
@@ -118,5 +118,5 @@ observations, not current validation results or clinical performance claims.
 See [limitations](../reference/limitations.md),
 [known mutations](../reference/mutations.md), and
 [CLI reference](../reference/cli.md) for context. The longer
-[historical testing notes](https://github.com/berntpopp/open-pacmuci/blob/main/.planning/TESTING_WITH_MUCONEUP.md)
+[historical testing notes](https://github.com/berntpopp/MucOneSpan/blob/main/.planning/TESTING_WITH_MUCONEUP.md)
 retain past experiments; use the portable commands here for new work.

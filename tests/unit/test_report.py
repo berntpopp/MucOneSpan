@@ -15,7 +15,7 @@ except ImportError:
 pytestmark = pytest.mark.skipif(not _HAS_JINJA2, reason="jinja2 not installed")
 
 if _HAS_JINJA2:
-    from open_pacmuci.report import generate_report
+    from muc_one_span.report import generate_report
 
 
 @pytest.fixture
@@ -80,7 +80,7 @@ class TestGenerateReport:
         assert out.exists()
         content = out.read_text()
         assert "test_sample" in content
-        assert "open-pacmuci" in content
+        assert "MucOneSpan" in content
 
     def test_report_self_contained(self, tmp_path, sample_summary):
         """Report must not reference any external URLs."""

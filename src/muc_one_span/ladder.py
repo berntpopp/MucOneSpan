@@ -1,4 +1,4 @@
-# src/open_pacmuci/ladder.py
+# src/muc_one_span/ladder.py
 """Reference ladder FASTA generation for MUC1 VNTR."""
 
 from __future__ import annotations
@@ -6,7 +6,7 @@ from __future__ import annotations
 import logging
 from pathlib import Path
 
-from open_pacmuci.config import RepeatDictionary
+from muc_one_span.config import RepeatDictionary
 
 logger = logging.getLogger(__name__)
 

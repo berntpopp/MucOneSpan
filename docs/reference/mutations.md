@@ -1,6 +1,6 @@
 # Known Mutations
 
-open-pacmuci includes a catalog of **13 known MUC1 frameshift mutations** with pre-computed sequence templates for exact matching.
+MucOneSpan includes a catalog of **13 known MUC1 frameshift mutations** with pre-computed sequence templates for exact matching.
 
 ---
 
@@ -54,7 +54,7 @@ Novel mutations are still detected but with **lower confidence scores** since th
 All 13 cataloged mutations cause **frameshift** in the MUC1 coding sequence, leading to production of the toxic MUC1fs protein. The most common mutation is **59dupC** (also known as dupC), found in the majority of ADTKD-MUC1 families worldwide.
 
 !!! warning "Diagnostic use"
-    open-pacmuci is a research tool. Clinical diagnostic use requires validation against established reference standards and is subject to local regulatory requirements.
+    MucOneSpan is a research tool. Clinical diagnostic use requires validation against established reference standards and is subject to local regulatory requirements.
 
 ---
 

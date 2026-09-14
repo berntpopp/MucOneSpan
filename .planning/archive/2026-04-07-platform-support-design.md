@@ -1,14 +1,14 @@
 # Platform-Aware Pipeline Design (Issue #16)
 
 **Date:** 2026-04-07
-**Issue:** berntpopp/open-pacmuci#16
+**Issue:** berntpopp/MucOneSpan#16
 **Goal:** Support ONT data by making Clair3 platform and minimap2 preset configurable via CLI
 
 ---
 
 ## Problem
 
-open-pacmuci hardcodes `--platform=hifi` for Clair3 and `-x map-hifi` for minimap2. ONT data requires `--platform=ont` and `-x lr:hq` respectively. With HiFi settings on ONT data, sensitivity drops from 84.6% to 16.7%.
+MucOneSpan hardcodes `--platform=hifi` for Clair3 and `-x map-hifi` for minimap2. ONT data requires `--platform=ont` and `-x lr:hq` respectively. With HiFi settings on ONT data, sensitivity drops from 84.6% to 16.7%.
 
 ## Design
 
@@ -74,9 +74,9 @@ open-pacmuci hardcodes `--platform=hifi` for Clair3 and `-x map-hifi` for minima
 
 | File | Change |
 |------|--------|
-| `src/open_pacmuci/cli.py` | Add `--platform`, `--minimap2-preset` options; update group docstring for ONT |
-| `src/open_pacmuci/mapping.py` | Add `preset` parameter to `map_reads` and `_run_mapping_pipeline` |
-| `src/open_pacmuci/calling.py` | Thread `platform` + `preset` through `_extract_and_remap_reads`, `call_variants_per_allele`, and `disambiguate_same_length_alleles`; fix existing `run_clair3` calls to pass `platform` |
+| `src/muc_one_span/cli.py` | Add `--platform`, `--minimap2-preset` options; update group docstring for ONT |
+| `src/muc_one_span/mapping.py` | Add `preset` parameter to `map_reads` and `_run_mapping_pipeline` |
+| `src/muc_one_span/calling.py` | Thread `platform` + `preset` through `_extract_and_remap_reads`, `call_variants_per_allele`, and `disambiguate_same_length_alleles`; fix existing `run_clair3` calls to pass `platform` |
 | `tests/unit/test_mapping.py` | Test preset parameter |
 | `tests/unit/test_calling.py` | Test platform parameter |
 | `tests/unit/test_cli.py` | Test new CLI options |

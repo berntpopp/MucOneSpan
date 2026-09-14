@@ -76,7 +76,7 @@ Current Dockerfile uses unpinned `condaforge/mambaforge:latest`, single-stage, n
 1. **Switch base to `mambaorg/micromamba:<pinned>-bookworm-slim`** -- ~80MB vs ~750MB+
 
 2. **Multi-stage build:**
-   - Stage 1 (builder): install conda env + pip install open-pacmuci
+   - Stage 1 (builder): install conda env + pip install muc_one_span
    - Stage 2 (runtime): copy only resolved env, no build tools/source/cache
 
 3. **Add `docker/.dockerignore`** -- exclude `.git/`, `.planning/`, `tests/`, `docs/`, `*.md`, `__pycache__/`, `.mypy_cache/`, `.ruff_cache/`
@@ -116,7 +116,7 @@ Current Dockerfile uses unpinned `condaforge/mambaforge:latest`, single-stage, n
 
 ### 2C. Distribution (scoped -- no PyPI/conda for now)
 
-12. **Add Singularity/Apptainer definition at `docker/open-pacmuci.def`** -- bootstraps from the GHCR Docker image, no new top-level directory
+12. **Add Singularity/Apptainer definition at `docker/muconespan.def`** -- bootstraps from the GHCR Docker image, no new top-level directory
 
 13. **Add GitHub Release workflow `.github/workflows/release.yml`** -- triggered on `v*` tags, generates release notes via `softprops/action-gh-release`
 
@@ -189,12 +189,12 @@ Current Dockerfile uses unpinned `condaforge/mambaforge:latest`, single-stage, n
    dev = [..., "types-jinja2>=2.11"]
    ```
 
-2. **Add `src/open_pacmuci/report.py`:**
+2. **Add `src/muc_one_span/report.py`:**
    - `generate_report(summary, output_path, sample_name, tool_versions)` -> Path
    - Graceful `ImportError` with helpful message if Jinja2 not installed
    - Renders from `summary.json` data (primary), optionally enriched from full `repeats.json`
 
-3. **Add `src/open_pacmuci/templates/report.html.j2`:**
+3. **Add `src/muc_one_span/templates/report.html.j2`:**
    Self-contained HTML report with these sections:
 
    **a) Header:**
@@ -287,7 +287,7 @@ Current Dockerfile uses unpinned `condaforge/mambaforge:latest`, single-stage, n
 ## Constraints & Decisions
 
 - **No PyPI or conda releases** for now
-- **Jinja2 is optional** -- `pip install open-pacmuci[report]`
+- **Jinja2 is optional** -- `pip install muc_one_span[report]`
 - **Report generation is opt-in** -- `--report` flag, not default
 - **Clean repo root** -- community files in `.github/`, Singularity def in `docker/`, only `CHANGELOG.md` at root
 - **Docker optimized** for small size (slim base, multi-stage), fast builds (layer caching, BuildKit), and security (non-root, pinned base)

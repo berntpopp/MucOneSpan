@@ -9,7 +9,7 @@ from unittest.mock import patch
 import pytest
 from click.testing import CliRunner
 
-from open_pacmuci.cli import main
+from muc_one_span.cli import main
 
 
 class TestCli:
@@ -20,14 +20,14 @@ class TestCli:
         runner = CliRunner()
         result = runner.invoke(main, ["--help"])
         assert result.exit_code == 0
-        assert "open-pacmuci" in result.output.lower() or "MUC1" in result.output
+        assert "muconespan" in result.output.lower() or "MUC1" in result.output
 
     def test_version(self):
         """CLI --version shows version."""
         runner = CliRunner()
         result = runner.invoke(main, ["--version"])
         assert result.exit_code == 0
-        from open_pacmuci.version import __version__
+        from muc_one_span.version import __version__
 
         assert __version__ in result.output
 
@@ -153,8 +153,8 @@ class TestAllelesSubcommand:
         # Mock both mapping.run_tool (for idxstats) and alleles.run_tool_iter
         # (for refine_peak_contig's samtools view call)
         with (
-            patch("open_pacmuci.mapping.run_tool") as mock_mapping_run,
-            patch("open_pacmuci.alleles.run_tool_iter") as mock_alleles_run,
+            patch("muc_one_span.mapping.run_tool") as mock_mapping_run,
+            patch("muc_one_span.alleles.run_tool_iter") as mock_alleles_run,
         ):
             mock_mapping_run.return_value = (
                 "contig_60\t4120\t200\t0\ncontig_80\t5320\t150\t0\n*\t0\t0\t50\n"
@@ -188,8 +188,8 @@ class TestAllelesSubcommand:
     def test_alleles_echoes_result(self, tmp_path):
         """alleles subcommand prints the detected alleles."""
         with (
-            patch("open_pacmuci.mapping.run_tool") as mock_mapping_run,
-            patch("open_pacmuci.alleles.run_tool_iter") as mock_alleles_run,
+            patch("muc_one_span.mapping.run_tool") as mock_mapping_run,
+            patch("muc_one_span.alleles.run_tool_iter") as mock_alleles_run,
         ):
             mock_mapping_run.return_value = "contig_60\t4120\t200\t0\n*\t0\t0\t50\n"
             mock_alleles_run.return_value = iter([])
@@ -282,16 +282,16 @@ class TestMapSubcommand:
     """Tests for the map subcommand with mocked tools.
 
     The CLI uses lazy imports inside the command body, so we mock at the
-    source module (open_pacmuci.mapping / open_pacmuci.tools) rather than
-    trying to patch names on open_pacmuci.cli.
+    source module (muc_one_span.mapping / muc_one_span.tools) rather than
+    trying to patch names on muc_one_span.cli.
     """
 
     def test_map_calls_map_reads(self, tmp_path):
         """map subcommand calls map_reads and echoes the output path."""
         with (
-            patch("open_pacmuci.tools.check_tools", return_value=True),
-            patch("open_pacmuci.mapping._run_mapping_pipeline"),
-            patch("open_pacmuci.mapping.run_tool", return_value=""),
+            patch("muc_one_span.tools.check_tools", return_value=True),
+            patch("muc_one_span.mapping._run_mapping_pipeline"),
+            patch("muc_one_span.mapping.run_tool", return_value=""),
         ):
             fastq = tmp_path / "reads.fq"
             fastq.touch()
@@ -320,9 +320,9 @@ class TestMapSubcommand:
     def test_map_echoes_bam_path(self, tmp_path):
         """map subcommand echoes the BAM path on success."""
         with (
-            patch("open_pacmuci.tools.check_tools", return_value=True),
-            patch("open_pacmuci.mapping._run_mapping_pipeline"),
-            patch("open_pacmuci.mapping.run_tool", return_value=""),
+            patch("muc_one_span.tools.check_tools", return_value=True),
+            patch("muc_one_span.mapping._run_mapping_pipeline"),
+            patch("muc_one_span.mapping.run_tool", return_value=""),
         ):
             fastq = tmp_path / "reads.fq"
             fastq.touch()
@@ -345,9 +345,9 @@ class TestCallSubcommand:
     def test_call_invokes_variant_calling(self, tmp_path):
         """call subcommand runs without error when all tools are mocked."""
         with (
-            patch("open_pacmuci.tools.check_tools", return_value=True),
-            patch("open_pacmuci.calling.run_tool", return_value=""),
-            patch("open_pacmuci.vcf.run_tool", return_value=""),
+            patch("muc_one_span.tools.check_tools", return_value=True),
+            patch("muc_one_span.calling.run_tool", return_value=""),
+            patch("muc_one_span.vcf.run_tool", return_value=""),
         ):
             bam = tmp_path / "mapping.bam"
             bam.touch()
@@ -503,8 +503,8 @@ class TestConsensusSubcommand:
         fake_fasta = f">contig_51\n{'A' * (flanks * 2 + 8)}\n"
 
         with (
-            patch("open_pacmuci.tools.check_tools", return_value=True),
-            patch("open_pacmuci.consensus.run_tool", return_value=fake_fasta),
+            patch("muc_one_span.tools.check_tools", return_value=True),
+            patch("muc_one_span.consensus.run_tool", return_value=fake_fasta),
         ):
             ref = tmp_path / "ref.fa"
             ref.touch()

@@ -1,4 +1,4 @@
-# open-pacmuci Implementation Plan
+# MucOneSpan Implementation Plan
 
 > **For agentic workers:** REQUIRED SUB-SKILL: Use superpowers:subagent-driven-development (recommended) or superpowers:executing-plans to implement this plan task-by-task. Steps use checkbox (`- [ ]`) syntax for tracking.
 
@@ -15,32 +15,32 @@
 | File | Responsibility | Created in Task |
 |------|---------------|-----------------|
 | `pyproject.toml` | Build config, dependencies, ruff/mypy/pytest settings | 1 |
-| `src/open_pacmuci/__init__.py` | Package init, exports `__version__` | 1 |
-| `src/open_pacmuci/version.py` | Version string | 1 |
+| `src/muc_one_span/__init__.py` | Package init, exports `__version__` | 1 |
+| `src/muc_one_span/version.py` | Version string | 1 |
 | `Makefile` | Dev commands | 1 |
 | `.pre-commit-config.yaml` | Pre-commit hooks | 1 |
 | `.gitignore` | Updated gitignore | 1 |
 | `conda/environment.yml` | Conda env with bioinformatics tools | 1 |
 | `.github/workflows/test.yml` | CI workflow | 1 |
 | `tests/conftest.py` | Shared fixtures, markers | 1 |
-| `src/open_pacmuci/tools.py` | Subprocess helpers, tool checks | 2 |
+| `src/muc_one_span/tools.py` | Subprocess helpers, tool checks | 2 |
 | `tests/unit/test_tools.py` | Tests for tools module | 2 |
-| `src/open_pacmuci/config.py` | Load repeat definitions from MucOneUp config | 3 |
+| `src/muc_one_span/config.py` | Load repeat definitions from MucOneUp config | 3 |
 | `data/repeats/repeats.json` | Extracted repeat dictionary | 3 |
 | `tests/unit/test_config.py` | Tests for config loading | 3 |
-| `src/open_pacmuci/alleles.py` | Peak detection from idxstats | 4 |
+| `src/muc_one_span/alleles.py` | Peak detection from idxstats | 4 |
 | `tests/unit/test_alleles.py` | Tests for allele detection | 4 |
-| `src/open_pacmuci/classify.py` | Repeat classification + mutation detection | 5 |
+| `src/muc_one_span/classify.py` | Repeat classification + mutation detection | 5 |
 | `tests/unit/test_classify.py` | Tests for classification | 5 |
-| `src/open_pacmuci/ladder.py` | Reference ladder generation | 6 |
+| `src/muc_one_span/ladder.py` | Reference ladder generation | 6 |
 | `tests/unit/test_ladder.py` | Tests for ladder generation | 6 |
-| `src/open_pacmuci/mapping.py` | minimap2 + samtools wrapper | 7 |
+| `src/muc_one_span/mapping.py` | minimap2 + samtools wrapper | 7 |
 | `tests/integration/test_mapping.py` | Integration tests for mapping | 7 |
-| `src/open_pacmuci/calling.py` | Clair3 + bcftools wrapper | 8 |
+| `src/muc_one_span/calling.py` | Clair3 + bcftools wrapper | 8 |
 | `tests/integration/test_calling.py` | Integration tests for calling | 8 |
-| `src/open_pacmuci/consensus.py` | bcftools consensus wrapper | 9 |
+| `src/muc_one_span/consensus.py` | bcftools consensus wrapper | 9 |
 | `tests/integration/test_consensus.py` | Integration tests for consensus | 9 |
-| `src/open_pacmuci/cli.py` | Click CLI with all subcommands | 10 |
+| `src/muc_one_span/cli.py` | Click CLI with all subcommands | 10 |
 | `tests/unit/test_cli.py` | CLI smoke tests | 10 |
 | `scripts/generate_testdata.py` | MucOneUp test data generation | 11 |
 | `tests/integration/test_pipeline.py` | Full e2e pipeline tests | 12 |
@@ -52,8 +52,8 @@
 
 **Files:**
 - Create: `pyproject.toml`
-- Create: `src/open_pacmuci/__init__.py`
-- Create: `src/open_pacmuci/version.py`
+- Create: `src/muc_one_span/__init__.py`
+- Create: `src/muc_one_span/version.py`
 - Create: `Makefile`
 - Create: `.pre-commit-config.yaml`
 - Modify: `.gitignore`
@@ -67,7 +67,7 @@
 - [ ] **Step 1: Create version.py**
 
 ```python
-# src/open_pacmuci/version.py
+# src/muc_one_span/version.py
 
 __version__ = "0.1.0"
 ```
@@ -75,9 +75,9 @@ __version__ = "0.1.0"
 - [ ] **Step 2: Create __init__.py**
 
 ```python
-# src/open_pacmuci/__init__.py
+# src/muc_one_span/__init__.py
 
-from open_pacmuci.version import __version__
+from muc_one_span.version import __version__
 
 __all__ = ["__version__"]
 ```
@@ -90,7 +90,7 @@ requires = ["hatchling"]
 build-backend = "hatchling.build"
 
 [project]
-name = "open-pacmuci"
+name = "muc_one_span"
 version = "0.1.0"
 description = "Open-source MUC1 VNTR analysis pipeline for PacBio HiFi amplicon data"
 readme = "README.md"
@@ -127,12 +127,12 @@ dev = [
 ]
 
 [project.scripts]
-open-pacmuci = "open_pacmuci.cli:main"
+muconespan = "muc_one_span.cli:main"
 
 [project.urls]
-Homepage = "https://github.com/berntpopp/open-pacmuci"
-Repository = "https://github.com/berntpopp/open-pacmuci"
-Issues = "https://github.com/berntpopp/open-pacmuci/issues"
+Homepage = "https://github.com/berntpopp/MucOneSpan"
+Repository = "https://github.com/berntpopp/MucOneSpan"
+Issues = "https://github.com/berntpopp/MucOneSpan/issues"
 
 [tool.ruff]
 target-version = "py310"
@@ -160,7 +160,7 @@ dummy-variable-rgx = "^(_+|(_+[a-zA-Z0-9_]*[a-zA-Z0-9]+?))$"
 "__init__.py" = ["F401"]
 
 [tool.ruff.lint.isort]
-known-first-party = ["open_pacmuci"]
+known-first-party = ["muc_one_span"]
 
 [tool.ruff.format]
 quote-style = "double"
@@ -193,7 +193,7 @@ python_functions = ["test_*"]
 addopts = [
     "-v",
     "--strict-markers",
-    "--cov=open_pacmuci",
+    "--cov=muc_one_span",
     "--cov-report=term-missing",
     "--cov-report=html",
     "--cov-report=xml",
@@ -205,7 +205,7 @@ markers = [
 ]
 
 [tool.coverage.run]
-source = ["open_pacmuci"]
+source = ["muc_one_span"]
 branch = true
 omit = ["*/tests/*", "*/__pycache__/*", "*/site-packages/*"]
 
@@ -261,7 +261,7 @@ conda-setup:  ## Create conda environment for bioinformatics tools
 	else \
 		conda env create -f conda/environment.yml --force; \
 	fi
-	@echo "Conda environment created: open-pacmuci-tools"
+	@echo "Conda environment created: muconespan-tools"
 
 # ==================== TESTING ====================
 
@@ -280,19 +280,19 @@ test-int:  ## Run integration tests only
 # ==================== CODE QUALITY ====================
 
 lint:  ## Run ruff linter
-	uv run ruff check src/open_pacmuci/ tests/
+	uv run ruff check src/muc_one_span/ tests/
 
 lint-fix:  ## Run ruff linter and auto-fix issues
-	uv run ruff check --fix src/open_pacmuci/ tests/
+	uv run ruff check --fix src/muc_one_span/ tests/
 
 format:  ## Format code with ruff
-	uv run ruff format src/open_pacmuci/ tests/
+	uv run ruff format src/muc_one_span/ tests/
 
 format-check:  ## Check if code is formatted (no changes)
-	uv run ruff format --check src/open_pacmuci/ tests/
+	uv run ruff format --check src/muc_one_span/ tests/
 
 type-check:  ## Run mypy type checker
-	uv run mypy src/open_pacmuci/
+	uv run mypy src/muc_one_span/
 
 check: lint format-check type-check test  ## Run all quality checks
 
@@ -301,15 +301,15 @@ ci-check:  ## Run EXACT same checks as GitHub Actions CI
 	@echo ""
 	@echo "=== Code Quality Checks ==="
 	@echo "1. Ruff linter..."
-	ruff check src/open_pacmuci/ tests/
+	ruff check src/muc_one_span/ tests/
 	@echo "2. Ruff formatter check..."
-	ruff format --check src/open_pacmuci/ tests/
+	ruff format --check src/muc_one_span/ tests/
 	@echo "3. Mypy type checker..."
-	mypy src/open_pacmuci/ || true
+	mypy src/muc_one_span/ || true
 	@echo ""
 	@echo "=== Test Suite ==="
 	@echo "4. Running pytest with coverage..."
-	pytest --cov=open_pacmuci --cov-report=term-missing
+	pytest --cov=muc_one_span --cov-report=term-missing
 	@echo ""
 	@echo "All CI checks passed!"
 
@@ -418,7 +418,7 @@ tests/data/generated/
 - [ ] **Step 7: Create conda/environment.yml**
 
 ```yaml
-name: open-pacmuci-tools
+name: muconespan-tools
 channels:
   - conda-forge
   - bioconda
@@ -467,13 +467,13 @@ jobs:
         run: uv pip install --system -e ".[dev]"
 
       - name: Run ruff linter
-        run: ruff check src/open_pacmuci/ tests/
+        run: ruff check src/muc_one_span/ tests/
 
       - name: Run ruff formatter check
-        run: ruff format --check src/open_pacmuci/ tests/
+        run: ruff format --check src/muc_one_span/ tests/
 
       - name: Check types with mypy
-        run: mypy src/open_pacmuci/
+        run: mypy src/muc_one_span/
 
   test:
     name: Test Suite
@@ -501,7 +501,7 @@ jobs:
         run: uv pip install --system -e ".[dev]"
 
       - name: Run unit tests with coverage
-        run: pytest tests/unit/ --cov=open_pacmuci --cov-report=xml --cov-report=term-missing
+        run: pytest tests/unit/ --cov=muc_one_span --cov-report=xml --cov-report=term-missing
 
       - name: Upload coverage to Codecov
         uses: codecov/codecov-action@v6
@@ -536,13 +536,13 @@ jobs:
         uses: conda-incubator/setup-miniconda@v3
         with:
           channels: conda-forge,bioconda,defaults
-          activate-environment: open-pacmuci-tools
+          activate-environment: muconespan-tools
           environment-file: conda/environment.yml
 
       - name: Run integration tests
         shell: bash -el {0}
         run: |
-          conda activate open-pacmuci-tools
+          conda activate muconespan-tools
           pytest tests/integration/ -m "integration" --no-cov -v
 ```
 
@@ -591,8 +591,8 @@ Run:
 ```bash
 uv pip install -e ".[dev]"
 uv run pytest tests/ --no-cov -x
-uv run ruff check src/open_pacmuci/ tests/
-uv run ruff format --check src/open_pacmuci/ tests/
+uv run ruff check src/muc_one_span/ tests/
+uv run ruff format --check src/muc_one_span/ tests/
 ```
 
 Expected: Install succeeds, pytest collects 0 tests (no test files yet), ruff passes.
@@ -602,7 +602,7 @@ Expected: Install succeeds, pytest collects 0 tests (no test files yet), ruff pa
 ```bash
 git add pyproject.toml Makefile .pre-commit-config.yaml .gitignore \
   conda/environment.yml .github/workflows/test.yml \
-  src/open_pacmuci/__init__.py src/open_pacmuci/version.py \
+  src/muc_one_span/__init__.py src/muc_one_span/version.py \
   tests/__init__.py tests/conftest.py \
   tests/unit/__init__.py tests/integration/__init__.py
 git commit -m "feat: project scaffolding with uv, ruff, mypy, pytest, CI"
@@ -613,7 +613,7 @@ git commit -m "feat: project scaffolding with uv, ruff, mypy, pytest, CI"
 ### Task 2: Subprocess Helpers (tools.py)
 
 **Files:**
-- Create: `src/open_pacmuci/tools.py`
+- Create: `src/muc_one_span/tools.py`
 - Create: `tests/unit/test_tools.py`
 
 - [ ] **Step 1: Write the failing tests**
@@ -629,7 +629,7 @@ from unittest.mock import patch
 
 import pytest
 
-from open_pacmuci.tools import check_tools, run_tool
+from muc_one_span.tools import check_tools, run_tool
 
 
 class TestRunTool:
@@ -676,12 +676,12 @@ class TestCheckTools:
 - [ ] **Step 2: Run tests to verify they fail**
 
 Run: `uv run pytest tests/unit/test_tools.py -v --no-cov`
-Expected: FAIL with `ModuleNotFoundError: No module named 'open_pacmuci.tools'`
+Expected: FAIL with `ModuleNotFoundError: No module named 'muc_one_span.tools'`
 
 - [ ] **Step 3: Write the implementation**
 
 ```python
-# src/open_pacmuci/tools.py
+# src/muc_one_span/tools.py
 """Subprocess helpers for running external bioinformatics tools."""
 
 from __future__ import annotations
@@ -752,13 +752,13 @@ Expected: All 7 tests PASS
 
 - [ ] **Step 5: Lint and format**
 
-Run: `uv run ruff check src/open_pacmuci/tools.py tests/unit/test_tools.py && uv run ruff format --check src/open_pacmuci/tools.py tests/unit/test_tools.py`
+Run: `uv run ruff check src/muc_one_span/tools.py tests/unit/test_tools.py && uv run ruff format --check src/muc_one_span/tools.py tests/unit/test_tools.py`
 Expected: No issues
 
 - [ ] **Step 6: Commit**
 
 ```bash
-git add src/open_pacmuci/tools.py tests/unit/test_tools.py
+git add src/muc_one_span/tools.py tests/unit/test_tools.py
 git commit -m "feat: add subprocess helpers for external tool execution"
 ```
 
@@ -767,7 +767,7 @@ git commit -m "feat: add subprocess helpers for external tool execution"
 ### Task 3: Configuration & Repeat Dictionary (config.py)
 
 **Files:**
-- Create: `src/open_pacmuci/config.py`
+- Create: `src/muc_one_span/config.py`
 - Create: `data/repeats/repeats.json`
 - Create: `tests/unit/test_config.py`
 - Create: `tests/unit/fixtures/` (test fixtures directory)
@@ -806,7 +806,7 @@ output = {
     'canonical_repeat': 'X',
 }
 
-out_path = Path('/home/bernt-popp/development/open-pacmuci/data/repeats/repeats.json')
+out_path = Path('/home/bernt-popp/development/MucOneSpan/data/repeats/repeats.json')
 out_path.parent.mkdir(parents=True, exist_ok=True)
 out_path.write_text(json.dumps(output, indent=2) + '\n')
 print(f'Wrote {len(repeats)} repeat definitions to {out_path}')
@@ -827,7 +827,7 @@ from pathlib import Path
 
 import pytest
 
-from open_pacmuci.config import (
+from muc_one_span.config import (
     RepeatDictionary,
     classify_repeat_id,
     load_repeat_dictionary,
@@ -917,12 +917,12 @@ class TestClassifyRepeatId:
 - [ ] **Step 3: Run tests to verify they fail**
 
 Run: `uv run pytest tests/unit/test_config.py -v --no-cov`
-Expected: FAIL with `ModuleNotFoundError: No module named 'open_pacmuci.config'`
+Expected: FAIL with `ModuleNotFoundError: No module named 'muc_one_span.config'`
 
 - [ ] **Step 4: Write the implementation**
 
 ```python
-# src/open_pacmuci/config.py
+# src/muc_one_span/config.py
 """Configuration and repeat dictionary loading."""
 
 from __future__ import annotations
@@ -1015,7 +1015,7 @@ Expected: All 10 tests PASS
 - [ ] **Step 6: Commit**
 
 ```bash
-git add src/open_pacmuci/config.py data/repeats/repeats.json tests/unit/test_config.py
+git add src/muc_one_span/config.py data/repeats/repeats.json tests/unit/test_config.py
 git commit -m "feat: add config module with repeat dictionary loading"
 ```
 
@@ -1024,7 +1024,7 @@ git commit -m "feat: add config module with repeat dictionary loading"
 ### Task 4: Allele Length Detection (alleles.py)
 
 **Files:**
-- Create: `src/open_pacmuci/alleles.py`
+- Create: `src/muc_one_span/alleles.py`
 - Create: `tests/unit/test_alleles.py`
 
 Pure Python module. Parses `samtools idxstats` output and detects peaks (allele lengths).
@@ -1041,7 +1041,7 @@ import json
 
 import pytest
 
-from open_pacmuci.alleles import detect_alleles, parse_idxstats
+from muc_one_span.alleles import detect_alleles, parse_idxstats
 
 
 # Example idxstats output: contig_name\tcontig_length\tmapped_reads\tunmapped_reads
@@ -1141,7 +1141,7 @@ Expected: FAIL with `ModuleNotFoundError`
 - [ ] **Step 3: Write the implementation**
 
 ```python
-# src/open_pacmuci/alleles.py
+# src/muc_one_span/alleles.py
 """Allele length detection from samtools idxstats output."""
 
 from __future__ import annotations
@@ -1259,7 +1259,7 @@ Expected: All 8 tests PASS
 - [ ] **Step 5: Commit**
 
 ```bash
-git add src/open_pacmuci/alleles.py tests/unit/test_alleles.py
+git add src/muc_one_span/alleles.py tests/unit/test_alleles.py
 git commit -m "feat: add allele length detection from idxstats peak analysis"
 ```
 
@@ -1268,7 +1268,7 @@ git commit -m "feat: add allele length detection from idxstats peak analysis"
 ### Task 5: Repeat Classification (classify.py)
 
 **Files:**
-- Create: `src/open_pacmuci/classify.py`
+- Create: `src/muc_one_span/classify.py`
 - Create: `tests/unit/test_classify.py`
 
 The core analysis module. Pure Python. Splits consensus into 60bp windows, matches against dictionary, handles unknown repeats with edit distance + difference characterization.
@@ -1283,14 +1283,14 @@ from __future__ import annotations
 
 import pytest
 
-from open_pacmuci.classify import (
+from muc_one_span.classify import (
     characterize_differences,
     classify_repeat,
     classify_sequence,
     edit_distance,
     split_into_repeats,
 )
-from open_pacmuci.config import load_repeat_dictionary
+from muc_one_span.config import load_repeat_dictionary
 
 
 @pytest.fixture
@@ -1458,12 +1458,12 @@ Expected: FAIL with `ModuleNotFoundError`
 - [ ] **Step 3: Write the implementation**
 
 ```python
-# src/open_pacmuci/classify.py
+# src/muc_one_span/classify.py
 """Repeat unit classification and mutation detection."""
 
 from __future__ import annotations
 
-from open_pacmuci.config import RepeatDictionary
+from muc_one_span.config import RepeatDictionary
 
 
 def split_into_repeats(sequence: str, unit_length: int = 60) -> list[str]:
@@ -1711,7 +1711,7 @@ Expected: All 17 tests PASS
 - [ ] **Step 5: Commit**
 
 ```bash
-git add src/open_pacmuci/classify.py tests/unit/test_classify.py
+git add src/muc_one_span/classify.py tests/unit/test_classify.py
 git commit -m "feat: add repeat classification with exact match and edit distance analysis"
 ```
 
@@ -1720,7 +1720,7 @@ git commit -m "feat: add repeat classification with exact match and edit distanc
 ### Task 6: Reference Ladder Generation (ladder.py)
 
 **Files:**
-- Create: `src/open_pacmuci/ladder.py`
+- Create: `src/muc_one_span/ladder.py`
 - Create: `tests/unit/test_ladder.py`
 
 Generates the synthetic multi-contig FASTA reference. Each contig has flanking + pre-repeats + N canonical X repeats + after-repeats + flanking.
@@ -1737,8 +1737,8 @@ from pathlib import Path
 
 import pytest
 
-from open_pacmuci.config import load_repeat_dictionary
-from open_pacmuci.ladder import build_contig, generate_ladder_fasta
+from muc_one_span.config import load_repeat_dictionary
+from muc_one_span.ladder import build_contig, generate_ladder_fasta
 
 
 @pytest.fixture
@@ -1825,14 +1825,14 @@ Expected: FAIL with `ModuleNotFoundError`
 - [ ] **Step 3: Write the implementation**
 
 ```python
-# src/open_pacmuci/ladder.py
+# src/muc_one_span/ladder.py
 """Reference ladder FASTA generation for MUC1 VNTR."""
 
 from __future__ import annotations
 
 from pathlib import Path
 
-from open_pacmuci.config import RepeatDictionary
+from muc_one_span.config import RepeatDictionary
 
 
 def build_contig(
@@ -1928,7 +1928,7 @@ Expected: All 7 tests PASS
 - [ ] **Step 5: Commit**
 
 ```bash
-git add src/open_pacmuci/ladder.py tests/unit/test_ladder.py
+git add src/muc_one_span/ladder.py tests/unit/test_ladder.py
 git commit -m "feat: add reference ladder FASTA generation"
 ```
 
@@ -1937,7 +1937,7 @@ git commit -m "feat: add reference ladder FASTA generation"
 ### Task 7: Read Mapping (mapping.py)
 
 **Files:**
-- Create: `src/open_pacmuci/mapping.py`
+- Create: `src/muc_one_span/mapping.py`
 - Create: `tests/integration/test_mapping.py`
 
 Wraps minimap2 + samtools for mapping reads to the ladder reference.
@@ -1956,7 +1956,7 @@ import pytest
 
 from tests.conftest import requires_minimap2, requires_samtools
 
-from open_pacmuci.mapping import map_reads, bam_to_fastq
+from muc_one_span.mapping import map_reads, bam_to_fastq
 
 
 @requires_minimap2
@@ -2015,14 +2015,14 @@ class TestBamToFastq:
 - [ ] **Step 2: Write the implementation**
 
 ```python
-# src/open_pacmuci/mapping.py
+# src/muc_one_span/mapping.py
 """Read mapping with minimap2 and samtools."""
 
 from __future__ import annotations
 
 from pathlib import Path
 
-from open_pacmuci.tools import run_tool
+from muc_one_span.tools import run_tool
 
 
 def bam_to_fastq(bam_path: Path, output_dir: Path) -> Path:
@@ -2120,7 +2120,7 @@ Expected: PASS if minimap2 + samtools installed; SKIP otherwise
 - [ ] **Step 4: Commit**
 
 ```bash
-git add src/open_pacmuci/mapping.py tests/integration/test_mapping.py
+git add src/muc_one_span/mapping.py tests/integration/test_mapping.py
 git commit -m "feat: add minimap2 + samtools read mapping module"
 ```
 
@@ -2129,7 +2129,7 @@ git commit -m "feat: add minimap2 + samtools read mapping module"
 ### Task 8: Variant Calling (calling.py)
 
 **Files:**
-- Create: `src/open_pacmuci/calling.py`
+- Create: `src/muc_one_span/calling.py`
 - Create: `tests/integration/test_calling.py`
 
 Wraps Clair3 + bcftools for per-allele variant calling.
@@ -2148,7 +2148,7 @@ import pytest
 
 from tests.conftest import requires_bcftools, requires_clair3, requires_samtools
 
-from open_pacmuci.calling import extract_allele_reads, filter_vcf
+from muc_one_span.calling import extract_allele_reads, filter_vcf
 
 
 @requires_samtools
@@ -2176,14 +2176,14 @@ class TestFilterVcf:
 - [ ] **Step 2: Write the implementation**
 
 ```python
-# src/open_pacmuci/calling.py
+# src/muc_one_span/calling.py
 """Variant calling with Clair3 and VCF processing with bcftools."""
 
 from __future__ import annotations
 
 from pathlib import Path
 
-from open_pacmuci.tools import run_tool
+from muc_one_span.tools import run_tool
 
 
 def extract_allele_reads(
@@ -2350,7 +2350,7 @@ def call_variants_per_allele(
 - [ ] **Step 3: Commit**
 
 ```bash
-git add src/open_pacmuci/calling.py tests/integration/test_calling.py
+git add src/muc_one_span/calling.py tests/integration/test_calling.py
 git commit -m "feat: add Clair3 variant calling and VCF filtering module"
 ```
 
@@ -2359,7 +2359,7 @@ git commit -m "feat: add Clair3 variant calling and VCF filtering module"
 ### Task 9: Consensus Generation (consensus.py)
 
 **Files:**
-- Create: `src/open_pacmuci/consensus.py`
+- Create: `src/muc_one_span/consensus.py`
 - Create: `tests/integration/test_consensus.py`
 
 - [ ] **Step 1: Write the failing tests**
@@ -2388,14 +2388,14 @@ class TestBuildConsensus:
 - [ ] **Step 2: Write the implementation**
 
 ```python
-# src/open_pacmuci/consensus.py
+# src/muc_one_span/consensus.py
 """Per-allele consensus sequence generation with bcftools."""
 
 from __future__ import annotations
 
 from pathlib import Path
 
-from open_pacmuci.tools import run_tool
+from muc_one_span.tools import run_tool
 
 
 def build_consensus(
@@ -2474,7 +2474,7 @@ def build_consensus_per_allele(
 - [ ] **Step 3: Commit**
 
 ```bash
-git add src/open_pacmuci/consensus.py tests/integration/test_consensus.py
+git add src/muc_one_span/consensus.py tests/integration/test_consensus.py
 git commit -m "feat: add bcftools consensus generation module"
 ```
 
@@ -2483,7 +2483,7 @@ git commit -m "feat: add bcftools consensus generation module"
 ### Task 10: CLI (cli.py)
 
 **Files:**
-- Create: `src/open_pacmuci/cli.py`
+- Create: `src/muc_one_span/cli.py`
 - Create: `tests/unit/test_cli.py`
 
 Click CLI with all subcommands.
@@ -2498,7 +2498,7 @@ from __future__ import annotations
 
 from click.testing import CliRunner
 
-from open_pacmuci.cli import main
+from muc_one_span.cli import main
 
 
 class TestCli:
@@ -2509,7 +2509,7 @@ class TestCli:
         runner = CliRunner()
         result = runner.invoke(main, ["--help"])
         assert result.exit_code == 0
-        assert "open-pacmuci" in result.output.lower() or "MUC1" in result.output
+        assert "muconespan" in result.output.lower() or "MUC1" in result.output
 
     def test_version(self):
         """CLI --version shows version."""
@@ -2570,8 +2570,8 @@ Expected: FAIL with `ModuleNotFoundError`
 - [ ] **Step 3: Write the implementation**
 
 ```python
-# src/open_pacmuci/cli.py
-"""Click CLI for open-pacmuci pipeline."""
+# src/muc_one_span/cli.py
+"""Click CLI for muconespan pipeline."""
 
 from __future__ import annotations
 
@@ -2581,13 +2581,13 @@ from pathlib import Path
 
 import click
 
-from open_pacmuci.version import __version__
+from muc_one_span.version import __version__
 
 
 @click.group()
-@click.version_option(version=__version__, prog_name="open-pacmuci")
+@click.version_option(version=__version__, prog_name="muconespan")
 def main():
-    """open-pacmuci: MUC1 VNTR analysis pipeline for PacBio HiFi amplicon data."""
+    """muconespan: MUC1 VNTR analysis pipeline for PacBio HiFi amplicon data."""
 
 
 @main.command()
@@ -2600,8 +2600,8 @@ def main():
               help="Custom repeat dictionary JSON.")
 def ladder(output, min_units, max_units, flank_length, repeats_db):
     """Generate or regenerate the reference ladder FASTA."""
-    from open_pacmuci.config import load_repeat_dictionary
-    from open_pacmuci.ladder import generate_ladder_fasta
+    from muc_one_span.config import load_repeat_dictionary
+    from muc_one_span.ladder import generate_ladder_fasta
 
     rd = load_repeat_dictionary(Path(repeats_db) if repeats_db else None)
     out_path = generate_ladder_fasta(rd, Path(output), min_units, max_units, flank_length)
@@ -2618,8 +2618,8 @@ def ladder(output, min_units, max_units, flank_length, repeats_db):
 @click.option("--threads", "-t", type=int, default=4, help="Number of threads.")
 def map_cmd(input_path, reference, output_dir, threads):
     """Map reads to the ladder reference with minimap2."""
-    from open_pacmuci.mapping import map_reads
-    from open_pacmuci.tools import check_tools
+    from muc_one_span.mapping import map_reads
+    from muc_one_span.tools import check_tools
 
     check_tools(["minimap2", "samtools"])
 
@@ -2636,8 +2636,8 @@ def map_cmd(input_path, reference, output_dir, threads):
               help="Output directory.")
 def alleles(input_path, min_coverage, output_dir):
     """Determine allele lengths from mapping."""
-    from open_pacmuci.alleles import detect_alleles, parse_idxstats
-    from open_pacmuci.mapping import get_idxstats
+    from muc_one_span.alleles import detect_alleles, parse_idxstats
+    from muc_one_span.mapping import get_idxstats
 
     idxstats_output = get_idxstats(Path(input_path))
     counts = parse_idxstats(idxstats_output)
@@ -2663,8 +2663,8 @@ def alleles(input_path, min_coverage, output_dir):
 @click.option("--threads", "-t", type=int, default=4, help="Number of threads.")
 def call(input_path, reference, alleles_json, output_dir, clair3_model, threads):
     """Call variants with Clair3."""
-    from open_pacmuci.calling import call_variants_per_allele
-    from open_pacmuci.tools import check_tools
+    from muc_one_span.calling import call_variants_per_allele
+    from muc_one_span.tools import check_tools
 
     check_tools(["samtools", "bcftools", "run_clair3.sh"])
 
@@ -2688,8 +2688,8 @@ def call(input_path, reference, alleles_json, output_dir, clair3_model, threads)
               help="Output directory.")
 def consensus(input_path, reference, alleles_json, output_dir):
     """Build per-allele consensus sequences."""
-    from open_pacmuci.consensus import build_consensus_per_allele
-    from open_pacmuci.tools import check_tools
+    from muc_one_span.consensus import build_consensus_per_allele
+    from muc_one_span.tools import check_tools
 
     check_tools(["samtools", "bcftools"])
 
@@ -2718,8 +2718,8 @@ def consensus(input_path, reference, alleles_json, output_dir):
               help="Output directory.")
 def classify(input_path, repeats_db, output_dir):
     """Classify repeat units in a consensus sequence."""
-    from open_pacmuci.classify import classify_sequence
-    from open_pacmuci.config import load_repeat_dictionary
+    from muc_one_span.classify import classify_sequence
+    from muc_one_span.config import load_repeat_dictionary
 
     rd = load_repeat_dictionary(Path(repeats_db) if repeats_db else None)
 
@@ -2756,14 +2756,14 @@ def classify(input_path, repeats_db, output_dir):
 @click.option("--threads", "-t", type=int, default=4, help="Number of threads.")
 @click.option("--min-coverage", type=int, default=10, help="Minimum read coverage.")
 def run(input_path, output_dir, reference, config_path, clair3_model, threads, min_coverage):
-    """Run the full open-pacmuci pipeline."""
-    from open_pacmuci.alleles import detect_alleles, parse_idxstats
-    from open_pacmuci.calling import call_variants_per_allele
-    from open_pacmuci.classify import classify_sequence
-    from open_pacmuci.config import load_repeat_dictionary
-    from open_pacmuci.consensus import build_consensus_per_allele
-    from open_pacmuci.mapping import get_idxstats, map_reads
-    from open_pacmuci.tools import check_tools
+    """Run the full muconespan pipeline."""
+    from muc_one_span.alleles import detect_alleles, parse_idxstats
+    from muc_one_span.calling import call_variants_per_allele
+    from muc_one_span.classify import classify_sequence
+    from muc_one_span.config import load_repeat_dictionary
+    from muc_one_span.consensus import build_consensus_per_allele
+    from muc_one_span.mapping import get_idxstats, map_reads
+    from muc_one_span.tools import check_tools
 
     check_tools(["minimap2", "samtools", "bcftools", "run_clair3.sh"])
 
@@ -2827,7 +2827,7 @@ def _bundled_reference() -> Path:
     if not ref.exists():
         click.echo(
             f"Bundled reference not found at {ref}. "
-            "Run 'open-pacmuci ladder' to generate it.",
+            "Run 'muconespan ladder' to generate it.",
             err=True,
         )
         sys.exit(1)
@@ -2842,7 +2842,7 @@ Expected: All 9 tests PASS
 - [ ] **Step 5: Commit**
 
 ```bash
-git add src/open_pacmuci/cli.py tests/unit/test_cli.py
+git add src/muc_one_span/cli.py tests/unit/test_cli.py
 git commit -m "feat: add Click CLI with all subcommands"
 ```
 
@@ -2859,7 +2859,7 @@ Script that calls MucOneUp to generate 10 test samples with ground truth.
 
 ```python
 #!/usr/bin/env python3
-"""Generate test data using MucOneUp for open-pacmuci integration tests.
+"""Generate test data using MucOneUp for muconespan integration tests.
 
 Requires:
   - MucOneUp installed and on PATH (pip install muc_one_up)
@@ -3066,10 +3066,10 @@ class TestAlleleLengthDetection:
     ])
     def test_allele_lengths(self, sample, expected_h1, expected_h2, tmp_path):
         """Detected allele lengths match ground truth within tolerance."""
-        from open_pacmuci.alleles import detect_alleles, parse_idxstats
-        from open_pacmuci.config import load_repeat_dictionary
-        from open_pacmuci.ladder import generate_ladder_fasta
-        from open_pacmuci.mapping import get_idxstats, map_reads
+        from muc_one_span.alleles import detect_alleles, parse_idxstats
+        from muc_one_span.config import load_repeat_dictionary
+        from muc_one_span.ladder import generate_ladder_fasta
+        from muc_one_span.mapping import get_idxstats, map_reads
 
         rd = load_repeat_dictionary()
         ref = tmp_path / "ladder.fa"
@@ -3131,7 +3131,7 @@ git commit -m "feat: add e2e pipeline tests with ground truth validation"
 
 ```dockerfile
 # docker/Dockerfile
-# Multi-stage build for open-pacmuci
+# Multi-stage build for muconespan
 
 FROM condaforge/mambaforge:latest AS base
 
@@ -3140,17 +3140,17 @@ COPY conda/environment.yml /tmp/environment.yml
 RUN mamba env create -f /tmp/environment.yml && mamba clean -afy
 
 # Install Clair3 (separate due to complex dependencies)
-RUN mamba install -n open-pacmuci-tools -c bioconda clair3 && mamba clean -afy
+RUN mamba install -n muconespan-tools -c bioconda clair3 && mamba clean -afy
 
 # Install Python package
 COPY . /app
 WORKDIR /app
 
-RUN mamba run -n open-pacmuci-tools pip install .
+RUN mamba run -n muconespan-tools pip install .
 
 # Set up entrypoint
-SHELL ["mamba", "run", "-n", "open-pacmuci-tools", "/bin/bash", "-c"]
-ENTRYPOINT ["mamba", "run", "-n", "open-pacmuci-tools", "open-pacmuci"]
+SHELL ["mamba", "run", "-n", "muconespan-tools", "/bin/bash", "-c"]
+ENTRYPOINT ["mamba", "run", "-n", "muconespan-tools", "muconespan"]
 CMD ["--help"]
 ```
 
@@ -3188,8 +3188,8 @@ from __future__ import annotations
 
 from pathlib import Path
 
-from open_pacmuci.config import load_repeat_dictionary
-from open_pacmuci.ladder import generate_ladder_fasta
+from muc_one_span.config import load_repeat_dictionary
+from muc_one_span.ladder import generate_ladder_fasta
 
 
 def main() -> None:

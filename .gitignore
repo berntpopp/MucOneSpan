@@ -19,12 +19,12 @@ env/
 *.swo
 
 # Data (large generated files)
-src/open_pacmuci/data/reference/*.fai
-src/open_pacmuci/data/reference/*.bwt
-src/open_pacmuci/data/reference/*.pac
-src/open_pacmuci/data/reference/*.ann
-src/open_pacmuci/data/reference/*.amb
-src/open_pacmuci/data/reference/*.sa
+src/muc_one_span/data/reference/*.fai
+src/muc_one_span/data/reference/*.bwt
+src/muc_one_span/data/reference/*.pac
+src/muc_one_span/data/reference/*.ann
+src/muc_one_span/data/reference/*.amb
+src/muc_one_span/data/reference/*.sa
 
 # Test outputs
 tests/output/

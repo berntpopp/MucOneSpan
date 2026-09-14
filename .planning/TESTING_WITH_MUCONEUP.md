@@ -1,6 +1,6 @@
-# Testing open-pacmuci with MucOneUp-Simulated Data
+# Testing muconespan with MucOneUp-Simulated Data
 
-**Purpose:** Generate PacBio HiFi amplicon test datasets with known ground truth to validate the open-pacmuci pipeline.
+**Purpose:** Generate PacBio HiFi amplicon test datasets with known ground truth to validate the muconespan pipeline.
 
 ## Prerequisites
 
@@ -66,21 +66,21 @@ This generates:
 - PCR bias is modeled (shorter allele gets proportionally more reads)
 - Coverage = total template molecules before CCS filtering
 
-### Step 4: Run open-pacmuci
+### Step 4: Run muconespan
 
 ```bash
-open-pacmuci run \
+muconespan run \
   --input test_mutant.aligned.bam \
   --output results/test_mutant/
 
-open-pacmuci run \
+muconespan run \
   --input test_normal.aligned.bam \
   --output results/test_normal/
 ```
 
 ### Step 5: Validate Against Ground Truth
 
-Compare open-pacmuci output to MucOneUp's `simulation_stats.json`:
+Compare muconespan output to MucOneUp's `simulation_stats.json`:
 - Allele lengths: Should match `--fixed-lengths 60 80`
 - Mutation detected: Mutant sample should report dupC; normal should not
 - Repeat structure: Should match MucOneUp's output structure
@@ -149,7 +149,7 @@ for mut in "${mutations[@]}"; do
 done
 ```
 
-**Expected:** All 13 mutations detected. This validates open-pacmuci handles diverse mutation types.
+**Expected:** All 13 mutations detected. This validates muconespan handles diverse mutation types.
 
 ### Test Set 3: Coverage Sensitivity (1 pair, 5 coverage levels)
 
@@ -196,7 +196,7 @@ muconeup --config config.json simulate \
 
 ### Test Set 5: ONT Amplicon (Cross-Platform)
 
-Same samples as Test Set 1 but with ONT reads. open-pacmuci now supports ONT via `--platform ont`.
+Same samples as Test Set 1 but with ONT reads. muconespan now supports ONT via `--platform ont`.
 
 **Generate ONT reads:**
 
@@ -214,13 +214,13 @@ for seed in 100 101 102 103 104; do
 done
 ```
 
-**Run open-pacmuci with ONT mode:**
+**Run muconespan with ONT mode:**
 
 ```bash
 for sample_dir in tests/data/generated_ont/*/; do
   bam=$(ls ${sample_dir}*_reads_amplicon_aligned.bam 2>/dev/null | head -1)
   [ -z "$bam" ] && continue
-  open-pacmuci run \
+  muconespan run \
     --input "$bam" \
     --output-dir "tests/results_ont/$(basename $sample_dir)" \
     --platform ont \
@@ -264,7 +264,7 @@ Use this to build the ground truth table for sensitivity/specificity calculation
 ## Validation Script Template
 
 ```python
-"""Compare open-pacmuci results to MucOneUp ground truth."""
+"""Compare muconespan results to MucOneUp ground truth."""
 import json
 import csv
 from pathlib import Path
@@ -319,5 +319,5 @@ def validate_results(results_dir: Path, ground_truth_dir: Path) -> dict:
 - The `--platform ont` flag generates ONT reads via single-pass pbsim3.
 - Coverage parameter = total template molecules. Actual read count depends on CCS filtering
   (PacBio) or direct output (ONT).
-- The PCR bias model means shorter alleles get more reads. This is realistic and open-pacmuci
+- The PCR bias model means shorter alleles get more reads. This is realistic and muconespan
   should handle the unequal allelic representation.

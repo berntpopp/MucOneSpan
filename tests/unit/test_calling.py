@@ -5,7 +5,7 @@ from __future__ import annotations
 from pathlib import Path
 from unittest.mock import patch
 
-from open_pacmuci.calling import (
+from muc_one_span.calling import (
     _extract_and_remap_reads,
     call_variants_per_allele,
     disambiguate_same_length_alleles,
@@ -17,7 +17,7 @@ from open_pacmuci.calling import (
 class TestExtractAlleleReads:
     """Tests for extract_allele_reads."""
 
-    @patch("open_pacmuci.calling.run_tool")
+    @patch("muc_one_span.calling.run_tool")
     def test_single_contig_string(self, mock_run_tool, tmp_path):
         """Accepts a single contig name as a string and calls samtools view."""
         mock_run_tool.return_value = ""
@@ -30,7 +30,7 @@ class TestExtractAlleleReads:
         assert view_call[:2] == ["samtools", "view"]
         assert "contig_51" in view_call
 
-    @patch("open_pacmuci.calling.run_tool")
+    @patch("muc_one_span.calling.run_tool")
     def test_list_of_contigs(self, mock_run_tool, tmp_path):
         """Accepts a list of contig names and passes them all to samtools view."""
         mock_run_tool.return_value = ""
@@ -44,7 +44,7 @@ class TestExtractAlleleReads:
         for c in contigs:
             assert c in view_call
 
-    @patch("open_pacmuci.calling.run_tool")
+    @patch("muc_one_span.calling.run_tool")
     def test_returns_allele_bam_path(self, mock_run_tool, tmp_path):
         """Returns path to allele_reads.bam inside output dir."""
         mock_run_tool.return_value = ""
@@ -56,7 +56,7 @@ class TestExtractAlleleReads:
 
         assert result == out_dir / "allele_reads.bam"
 
-    @patch("open_pacmuci.calling.run_tool")
+    @patch("muc_one_span.calling.run_tool")
     def test_indexes_result_bam(self, mock_run_tool, tmp_path):
         """samtools index is called on the output BAM."""
         mock_run_tool.return_value = ""
@@ -69,7 +69,7 @@ class TestExtractAlleleReads:
         index_call = mock_run_tool.call_args_list[1][0][0]
         assert index_call[:2] == ["samtools", "index"]
 
-    @patch("open_pacmuci.calling.run_tool")
+    @patch("muc_one_span.calling.run_tool")
     def test_creates_output_dir(self, mock_run_tool, tmp_path):
         """Creates the output directory if it does not exist."""
         mock_run_tool.return_value = ""
@@ -85,7 +85,7 @@ class TestExtractAlleleReads:
 class TestRunClair3:
     """Tests for run_clair3."""
 
-    @patch("open_pacmuci.calling.run_tool")
+    @patch("muc_one_span.calling.run_tool")
     def test_builds_correct_command(self, mock_run_tool, tmp_path):
         """run_clair3 passes required flags to run_clair3.sh."""
         mock_run_tool.return_value = ""
@@ -103,7 +103,7 @@ class TestRunClair3:
         assert "--platform=hifi" in cmd
         assert "--threads=4" in cmd
 
-    @patch("open_pacmuci.calling.run_tool")
+    @patch("muc_one_span.calling.run_tool")
     def test_model_path_appended_when_given(self, mock_run_tool, tmp_path):
         """--model_path flag is added when model_path is non-empty."""
         mock_run_tool.return_value = ""
@@ -116,7 +116,7 @@ class TestRunClair3:
         cmd = mock_run_tool.call_args[0][0]
         assert "--model_path=/models/hifi" in cmd
 
-    @patch("open_pacmuci.calling.run_tool")
+    @patch("muc_one_span.calling.run_tool")
     def test_model_path_omitted_when_empty(self, mock_run_tool, tmp_path):
         """--model_path is not added when model_path is empty string."""
         mock_run_tool.return_value = ""
@@ -129,7 +129,7 @@ class TestRunClair3:
         cmd = mock_run_tool.call_args[0][0]
         assert not any(a.startswith("--model_path") for a in cmd)
 
-    @patch("open_pacmuci.calling.run_tool")
+    @patch("muc_one_span.calling.run_tool")
     def test_returns_vcf_path(self, mock_run_tool, tmp_path):
         """run_clair3 returns path to merge_output.vcf.gz."""
         mock_run_tool.return_value = ""
@@ -141,7 +141,7 @@ class TestRunClair3:
 
         assert result == out_dir / "merge_output.vcf.gz"
 
-    @patch("open_pacmuci.calling.run_tool")
+    @patch("muc_one_span.calling.run_tool")
     def test_creates_output_dir(self, mock_run_tool, tmp_path):
         """run_clair3 creates the output directory if it does not exist."""
         mock_run_tool.return_value = ""
@@ -195,8 +195,8 @@ class TestCallVariantsPerAllele:
             },
         }
 
-    @patch("open_pacmuci.vcf.run_tool")
-    @patch("open_pacmuci.calling.run_tool")
+    @patch("muc_one_span.vcf.run_tool")
+    @patch("muc_one_span.calling.run_tool")
     def test_heterozygous_processes_both_alleles(self, mock_run_tool, mock_vcf_tool, tmp_path):
         """For a heterozygous sample, both allele_1 and allele_2 are processed."""
         mock_run_tool.return_value = ""
@@ -212,8 +212,8 @@ class TestCallVariantsPerAllele:
         assert "allele_1" in result
         assert "allele_2" in result
 
-    @patch("open_pacmuci.vcf.run_tool")
-    @patch("open_pacmuci.calling.run_tool")
+    @patch("muc_one_span.vcf.run_tool")
+    @patch("muc_one_span.calling.run_tool")
     def test_homozygous_skips_allele_2(self, mock_run_tool, mock_vcf_tool, tmp_path):
         """For a homozygous sample, allele_2 is skipped."""
         mock_run_tool.return_value = ""
@@ -229,8 +229,8 @@ class TestCallVariantsPerAllele:
         assert "allele_1" in result
         assert "allele_2" not in result
 
-    @patch("open_pacmuci.vcf.run_tool")
-    @patch("open_pacmuci.calling.run_tool")
+    @patch("muc_one_span.vcf.run_tool")
+    @patch("muc_one_span.calling.run_tool")
     def test_returns_dict_of_vcf_paths(self, mock_run_tool, mock_vcf_tool, tmp_path):
         """Results map allele keys to Path objects."""
         mock_run_tool.return_value = ""
@@ -246,8 +246,8 @@ class TestCallVariantsPerAllele:
         for _key, path in result.items():
             assert isinstance(path, Path)
 
-    @patch("open_pacmuci.vcf.run_tool")
-    @patch("open_pacmuci.calling.run_tool")
+    @patch("muc_one_span.vcf.run_tool")
+    @patch("muc_one_span.calling.run_tool")
     def test_fallback_contig_name_from_length(self, mock_run_tool, mock_vcf_tool, tmp_path):
         """When contig_name is absent, falls back to contig_<length>."""
         mock_run_tool.return_value = ""
@@ -278,8 +278,8 @@ class TestCallVariantsPerAllele:
         result = call_variants_per_allele(bam, ref, alleles, tmp_path)
         assert "allele_1" in result
 
-    @patch("open_pacmuci.vcf.run_tool")
-    @patch("open_pacmuci.calling.run_tool")
+    @patch("muc_one_span.vcf.run_tool")
+    @patch("muc_one_span.calling.run_tool")
     def test_platform_and_preset_threaded_through(self, mock_run_tool, mock_vcf_tool, tmp_path):
         """platform and preset are forwarded: minimap2 gets -x lr:hq, clair3 gets --platform=ont."""
         mock_run_tool.return_value = ""
@@ -308,7 +308,7 @@ class TestCallVariantsPerAllele:
 class TestExtractAndRemapReads:
     """Tests for the private _extract_and_remap_reads helper."""
 
-    @patch("open_pacmuci.calling.run_tool")
+    @patch("muc_one_span.calling.run_tool")
     def test_remaps_to_peak_contig(self, mock_run_tool, tmp_path):
         """Remapping pipeline is: extract→fastq→faidx (extract contig)→faidx (index)→minimap2→sort→index."""
         mock_run_tool.return_value = ""
@@ -334,7 +334,7 @@ class TestExtractAndRemapReads:
         ]
         assert sort_calls
 
-    @patch("open_pacmuci.calling.run_tool")
+    @patch("muc_one_span.calling.run_tool")
     def test_creates_contig_fasta_for_reference(self, mock_run_tool, tmp_path):
         """faidx is called to extract the peak contig as a mini-reference."""
         mock_run_tool.return_value = ">contig_51\nACGT\n"
@@ -353,7 +353,7 @@ class TestExtractAndRemapReads:
         contig_faidx = [c for c in faidx_calls if "contig_51" in c]
         assert contig_faidx
 
-    @patch("open_pacmuci.calling.run_tool")
+    @patch("muc_one_span.calling.run_tool")
     def test_preset_passed_to_minimap2(self, mock_run_tool, tmp_path):
         """When preset='lr:hq' is given, minimap2 is called with -x lr:hq."""
         mock_run_tool.return_value = ""
@@ -379,7 +379,7 @@ class TestExtractAndRemapReads:
         x_idx = minimap2_cmd.index("-x")
         assert minimap2_cmd[x_idx + 1] == "lr:hq"
 
-    @patch("open_pacmuci.calling.run_tool")
+    @patch("muc_one_span.calling.run_tool")
     def test_preset_defaults_to_map_hifi(self, mock_run_tool, tmp_path):
         """When preset is not given, minimap2 is called with -x map-hifi."""
         mock_run_tool.return_value = ""
@@ -408,9 +408,9 @@ class TestExtractAndRemapReads:
 class TestDisambiguateSameLengthAlleles:
     """Tests for disambiguate_same_length_alleles."""
 
-    @patch("open_pacmuci.vcf.run_tool", return_value="")
-    @patch("open_pacmuci.calling.run_tool", return_value="")
-    @patch("open_pacmuci.calling.parse_vcf_genotypes", return_value=[])
+    @patch("muc_one_span.vcf.run_tool", return_value="")
+    @patch("muc_one_span.calling.run_tool", return_value="")
+    @patch("muc_one_span.calling.parse_vcf_genotypes", return_value=[])
     def test_no_het_variants_returns_homozygous(self, mock_geno, mock_run, mock_vcf_tool, tmp_path):
         alleles = {
             "allele_1": {"contig_name": "contig_51", "cluster_contigs": ["contig_51"]},
@@ -422,10 +422,10 @@ class TestDisambiguateSameLengthAlleles:
         assert "allele_1" in result
         assert result.get("homozygous") is True
 
-    @patch("open_pacmuci.vcf.run_tool", return_value="")
-    @patch("open_pacmuci.calling.run_tool", return_value="")
+    @patch("muc_one_span.vcf.run_tool", return_value="")
+    @patch("muc_one_span.calling.run_tool", return_value="")
     @patch(
-        "open_pacmuci.calling.parse_vcf_genotypes",
+        "muc_one_span.calling.parse_vcf_genotypes",
         return_value=[{"chrom": "c", "pos": 100, "ref": "A", "alt": "T", "genotype": "0/1"}],
     )
     def test_het_variants_returns_two_alleles(self, mock_geno, mock_run, mock_vcf_tool, tmp_path):
@@ -440,9 +440,9 @@ class TestDisambiguateSameLengthAlleles:
         assert "allele_2" in result
         assert result.get("homozygous") is False
 
-    @patch("open_pacmuci.vcf.run_tool", return_value="")
-    @patch("open_pacmuci.calling.run_tool", return_value="")
-    @patch("open_pacmuci.calling.parse_vcf_genotypes", return_value=[])
+    @patch("muc_one_span.vcf.run_tool", return_value="")
+    @patch("muc_one_span.calling.run_tool", return_value="")
+    @patch("muc_one_span.calling.parse_vcf_genotypes", return_value=[])
     def test_platform_and_preset_threaded_through(
         self, mock_geno, mock_run, mock_vcf_tool, tmp_path
     ):

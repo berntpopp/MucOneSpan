@@ -67,10 +67,10 @@ class TestAlleleLengthDetection:
         self, sample: str, expected_h1: int, expected_h2: int, tmp_path: Path
     ) -> None:
         """Detected allele lengths match ground truth within tolerance."""
-        from open_pacmuci.alleles import detect_alleles, parse_idxstats
-        from open_pacmuci.config import load_repeat_dictionary
-        from open_pacmuci.ladder import generate_ladder_fasta
-        from open_pacmuci.mapping import get_idxstats, map_reads
+        from muc_one_span.alleles import detect_alleles, parse_idxstats
+        from muc_one_span.config import load_repeat_dictionary
+        from muc_one_span.ladder import generate_ladder_fasta
+        from muc_one_span.mapping import get_idxstats, map_reads
 
         input_path = sample_input(sample)
         rd = load_repeat_dictionary()
@@ -109,9 +109,9 @@ class TestFullPipeline:
         self, tmp_path: Path, sample: str, expect_mutation: bool, clair3_model: Path
     ) -> None:
         """Execute every CLI stage and check VCF-backed frameshift calls."""
-        from open_pacmuci.cli import main
-        from open_pacmuci.config import load_repeat_dictionary
-        from open_pacmuci.ladder import generate_ladder_fasta
+        from muc_one_span.cli import main
+        from muc_one_span.config import load_repeat_dictionary
+        from muc_one_span.ladder import generate_ladder_fasta
 
         input_path = sample_input(sample)
         reference = tmp_path / "ladder.fa"

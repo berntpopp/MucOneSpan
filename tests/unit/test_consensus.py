@@ -5,13 +5,13 @@ from __future__ import annotations
 from pathlib import Path
 from unittest.mock import patch
 
-from open_pacmuci.consensus import build_consensus, build_consensus_per_allele, trim_flanking
+from muc_one_span.consensus import build_consensus, build_consensus_per_allele, trim_flanking
 
 
 class TestBuildConsensus:
     """Tests for build_consensus."""
 
-    @patch("open_pacmuci.consensus.run_tool")
+    @patch("muc_one_span.consensus.run_tool")
     def test_calls_bcftools_consensus(self, mock_run_tool, tmp_path):
         """build_consensus calls bcftools consensus with correct arguments."""
         fasta_content = ">contig_51\nACGTACGT\n"
@@ -29,7 +29,7 @@ class TestBuildConsensus:
         assert str(ref) in cmd
         assert str(vcf) in cmd
 
-    @patch("open_pacmuci.consensus.run_tool")
+    @patch("muc_one_span.consensus.run_tool")
     def test_writes_stdout_to_output_path(self, mock_run_tool, tmp_path):
         """build_consensus writes the bcftools stdout to the output file."""
         fasta_content = ">contig_51\nACGTACGT\n"
@@ -45,7 +45,7 @@ class TestBuildConsensus:
         assert output.read_text() == fasta_content
         assert result == output
 
-    @patch("open_pacmuci.consensus.run_tool")
+    @patch("muc_one_span.consensus.run_tool")
     def test_creates_parent_directory(self, mock_run_tool, tmp_path):
         """build_consensus creates the parent directory of output_path if needed."""
         mock_run_tool.return_value = ">x\nACGT\n"
@@ -59,7 +59,7 @@ class TestBuildConsensus:
         build_consensus(ref, vcf, output)
         assert output.parent.exists()
 
-    @patch("open_pacmuci.consensus.run_tool")
+    @patch("muc_one_span.consensus.run_tool")
     def test_reference_passed_with_f_flag(self, mock_run_tool, tmp_path):
         """bcftools consensus uses -f flag for the reference."""
         mock_run_tool.return_value = ">x\nACGT\n"
@@ -143,7 +143,7 @@ class TestAnchorBasedTrim:
 
     def test_anchor_trim_handles_indel_in_flank(self, tmp_path):
         """Anchor trim finds correct boundary despite indel in flanking."""
-        from open_pacmuci.config import load_repeat_dictionary
+        from muc_one_span.config import load_repeat_dictionary
 
         rd = load_repeat_dictionary()
         # Build a sequence: left_flank (with 1bp insertion) + pre-repeat 1 + X + after-repeat 9 + right_flank
@@ -201,7 +201,7 @@ class TestBuildConsensusPerAllele:
             },
         }
 
-    @patch("open_pacmuci.consensus.run_tool")
+    @patch("muc_one_span.consensus.run_tool")
     def test_processes_all_allele_keys_in_vcf_paths(self, mock_run_tool, tmp_path):
         """build_consensus_per_allele handles every key in vcf_paths."""
         flanks = 50
@@ -225,7 +225,7 @@ class TestBuildConsensusPerAllele:
         assert "allele_1" in result
         assert "allele_2" in result
 
-    @patch("open_pacmuci.consensus.run_tool")
+    @patch("muc_one_span.consensus.run_tool")
     def test_calls_samtools_faidx_for_each_allele(self, mock_run_tool, tmp_path):
         """samtools faidx is called to extract each allele's contig."""
         flanks = 10
@@ -254,7 +254,7 @@ class TestBuildConsensusPerAllele:
         # At least one faidx extracting the contig
         assert any("contig_51" in c for c in faidx_calls)
 
-    @patch("open_pacmuci.consensus.run_tool")
+    @patch("muc_one_span.consensus.run_tool")
     def test_returns_paths_to_trimmed_fastas(self, mock_run_tool, tmp_path):
         """Returns paths to the trimmed (VNTR-only) FASTA files."""
         flanks = 10
@@ -284,7 +284,7 @@ class TestBuildConsensusPerAllele:
         # Should be the trimmed file, not the full consensus
         assert "full" not in result["allele_1"].name
 
-    @patch("open_pacmuci.consensus.run_tool")
+    @patch("muc_one_span.consensus.run_tool")
     def test_fallback_contig_name_from_length(self, mock_run_tool, tmp_path):
         """Falls back to contig_<length> when contig_name key is absent."""
         flanks = 5

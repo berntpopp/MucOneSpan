@@ -15,8 +15,8 @@
 ### Task 1: Add `preset` parameter to `mapping.py`
 
 **Files:**
-- Modify: `src/open_pacmuci/mapping.py:77-108` (`_run_mapping_pipeline`)
-- Modify: `src/open_pacmuci/mapping.py:34-74` (`map_reads`)
+- Modify: `src/muc_one_span/mapping.py:77-108` (`_run_mapping_pipeline`)
+- Modify: `src/muc_one_span/mapping.py:34-74` (`map_reads`)
 - Test: `tests/unit/test_mapping.py`
 
 - [ ] **Step 1: Write failing test for `_run_mapping_pipeline` preset parameter**
@@ -26,7 +26,7 @@ Add to `tests/unit/test_mapping.py` inside `TestRunMappingPipeline`:
 ```python
 def test_preset_passed_to_minimap2(self, mocker):
     """_run_mapping_pipeline passes the preset to minimap2 -x flag."""
-    from open_pacmuci.mapping import _run_mapping_pipeline
+    from muc_one_span.mapping import _run_mapping_pipeline
 
     mock_p1 = mocker.MagicMock()
     mock_p1.stdout = mocker.MagicMock()
@@ -39,7 +39,7 @@ def test_preset_passed_to_minimap2(self, mocker):
     mock_p2.communicate.return_value = (b"", b"")
 
     mock_popen = mocker.patch(
-        "open_pacmuci.mapping.subprocess.Popen",
+        "muc_one_span.mapping.subprocess.Popen",
         side_effect=[mock_p1, mock_p2],
     )
 
@@ -58,7 +58,7 @@ def test_preset_passed_to_minimap2(self, mocker):
 
 def test_preset_defaults_to_map_hifi(self, mocker):
     """_run_mapping_pipeline defaults to map-hifi when no preset given."""
-    from open_pacmuci.mapping import _run_mapping_pipeline
+    from muc_one_span.mapping import _run_mapping_pipeline
 
     mock_p1 = mocker.MagicMock()
     mock_p1.stdout = mocker.MagicMock()
@@ -71,7 +71,7 @@ def test_preset_defaults_to_map_hifi(self, mocker):
     mock_p2.communicate.return_value = (b"", b"")
 
     mock_popen = mocker.patch(
-        "open_pacmuci.mapping.subprocess.Popen",
+        "muc_one_span.mapping.subprocess.Popen",
         side_effect=[mock_p1, mock_p2],
     )
 
@@ -98,8 +98,8 @@ Expected: FAIL — `_run_mapping_pipeline() got an unexpected keyword argument '
 Add to `tests/unit/test_mapping.py` inside `TestMapReads`:
 
 ```python
-@patch("open_pacmuci.mapping._run_mapping_pipeline")
-@patch("open_pacmuci.mapping.run_tool")
+@patch("muc_one_span.mapping._run_mapping_pipeline")
+@patch("muc_one_span.mapping.run_tool")
 def test_preset_passed_to_pipeline(self, mock_run_tool, mock_pipeline, tmp_path):
     """The preset parameter is forwarded to _run_mapping_pipeline."""
     mock_run_tool.return_value = ""
@@ -124,7 +124,7 @@ Expected: FAIL — `map_reads() got an unexpected keyword argument 'preset'`
 
 - [ ] **Step 5: Implement `preset` parameter in `_run_mapping_pipeline`**
 
-In `src/open_pacmuci/mapping.py`, change the `_run_mapping_pipeline` signature and body:
+In `src/muc_one_span/mapping.py`, change the `_run_mapping_pipeline` signature and body:
 
 ```python
 def _run_mapping_pipeline(
@@ -153,7 +153,7 @@ And replace the hardcoded `"map-hifi"` on line 103 with `preset`:
 
 - [ ] **Step 6: Implement `preset` parameter in `map_reads`**
 
-In `src/open_pacmuci/mapping.py`, change the `map_reads` signature:
+In `src/muc_one_span/mapping.py`, change the `map_reads` signature:
 
 ```python
 def map_reads(
@@ -191,7 +191,7 @@ Expected: All PASS
 - [ ] **Step 8: Commit**
 
 ```bash
-git add src/open_pacmuci/mapping.py tests/unit/test_mapping.py
+git add src/muc_one_span/mapping.py tests/unit/test_mapping.py
 git commit -m "feat: add preset parameter to mapping.py for configurable minimap2 preset"
 ```
 
@@ -200,9 +200,9 @@ git commit -m "feat: add preset parameter to mapping.py for configurable minimap
 ### Task 2: Add `platform` and `preset` parameters to `calling.py`
 
 **Files:**
-- Modify: `src/open_pacmuci/calling.py:65-150` (`_extract_and_remap_reads`)
-- Modify: `src/open_pacmuci/calling.py:197-302` (`disambiguate_same_length_alleles`)
-- Modify: `src/open_pacmuci/calling.py:305-413` (`call_variants_per_allele`)
+- Modify: `src/muc_one_span/calling.py:65-150` (`_extract_and_remap_reads`)
+- Modify: `src/muc_one_span/calling.py:197-302` (`disambiguate_same_length_alleles`)
+- Modify: `src/muc_one_span/calling.py:305-413` (`call_variants_per_allele`)
 - Test: `tests/unit/test_calling.py`
 
 - [ ] **Step 1: Write failing test for `_extract_and_remap_reads` preset**
@@ -210,7 +210,7 @@ git commit -m "feat: add preset parameter to mapping.py for configurable minimap
 Add to `tests/unit/test_calling.py` inside `TestExtractAndRemapReads`:
 
 ```python
-@patch("open_pacmuci.calling.run_tool")
+@patch("muc_one_span.calling.run_tool")
 def test_preset_passed_to_minimap2(self, mock_run_tool, tmp_path):
     """_extract_and_remap_reads passes preset to the minimap2 command."""
     mock_run_tool.return_value = ""
@@ -237,7 +237,7 @@ def test_preset_passed_to_minimap2(self, mock_run_tool, tmp_path):
     x_idx = minimap2_cmd.index("-x")
     assert minimap2_cmd[x_idx + 1] == "lr:hq"
 
-@patch("open_pacmuci.calling.run_tool")
+@patch("muc_one_span.calling.run_tool")
 def test_preset_defaults_to_map_hifi(self, mock_run_tool, tmp_path):
     """_extract_and_remap_reads defaults to map-hifi preset."""
     mock_run_tool.return_value = ""
@@ -274,8 +274,8 @@ Expected: FAIL — `_extract_and_remap_reads() got an unexpected keyword argumen
 Add to `tests/unit/test_calling.py` inside `TestCallVariantsPerAllele`:
 
 ```python
-@patch("open_pacmuci.vcf.run_tool")
-@patch("open_pacmuci.calling.run_tool")
+@patch("muc_one_span.vcf.run_tool")
+@patch("muc_one_span.calling.run_tool")
 def test_platform_and_preset_threaded_through(self, mock_run_tool, mock_vcf_tool, tmp_path):
     """platform is passed to run_clair3, preset is passed to _extract_and_remap_reads."""
     mock_run_tool.return_value = ""
@@ -314,9 +314,9 @@ def test_platform_and_preset_threaded_through(self, mock_run_tool, mock_vcf_tool
 Add to `tests/unit/test_calling.py` inside `TestDisambiguateSameLengthAlleles`:
 
 ```python
-@patch("open_pacmuci.vcf.run_tool", return_value="")
-@patch("open_pacmuci.calling.run_tool", return_value="")
-@patch("open_pacmuci.calling.parse_vcf_genotypes", return_value=[])
+@patch("muc_one_span.vcf.run_tool", return_value="")
+@patch("muc_one_span.calling.run_tool", return_value="")
+@patch("muc_one_span.calling.parse_vcf_genotypes", return_value=[])
 def test_platform_and_preset_threaded_through(
     self, mock_geno, mock_run, mock_vcf_tool, tmp_path
 ):
@@ -356,7 +356,7 @@ Expected: FAIL
 
 - [ ] **Step 6: Implement `preset` parameter in `_extract_and_remap_reads`**
 
-In `src/open_pacmuci/calling.py`, change the signature:
+In `src/muc_one_span/calling.py`, change the signature:
 
 ```python
 def _extract_and_remap_reads(
@@ -509,7 +509,7 @@ Expected: All PASS
 - [ ] **Step 10: Commit**
 
 ```bash
-git add src/open_pacmuci/calling.py tests/unit/test_calling.py
+git add src/muc_one_span/calling.py tests/unit/test_calling.py
 git commit -m "feat: thread platform and preset through calling.py for ONT support"
 ```
 
@@ -518,7 +518,7 @@ git commit -m "feat: thread platform and preset through calling.py for ONT suppo
 ### Task 3: Add CLI options and preset auto-selection
 
 **Files:**
-- Modify: `src/open_pacmuci/cli.py`
+- Modify: `src/muc_one_span/cli.py`
 - Test: `tests/unit/test_cli.py`
 
 - [ ] **Step 1: Write failing tests for new CLI options**
@@ -571,29 +571,29 @@ class TestPlatformOptions:
         input_file.touch()
 
         with (
-            patch("open_pacmuci.tools.check_tools"),
-            patch("open_pacmuci.tools.get_tool_versions", return_value={}),
-            patch("open_pacmuci.mapping.map_reads", return_value=tmp_path / "m.bam") as mock_map,
-            patch("open_pacmuci.mapping.get_idxstats", return_value="c51\t3060\t100\t0\n"),
-            patch("open_pacmuci.alleles.parse_idxstats", return_value={51: 100}),
-            patch("open_pacmuci.alleles.detect_alleles", return_value={
+            patch("muc_one_span.tools.check_tools"),
+            patch("muc_one_span.tools.get_tool_versions", return_value={}),
+            patch("muc_one_span.mapping.map_reads", return_value=tmp_path / "m.bam") as mock_map,
+            patch("muc_one_span.mapping.get_idxstats", return_value="c51\t3060\t100\t0\n"),
+            patch("muc_one_span.alleles.parse_idxstats", return_value={51: 100}),
+            patch("muc_one_span.alleles.detect_alleles", return_value={
                 "homozygous": True,
                 "allele_1": {"length": 60, "reads": 100, "canonical_repeats": 51,
                              "contig_name": "c51", "cluster_contigs": ["c51"]},
                 "allele_2": {"length": 60, "reads": 0, "canonical_repeats": 51,
                              "contig_name": "c51", "cluster_contigs": ["c51"]},
             }),
-            patch("open_pacmuci.calling.call_variants_per_allele",
+            patch("muc_one_span.calling.call_variants_per_allele",
                   return_value={"allele_1": tmp_path / "a.vcf.gz"}) as mock_call,
-            patch("open_pacmuci.consensus.build_consensus_per_allele",
+            patch("muc_one_span.consensus.build_consensus_per_allele",
                   return_value={"allele_1": tmp_path / "a.fa"}),
-            patch("open_pacmuci.classify.classify_sequence",
+            patch("muc_one_span.classify.classify_sequence",
                   return_value={"structure": "X", "repeats": [], "mutations_detected": [],
                                 "allele_confidence": 1.0}),
-            patch("open_pacmuci.classify.validate_mutations_against_vcf",
+            patch("muc_one_span.classify.validate_mutations_against_vcf",
                   return_value={"structure": "X", "repeats": [], "mutations_detected": [],
                                 "allele_confidence": 1.0}),
-            patch("open_pacmuci.vcf.parse_vcf_variants", return_value=[]),
+            patch("muc_one_span.vcf.parse_vcf_variants", return_value=[]),
         ):
             # Write a fake consensus FASTA for classify to read
             fa = tmp_path / "a.fa"
@@ -622,10 +622,10 @@ class TestPlatformOptions:
         ref.touch()
 
         with (
-            patch("open_pacmuci.tools.check_tools"),
-            patch("open_pacmuci.mapping._run_mapping_pipeline"),
-            patch("open_pacmuci.mapping.run_tool", return_value=""),
-            patch("open_pacmuci.mapping.map_reads", return_value=tmp_path / "m.bam") as mock_map,
+            patch("muc_one_span.tools.check_tools"),
+            patch("muc_one_span.mapping._run_mapping_pipeline"),
+            patch("muc_one_span.mapping.run_tool", return_value=""),
+            patch("muc_one_span.mapping.map_reads", return_value=tmp_path / "m.bam") as mock_map,
         ):
             runner = CliRunner()
             result = runner.invoke(
@@ -652,7 +652,7 @@ Expected: FAIL — `--platform` not found in help output
 
 - [ ] **Step 3: Add `PLATFORM_PRESETS` constant and update group docstring**
 
-In `src/open_pacmuci/cli.py`, add after imports (around line 12):
+In `src/muc_one_span/cli.py`, add after imports (around line 12):
 
 ```python
 PLATFORM_PRESETS: dict[str, str] = {"hifi": "map-hifi", "ont": "lr:hq"}
@@ -661,7 +661,7 @@ PLATFORM_PRESETS: dict[str, str] = {"hifi": "map-hifi", "ont": "lr:hq"}
 Update the `main` group docstring (line 23):
 
 ```python
-    """open-pacmuci: MUC1 VNTR analysis pipeline for PacBio HiFi and ONT amplicon data."""
+    """muconespan: MUC1 VNTR analysis pipeline for PacBio HiFi and ONT amplicon data."""
 ```
 
 - [ ] **Step 4: Add `--platform` and `--minimap2-preset` to `run` subcommand**
@@ -802,7 +802,7 @@ Expected: All PASS
 - [ ] **Step 8: Commit**
 
 ```bash
-git add src/open_pacmuci/cli.py tests/unit/test_cli.py
+git add src/muc_one_span/cli.py tests/unit/test_cli.py
 git commit -m "feat: add --platform and --minimap2-preset CLI options for ONT support"
 ```
 
@@ -868,7 +868,7 @@ git commit -m "feat: add --platform flag to batch_analyze.py"
 
 - [ ] **Step 1: Run unit tests with coverage**
 
-Run: `uv run pytest tests/unit/ --cov=open_pacmuci --cov-fail-under=80 -v`
+Run: `uv run pytest tests/unit/ --cov=muc_one_span --cov-fail-under=80 -v`
 
 Expected: All PASS, coverage >= 80%
 

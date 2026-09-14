@@ -6,7 +6,7 @@ import logging
 import subprocess
 from pathlib import Path
 
-from open_pacmuci.tools import run_tool
+from muc_one_span.tools import run_tool
 
 logger = logging.getLogger(__name__)
 

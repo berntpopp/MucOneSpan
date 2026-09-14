@@ -26,7 +26,7 @@ import re
 from pathlib import Path
 from typing import TypedDict
 
-from open_pacmuci.tools import run_tool_iter
+from muc_one_span.tools import run_tool_iter
 
 # TypedDicts below document the expected structure of return values.
 # Functions return plain dicts for mypy compatibility; these types are

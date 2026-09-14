@@ -69,12 +69,12 @@ Current `docker/Dockerfile` (16 lines):
 FROM condaforge/mambaforge:latest AS base
 COPY conda/environment.yml /tmp/environment.yml
 RUN mamba env create -f /tmp/environment.yml && mamba clean -afy
-RUN mamba install -n open-pacmuci-tools -c bioconda clair3 && mamba clean -afy
+RUN mamba install -n muconespan-tools -c bioconda clair3 && mamba clean -afy
 COPY . /app
 WORKDIR /app
-RUN mamba run -n open-pacmuci-tools pip install .
-SHELL ["mamba", "run", "-n", "open-pacmuci-tools", "/bin/bash", "-c"]
-ENTRYPOINT ["mamba", "run", "-n", "open-pacmuci-tools", "open-pacmuci"]
+RUN mamba run -n muconespan-tools pip install .
+SHELL ["mamba", "run", "-n", "muconespan-tools", "/bin/bash", "-c"]
+ENTRYPOINT ["mamba", "run", "-n", "muconespan-tools", "muconespan"]
 CMD ["--help"]
 ```
 
@@ -84,7 +84,7 @@ Replace `docker/Dockerfile` with:
 
 ```dockerfile
 # ============================================================================
-# open-pacmuci -- Multi-stage Docker build
+# muconespan -- Multi-stage Docker build
 # Stage 1: Install conda env + pip package
 # Stage 2: Copy resolved env into slim runtime image
 # ============================================================================
@@ -99,17 +99,17 @@ RUN micromamba create -y -f /tmp/environment.yml && \
     rm -f /tmp/environment.yml
 
 # Install Clair3 into the same environment
-RUN micromamba install -y -n open-pacmuci-tools -c bioconda -c conda-forge clair3 && \
+RUN micromamba install -y -n muconespan-tools -c bioconda -c conda-forge clair3 && \
     micromamba clean --all --yes
 
-# Install open-pacmuci Python package
+# Install muconespan Python package
 # Copy pyproject.toml first for layer caching (source changes don't bust dep cache)
 COPY --chown=$MAMBA_USER:$MAMBA_USER pyproject.toml README.md /app/
 COPY --chown=$MAMBA_USER:$MAMBA_USER src/ /app/src/
 COPY --chown=$MAMBA_USER:$MAMBA_USER data/ /app/data/
 
 WORKDIR /app
-RUN micromamba run -n open-pacmuci-tools pip install --no-cache-dir --no-deps . && \
+RUN micromamba run -n muconespan-tools pip install --no-cache-dir --no-deps . && \
     rm -rf /app
 
 # ============================================================================
@@ -118,27 +118,27 @@ RUN micromamba run -n open-pacmuci-tools pip install --no-cache-dir --no-deps . 
 FROM mambaorg/micromamba:1.5.10-bookworm-slim
 
 # Copy the fully resolved conda environment from builder
-COPY --from=builder /opt/conda/envs/open-pacmuci-tools /opt/conda/envs/open-pacmuci-tools
+COPY --from=builder /opt/conda/envs/muconespan-tools /opt/conda/envs/muconespan-tools
 
 # Activate environment via PATH (faster than micromamba run wrapper)
-ENV PATH="/opt/conda/envs/open-pacmuci-tools/bin:${PATH}"
+ENV PATH="/opt/conda/envs/muconespan-tools/bin:${PATH}"
 
 # Run as non-root user
 USER $MAMBA_USER
 WORKDIR /data
 
 # Metadata
-LABEL org.opencontainers.image.source="https://github.com/berntpopp/open-pacmuci" \
-      org.opencontainers.image.description="open-pacmuci: MUC1 VNTR analysis pipeline for PacBio HiFi amplicon data" \
+LABEL org.opencontainers.image.source="https://github.com/berntpopp/MucOneSpan" \
+      org.opencontainers.image.description="muconespan: MUC1 VNTR analysis pipeline for PacBio HiFi amplicon data" \
       org.opencontainers.image.licenses="MIT"
 
-ENTRYPOINT ["open-pacmuci"]
+ENTRYPOINT ["muconespan"]
 CMD ["--help"]
 ```
 
 - [ ] **Step 3: Verify Dockerfile builds locally (optional -- requires Docker)**
 
-Run: `docker build -f docker/Dockerfile -t open-pacmuci:test .`
+Run: `docker build -f docker/Dockerfile -t muconespan:test .`
 
 If Docker is not available locally, this will be verified in CI.
 
@@ -245,7 +245,7 @@ docker/setup-buildx-action for BuildKit support."
 Replace `conda/environment.yml`:
 
 ```yaml
-name: open-pacmuci-tools
+name: muconespan-tools
 channels:
   - conda-forge
   - bioconda
@@ -267,7 +267,7 @@ Create `conda/environment-dev.yml`:
 # Development environment with loose version ranges.
 # Use this for local development where you want the latest compatible tools.
 # For reproducible builds (CI, Docker, publications), use environment.yml.
-name: open-pacmuci-tools
+name: muconespan-tools
 channels:
   - conda-forge
   - bioconda
@@ -297,39 +297,39 @@ development flexibility."
 ### Task 5: Add Singularity/Apptainer definition
 
 **Files:**
-- Create: `docker/open-pacmuci.def`
+- Create: `docker/muconespan.def`
 
 - [ ] **Step 1: Create Singularity definition**
 
-Create `docker/open-pacmuci.def`:
+Create `docker/muconespan.def`:
 
 ```singularity
 Bootstrap: docker
-From: ghcr.io/berntpopp/open-pacmuci:latest
+From: ghcr.io/berntpopp/muconespan:latest
 
 %labels
     Author Bernt Popp
     Version 0.3.0
-    Description open-pacmuci: MUC1 VNTR analysis pipeline for PacBio HiFi amplicon data
+    Description muconespan: MUC1 VNTR analysis pipeline for PacBio HiFi amplicon data
 
 %help
-    open-pacmuci: MUC1 VNTR analysis pipeline for PacBio HiFi amplicon data.
+    muconespan: MUC1 VNTR analysis pipeline for PacBio HiFi amplicon data.
 
     Usage:
-        singularity run open-pacmuci.sif --help
-        singularity run open-pacmuci.sif run --input reads.bam --output-dir results/
+        singularity run muconespan.sif --help
+        singularity run muconespan.sif run --input reads.bam --output-dir results/
 
     Build:
-        singularity build open-pacmuci.sif docker/open-pacmuci.def
+        singularity build muconespan.sif docker/muconespan.def
 
 %runscript
-    exec open-pacmuci "$@"
+    exec muconespan "$@"
 ```
 
 - [ ] **Step 2: Commit**
 
 ```bash
-git add docker/open-pacmuci.def
+git add docker/muconespan.def
 git commit -m "feat: add Singularity/Apptainer definition for HPC environments
 
 Bootstraps from the GHCR Docker image. Critical for HPC clusters
@@ -390,8 +390,8 @@ history using softprops/action-gh-release."
 ### Task 7: Record tool versions in pipeline output
 
 **Files:**
-- Modify: `src/open_pacmuci/tools.py`
-- Modify: `src/open_pacmuci/cli.py`
+- Modify: `src/muc_one_span/tools.py`
+- Modify: `src/muc_one_span/cli.py`
 - Test: `tests/unit/test_tools.py`
 
 - [ ] **Step 1: Write the failing test**
@@ -402,12 +402,12 @@ Add to `tests/unit/test_tools.py`:
 def test_get_tool_versions_returns_versions(mocker):
     """get_tool_versions captures version strings from external tools."""
     mocker.patch(
-        "open_pacmuci.tools.subprocess.run",
+        "muc_one_span.tools.subprocess.run",
         return_value=mocker.MagicMock(returncode=0, stdout="minimap2 2.28-r1209\n"),
     )
-    mocker.patch("open_pacmuci.tools.shutil.which", return_value="/usr/bin/minimap2")
+    mocker.patch("muc_one_span.tools.shutil.which", return_value="/usr/bin/minimap2")
 
-    from open_pacmuci.tools import get_tool_versions
+    from muc_one_span.tools import get_tool_versions
 
     versions = get_tool_versions(["minimap2"])
     assert "minimap2" in versions
@@ -416,9 +416,9 @@ def test_get_tool_versions_returns_versions(mocker):
 
 def test_get_tool_versions_handles_missing_tool(mocker):
     """get_tool_versions returns 'not found' for missing tools."""
-    mocker.patch("open_pacmuci.tools.shutil.which", return_value=None)
+    mocker.patch("muc_one_span.tools.shutil.which", return_value=None)
 
-    from open_pacmuci.tools import get_tool_versions
+    from muc_one_span.tools import get_tool_versions
 
     versions = get_tool_versions(["nonexistent_tool"])
     assert versions["nonexistent_tool"] == "not found"
@@ -431,7 +431,7 @@ Expected: FAIL (ImportError or AttributeError -- function doesn't exist)
 
 - [ ] **Step 3: Add get_tool_versions to tools.py**
 
-Add at the end of `src/open_pacmuci/tools.py` (after `check_tools()`):
+Add at the end of `src/muc_one_span/tools.py` (after `check_tools()`):
 
 ```python
 def get_tool_versions(tools: list[str]) -> dict[str, str]:
@@ -475,10 +475,10 @@ Expected: PASS
 
 - [ ] **Step 5: Wire tool versions into the run subcommand**
 
-In `src/open_pacmuci/cli.py`, in the `run()` function, after the `check_tools()` call (line 340), add:
+In `src/muc_one_span/cli.py`, in the `run()` function, after the `check_tools()` call (line 340), add:
 
 ```python
-    from open_pacmuci.tools import get_tool_versions
+    from muc_one_span.tools import get_tool_versions
 
     tool_versions = get_tool_versions(["minimap2", "samtools", "bcftools", "run_clair3.sh"])
 ```
@@ -509,7 +509,7 @@ Expected: All pass
 - [ ] **Step 7: Commit**
 
 ```bash
-git add src/open_pacmuci/tools.py src/open_pacmuci/cli.py tests/unit/test_tools.py
+git add src/muc_one_span/tools.py src/muc_one_span/cli.py tests/unit/test_tools.py
 git commit -m "feat: record tool versions in pipeline output
 
 Add get_tool_versions() to tools.py that captures version strings
@@ -706,12 +706,12 @@ for long VNTRs, boundary penalties, and classification fallbacks."
 
 - [ ] **Step 1: Run lint check**
 
-Run: `uv run ruff check src/open_pacmuci/`
+Run: `uv run ruff check src/muc_one_span/`
 Expected: No new errors
 
 - [ ] **Step 2: Run type check**
 
-Run: `uv run mypy src/open_pacmuci/`
+Run: `uv run mypy src/muc_one_span/`
 Expected: No new errors
 
 - [ ] **Step 3: Run full test suite**

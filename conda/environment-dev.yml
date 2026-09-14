@@ -1,7 +1,7 @@
 # Development environment with loose version ranges.
 # Use this for local development where you want the latest compatible tools.
 # For reproducible builds (CI, Docker, publications), use environment.yml.
-name: open-pacmuci-tools
+name: muconespan-tools
 channels:
   - conda-forge
   - bioconda

@@ -10,8 +10,8 @@ if [[ ${1:-} != --inside-container ]]; then
     exit
 fi
 
-open-pacmuci --help
-open-pacmuci --version
+muconespan --help
+muconespan --version
 
 # Check the runtime stage, not the builder's source tree or Python environment.
 test "$(id -u)" -ne 0
@@ -34,11 +34,11 @@ import random
 import shutil
 import subprocess
 
-from open_pacmuci.report import generate_report
-from open_pacmuci.tools import _clean_path_for_externals
+from muc_one_span.report import generate_report
+from muc_one_span.tools import _clean_path_for_externals
 
-assert subprocess.check_output(["open-pacmuci", "--version"], text=True).strip() == (
-    f"open-pacmuci, version {version('open-pacmuci')}"
+assert subprocess.check_output(["muconespan", "--version"], text=True).strip() == (
+    f"muconespan, version {version('muc_one_span')}"
 )
 model_root = Path(shutil.which("run_clair3.sh")).parent / "models"
 external_path = _clean_path_for_externals(os.environ["PATH"])
@@ -64,7 +64,7 @@ Path("expected.tsv").write_text(f"contig_test\t1501\t{reference[1500]}\t{alterna
 PY
 
 # Ladder generation also verifies that the installed wheel contains repeat data.
-open-pacmuci ladder --min-units 20 --max-units 22 --output ladder.fa
+muconespan ladder --min-units 20 --max-units 22 --output ladder.fa
 samtools faidx ladder.fa
 python - <<'PY'
 from pathlib import Path
@@ -83,7 +83,7 @@ python - <<'PY'
 from pathlib import Path
 import shutil
 
-from open_pacmuci.calling import run_clair3
+from muc_one_span.calling import run_clair3
 
 root = Path.cwd()
 models = Path(shutil.which("run_clair3.sh")).parent / "models"

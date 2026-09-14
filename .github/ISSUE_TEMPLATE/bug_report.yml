@@ -1,5 +1,5 @@
 name: Bug Report
-description: Report a bug in open-pacmuci
+description: Report a bug in MucOneSpan
 title: "[Bug]: "
 labels: ["bug"]
 body:
@@ -16,7 +16,7 @@ body:
       label: Steps to reproduce
       description: How to reproduce the behavior.
       placeholder: |
-        1. Run `open-pacmuci run --input ...`
+        1. Run `muconespan run --input ...`
         2. ...
     validations:
       required: true
@@ -41,7 +41,7 @@ body:
       description: |
         - OS:
         - Python version:
-        - open-pacmuci version:
+        - MucOneSpan version:
         - Installation method (pip/docker/conda):
       render: markdown
     validations:

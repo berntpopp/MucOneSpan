@@ -1087,7 +1087,7 @@ wheels = [
 ]
 
 [[package]]
-name = "open-pacmuci"
+name = "muc-one-span"
 source = { editable = "." }
 dependencies = [
     { name = "click" },

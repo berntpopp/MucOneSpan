@@ -1,13 +1,13 @@
 # CLI Reference
 
-Complete command-line interface documentation for open-pacmuci.
+Complete command-line interface documentation for MucOneSpan.
 
 ---
 
 ::: mkdocs-click
-    :module: open_pacmuci.cli
+    :module: muc_one_span.cli
     :command: main
-    :prog_name: open-pacmuci
+    :prog_name: muconespan
     :depth: 2
 
 ---

@@ -4,12 +4,12 @@
 
 | Version | Supported          |
 | ------- | ------------------ |
-| 0.3.x   | :white_check_mark: |
-| < 0.3   | :x:                |
+| 0.10.x  | :white_check_mark: |
+| < 0.10  | :x:                |
 
 ## Reporting a Vulnerability
 
-If you discover a security vulnerability in open-pacmuci, please report it responsibly.
+If you discover a security vulnerability in MucOneSpan, please report it responsibly.
 
 **Do not open a public issue.**
 
@@ -26,7 +26,7 @@ You can expect an initial response within 72 hours.
 ## Scope
 
 This policy covers:
-- The open-pacmuci Python package
+- The MucOneSpan Python package
 - Docker images published to GHCR
 - GitHub Actions workflows in this repository
 

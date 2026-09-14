@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Generate test data using MucOneUp for open-pacmuci integration tests.
+"""Generate test data using MucOneUp for muconespan integration tests.
 
 Requires:
   - MucOneUp installed and on PATH (pip install muc_one_up)

@@ -23,7 +23,7 @@ jobs:
 
       - name: Verify tag matches the package version
         run: |
-          PACKAGE_VERSION="$(python3 -c 'import runpy; print(runpy.run_path("src/open_pacmuci/version.py")["__version__"])')"
+          PACKAGE_VERSION="$(python3 -c 'import runpy; print(runpy.run_path("src/muc_one_span/version.py")["__version__"])')"
           test "$GITHUB_REF" = "refs/tags/v$PACKAGE_VERSION"
 
       - name: Create release
