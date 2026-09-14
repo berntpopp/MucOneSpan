@@ -9,7 +9,7 @@ FROM ${MAMBA_IMAGE} AS tools-runtime
 COPY --chown=$MAMBA_USER:$MAMBA_USER conda/environment.yml /tmp/environment.yml
 # Solve once, including the caller; keep its model format stable across rebuilds.
 RUN micromamba create --yes --strict-channel-priority --file /tmp/environment.yml clair3=1.2.0 && \
-    micromamba clean --all --yes
+    micromamba clean --all --force-pkgs-dirs --yes
 # Inherit the cleaned tools layer directly: mode=min exports keep this expensive
 # solve, and neither builds nor cache exports copy the multi-GB environment twice.
 ENV PATH="/opt/conda/envs/open-pacmuci-tools/bin:${PATH}"

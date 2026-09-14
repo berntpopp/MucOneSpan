@@ -16,6 +16,7 @@ open-pacmuci --version
 # Check the runtime stage, not the builder's source tree or Python environment.
 test "$(id -u)" -ne 0
 test ! -e /app
+test ! -e /opt/conda/pkgs
 minimap2 --version
 samtools --version
 bcftools --version

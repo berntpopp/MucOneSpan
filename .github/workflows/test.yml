@@ -102,13 +102,13 @@ jobs:
           enable-cache: true
           cache-dependency-glob: uv.lock
           cache-suffix: test-${{ matrix.python }}
-      # Measure coverage once; every supported interpreter still runs all units.
-      - if: matrix.python == '3.10'
+      # Measure coverage on the fastest supported interpreter; all versions run every unit.
+      - if: matrix.python == '3.14'
         run: make test-unit
-      - if: matrix.python != '3.10'
+      - if: matrix.python != '3.14'
         run: make test-fast
       - name: Upload coverage
-        if: matrix.python == '3.10'
+        if: matrix.python == '3.14'
         uses: codecov/codecov-action@fb8b3582c8e4def4969c97caa2f19720cb33a72f # v7
         with:
           token: ${{ secrets.CODECOV_TOKEN }}

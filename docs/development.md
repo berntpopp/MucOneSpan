@@ -166,7 +166,7 @@ its own dependency set.
   unit environment installs 16 distributions, compared with 76 when all tooling
   and documentation dependencies were installed in every job.
 - All five supported Python versions run the unit suite for runtime changes.
-  Python 3.10 alone measures coverage; the other four avoid redundant coverage
+  Python 3.14 alone measures coverage; the other four avoid redundant coverage
   instrumentation and HTML/XML generation.
 - PR file filters skip unrelated integration, package, dependency-audit, and
   container work. The always-running CI Gate rejects failures and unexpected
