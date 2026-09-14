@@ -277,3 +277,15 @@ The normal-alarm endpoint is separate from confident-negative specificity: ten
 normal outputs remain unresolved. No interval is supplied for undefined ONT
 conditional specificity. Formula uses z=1.959963984540054 without data-dependent
 selection. Fresh-panel uncertainty remains unmeasured because that panel was not run.
+
+## Post-review Git hook isolation fix
+
+The first push was rejected despite 694 passing tests because the legacy file-size
+test inherited Git hook repository/index variables and staged its temporary
+`workflow.yml` in the invoking index. The accidental entry was removed. Two new
+regressions reproduced index corruption and redirected-repository failure before
+the fix; both pass after a fixture scoped to the temporary-repository tests clears
+Git's declared local environment variables. No production source or scientific
+assertion changed. Five focused tests and `make ci-check` now pass with 696 tests
+and unchanged 93.48% coverage. The earlier 694-test interpreter matrix is retained
+as the evidence actually executed before this test-only addition.

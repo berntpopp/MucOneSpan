@@ -15,7 +15,7 @@ See the [simulation experiment guide](https://github.com/berntpopp/MucOneSpan/bl
 
 ## Validation and limits
 
-Local checks: 694 unit tests pass on Python 3.10–3.14; primary coverage is 93.48% with branches. Integration: 47 passed. Explicit generated-data end-to-end tests: 6 passed and 2 unchanged strict expected failures. Lint, formatting, configured mypy, file-size/workflow checks, documentation, dependency audit and distribution/install checks pass.
+Local checks: 696 unit tests pass on Python 3.12; the 694-test suite before the final test-fixture fix also passed on Python 3.10–3.14. Primary coverage is 93.48% with branches. Integration: 47 passed. Explicit generated-data end-to-end tests: 6 passed and 2 unchanged strict expected failures. Lint, formatting, configured mypy, file-size/workflow checks, documentation, dependency audit and distribution/install checks pass.
 
 The equal-length 60/60 and asymmetric 25/140 length failures remain. Optional read-backed phasing remains disabled by default after a development false-positive regression. Confidence scores are heuristic; VCF concordance is not independent read support. Stricter evidence fields can distinguish unresolved reconstruction from a confident negative.
 

@@ -88,3 +88,15 @@ wheel/sdist checks passed. Logs are in
 `tests/results/production_validation_20260914/checks/release`.
 The same 694 tests pass on every supported Python version, 3.10–3.14.
 The final actual Claude Fable 5.1 release review completed without blocking findings; all eight findings have explicit dispositions.
+
+## Post-review Git hook isolation fix
+
+The first push was rejected despite 694 passing tests because the legacy file-size
+test inherited Git hook repository/index variables and staged its temporary
+`workflow.yml` in the invoking index. The accidental entry was removed. Two new
+regressions reproduced index corruption and redirected-repository failure before
+the fix; both pass after a fixture scoped to the temporary-repository tests clears
+Git's declared local environment variables. No production source or scientific
+assertion changed. Five focused tests and `make ci-check` now pass with 696 tests
+and unchanged 93.48% coverage. The earlier 694-test interpreter matrix is retained
+as the evidence actually executed before this test-only addition.

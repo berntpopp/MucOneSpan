@@ -9,6 +9,14 @@ import pytest
 CHECKER = Path(__file__).resolve().parents[2] / "scripts/check_file_size.py"
 
 
+@pytest.fixture(autouse=True)
+def isolate_temporary_git_repository(monkeypatch: pytest.MonkeyPatch) -> None:
+    """Prevent hook-local Git state from redirecting temporary repository commands."""
+    names = subprocess.check_output(["git", "rev-parse", "--local-env-vars"], text=True)
+    for name in names.splitlines():
+        monkeypatch.delenv(name, raising=False)
+
+
 @pytest.mark.parametrize("lines, expected", [(649, 0), (650, 1)])
 def test_strict_boundary_includes_untracked_code(tmp_path: Path, lines: int, expected: int) -> None:
     subprocess.run(["git", "init", "-q", str(tmp_path)], check=True)
