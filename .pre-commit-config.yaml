@@ -1,47 +1,44 @@
+# Local hooks use the same uv.lock and whole-repository targets as CI.
 repos:
-  - repo: https://github.com/astral-sh/ruff-pre-commit
-    rev: v0.14.1
+  - repo: local
     hooks:
-      - id: ruff
-        args: [--fix, --exit-non-zero-on-fix]
-      - id: ruff-format
-
-  - repo: https://github.com/pre-commit/mirrors-mypy
-    rev: v1.13.0
-    hooks:
-      - id: mypy
-        additional_dependencies:
-          - types-PyYAML>=6.0
-        args:
-          - --ignore-missing-imports
-          - --no-strict-optional
-        exclude: ^tests/
-
-  - repo: https://github.com/PyCQA/bandit
-    rev: 1.8.0
-    hooks:
-      - id: bandit
-        args:
-          - -ll
-          - -ii
-          - --skip=B101,B311,B404,B603
-        exclude: ^tests/
-
-  - repo: https://github.com/pre-commit/pre-commit-hooks
-    rev: v5.0.0
-    hooks:
-      - id: trailing-whitespace
-      - id: end-of-file-fixer
-      - id: check-yaml
-        args: [--unsafe]
-      - id: check-json
-      - id: check-toml
-      - id: check-added-large-files
-        args: [--maxkb=5000]
-      - id: check-merge-conflict
-      - id: debug-statements
-      - id: mixed-line-ending
-        args: [--fix=lf]
+      - id: lint
+        name: Ruff lint
+        entry: make lint
+        language: system
+        pass_filenames: false
+        types: [python]
+      - id: format
+        name: Ruff format check
+        entry: make format-check
+        language: system
+        pass_filenames: false
+        types: [python]
+      - id: types
+        name: Mypy
+        entry: make type-check
+        language: system
+        pass_filenames: false
+        types: [python]
+      - id: file-size
+        name: Source file size (<650 lines)
+        entry: make file-size
+        language: system
+        pass_filenames: false
+        always_run: true
+      - id: workflows
+        name: GitHub Actions validation
+        entry: make workflow-check
+        language: system
+        pass_filenames: false
+        files: ^\.github/workflows/
+      - id: unit-tests
+        name: Unit tests and coverage
+        entry: make test-unit
+        language: system
+        pass_filenames: false
+        always_run: true
+        stages: [pre-push]
 
 default_install_hook_types: [pre-commit, pre-push]
 default_stages: [pre-commit]

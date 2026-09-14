@@ -7,6 +7,27 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+## [0.9.0] - 2026-09-14
+
+### Fixed
+- Docker build permission failure during unnecessary builder cleanup.
+- Vulnerable Python dependencies in the runtime, test, and documentation lockfile.
+- Refresh editable package metadata when the dynamically loaded version changes.
+
+### Changed
+- Share concise agent instructions across Codex, Claude Code, and Gemini CLI.
+- Enforce fewer than 650 physical lines in authored code, configuration, and templates.
+- Use locked dependencies and matching local/CI lint, format, type, workflow,
+  coverage, packaging, documentation, and dependency audit checks.
+- Test Python 3.10–3.14 and build/test containers on pull requests before publishing.
+- Reduce CI setup with targeted uv groups, one coverage run, cached tool environments,
+  and checks selected by changed files; keep stable gates for every pull request.
+- Preserve Docker tool layers across source changes, use locked application dependencies,
+  and avoid uploading large build caches from pull requests.
+- Replace placeholder integration tests with real tool and pipeline assertions;
+  expose documented scientific limitations as strict expected failures.
+
+
 ## [0.8.0] - 2026-04-07
 
 ### Fixed
@@ -128,7 +149,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 - Project scaffolding with uv, ruff, mypy, pytest, CI
 - Initial pipeline implementation
 
-[Unreleased]: https://github.com/berntpopp/open-pacmuci/compare/v0.6.0...HEAD
+[Unreleased]: https://github.com/berntpopp/open-pacmuci/compare/v0.9.0...HEAD
+[0.9.0]: https://github.com/berntpopp/open-pacmuci/compare/v0.8.0...v0.9.0
+[0.8.0]: https://github.com/berntpopp/open-pacmuci/compare/v0.6.0...v0.8.0
 [0.6.0]: https://github.com/berntpopp/open-pacmuci/compare/v0.5.0...v0.6.0
 [0.5.0]: https://github.com/berntpopp/open-pacmuci/compare/v0.4.0...v0.5.0
 [0.4.0]: https://github.com/berntpopp/open-pacmuci/compare/v0.3.0...v0.4.0

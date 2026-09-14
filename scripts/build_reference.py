@@ -7,7 +7,7 @@ from open_pacmuci.config import load_repeat_dictionary
 from open_pacmuci.ladder import generate_ladder_fasta
 
 
-def main():
+def main() -> None:
     rd = load_repeat_dictionary()
     output = Path("src/open_pacmuci/data/reference/reference_ladder.fa")
     print("Generating reference ladder (1-150 contigs, 500bp flanking)...")

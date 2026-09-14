@@ -10,8 +10,8 @@ authors:
 repository-code: "https://github.com/berntpopp/open-pacmuci"
 url: "https://berntpopp.github.io/open-pacmuci/"
 license: MIT
-version: "0.8.0"
-date-released: "2026-04-07"
+version: "0.9.0"
+date-released: "2026-09-14"
 keywords:
   - MUC1
   - VNTR

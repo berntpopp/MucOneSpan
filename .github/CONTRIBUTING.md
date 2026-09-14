@@ -1,188 +1,68 @@
 # Contributing to open-pacmuci
 
-Thank you for your interest in contributing to open-pacmuci, an open-source reconstruction of the PacMUCI pipeline for MUC1 VNTR analysis using PacBio HiFi data.
+Open-pacmuci analyzes MUC1 VNTR amplicons from PacBio HiFi and ONT sequencing.
+Shared repository conventions live in [AGENTS.md](../AGENTS.md); architecture,
+scientific contracts, and detailed commands live in
+[the developer guide](../docs/development.md).
 
-## Development Setup
+## Set up
 
-### 1. Clone the repository
+Install Python 3.10+ and [uv](https://docs.astral.sh/uv/), then:
 
 ```bash
 git clone https://github.com/berntpopp/open-pacmuci.git
 cd open-pacmuci
-```
-
-### 2. Install Python dependencies
-
-Requires Python 3.10+. We use [uv](https://github.com/astral-sh/uv) for dependency management:
-
-```bash
 make dev
+make hooks
+make ci-check
 ```
 
-This installs the package in editable mode along with all development dependencies (ruff, mypy, pytest, etc.).
+`make dev` installs the locked environment with all dependency groups and extras. `make hooks` installs
+pre-commit checks and a pre-push unit test gate using the same targets as CI.
+When changing dependencies, update `pyproject.toml`, run `make lock`, review
+`uv.lock`, and repeat `make dev`.
 
-### 3. Set up conda environments for external tools
+## Develop and validate
 
-The pipeline depends on external bioinformatics tools. Use the provided conda environment:
+- Keep changes focused and preserve CLI/output compatibility during refactors.
+- Use Ruff formatting, annotate changed Python APIs, and document public behavior.
+- Keep authored code, configuration, and templates below 650 physical lines
+  (maximum 649, including blanks and comments). Split by responsibility, retaining
+  public imports where needed. `make file-size` enforces the scope.
+- Add deterministic unit tests for changed behavior; mock external commands.
+  Use integration tests for actual tool behavior and report skips honestly.
+- Keep generated reads, tool indexes, benchmark results, and credentials untracked.
+- Run `make ci-check` before committing or pushing. This runs lint, formatting,
+  configured mypy, file-size and workflow checks, then unit tests with at least
+  80% branch-aware coverage.
 
-```bash
-# Main pipeline tools (minimap2, samtools, bcftools)
-conda env create -f conda/environment.yml
+Run additional checks relevant to the change:
 
-# PacBio-specific tools (pbsim3 for test data generation)
-conda install -c bioconda pbsim3
+| Change | Check |
+| --- | --- |
+| Documentation or CLI documentation | `make docs-check` |
+| Dependencies/security | `make security-check` |
+| Packaging, bundled data, or templates | `make build-check` |
+| Bioinformatics tool behavior | `make test-int` |
+| All portable checks before broad maintenance/release work | `make check` |
 
-# Clair3 variant calling (requires a separate environment)
-# Follow the official Clair3 installation instructions
-```
+Use `make test-fast` for rapid unit feedback. For external tools, create and
+activate `conda/environment.yml`; Clair3 and its model need separate setup.
+Simulation uses MucOneUp and pbsim3. See
+[benchmarking](../docs/guides/benchmarking.md) for prerequisites and commands.
+A green test command with skipped external tests does not validate those paths.
 
-Activate the relevant environments before running integration tests or the full pipeline.
+## Submit a pull request
 
-## Code Style
+Use a focused branch such as `feat/allele-detection`, `fix/vcf-coordinates`,
+`docs/development`, or `chore/tooling`. Prefer Conventional Commit messages such
+as `fix(mapping): preserve explicit alignment preset`.
 
-All contributions must pass the project's quality checks before review.
+Describe the concrete problem and resulting behavior, link related issues, and
+include actual validation results and remaining limitations. Update docs for
+workflow or user-facing changes and `CHANGELOG.md` under `[Unreleased]` when
+relevant. Preserve unrelated work and review the final diff before submission.
 
-### Linting and formatting
-
-We use [ruff](https://docs.astral.sh/ruff/) for both linting and formatting:
-
-```bash
-make lint      # Check for lint errors
-make format    # Auto-format code
-```
-
-Run `make check` to execute all quality checks at once (lint, format check, type check).
-
-### Type checking
-
-[mypy](https://mypy.readthedocs.io/) is used for static type analysis:
-
-```bash
-make type-check
-```
-
-**All new code must include type hints.** Untyped functions will fail the type check.
-
-### Docstrings
-
-Use [Google-style docstrings](https://google.github.io/styleguide/pyguide.html#38-comments-and-docstrings) for all public functions, classes, and modules:
-
-```python
-def classify_repeat(sequence: str, repeats: dict) -> str:
-    """Classify a 60 bp repeat unit using Vrbacka nomenclature.
-
-    Args:
-        sequence: The 60 bp nucleotide sequence to classify.
-        repeats: Dictionary mapping repeat type names to their sequences.
-
-    Returns:
-        The repeat type label (e.g., "A", "B", "pre1").
-
-    Raises:
-        ValueError: If the sequence length is not exactly 60 bp.
-    """
-```
-
-## Testing
-
-### Unit tests (no external tools required)
-
-```bash
-make test-fast
-# or equivalently:
-uv run pytest tests/unit/ --no-cov
-```
-
-Unit tests must not depend on bwa, samtools, Clair3, bcftools, or any other external binary. Mock or stub any external tool calls.
-
-### Full test suite with coverage
-
-```bash
-make test
-```
-
-**Coverage must not decrease.** Pull requests that reduce test coverage will be asked to add tests before merging.
-
-### Integration tests
-
-Integration tests require minimap2, samtools, and pbsim3 to be installed and on `PATH`. They use simulated PacBio HiFi amplicon reads generated by [MucOneUp](https://github.com/berntpopp/muconeup).
-
-```bash
-export PATH="/path/to/env_pacbio/bin:$PATH"
-uv run pytest tests/integration/ -v --no-cov
-```
-
-For details on generating test data and the full test data catalog, see [`.planning/TESTING_WITH_MUCONEUP.md`](../.planning/TESTING_WITH_MUCONEUP.md).
-
-### Writing new tests
-
-- Place unit tests under `tests/unit/`, mirroring the source module structure.
-- Place integration tests under `tests/integration/`.
-- Name test files `test_<module>.py` and test functions `test_<behavior>`.
-- Every new feature or bug fix should include at least one new test.
-
-## Pull Request Process
-
-### Branch naming
-
-Use one of the following prefixes:
-
-| Prefix    | Purpose                                      |
-|-----------|----------------------------------------------|
-| `feat/`   | New feature or capability                    |
-| `fix/`    | Bug fix                                      |
-| `docs/`   | Documentation-only changes                   |
-| `chore/`  | Maintenance, dependency updates, tooling     |
-| `test/`   | Adding or improving tests without changing code |
-
-Example: `feat/improve-peak-detection`, `fix/chimeric-read-filter`.
-
-### Commit messages
-
-Follow [Conventional Commits](https://www.conventionalcommits.org/):
-
-```
-<type>(<optional scope>): <short description>
-
-[optional body]
-
-[optional footer(s)]
-```
-
-Types: `feat`, `fix`, `docs`, `chore`, `test`, `refactor`, `perf`, `ci`.
-
-Examples:
-```
-feat(alleles): add indel-valley splitting for close allele pairs
-fix(mapping): handle missing index file gracefully
-docs: clarify VNTR repeat unit classification in README
-```
-
-### Before opening a PR
-
-1. Run `make check` and ensure all checks pass.
-2. Run `make test-fast` (unit tests) and confirm nothing is broken.
-3. Add or update tests to cover your changes.
-4. Update `CHANGELOG.md` under the `[Unreleased]` section, following [Keep a Changelog](https://keepachangelog.com/) format.
-5. Ensure your branch is up to date with `main`.
-
-### PR description
-
-Include:
-- A summary of what the PR changes and why.
-- Reference to any related issue (`Closes #123`).
-- Notes on test coverage additions.
-- Any known limitations or follow-up work.
-
-## Integration Test Data
-
-Test data generation uses [MucOneUp](https://github.com/berntpopp/muconeup) to simulate PacBio HiFi amplicon reads with known ground truth alleles and mutations. The full procedure, including prerequisites, sample catalog, and batch analysis instructions, is documented in [`.planning/TESTING_WITH_MUCONEUP.md`](../.planning/TESTING_WITH_MUCONEUP.md).
-
-## Questions
-
-If you have a question, found a bug, or want to discuss a new feature:
-
-- **Open an issue** on GitHub for bug reports and feature requests.
-- **Start a discussion** in the GitHub Discussions tab for questions, ideas, or general conversation about the project.
-
-Please search existing issues and discussions before opening a new one.
+Plans belong in `.planning/`, with completed plans in `.planning/archive/`.
+Questions and bug reports belong in GitHub issues or discussions; search for
+existing reports first.

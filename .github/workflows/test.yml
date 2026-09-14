@@ -2,74 +2,114 @@ name: Test & Quality
 
 on:
   push:
-    branches: [main, dev, dev/*]
+    branches: [main, dev, 'dev/*']
   pull_request:
-    branches: [main, dev]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: test-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
 
 env:
-  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
+  UV_VERSION: '0.11.28'
 
 jobs:
   quality:
     name: Code Quality Checks
-    runs-on: ubuntu-latest
-
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    permissions:
+      contents: read
+      pull-requests: read
+    outputs:
+      runtime: ${{ steps.changes.outputs.runtime }}
+      package: ${{ steps.changes.outputs.package }}
+      dependencies: ${{ steps.changes.outputs.dependencies }}
     steps:
-      - uses: actions/checkout@v7
-
-      - name: Set up Python
-        uses: actions/setup-python@v6
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+      # Filter jobs, not workflow triggers: CI Gate must report on every PR base.
+      # Pushes and manual runs always exercise the complete suite.
+      - uses: dorny/paths-filter@ceb8a2b8f2d89434be7ff52d3de7ec3738c5cc9d # v4
+        if: github.event_name == 'pull_request'
+        id: changes
         with:
-          python-version: "3.10"
-
-      - name: Install uv
-        uses: astral-sh/setup-uv@v7
+          filters: |
+            runtime:
+              - 'src/**'
+              - 'tests/**'
+              - 'scripts/**'
+              - 'conda/**'
+              - 'pyproject.toml'
+              - 'uv.lock'
+              - 'requirements*.txt'
+              - 'requirements/**'
+              - '.python-version'
+              - 'Makefile'
+              - '.github/workflows/**'
+              - '.github/actions/**'
+              - '.pre-commit-config.yaml'
+            package:
+              - 'src/**'
+              - 'scripts/**'
+              - 'pyproject.toml'
+              - 'uv.lock'
+              - 'requirements*.txt'
+              - 'requirements/**'
+              - '.python-version'
+              - 'Makefile'
+              - 'README.md'
+              - 'LICENSE*'
+              - '.github/workflows/**'
+              - '.github/actions/**'
+            dependencies:
+              - 'pyproject.toml'
+              - 'uv.lock'
+              - 'requirements*.txt'
+              - 'requirements/**'
+              - '.python-version'
+              - 'Makefile'
+              - 'src/open_pacmuci/version.py'
+              - '.github/workflows/**'
+              - '.github/actions/**'
+      - uses: astral-sh/setup-uv@bec219d24cd3e171d82865faccec33120bb574f4 # v10.1.0
         with:
-          version: "latest"
-
-      - name: Install dependencies
-        run: uv pip install --system -e ".[dev]"
-
-      - name: Run ruff linter
-        run: ruff check src/open_pacmuci/ tests/
-
-      - name: Run ruff formatter check
-        run: ruff format --check src/open_pacmuci/ tests/
-
-      - name: Check types with mypy
-        run: mypy src/open_pacmuci/
+          version: ${{ env.UV_VERSION }}
+          python-version: '3.10'
+          enable-cache: true
+          cache-dependency-glob: uv.lock
+          cache-suffix: quality
+      - run: make quality
 
   test:
-    name: Test Suite
-    runs-on: ${{ matrix.os }}
+    name: Test Suite (Python ${{ matrix.python }})
+    needs: quality
+    if: github.event_name != 'pull_request' || needs.quality.outputs.runtime == 'true'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
     strategy:
       fail-fast: false
       matrix:
-        os: [ubuntu-latest]
-        python-version: ["3.10", "3.11", "3.12"]
-
+        python: ['3.10', '3.11', '3.12', '3.13', '3.14']
     steps:
-      - uses: actions/checkout@v7
-
-      - name: Set up Python ${{ matrix.python-version }}
-        uses: actions/setup-python@v6
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+      - uses: astral-sh/setup-uv@bec219d24cd3e171d82865faccec33120bb574f4 # v10.1.0
         with:
-          python-version: ${{ matrix.python-version }}
-
-      - name: Install uv
-        uses: astral-sh/setup-uv@v7
-        with:
-          version: "latest"
-
-      - name: Install dependencies
-        run: uv pip install --system -e ".[dev]"
-
-      - name: Run unit tests with coverage
-        run: pytest tests/unit/ --cov=open_pacmuci --cov-report=xml --cov-report=term-missing --cov-fail-under=80
-
-      - name: Upload coverage to Codecov
-        if: matrix.python-version == '3.10'
-        uses: codecov/codecov-action@v7
+          version: ${{ env.UV_VERSION }}
+          python-version: ${{ matrix.python }}
+          enable-cache: true
+          cache-dependency-glob: uv.lock
+          cache-suffix: test-${{ matrix.python }}
+      # Measure coverage on the fastest supported interpreter; all versions run every unit.
+      - if: matrix.python == '3.14'
+        run: make test-unit
+      - if: matrix.python != '3.14'
+        run: make test-fast
+      - name: Upload coverage
+        if: matrix.python == '3.14'
+        uses: codecov/codecov-action@fb8b3582c8e4def4969c97caa2f19720cb33a72f # v7
         with:
           token: ${{ secrets.CODECOV_TOKEN }}
           files: ./coverage.xml
@@ -78,35 +118,99 @@ jobs:
 
   integration:
     name: Integration Tests
-    runs-on: ubuntu-latest
-    needs: test
-    # Integration tests require bioinformatics tools via conda;
-    # allow failure so unit test results are not blocked.
-    continue-on-error: true
-
+    needs: quality
+    if: github.event_name != 'pull_request' || needs.quality.outputs.runtime == 'true'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 15
     steps:
-      - uses: actions/checkout@v7
-
-      - name: Set up conda
-        uses: conda-incubator/setup-miniconda@v4
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+      # Restore the solved environment; its file/spec hash is appended by the action.
+      - uses: mamba-org/setup-micromamba@f457c30a868e4760d3a6fcea5f25dc655b8edf39 # v3
         with:
-          channels: conda-forge,bioconda,defaults
-          activate-environment: open-pacmuci-tools
+          micromamba-version: '2.9.0-0'
           environment-file: conda/environment.yml
-
-      - name: Install uv
-        uses: astral-sh/setup-uv@v7
+          condarc: |
+            channel_priority: strict
+          cache-environment: true
+          cache-environment-key: integration-ubuntu24-micromamba2.9
+          cache-downloads: false
+          init-shell: bash
+      - uses: astral-sh/setup-uv@bec219d24cd3e171d82865faccec33120bb574f4 # v10.1.0
         with:
-          version: "latest"
-
-      - name: Install package
+          version: ${{ env.UV_VERSION }}
+          python-version: '3.10'
+          enable-cache: true
+          cache-dependency-glob: uv.lock
+          cache-suffix: integration
+      - name: Verify tools and run integration tests
         shell: bash -el {0}
         run: |
-          conda activate open-pacmuci-tools
-          uv pip install --system -e ".[dev]"
+          minimap2 --version
+          samtools --version
+          bcftools --version
+          make test-int
 
-      - name: Run integration tests
-        shell: bash -el {0}
+  package:
+    name: Package Build
+    needs: quality
+    if: github.event_name != 'pull_request' || needs.quality.outputs.package == 'true'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+      - uses: astral-sh/setup-uv@bec219d24cd3e171d82865faccec33120bb574f4 # v10.1.0
+        with:
+          version: ${{ env.UV_VERSION }}
+          python-version: '3.12'
+          enable-cache: true
+          cache-dependency-glob: uv.lock
+          cache-suffix: package
+      - run: make build-check
+
+  security:
+    name: Dependency Audit
+    needs: quality
+    if: github.event_name != 'pull_request' || needs.quality.outputs.dependencies == 'true'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 10
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+      - uses: astral-sh/setup-uv@bec219d24cd3e171d82865faccec33120bb574f4 # v10.1.0
+        with:
+          version: ${{ env.UV_VERSION }}
+          python-version: '3.10'
+          enable-cache: true
+          cache-dependency-glob: uv.lock
+          cache-suffix: security
+      - run: make security-check
+
+  gate:
+    name: CI Gate
+    if: always()
+    needs: [quality, test, integration, package, security]
+    runs-on: ubuntu-24.04
+    timeout-minutes: 2
+    steps:
+      - name: Require every applicable check to pass
+        env:
+          QUALITY: ${{ needs.quality.result }}
+          TEST: ${{ needs.test.result }}
+          INTEGRATION: ${{ needs.integration.result }}
+          PACKAGE: ${{ needs.package.result }}
+          SECURITY: ${{ needs.security.result }}
+          RUNTIME_REQUIRED: ${{ github.event_name != 'pull_request' || needs.quality.outputs.runtime == 'true' }}
+          PACKAGE_REQUIRED: ${{ github.event_name != 'pull_request' || needs.quality.outputs.package == 'true' }}
+          SECURITY_REQUIRED: ${{ github.event_name != 'pull_request' || needs.quality.outputs.dependencies == 'true' }}
         run: |
-          conda activate open-pacmuci-tools
-          pytest tests/integration/ -m "integration" --no-cov -v
+          test "$QUALITY" = success
+          check_result() {
+            if [ "$1" = true ]; then
+              test "$2" = success
+            else
+              test "$2" = skipped || test "$2" = success
+            fi
+          }
+          check_result "$RUNTIME_REQUIRED" "$TEST"
+          check_result "$RUNTIME_REQUIRED" "$INTEGRATION"
+          check_result "$PACKAGE_REQUIRED" "$PACKAGE"
+          check_result "$SECURITY_REQUIRED" "$SECURITY"

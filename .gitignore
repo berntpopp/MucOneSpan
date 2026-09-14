@@ -51,3 +51,6 @@ tests/data/generated/
 
 # MkDocs build output
 site/
+
+# Temporary requirements for the locked dependency audit
+.audit-requirements.txt
