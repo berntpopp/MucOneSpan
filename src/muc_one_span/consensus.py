@@ -5,8 +5,8 @@ from __future__ import annotations
 import logging
 from pathlib import Path
 
-from open_pacmuci.config import RepeatDictionary
-from open_pacmuci.tools import run_tool
+from muc_one_span.config import RepeatDictionary
+from muc_one_span.tools import run_tool
 
 logger = logging.getLogger(__name__)
 
@@ -159,7 +159,7 @@ def build_consensus_per_allele(
         reference_path: Path to the full ladder reference FASTA.
         vcf_paths: Mapping from allele key (e.g. ``"allele_1"``) to VCF path.
         alleles: Allele detection result from
-            :func:`~open_pacmuci.alleles.detect_alleles`.
+            :func:`~muc_one_span.alleles.detect_alleles`.
         output_dir: Base output directory for consensus files.
         flank_length: Flanking sequence length used in ladder generation.
 

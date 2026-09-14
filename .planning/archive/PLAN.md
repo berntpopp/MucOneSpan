@@ -1,14 +1,14 @@
-# open-pacmuci Implementation Plan
+# MucOneSpan Implementation Plan
 
-**Project:** Open-source reconstruction of the PacMUCI pipeline (Vrbacka et al. 2025)
+**Project:** Open-source reconstruction of the workflow described by Vrbacka et al. (2025)
 **Date:** 2026-04-06
 **Status:** Planning
 
 ## Background
 
-PacMUCI is a bioinformatics pipeline described in Vrbacka et al. 2025 (bioRxiv: 10.1101/2025.09.06.673538) for analyzing PacBio SMRT (CCS/HiFi) sequencing data of PCR amplicons spanning the MUC1 VNTR. The pipeline determines allele lengths, constructs consensus sequences, identifies repeat unit types, and detects frameshift mutations.
+The workflow described by Vrbacka et al. (2025) is a bioinformatics pipeline (bioRxiv: 10.1101/2025.09.06.673538) for analyzing PacBio SMRT (CCS/HiFi) sequencing data of PCR amplicons spanning the MUC1 VNTR. The pipeline determines allele lengths, constructs consensus sequences, identifies repeat unit types, and detects frameshift mutations.
 
-**The original PacMUCI source code was not published.** This project reconstructs the pipeline from the methods description as an open-source, containerized tool.
+**Source code for the workflow described by Vrbacka et al. was not published.** This project reconstructs the pipeline from the methods description as an open-source, containerized tool.
 
 ## Pipeline Architecture
 
@@ -133,7 +133,7 @@ Output: Allele lengths, mutations detected, repeat structure, consensus FASTA
 **Goal:** Usable command-line tool with Docker support.
 
 **Details:**
-- Click-based CLI: `open-pacmuci run --input reads.bam --output results/`
+- Click-based CLI: `muconespan run --input reads.bam --output results/`
 - Configuration via YAML or JSON
 - Docker/Singularity container with all dependencies
 - Conda environment.yml
@@ -163,12 +163,12 @@ Output: Allele lengths, mutations detected, repeat structure, consensus FASTA
 ## Repository Structure
 
 ```
-open-pacmuci/
+MucOneSpan/
 ├── .planning/
 │   ├── PLAN.md                    # This file
 │   └── TESTING_WITH_MUCONEUP.md   # Test data generation guide
 ├── src/
-│   └── open_pacmuci/
+│   └── muc_one_span/
 │       ├── __init__.py
 │       ├── cli.py                 # Click CLI
 │       ├── reference.py           # Ladder reference generation

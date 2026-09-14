@@ -1,14 +1,16 @@
-# open-pacmuci
+# MucOneSpan
 
-**Open-source MUC1 VNTR analysis pipeline for PacBio HiFi amplicon data**
+**Open-source MUC1 VNTR analysis pipeline for PacBio HiFi and ONT amplicon data**
 
 ---
 
-## What is open-pacmuci?
+## What is MucOneSpan?
 
-open-pacmuci is an open-source reconstruction of the PacMUCI bioinformatics pipeline (Vrbacka et al. 2025) for analyzing PacBio HiFi long-read sequencing data of the MUC1 VNTR region. The original pipeline source code was never released; this project rebuilds it from the published methods and extends it with several algorithmic improvements including **indel-valley allele splitting**, **mutation template matching**, and **per-repeat confidence scoring**.
+MucOneSpan analyzes MUC1 VNTR long-read amplicon data from PacBio HiFi and ONT sequencing. It implements and extends the methods described by Vrbacka et al. (2025), including **indel-valley allele splitting**, **mutation template matching**, and **per-repeat confidence scoring**.
 
-### Why open-pacmuci?
+The current release is **0.10.0**. Install the Python package `muc_one_span` and run the `muconespan` command. See the [installation guide](getting-started/installation.md) and [software citation](about/citation.md).
+
+### Why MucOneSpan?
 
 **Detect frameshift mutations** in the MUC1 VNTR that cause ADTKD-MUC1 kidney disease
 **Resolve allele pairs** even when they differ by only 3-9 repeat units (indel-valley splitting)
@@ -49,7 +51,7 @@ Clair3 variant calls are cross-referenced against repeat classifications to adju
 ## Quick Example
 
 ```bash
-open-pacmuci run \
+muconespan run \
   --input reads.fastq \
   --output-dir results/ \
   --clair3-model /path/to/clair3/models/hifi \
@@ -82,10 +84,10 @@ open-pacmuci run \
 
 ## Citation
 
-If you use open-pacmuci, please cite:
+If you use MucOneSpan, please cite:
 
 ```bibtex
-@article{vrbacka2025pacmuci,
+@article{vrbacka2025muc1,
   author = {Vrbacka, A. and Pristoupilova, A. and Kidd, K.O. and others},
   title = {Long-Read Sequencing of the MUC1 VNTR: Genomic Variation,
            Mutational Landscape, and Its Impact on ADTKD Diagnosis

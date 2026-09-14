@@ -7,8 +7,8 @@ from pathlib import Path
 
 import pytest
 
-from open_pacmuci.calling import extract_allele_reads, run_clair3
-from open_pacmuci.vcf import filter_vcf
+from muc_one_span.calling import extract_allele_reads, run_clair3
+from muc_one_span.vcf import filter_vcf
 from tests.conftest import requires_bcftools, requires_clair3, requires_samtools
 
 

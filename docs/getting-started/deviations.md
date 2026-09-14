@@ -1,12 +1,12 @@
-# Deviations from PacMUCI
+# Differences from the Published Method
 
-open-pacmuci follows the architecture described in Vrbacka et al. 2025 (Figure 1) but makes several deliberate changes to improve accuracy, reproducibility, and usability.
+MucOneSpan follows the architecture described in Vrbacka et al. 2025 (Figure 1) but makes several deliberate changes to improve accuracy, reproducibility, and usability.
 
 ---
 
 ## Comparison Table
 
-| Aspect | PacMUCI (Vrbacka et al.) | open-pacmuci | Rationale |
+| Aspect | Published method (Vrbacka et al.) | MucOneSpan | Rationale |
 |--------|--------------------------|--------------|-----------|
 | **Read mapper** | bwa-mem 0.7.16a | minimap2 2.28+ | minimap2 is the standard for long-read alignment; faster and more accurate for HiFi data |
 | **Reference ladder** | 120 contigs (1-120 X repeats) | 150 contigs (1-150 X repeats) | Covers the full observed VNTR length range (Vrbacka reports alleles up to 125 repeats) |
@@ -25,7 +25,7 @@ open-pacmuci follows the architecture described in Vrbacka et al. 2025 (Figure 1
 
 ### Read Mapper: bwa-mem to minimap2
 
-The original PacMUCI used **bwa-mem 0.7.16a**, which was designed for short reads. While bwa-mem can align long reads, **minimap2** is the community standard for PacBio HiFi data. It is faster, produces more accurate alignments for reads >1kb, and handles the high GC content of the MUC1 VNTR more reliably.
+The workflow described by Vrbacka et al. used **bwa-mem 0.7.16a**, which was designed for short reads. While bwa-mem can align long reads, **minimap2** is the community standard for PacBio HiFi data. It is faster, produces more accurate alignments for reads >1kb, and handles the high GC content of the MUC1 VNTR more reliably.
 
 ### Reference Ladder: 120 to 150 Contigs
 
@@ -33,21 +33,21 @@ Vrbacka et al. report alleles with up to 125 repeat units. The original ladder (
 
 ### Variant Caller: Clair + Clair3 to Clair3 Only
 
-The original pipeline used both **Clair** (deprecated) and **Clair3**. Since Clair3 subsumes Clair's functionality with improved deep neural network models specifically trained for HiFi data, open-pacmuci uses Clair3 exclusively.
+The original pipeline used both **Clair** (deprecated) and **Clair3**. Since Clair3 subsumes Clair's functionality with improved deep neural network models specifically trained for HiFi data, MucOneSpan uses Clair3 exclusively.
 
 ### Read Filtering: Manual to Automated
 
-The original PacMUCI required **manual IGV inspection** to identify chimeric and incomplete reads. This is not reproducible and does not scale. open-pacmuci automates this by extracting reads per allele cluster and remapping them to the peak contig, eliminating the need for visual inspection.
+The workflow described by Vrbacka et al. required **manual IGV inspection** to identify chimeric and incomplete reads. This is not reproducible and does not scale. MucOneSpan automates this by extracting reads per allele cluster and remapping them to the peak contig, eliminating the need for visual inspection.
 
 ### Allele Detection: peaks.py to Indel-Valley
 
 The original `peaks.py` script (unpublished) detected allele lengths from the idxstats read count distribution. When alleles are far apart (>10 repeats), this works well. For close alleles, the read distributions overlap and simple peak-finding fails.
 
-**Indel-valley splitting** is the key algorithmic innovation in open-pacmuci. It analyzes CIGAR indel lengths to identify two local minima in the indel series, resolving allele pairs as close as 3 repeats apart. See [Core Concepts](concepts.md#indel-valley-splitting) for details.
+**Indel-valley splitting** is the key algorithmic innovation in MucOneSpan. It analyzes CIGAR indel lengths to identify two local minima in the indel series, resolving allele pairs as close as 3 repeats apart. See [Core Concepts](concepts.md#indel-valley-splitting) for details.
 
 ### Mutation Detection: Scripts to Template Catalog
 
-The original mutation detection used unpublished Python scripts. open-pacmuci pre-computes the exact sequence of each known repeat type after each known mutation is applied. This enables **O(1) exact-match lookup** for the 13 most common mutations, with edit-distance fallback for novel mutations.
+The original mutation detection used unpublished Python scripts. MucOneSpan pre-computes the exact sequence of each known repeat type after each known mutation is applied. This enables **O(1) exact-match lookup** for the 13 most common mutations, with edit-distance fallback for novel mutations.
 
 ### Flanking Trim: Fixed to Anchor-Based
 
@@ -55,11 +55,11 @@ Fixed-position flanking trim assumes the flanking region is invariant. In practi
 
 ### Same-Length Alleles: Homozygous Assumption to Het Detection
 
-When both alleles have the same repeat count, the original PacMUCI treated them as homozygous and skipped Clair3. open-pacmuci instead runs Clair3 and examines **heterozygous genotype calls** to detect compound heterozygotes where both alleles are the same length but carry different mutations.
+When both alleles have the same repeat count, the workflow described by Vrbacka et al. treated them as homozygous and skipped Clair3. MucOneSpan instead runs Clair3 and examines **heterozygous genotype calls** to detect compound heterozygotes where both alleles are the same length but carry different mutations.
 
 ### Confidence Scoring: None to Per-Repeat Scores
 
-The original pipeline did not report confidence. open-pacmuci assigns a score (0.0-1.0) to each classified repeat unit based on match quality. VCF cross-validation adjusts scores when Clair3 variants confirm or contradict the classification. This enables automated QC filtering.
+The original pipeline did not report confidence. MucOneSpan assigns a score (0.0-1.0) to each classified repeat unit based on match quality. VCF cross-validation adjusts scores when Clair3 variants confirm or contradict the classification. This enables automated QC filtering.
 
 ---
 

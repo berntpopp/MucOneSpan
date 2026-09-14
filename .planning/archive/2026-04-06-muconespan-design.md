@@ -1,4 +1,4 @@
-# open-pacmuci Design Specification
+# MucOneSpan Design Specification
 
 **Date:** 2026-04-06
 **Status:** Approved
@@ -6,7 +6,7 @@
 
 ## Overview
 
-Open-source reconstruction of the PacMUCI pipeline (Vrbacka et al. 2025, bioRxiv: 10.1101/2025.09.06.673538) for analyzing PacBio HiFi sequencing data of PCR amplicons spanning the MUC1 VNTR region. The original PacMUCI source code was not published; this project reconstructs the pipeline from the methods description.
+Open-source reconstruction of the workflow described by Vrbacka et al. (2025, bioRxiv: 10.1101/2025.09.06.673538) for analyzing PacBio HiFi sequencing data of PCR amplicons spanning the MUC1 VNTR region. Source code for the workflow described by Vrbacka et al. was not published; this project reconstructs the pipeline from the methods description.
 
 ## Approach
 
@@ -14,7 +14,7 @@ Thin wrapper architecture: each pipeline stage is a small Python module that val
 
 ## Documented Deviations from Vrbacka et al.
 
-| Aspect | Vrbacka (PacMUCI) | open-pacmuci | Rationale |
+| Aspect | Published method (Vrbacka et al.) | MucOneSpan | Rationale |
 |--------|-------------------|--------------|-----------|
 | Read mapper | bwa-mem 0.7.16a | minimap2 (map-hifi preset) | Faster, better HiFi support, standard for PacBio HiFi |
 | Ladder range | 1-120 contigs | 1-150 contigs | Cover potential outliers beyond typical 20-125 repeat range |
@@ -22,8 +22,8 @@ Thin wrapper architecture: each pipeline stage is a small Python module that val
 ## Project Structure
 
 ```
-open-pacmuci/
-├── src/open_pacmuci/
+MucOneSpan/
+├── src/muc_one_span/
 │   ├── __init__.py
 │   ├── version.py
 │   ├── cli.py                 # Click CLI with subcommands
@@ -70,7 +70,7 @@ Mirrors the MucOneUp project:
 ## CLI Design
 
 ```
-open-pacmuci <subcommand> [options]
+muconespan <subcommand> [options]
 ```
 
 ### Subcommands

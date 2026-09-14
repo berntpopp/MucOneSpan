@@ -14,13 +14,13 @@
 
 | File | Responsibility | Tasks |
 |------|---------------|-------|
-| `src/open_pacmuci/data/repeats/repeats.json` | Repeat + mutation definitions | 1 |
-| `src/open_pacmuci/config.py` | Load repeat dictionary + pre-compute mutated sequences | 1 |
-| `src/open_pacmuci/classify.py` | Classification with confidence, templates, bidirectional | 2, 3, 5, 8 |
-| `src/open_pacmuci/calling.py` | VCF quality filters + same-length disambiguation | 4, 7 |
-| `src/open_pacmuci/consensus.py` | Anchor-based flanking trim | 6 |
-| `src/open_pacmuci/alleles.py` | Same-length allele detection | 7 |
-| `src/open_pacmuci/cli.py` | Wire new features into CLI | 7 |
+| `src/muc_one_span/data/repeats/repeats.json` | Repeat + mutation definitions | 1 |
+| `src/muc_one_span/config.py` | Load repeat dictionary + pre-compute mutated sequences | 1 |
+| `src/muc_one_span/classify.py` | Classification with confidence, templates, bidirectional | 2, 3, 5, 8 |
+| `src/muc_one_span/calling.py` | VCF quality filters + same-length disambiguation | 4, 7 |
+| `src/muc_one_span/consensus.py` | Anchor-based flanking trim | 6 |
+| `src/muc_one_span/alleles.py` | Same-length allele detection | 7 |
+| `src/muc_one_span/cli.py` | Wire new features into CLI | 7 |
 | `tests/unit/test_config.py` | Test mutation loading | 1 |
 | `tests/unit/test_classify.py` | Test confidence, templates, bidirectional | 2, 3, 5, 8 |
 | `tests/unit/test_calling.py` | Test VCF filters | 4 |
@@ -32,8 +32,8 @@
 ### Task 1: Add mutation catalog to repeat dictionary
 
 **Files:**
-- Modify: `src/open_pacmuci/data/repeats/repeats.json`
-- Modify: `src/open_pacmuci/config.py`
+- Modify: `src/muc_one_span/data/repeats/repeats.json`
+- Modify: `src/muc_one_span/config.py`
 - Modify: `tests/unit/test_config.py`
 
 - [ ] **Step 1: Write test for mutation loading**
@@ -97,7 +97,7 @@ Expected: FAIL -- `mutations` attribute does not exist on RepeatDictionary
 
 - [ ] **Step 3: Add mutations section to repeats.json**
 
-Add the 13 real mutations from MucOneUp `config.json` to `src/open_pacmuci/data/repeats/repeats.json`. Add a `"mutations"` key at the top level, after `"canonical_repeat"`. Only include mutations with `"type": "real"` (exclude synthetic test mutations).
+Add the 13 real mutations from MucOneUp `config.json` to `src/muc_one_span/data/repeats/repeats.json`. Add a `"mutations"` key at the top level, after `"canonical_repeat"`. Only include mutations with `"type": "real"` (exclude synthetic test mutations).
 
 ```json
   "mutations": {
@@ -271,7 +271,7 @@ Expected: All PASS (existing tests may need minor updates if RepeatDictionary co
 - [ ] **Step 7: Commit**
 
 ```bash
-git add src/open_pacmuci/data/repeats/repeats.json src/open_pacmuci/config.py tests/unit/test_config.py
+git add src/muc_one_span/data/repeats/repeats.json src/muc_one_span/config.py tests/unit/test_config.py
 git commit -m "feat: add known MUC1 mutation catalog with pre-computed templates"
 ```
 
@@ -280,7 +280,7 @@ git commit -m "feat: add known MUC1 mutation catalog with pre-computed templates
 ### Task 2: Add confidence scoring to classify.py
 
 **Files:**
-- Modify: `src/open_pacmuci/classify.py`
+- Modify: `src/muc_one_span/classify.py`
 - Modify: `tests/unit/test_classify.py`
 
 - [ ] **Step 1: Write tests for confidence scoring**
@@ -339,7 +339,7 @@ Expected: FAIL -- `confidence` key not in result
 
 - [ ] **Step 3: Add confidence to classify_repeat()**
 
-In `src/open_pacmuci/classify.py`, modify `classify_repeat()`:
+In `src/muc_one_span/classify.py`, modify `classify_repeat()`:
 
 For exact matches, add `"confidence": 1.0` to the return dict.
 
@@ -384,7 +384,7 @@ Expected: All PASS
 - [ ] **Step 6: Commit**
 
 ```bash
-git add src/open_pacmuci/classify.py tests/unit/test_classify.py
+git add src/muc_one_span/classify.py tests/unit/test_classify.py
 git commit -m "feat: add per-repeat confidence scoring and allele summary metrics"
 ```
 
@@ -393,7 +393,7 @@ git commit -m "feat: add per-repeat confidence scoring and allele summary metric
 ### Task 3: Exact-match-first probing with mutation templates
 
 **Files:**
-- Modify: `src/open_pacmuci/classify.py`
+- Modify: `src/muc_one_span/classify.py`
 - Modify: `tests/unit/test_classify.py`
 
 - [ ] **Step 1: Write tests for mutation template matching**
@@ -458,7 +458,7 @@ Expected: FAIL -- mutation templates not checked
 
 - [ ] **Step 3: Update classify_repeat() to check mutation templates**
 
-Modify `classify_repeat()` in `src/open_pacmuci/classify.py`:
+Modify `classify_repeat()` in `src/muc_one_span/classify.py`:
 
 ```python
 def classify_repeat(
@@ -551,7 +551,7 @@ Expected: All PASS
 - [ ] **Step 6: Commit**
 
 ```bash
-git add src/open_pacmuci/classify.py tests/unit/test_classify.py
+git add src/muc_one_span/classify.py tests/unit/test_classify.py
 git commit -m "feat: exact-match-first probing with mutation templates (fixes #2 for known mutations)"
 ```
 
@@ -560,7 +560,7 @@ git commit -m "feat: exact-match-first probing with mutation templates (fixes #2
 ### Task 4: Strengthen VCF quality filters
 
 **Files:**
-- Modify: `src/open_pacmuci/calling.py`
+- Modify: `src/muc_one_span/calling.py`
 - Modify: `tests/unit/test_calling.py`
 
 - [ ] **Step 1: Write test for VCF quality filtering**
@@ -571,7 +571,7 @@ Add to `tests/unit/test_calling.py`:
 class TestFilterVcfQuality:
     """Tests for VCF quality filter parameters."""
 
-    @patch("open_pacmuci.calling.run_tool", return_value="")
+    @patch("muc_one_span.calling.run_tool", return_value="")
     def test_filter_vcf_includes_quality_expression(self, mock_run_tool, tmp_path):
         """filter_vcf passes QUAL and DP filter to bcftools view."""
         vcf = tmp_path / "input.vcf.gz"
@@ -594,7 +594,7 @@ class TestFilterVcfQuality:
         assert "QUAL" in expr
         assert "DP" in expr
 
-    @patch("open_pacmuci.calling.run_tool", return_value="")
+    @patch("muc_one_span.calling.run_tool", return_value="")
     def test_filter_vcf_default_params(self, mock_run_tool, tmp_path):
         """filter_vcf works with default parameters (backward compatible)."""
         vcf = tmp_path / "input.vcf.gz"
@@ -613,7 +613,7 @@ Expected: FAIL -- `filter_vcf()` does not accept `min_qual`/`min_dp`
 
 - [ ] **Step 3: Add quality parameters to filter_vcf()**
 
-Modify `filter_vcf()` in `src/open_pacmuci/calling.py`:
+Modify `filter_vcf()` in `src/muc_one_span/calling.py`:
 
 ```python
 def filter_vcf(
@@ -666,7 +666,7 @@ Expected: All PASS
 - [ ] **Step 6: Commit**
 
 ```bash
-git add src/open_pacmuci/calling.py tests/unit/test_calling.py
+git add src/muc_one_span/calling.py tests/unit/test_calling.py
 git commit -m "feat: add VCF quality filters (QUAL, DP) to reduce false positives (fixes #3)"
 ```
 
@@ -675,7 +675,7 @@ git commit -m "feat: add VCF quality filters (QUAL, DP) to reduce false positive
 ### Task 5: VCF-backed mutation validation
 
 **Files:**
-- Modify: `src/open_pacmuci/classify.py`
+- Modify: `src/muc_one_span/classify.py`
 - Modify: `tests/unit/test_classify.py`
 
 - [ ] **Step 1: Write tests for VCF validation**
@@ -683,7 +683,7 @@ git commit -m "feat: add VCF quality filters (QUAL, DP) to reduce false positive
 Add to `tests/unit/test_classify.py`:
 
 ```python
-from open_pacmuci.classify import validate_mutations_against_vcf
+from muc_one_span.classify import validate_mutations_against_vcf
 
 
 class TestVcfMutationValidation:
@@ -735,7 +735,7 @@ Expected: FAIL -- `validate_mutations_against_vcf` not found
 
 - [ ] **Step 3: Implement validate_mutations_against_vcf()**
 
-Add to `src/open_pacmuci/classify.py`:
+Add to `src/muc_one_span/classify.py`:
 
 ```python
 def validate_mutations_against_vcf(
@@ -806,7 +806,7 @@ Expected: All PASS
 - [ ] **Step 5: Commit**
 
 ```bash
-git add src/open_pacmuci/classify.py tests/unit/test_classify.py
+git add src/muc_one_span/classify.py tests/unit/test_classify.py
 git commit -m "feat: add VCF-backed mutation validation with confidence adjustment"
 ```
 
@@ -815,7 +815,7 @@ git commit -m "feat: add VCF-backed mutation validation with confidence adjustme
 ### Task 6: Anchor-based flanking trim
 
 **Files:**
-- Modify: `src/open_pacmuci/consensus.py`
+- Modify: `src/muc_one_span/consensus.py`
 - Modify: `tests/unit/test_consensus.py`
 
 - [ ] **Step 1: Write tests for anchor-based trim**
@@ -823,7 +823,7 @@ git commit -m "feat: add VCF-backed mutation validation with confidence adjustme
 Add to `tests/unit/test_consensus.py`:
 
 ```python
-from open_pacmuci.config import load_repeat_dictionary
+from muc_one_span.config import load_repeat_dictionary
 
 
 class TestAnchorBasedTrim:
@@ -872,10 +872,10 @@ Expected: FAIL -- `trim_flanking()` does not accept `repeat_dict`
 
 - [ ] **Step 3: Add _find_anchor() helper and update trim_flanking()**
 
-Add to `src/open_pacmuci/consensus.py`:
+Add to `src/muc_one_span/consensus.py`:
 
 ```python
-from open_pacmuci.config import RepeatDictionary
+from muc_one_span.config import RepeatDictionary
 
 
 def _find_anchor(
@@ -950,7 +950,7 @@ Expected: All PASS
 - [ ] **Step 6: Commit**
 
 ```bash
-git add src/open_pacmuci/consensus.py tests/unit/test_consensus.py
+git add src/muc_one_span/consensus.py tests/unit/test_consensus.py
 git commit -m "feat: anchor-based flanking trim resilient to consensus indels (fixes #3)"
 ```
 
@@ -959,10 +959,10 @@ git commit -m "feat: anchor-based flanking trim resilient to consensus indels (f
 ### Task 7: Same-length allele disambiguation (Issue #1)
 
 **Files:**
-- Modify: `src/open_pacmuci/alleles.py`
-- Modify: `src/open_pacmuci/calling.py`
-- Modify: `src/open_pacmuci/consensus.py`
-- Modify: `src/open_pacmuci/cli.py`
+- Modify: `src/muc_one_span/alleles.py`
+- Modify: `src/muc_one_span/calling.py`
+- Modify: `src/muc_one_span/consensus.py`
+- Modify: `src/muc_one_span/cli.py`
 - Modify: `tests/unit/test_alleles.py`
 
 - [ ] **Step 1: Write tests for same_length flag**
@@ -1184,7 +1184,7 @@ Expected: All PASS (some existing tests may need updating for new `same_length` 
 - [ ] **Step 9: Commit**
 
 ```bash
-git add src/open_pacmuci/alleles.py src/open_pacmuci/calling.py tests/unit/test_alleles.py
+git add src/muc_one_span/alleles.py src/muc_one_span/calling.py tests/unit/test_alleles.py
 git commit -m "feat: disambiguate same-length alleles using Clair3 het genotypes (fixes #1)"
 ```
 
@@ -1193,7 +1193,7 @@ git commit -m "feat: disambiguate same-length alleles using Clair3 het genotypes
 ### Task 8: Bidirectional classification fallback
 
 **Files:**
-- Modify: `src/open_pacmuci/classify.py`
+- Modify: `src/muc_one_span/classify.py`
 - Modify: `tests/unit/test_classify.py`
 
 - [ ] **Step 1: Write tests for bidirectional classification**
@@ -1362,7 +1362,7 @@ Expected: All PASS
 - [ ] **Step 5: Commit**
 
 ```bash
-git add src/open_pacmuci/classify.py tests/unit/test_classify.py
+git add src/muc_one_span/classify.py tests/unit/test_classify.py
 git commit -m "feat: bidirectional classification fallback for novel large mutations (fixes #2)"
 ```
 
@@ -1371,7 +1371,7 @@ git commit -m "feat: bidirectional classification fallback for novel large mutat
 ### Task 9: Wire features into CLI
 
 **Files:**
-- Modify: `src/open_pacmuci/cli.py`
+- Modify: `src/muc_one_span/cli.py`
 
 - [ ] **Step 1: Update `run` command to pass repeat_dict to consensus**
 
@@ -1400,7 +1400,7 @@ After classification, add VCF validation when VCF paths are available:
 
         # VCF-backed validation if VCF available
         if allele_key in vcf_paths:
-            from open_pacmuci.classify import validate_mutations_against_vcf
+            from muc_one_span.classify import validate_mutations_against_vcf
             vcf_variants = _parse_vcf_for_validation(vcf_paths[allele_key])
             result = validate_mutations_against_vcf(
                 result, vcf_variants=vcf_variants,
@@ -1417,7 +1417,7 @@ Add helper:
 ```python
 def _parse_vcf_for_validation(vcf_path: Path) -> list[dict]:
     """Parse VCF variants for mutation validation."""
-    from open_pacmuci.tools import run_tool
+    from muc_one_span.tools import run_tool
     try:
         output = run_tool([
             "bcftools", "query", "-f",
@@ -1458,7 +1458,7 @@ Expected: All PASS
 - [ ] **Step 5: Commit**
 
 ```bash
-git add src/open_pacmuci/cli.py
+git add src/muc_one_span/cli.py
 git commit -m "feat: wire mutation catalog, confidence scoring, and VCF validation into CLI"
 ```
 
@@ -1477,12 +1477,12 @@ Run: `uv run ruff format src/ tests/`
 
 - [ ] **Step 3: Run type checker**
 
-Run: `uv run mypy src/open_pacmuci/`
+Run: `uv run mypy src/muc_one_span/`
 Fix any type errors.
 
 - [ ] **Step 4: Run full test suite with coverage**
 
-Run: `uv run pytest tests/unit/ --cov=open_pacmuci --cov-report=term-missing`
+Run: `uv run pytest tests/unit/ --cov=muc_one_span --cov-report=term-missing`
 Expected: All PASS, coverage >= 70%
 
 - [ ] **Step 5: Commit any fixes**

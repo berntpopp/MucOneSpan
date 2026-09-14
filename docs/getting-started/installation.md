@@ -1,215 +1,125 @@
 # Installation
 
-open-pacmuci supports installation from source with external bioinformatics tool dependencies.
+MucOneSpan requires Python 3.10 or newer; CI tests Python 3.10–3.14. Full pipeline
+analysis also needs external bioinformatics tools and a Clair3 model.
 
----
+## Install the Python package
 
-## Prerequisites
+```bash
+pip install 'muc_one_span[report] @ git+https://github.com/berntpopp/MucOneSpan.git@v0.10.0'
+muconespan --version
+```
 
-**System Requirements:**
+The project uses these names consistently with its companion MucOneUp:
 
-- **Python:** 3.10, 3.11, or 3.12
-- **RAM:** 8GB recommended (Clair3 variant calling is memory-intensive)
-- **Operating System:** Linux (primary), macOS (partial -- Clair3 Linux only)
+| Context | Name |
+| --- | --- |
+| Tool and GitHub repository | `MucOneSpan` |
+| Command | `muconespan` |
+| Python package and imports | `muc_one_span` |
+| Normalized Python distribution | `muc-one-span` |
+| Container image | `ghcr.io/berntpopp/muconespan` |
 
----
+The `[report]` extra enables HTML reports through Jinja2. Python installation
+includes Click, PyYAML, and packaged reference/repeat data. External alignment
+and variant-calling tools are installed separately.
 
-## Quick Install (From Source)
+## Install from source
 
-=== "uv (Recommended)"
+```bash
+git clone https://github.com/berntpopp/MucOneSpan.git
+cd MucOneSpan
+pip install -e ".[report]"
+muconespan --version
+```
 
-    ```bash
-    # Clone repository
-    git clone https://github.com/berntpopp/open-pacmuci.git
-    cd open-pacmuci
+For development with the locked uv environment:
 
-    # Install with uv in editable mode
-    make dev
+```bash
+git clone https://github.com/berntpopp/MucOneSpan.git
+cd MucOneSpan
+make dev
+uv run muconespan --version
+make ci-check
+```
 
-    # Verify installation
-    open-pacmuci --version
-    ```
+`make dev` installs all development groups and optional extras. Use `uv run` to
+invoke commands from this project environment, or activate `.venv/bin/activate`.
+See the [developer guide](../development.md) for checks, hooks, and architecture.
 
-=== "pip"
+## External tool dependencies
 
-    ```bash
-    # Clone repository
-    git clone https://github.com/berntpopp/open-pacmuci.git
-    cd open-pacmuci
+| Tool | Purpose |
+| --- | --- |
+| minimap2 | Align long reads to the ladder reference |
+| samtools | Process and index BAM files |
+| bcftools | Filter VCF files and construct consensus sequences |
+| Clair3 and a platform-appropriate model | Call variants for HiFi or ONT reads |
 
-    # Install in editable mode
-    pip install -e .
+The `muconespan run` command uses all four tools. The `ladder` and `classify`
+commands can run without external tools. Linux is the primary pipeline platform;
+check Clair3's platform requirements before installing on another operating system.
 
-    # Verify installation
-    open-pacmuci --version
-    ```
-
-**What this installs:**
-
-- open-pacmuci CLI tool
-- Core Python dependencies (Click, PyYAML)
-- Entry point for `open-pacmuci` command
-
-**Does NOT include:** External bioinformatics tools (install separately -- see below).
-
----
-
-## External Tool Dependencies
-
-open-pacmuci requires the following bioinformatics tools on PATH:
-
-| Tool | Version | Purpose | Install |
-|------|---------|---------|---------|
-| minimap2 | >= 2.28 | Long-read alignment to ladder | `conda install -c bioconda minimap2` |
-| samtools | >= 1.21 | BAM processing and indexing | `conda install -c bioconda samtools` |
-| bcftools | >= 1.10 | VCF filtering and consensus | `conda install -c bioconda bcftools` |
-| Clair3 | >= 1.0.10 | Variant calling (HiFi model) | See [Clair3 docs](https://github.com/HKU-BAL/Clair3) |
-
-!!! note "All tools required for full pipeline"
-    The `open-pacmuci run` command requires all four tools. Individual subcommands (`ladder`, `classify`) can run without external tools.
-
----
-
-## Conda Environment
-
-Install all external tools in a single conda environment:
+The repository's conda environment supplies pinned minimap2, samtools, bcftools,
+and htslib versions:
 
 ```bash
 conda env create -f conda/environment.yml
-conda activate open-pacmuci-tools
-pip install -e .
+conda activate muconespan-tools
 ```
 
----
+Install Clair3 and its models following the
+[Clair3 installation instructions](https://github.com/HKU-BAL/Clair3).
+Make its `run_clair3.sh` available on `PATH` and pass the correct model location
+with `--clair3-model`.
+
+Clair3 uses its own Python dependencies. MucOneSpan removes the project virtual
+environment's executable path when launching external tools so it does not shadow
+that environment. Activate the tool environment or expose its executables:
+
+```bash
+export PATH="/path/to/clair3/environment/bin:$PATH"
+```
 
 ## Docker
 
 ```bash
-# Pull pre-built image
-docker pull ghcr.io/berntpopp/open-pacmuci:latest
+docker pull ghcr.io/berntpopp/muconespan:latest
 
-# Run full pipeline
 docker run --rm \
-  -v $(pwd)/data:/data \
-  ghcr.io/berntpopp/open-pacmuci:latest \
+  -v "$(pwd)/data:/data" \
+  ghcr.io/berntpopp/muconespan:latest \
   run --input /data/reads.bam --output-dir /data/results/
 ```
 
----
+Use a version tag such as `0.10.0` in place of `latest` to select a release.
 
-## Clair3 Python Environment
-
-!!! warning "Clair3 requires its own Python environment"
-    Clair3 typically runs under Python 3.9 with TensorFlow. When running open-pacmuci via `uv run`, the virtualenv Python may shadow the Clair3 conda Python.
-
-open-pacmuci handles this automatically by stripping `.venv/bin` from PATH when calling external tools. However, ensure the Clair3 conda environment's `bin/` directory is on your system PATH:
+## Verify installation
 
 ```bash
-export PATH="/path/to/conda/envs/env_clair3/bin:$PATH"
+muconespan --version
+muconespan --help
+muconespan ladder --output test_ladder.fa
 ```
 
----
-
-## Verify Installation
-
-### Test Core Functionality
+Then verify external commands and run a real input sample:
 
 ```bash
-# Check version
-open-pacmuci --version
-
-# View available commands
-open-pacmuci --help
-
-# Generate reference ladder (no external tools needed)
-open-pacmuci ladder --output test_ladder.fa
-```
-
-### Test Full Pipeline
-
-```bash
-# Ensure external tools are available
-which minimap2 samtools bcftools run_clair3.sh
-
-# Run pipeline (requires all tools + Clair3 model)
-open-pacmuci run \
+command -v minimap2 samtools bcftools run_clair3.sh
+muconespan run \
   --input reads.fastq \
   --output-dir results/ \
   --clair3-model /path/to/clair3/models/hifi
 ```
 
----
+For ONT data, add `--platform ont` and select an ONT model.
 
-## Development Setup
+If `muconespan` is not found after `make dev`, use `uv run muconespan` from the
+checkout or activate its `.venv`. If an external command is missing, activate the
+appropriate tool environment and check its `PATH` before rerunning the pipeline.
 
-For contributors and developers:
+## Next steps
 
-```bash
-# Install development environment
-make dev
-
-# Run all quality checks
-make check
-
-# Individual commands
-make test          # Run pytest with coverage
-make test-fast     # Unit tests only, no coverage
-make lint          # Check code quality (ruff)
-make format        # Auto-format code
-make type-check    # Run mypy
-```
-
-**Development Commands:**
-
-| Command | Action |
-|---------|--------|
-| `make dev` | Install with dev dependencies (editable mode) |
-| `make test` | Run all tests with coverage |
-| `make test-fast` | Unit tests only, no coverage |
-| `make lint` | Check code quality (ruff) |
-| `make format` | Auto-format code |
-| `make type-check` | Run mypy type checker |
-| `make check` | All quality checks (test + lint + type) |
-
----
-
-## Troubleshooting
-
-**Issue:** `open-pacmuci: command not found`
-
-**Solution:** Ensure installation completed and the package is on PATH:
-
-```bash
-pip install -e .
-# or if using uv:
-uv pip install -e .
-```
-
----
-
-**Issue:** `run_clair3.sh: command not found`
-
-**Solution:** Activate the Clair3 conda environment and ensure it is on PATH:
-
-```bash
-export PATH="/path/to/conda/envs/env_clair3/bin:$PATH"
-which run_clair3.sh
-```
-
----
-
-**Issue:** `minimap2` or `samtools` not found
-
-**Solution:** Install via conda:
-
-```bash
-conda install -c bioconda minimap2 samtools bcftools
-```
-
----
-
-## Next Steps
-
-- **[Quick Start](quickstart.md)** -- Run your first analysis
-- **[Core Concepts](concepts.md)** -- Understand the pipeline architecture
-- **[Deviations from PacMUCI](deviations.md)** -- What changed and why
+- [Quick Start](quickstart.md): Run your first analysis.
+- [Core Concepts](concepts.md): Understand the pipeline architecture.
+- [Differences from the Published Method](deviations.md): Compare the implementation.

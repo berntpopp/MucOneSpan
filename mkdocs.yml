@@ -1,13 +1,13 @@
-# open-pacmuci Documentation Configuration
+# MucOneSpan Documentation Configuration
 # https://squidfunk.github.io/mkdocs-material/
 
-site_name: open-pacmuci
-site_description: Open-source MUC1 VNTR analysis pipeline for PacBio HiFi amplicon data
+site_name: MucOneSpan
+site_description: Open-source MUC1 VNTR analysis pipeline for PacBio HiFi and ONT amplicon data
 site_author: Bernt Popp
-site_url: https://berntpopp.github.io/open-pacmuci/
+site_url: https://berntpopp.github.io/MucOneSpan/
 
-repo_name: berntpopp/open-pacmuci
-repo_url: https://github.com/berntpopp/open-pacmuci
+repo_name: berntpopp/MucOneSpan
+repo_url: https://github.com/berntpopp/MucOneSpan
 edit_uri: edit/main/docs/
 
 copyright: Copyright &copy; 2026 Bernt Popp
@@ -159,7 +159,7 @@ nav:
     - Installation: getting-started/installation.md
     - Quick Start: getting-started/quickstart.md
     - Core Concepts: getting-started/concepts.md
-    - Deviations from PacMUCI: getting-started/deviations.md
+    - Differences from the Published Method: getting-started/deviations.md
 
   - Guides:
     - Development: development.md
@@ -180,12 +180,12 @@ nav:
 extra:
   social:
     - icon: fontawesome/brands/github
-      link: https://github.com/berntpopp/open-pacmuci
-      name: open-pacmuci on GitHub
+      link: https://github.com/berntpopp/MucOneSpan
+      name: MucOneSpan on GitHub
 
   generator: false  # Remove "Made with Material for MkDocs"
 
 # Watch for changes (development mode)
 watch:
-  - src/open_pacmuci/
+  - src/muc_one_span/
   - docs/includes/

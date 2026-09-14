@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Batch-run open-pacmuci pipeline on all generated test samples and report results.
+"""Batch-run MucOneSpan pipeline on all generated test samples and report results.
 
 Produces a TP/FP/FN analysis comparing detected mutations against ground truth
 from MucOneUp's vntr_structure.txt files.
@@ -55,7 +55,7 @@ def parse_ground_truth(sample_dir: Path) -> dict:
 
 
 def run_pipeline(sample_dir: Path, output_dir: Path, platform: str = "hifi") -> dict | None:
-    """Run open-pacmuci pipeline on a sample, return parsed results."""
+    """Run MucOneSpan pipeline on a sample, return parsed results."""
     # Find reads BAM
     bams = sorted(sample_dir.glob("*_reads_amplicon_aligned.bam"))
     if not bams:
@@ -72,7 +72,7 @@ def run_pipeline(sample_dir: Path, output_dir: Path, platform: str = "hifi") -> 
     cmd = [
         "uv",
         "run",
-        "open-pacmuci",
+        "muconespan",
         "run",
         "--input",
         str(input_file),

@@ -1,6 +1,6 @@
 # Repeat Nomenclature
 
-open-pacmuci uses the **Vrbacka nomenclature** (extended from Kirby et al. 2013 and Wenzel et al. 2018) to classify each 60bp repeat unit in the MUC1 VNTR.
+MucOneSpan uses the **Vrbacka nomenclature** (extended from Kirby et al. 2013 and Wenzel et al. 2018) to classify each 60bp repeat unit in the MUC1 VNTR.
 
 ---
 

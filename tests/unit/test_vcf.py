@@ -5,13 +5,13 @@ from __future__ import annotations
 from pathlib import Path
 from unittest.mock import patch
 
-from open_pacmuci.vcf import filter_vcf, parse_vcf_genotypes, parse_vcf_variants
+from muc_one_span.vcf import filter_vcf, parse_vcf_genotypes, parse_vcf_variants
 
 
 class TestFilterVcf:
     """Tests for filter_vcf."""
 
-    @patch("open_pacmuci.vcf.run_tool")
+    @patch("muc_one_span.vcf.run_tool")
     def test_calls_bcftools_norm_then_view_then_index(self, mock_run_tool, tmp_path):
         """filter_vcf runs bcftools norm, bcftools view, then bcftools index."""
         mock_run_tool.return_value = ""
@@ -26,7 +26,7 @@ class TestFilterVcf:
         assert calls[1][0][0][:2] == ["bcftools", "view"]
         assert calls[2][0][0][:2] == ["bcftools", "index"]
 
-    @patch("open_pacmuci.vcf.run_tool")
+    @patch("muc_one_span.vcf.run_tool")
     def test_norm_uses_reference(self, mock_run_tool, tmp_path):
         """bcftools norm -f flag receives the reference path."""
         mock_run_tool.return_value = ""
@@ -41,7 +41,7 @@ class TestFilterVcf:
         ref_idx = norm_cmd.index("-f")
         assert norm_cmd[ref_idx + 1] == str(ref)
 
-    @patch("open_pacmuci.vcf.run_tool")
+    @patch("muc_one_span.vcf.run_tool")
     def test_view_filters_pass(self, mock_run_tool, tmp_path):
         """bcftools view uses -f PASS to keep only passing variants."""
         mock_run_tool.return_value = ""
@@ -56,7 +56,7 @@ class TestFilterVcf:
         f_idx = view_cmd.index("-f")
         assert view_cmd[f_idx + 1] == "PASS"
 
-    @patch("open_pacmuci.vcf.run_tool")
+    @patch("muc_one_span.vcf.run_tool")
     def test_returns_variants_vcf_path(self, mock_run_tool, tmp_path):
         """filter_vcf returns path to variants.vcf.gz."""
         mock_run_tool.return_value = ""
@@ -72,7 +72,7 @@ class TestFilterVcf:
 class TestFilterVcfEmptyVcf:
     """Tests for filter_vcf handling empty VCFs (issue #8)."""
 
-    @patch("open_pacmuci.vcf.run_tool")
+    @patch("muc_one_span.vcf.run_tool")
     def test_empty_vcf_skips_quality_filter(self, mock_run_tool, tmp_path):
         """Empty VCF (no records) skips -i filter to avoid INFO/DP crash."""
         # bcftools norm returns empty output, then bcftools view should NOT
@@ -100,7 +100,7 @@ class TestFilterVcfEmptyVcf:
         assert len(view_calls) == 1
         assert "-i" not in view_calls[0]
 
-    @patch("open_pacmuci.vcf.run_tool")
+    @patch("muc_one_span.vcf.run_tool")
     def test_nonempty_vcf_uses_qual_only_filter(self, mock_run_tool, tmp_path):
         """Non-empty VCF uses QUAL filter only (no INFO/DP which may not exist)."""
         norm_vcf = tmp_path / "normalized.vcf.gz"
@@ -135,7 +135,7 @@ class TestFilterVcfEmptyVcf:
 class TestFilterVcfQuality:
     """Tests for VCF quality filter parameters."""
 
-    @patch("open_pacmuci.vcf.run_tool")
+    @patch("muc_one_span.vcf.run_tool")
     def test_filter_vcf_includes_quality_expression(self, mock_run_tool, tmp_path):
         """filter_vcf passes QUAL filter to bcftools view for non-empty VCFs."""
         norm_vcf = tmp_path / "normalized.vcf.gz"
@@ -164,7 +164,7 @@ class TestFilterVcfQuality:
         expr = view_cmd[i_idx + 1]
         assert "QUAL" in expr
 
-    @patch("open_pacmuci.vcf.run_tool", return_value="")
+    @patch("muc_one_span.vcf.run_tool", return_value="")
     def test_filter_vcf_default_params(self, mock_run_tool, tmp_path):
         """filter_vcf works with default parameters (backward compatible)."""
         vcf = tmp_path / "input.vcf.gz"
@@ -179,7 +179,7 @@ class TestFilterVcfQuality:
 class TestParseVcfGenotypes:
     """Tests for parse_vcf_genotypes."""
 
-    @patch("open_pacmuci.vcf.run_tool")
+    @patch("muc_one_span.vcf.run_tool")
     def test_parses_genotype_fields(self, mock_run_tool):
         mock_run_tool.return_value = "contig_51\t100\tA\tT\t0/1\n"
         result = parse_vcf_genotypes(Path("/fake.vcf"))
@@ -187,7 +187,7 @@ class TestParseVcfGenotypes:
         assert result[0]["pos"] == 100
         assert result[0]["genotype"] == "0/1"
 
-    @patch("open_pacmuci.vcf.run_tool")
+    @patch("muc_one_span.vcf.run_tool")
     def test_handles_runtime_error(self, mock_run_tool):
         mock_run_tool.side_effect = RuntimeError("fail")
         assert parse_vcf_genotypes(Path("/fake.vcf")) == []
@@ -196,7 +196,7 @@ class TestParseVcfGenotypes:
 class TestParseVcfVariants:
     """Tests for parse_vcf_variants."""
 
-    @patch("open_pacmuci.vcf.run_tool")
+    @patch("muc_one_span.vcf.run_tool")
     def test_parses_pos_and_qual(self, mock_run_tool):
         """Parses position and quality from bcftools query output."""
         mock_run_tool.return_value = "100\t23.4\n200\t15.7\n"
@@ -205,13 +205,13 @@ class TestParseVcfVariants:
         assert result[0] == {"pos": 100, "qual": 23.4}
         assert result[1] == {"pos": 200, "qual": 15.7}
 
-    @patch("open_pacmuci.vcf.run_tool")
+    @patch("muc_one_span.vcf.run_tool")
     def test_handles_runtime_error(self, mock_run_tool):
         """Returns empty list on RuntimeError."""
         mock_run_tool.side_effect = RuntimeError("fail")
         assert parse_vcf_variants(Path("/fake.vcf")) == []
 
-    @patch("open_pacmuci.vcf.run_tool")
+    @patch("muc_one_span.vcf.run_tool")
     def test_skips_malformed_lines(self, mock_run_tool):
         """Skips lines with non-numeric values."""
         mock_run_tool.return_value = "100\t23.4\nbad\tline\n300\t10.0\n"
@@ -220,7 +220,7 @@ class TestParseVcfVariants:
         assert result[0]["pos"] == 100
         assert result[1]["pos"] == 300
 
-    @patch("open_pacmuci.vcf.run_tool")
+    @patch("muc_one_span.vcf.run_tool")
     def test_empty_output(self, mock_run_tool):
         """Returns empty list for empty output."""
         mock_run_tool.return_value = ""

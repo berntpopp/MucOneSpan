@@ -13,7 +13,7 @@
 ### Task 1: Replace assert in classify.py with proper error handling
 
 **Files:**
-- Modify: `src/open_pacmuci/classify.py:444`
+- Modify: `src/muc_one_span/classify.py:444`
 - Test: `tests/unit/test_classify.py`
 
 - [ ] **Step 1: Write the failing test**
@@ -23,8 +23,8 @@ Add to `tests/unit/test_classify.py`:
 ```python
 def test_classify_sequence_raises_on_no_match(mocker):
     """classify_sequence raises RuntimeError when no repeat match is found."""
-    from open_pacmuci.classify import classify_sequence
-    from open_pacmuci.config import RepeatDictionary
+    from muc_one_span.classify import classify_sequence
+    from muc_one_span.config import RepeatDictionary
 
     # Create a minimal repeat dict with no matching sequences
     rd = RepeatDictionary(
@@ -49,7 +49,7 @@ Expected: FAIL with `AssertionError` (the current assert fires instead of Runtim
 
 - [ ] **Step 3: Replace assert with guarded raise**
 
-In `src/open_pacmuci/classify.py`, replace line 444:
+In `src/muc_one_span/classify.py`, replace line 444:
 
 ```python
 # Before:
@@ -76,7 +76,7 @@ Expected: All existing tests pass
 - [ ] **Step 6: Commit**
 
 ```bash
-git add src/open_pacmuci/classify.py tests/unit/test_classify.py
+git add src/muc_one_span/classify.py tests/unit/test_classify.py
 git commit -m "fix: replace assert with RuntimeError in classify_sequence
 
 The assert statement would raise an unhelpful AssertionError in
@@ -89,7 +89,7 @@ the position and remaining sequence length for debugging."
 ### Task 2: Replace assert in mapping.py and fix potential deadlock
 
 **Files:**
-- Modify: `src/open_pacmuci/mapping.py:134-148`
+- Modify: `src/muc_one_span/mapping.py:134-148`
 - Test: `tests/unit/test_mapping.py`
 
 - [ ] **Step 1: Write the failing test for assert replacement**
@@ -99,7 +99,7 @@ Add to `tests/unit/test_mapping.py`:
 ```python
 def test_run_mapping_pipeline_stdout_none_raises(mocker):
     """_run_mapping_pipeline raises RuntimeError if p1.stdout is None."""
-    from open_pacmuci.mapping import _run_mapping_pipeline
+    from muc_one_span.mapping import _run_mapping_pipeline
 
     mock_p1 = mocker.MagicMock()
     mock_p1.stdout = None
@@ -107,7 +107,7 @@ def test_run_mapping_pipeline_stdout_none_raises(mocker):
     mock_p1.wait = mocker.MagicMock()
 
     mocker.patch(
-        "open_pacmuci.mapping.subprocess.Popen",
+        "muc_one_span.mapping.subprocess.Popen",
         side_effect=[mock_p1],
     )
 
@@ -129,7 +129,7 @@ Expected: FAIL with `AssertionError` (the current assert fires instead of Runtim
 
 - [ ] **Step 3: Replace assert and fix stderr reading order**
 
-In `src/open_pacmuci/mapping.py`, replace lines 133-148:
+In `src/muc_one_span/mapping.py`, replace lines 133-148:
 
 ```python
 # Before (lines 133-148):
@@ -187,7 +187,7 @@ Expected: All pass
 - [ ] **Step 6: Commit**
 
 ```bash
-git add src/open_pacmuci/mapping.py tests/unit/test_mapping.py
+git add src/muc_one_span/mapping.py tests/unit/test_mapping.py
 git commit -m "fix: replace assert with RuntimeError and fix potential deadlock in mapping
 
 Replace assert p1.stdout is not None with a proper RuntimeError that
@@ -200,7 +200,7 @@ deadlock if the stderr buffer fills."
 ### Task 3: Add logging to tools.py
 
 **Files:**
-- Modify: `src/open_pacmuci/tools.py`
+- Modify: `src/muc_one_span/tools.py`
 - Test: `tests/unit/test_tools.py`
 
 - [ ] **Step 1: Write the failing test**
@@ -214,13 +214,13 @@ import logging
 def test_run_tool_logs_command(mocker, caplog):
     """run_tool logs the command at DEBUG level."""
     mocker.patch(
-        "open_pacmuci.tools.subprocess.run",
+        "muc_one_span.tools.subprocess.run",
         return_value=mocker.MagicMock(returncode=0, stdout="output"),
     )
-    mocker.patch("open_pacmuci.tools.shutil.which", return_value="/usr/bin/echo")
+    mocker.patch("muc_one_span.tools.shutil.which", return_value="/usr/bin/echo")
 
-    with caplog.at_level(logging.DEBUG, logger="open_pacmuci.tools"):
-        from open_pacmuci.tools import run_tool
+    with caplog.at_level(logging.DEBUG, logger="muc_one_span.tools"):
+        from muc_one_span.tools import run_tool
 
         run_tool(["echo", "hello"])
 
@@ -234,7 +234,7 @@ Expected: FAIL (no log records produced)
 
 - [ ] **Step 3: Add logging to tools.py**
 
-Add after the existing imports (after line 9) in `src/open_pacmuci/tools.py`:
+Add after the existing imports (after line 9) in `src/muc_one_span/tools.py`:
 
 ```python
 import logging
@@ -267,7 +267,7 @@ Expected: All pass
 - [ ] **Step 6: Commit**
 
 ```bash
-git add src/open_pacmuci/tools.py tests/unit/test_tools.py
+git add src/muc_one_span/tools.py tests/unit/test_tools.py
 git commit -m "feat: add logging to tools.py
 
 Log command execution at DEBUG level and tool availability at INFO
@@ -279,17 +279,17 @@ level for improved observability when using the library API."
 ### Task 4: Add logging to remaining modules
 
 **Files:**
-- Modify: `src/open_pacmuci/alleles.py`
-- Modify: `src/open_pacmuci/calling.py`
-- Modify: `src/open_pacmuci/classify.py`
-- Modify: `src/open_pacmuci/mapping.py`
-- Modify: `src/open_pacmuci/ladder.py`
+- Modify: `src/muc_one_span/alleles.py`
+- Modify: `src/muc_one_span/calling.py`
+- Modify: `src/muc_one_span/classify.py`
+- Modify: `src/muc_one_span/mapping.py`
+- Modify: `src/muc_one_span/ladder.py`
 
 Note: `consensus.py` already has logging. `config.py` and `version.py` are too simple to need it.
 
 - [ ] **Step 1: Add logging to alleles.py**
 
-Add after line 15 (after existing imports) in `src/open_pacmuci/alleles.py`:
+Add after line 15 (after existing imports) in `src/muc_one_span/alleles.py`:
 
 ```python
 import logging
@@ -316,7 +316,7 @@ In `refine_peak_contig()`, after refinement:
 
 - [ ] **Step 2: Add logging to calling.py**
 
-Add after line 5 (after existing imports) in `src/open_pacmuci/calling.py`:
+Add after line 5 (after existing imports) in `src/muc_one_span/calling.py`:
 
 ```python
 import logging
@@ -343,7 +343,7 @@ In `call_variants_per_allele()`, for disambiguation:
 
 - [ ] **Step 3: Add logging to classify.py**
 
-Add after line 3 (after existing imports) in `src/open_pacmuci/classify.py`:
+Add after line 3 (after existing imports) in `src/muc_one_span/classify.py`:
 
 ```python
 import logging
@@ -370,7 +370,7 @@ On mutation detection:
 
 - [ ] **Step 4: Add logging to mapping.py**
 
-Add after line 6 (after existing imports) in `src/open_pacmuci/mapping.py`:
+Add after line 6 (after existing imports) in `src/muc_one_span/mapping.py`:
 
 ```python
 import logging
@@ -394,7 +394,7 @@ In `map_reads()`:
 
 - [ ] **Step 5: Add logging to ladder.py**
 
-Add after line 6 (after existing imports) in `src/open_pacmuci/ladder.py`:
+Add after line 6 (after existing imports) in `src/muc_one_span/ladder.py`:
 
 ```python
 import logging
@@ -415,7 +415,7 @@ Expected: All pass (logging doesn't change behavior)
 - [ ] **Step 7: Commit**
 
 ```bash
-git add src/open_pacmuci/alleles.py src/open_pacmuci/calling.py src/open_pacmuci/classify.py src/open_pacmuci/mapping.py src/open_pacmuci/ladder.py
+git add src/muc_one_span/alleles.py src/muc_one_span/calling.py src/muc_one_span/classify.py src/muc_one_span/mapping.py src/muc_one_span/ladder.py
 git commit -m "feat: add structured logging to all pipeline modules
 
 Each module now has a logger for diagnostic output at DEBUG/INFO
@@ -428,7 +428,7 @@ when --verbose is enabled in the CLI (added in next commit)."
 ### Task 5: Add --verbose and --quiet CLI flags
 
 **Files:**
-- Modify: `src/open_pacmuci/cli.py:14-18`
+- Modify: `src/muc_one_span/cli.py:14-18`
 - Test: `tests/unit/test_cli.py`
 
 - [ ] **Step 1: Write the failing test for --verbose**
@@ -465,23 +465,23 @@ Expected: FAIL (no such option)
 
 - [ ] **Step 3: Add --verbose and --quiet to the main group**
 
-In `src/open_pacmuci/cli.py`, replace lines 14-18:
+In `src/muc_one_span/cli.py`, replace lines 14-18:
 
 ```python
 # Before:
 @click.group()
-@click.version_option(version=__version__, prog_name="open-pacmuci")
+@click.version_option(version=__version__, prog_name="muconespan")
 def main() -> None:
-    """open-pacmuci: MUC1 VNTR analysis pipeline for PacBio HiFi amplicon data."""
+    """muconespan: MUC1 VNTR analysis pipeline for PacBio HiFi amplicon data."""
 
 # After:
 @click.group()
-@click.version_option(version=__version__, prog_name="open-pacmuci")
+@click.version_option(version=__version__, prog_name="muconespan")
 @click.option("-v", "--verbose", count=True, help="Increase verbosity (-v for INFO, -vv for DEBUG).")
 @click.option("-q", "--quiet", is_flag=True, help="Suppress non-error output.")
 @click.pass_context
 def main(ctx: click.Context, verbose: int, quiet: bool) -> None:
-    """open-pacmuci: MUC1 VNTR analysis pipeline for PacBio HiFi amplicon data."""
+    """muconespan: MUC1 VNTR analysis pipeline for PacBio HiFi amplicon data."""
     import logging
 
     if quiet:
@@ -512,7 +512,7 @@ Expected: All pass
 - [ ] **Step 6: Commit**
 
 ```bash
-git add src/open_pacmuci/cli.py tests/unit/test_cli.py
+git add src/muc_one_span/cli.py tests/unit/test_cli.py
 git commit -m "feat: add --verbose and --quiet CLI flags
 
 -v enables INFO logging, -vv enables DEBUG, -q suppresses non-error
@@ -530,16 +530,16 @@ respect the verbosity level."
 - [ ] **Step 1: Create the file**
 
 ```markdown
-# Contributing to open-pacmuci
+# Contributing to muconespan
 
-Thank you for your interest in contributing to open-pacmuci!
+Thank you for your interest in contributing to muconespan!
 
 ## Development Setup
 
 1. Clone the repository:
    ```bash
-   git clone https://github.com/berntpopp/open-pacmuci.git
-   cd open-pacmuci
+   git clone https://github.com/berntpopp/MucOneSpan.git
+   cd MucOneSpan
    ```
 
 2. Install with development dependencies:
@@ -602,7 +602,7 @@ Integration tests use simulated PacBio HiFi reads generated by [MucOneUp](https:
 
 ## Questions?
 
-Open an issue or start a discussion on the [GitHub repository](https://github.com/berntpopp/open-pacmuci).
+Open an issue or start a discussion on the [GitHub repository](https://github.com/berntpopp/MucOneSpan).
 ```
 
 - [ ] **Step 2: Commit**
@@ -663,7 +663,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 ## [0.1.0] - 2025-XX-XX
 
 ### Added
-- Initial release of open-pacmuci pipeline
+- Initial release of muconespan pipeline
 - Reference ladder generation (20-150 repeat units)
 - Read mapping with minimap2
 - Allele length detection with peak finding
@@ -674,12 +674,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 - Docker image with conda-based tool stack
 - Unit and integration test suite
 
-[Unreleased]: https://github.com/berntpopp/open-pacmuci/compare/v0.3.0...HEAD
-[0.3.0]: https://github.com/berntpopp/open-pacmuci/compare/v0.2.0...v0.3.0
-[0.2.0]: https://github.com/berntpopp/open-pacmuci/compare/v0.1.2...v0.2.0
-[0.1.2]: https://github.com/berntpopp/open-pacmuci/compare/v0.1.1...v0.1.2
-[0.1.1]: https://github.com/berntpopp/open-pacmuci/compare/v0.1.0...v0.1.1
-[0.1.0]: https://github.com/berntpopp/open-pacmuci/releases/tag/v0.1.0
+[Unreleased]: https://github.com/berntpopp/MucOneSpan/compare/v0.3.0...HEAD
+[0.3.0]: https://github.com/berntpopp/MucOneSpan/compare/v0.2.0...v0.3.0
+[0.2.0]: https://github.com/berntpopp/MucOneSpan/compare/v0.1.2...v0.2.0
+[0.1.2]: https://github.com/berntpopp/MucOneSpan/compare/v0.1.1...v0.1.2
+[0.1.1]: https://github.com/berntpopp/MucOneSpan/compare/v0.1.0...v0.1.1
+[0.1.0]: https://github.com/berntpopp/MucOneSpan/releases/tag/v0.1.0
 ```
 
 **Note:** The `XX-XX` dates should be filled in from `git log --format="%ai" v0.1.0..v0.1.0` etc. The executor should look up exact dates from git tags.
@@ -712,7 +712,7 @@ git commit -m "docs: add CHANGELOG.md backfilled from git history"
 
 ## Reporting a Vulnerability
 
-If you discover a security vulnerability in open-pacmuci, please report it responsibly.
+If you discover a security vulnerability in muconespan, please report it responsibly.
 
 **Do not open a public issue.**
 
@@ -729,7 +729,7 @@ You can expect an initial response within 72 hours.
 ## Scope
 
 This policy covers:
-- The open-pacmuci Python package
+- The muconespan Python package
 - Docker images published to GHCR
 - GitHub Actions workflows in this repository
 
@@ -794,7 +794,7 @@ git commit -m "docs: add CODE_OF_CONDUCT.md (Contributor Covenant v2.1)"
 
 ```yaml
 name: Bug Report
-description: Report a bug in open-pacmuci
+description: Report a bug in muconespan
 title: "[Bug]: "
 labels: ["bug"]
 body:
@@ -811,7 +811,7 @@ body:
       label: Steps to reproduce
       description: How to reproduce the behavior.
       placeholder: |
-        1. Run `open-pacmuci run --input ...`
+        1. Run `muconespan run --input ...`
         2. ...
     validations:
       required: true
@@ -836,7 +836,7 @@ body:
       description: |
         - OS:
         - Python version:
-        - open-pacmuci version:
+        - muconespan version:
         - Installation method (pip/docker/conda):
       render: markdown
     validations:
@@ -919,17 +919,17 @@ git commit -m "docs: add issue templates, PR template, and CODEOWNERS"
 
 - [ ] **Step 1: Run lint check**
 
-Run: `uv run ruff check src/open_pacmuci/`
+Run: `uv run ruff check src/muc_one_span/`
 Expected: No new errors
 
 - [ ] **Step 2: Run type check**
 
-Run: `uv run mypy src/open_pacmuci/`
+Run: `uv run mypy src/muc_one_span/`
 Expected: No new errors (the `click.pass_context` addition may need `ctx: click.Context` annotation -- already included in Step 3 of Task 5)
 
 - [ ] **Step 3: Run full test suite with coverage**
 
-Run: `uv run pytest tests/unit/ --cov=open_pacmuci --cov-report=term-missing`
+Run: `uv run pytest tests/unit/ --cov=muc_one_span --cov-report=term-missing`
 Expected: All pass, coverage >= 70% (unchanged or slightly improved)
 
 - [ ] **Step 4: Fix any issues found and commit**

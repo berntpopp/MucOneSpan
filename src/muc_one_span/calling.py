@@ -6,8 +6,8 @@ import logging
 from concurrent.futures import ThreadPoolExecutor
 from pathlib import Path
 
-from open_pacmuci.tools import run_tool
-from open_pacmuci.vcf import filter_vcf, parse_vcf_genotypes, parse_vcf_variants
+from muc_one_span.tools import run_tool
+from muc_one_span.vcf import filter_vcf, parse_vcf_genotypes, parse_vcf_variants
 
 __all__ = [
     "call_variants_per_allele",
@@ -334,7 +334,7 @@ def call_variants_per_allele(
     Args:
         bam_path: Path to the full mapping BAM.
         reference_path: Path to the ladder reference FASTA.
-        alleles: Allele detection result from :func:`~open_pacmuci.alleles.detect_alleles`.
+        alleles: Allele detection result from :func:`~muc_one_span.alleles.detect_alleles`.
         output_dir: Base output directory.
         clair3_model: Path to Clair3 model directory (optional).
         threads: Number of threads (default 4).

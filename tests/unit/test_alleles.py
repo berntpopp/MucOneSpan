@@ -9,7 +9,7 @@ from unittest.mock import patch
 
 import pytest
 
-from open_pacmuci.alleles import (
+from muc_one_span.alleles import (
     PRE_AFTER_REPEAT_COUNT,
     _build_allele_info,
     _split_cluster_by_indel,
@@ -196,7 +196,7 @@ SAM_WITH_INDELS = "\n".join(
 class TestRefinePeakContig:
     """Tests for refine_peak_contig."""
 
-    @patch("open_pacmuci.alleles.run_tool_iter")
+    @patch("muc_one_span.alleles.run_tool_iter")
     def test_selects_contig_with_highest_mean_as(self, mock_run_tool_iter, tmp_path):
         """Picks the contig whose reads have the highest mean alignment score."""
         mock_run_tool_iter.return_value = iter(SAM_TWO_CONTIGS.splitlines(keepends=True))
@@ -206,7 +206,7 @@ class TestRefinePeakContig:
 
         assert result["best_contig"] == "contig_51"
 
-    @patch("open_pacmuci.alleles.run_tool_iter")
+    @patch("muc_one_span.alleles.run_tool_iter")
     def test_calls_samtools_view_with_cluster_contigs(self, mock_run_tool_iter, tmp_path):
         """samtools view is called with all cluster contig names."""
         mock_run_tool_iter.return_value = iter(SAM_ONE_CONTIG.splitlines(keepends=True))
@@ -220,7 +220,7 @@ class TestRefinePeakContig:
         for c in contigs:
             assert c in cmd
 
-    @patch("open_pacmuci.alleles.run_tool_iter")
+    @patch("muc_one_span.alleles.run_tool_iter")
     def test_metrics_reported_per_contig(self, mock_run_tool_iter, tmp_path):
         """Returns per-contig mean_as, mean_indel_bp, and reads counts."""
         mock_run_tool_iter.return_value = iter(SAM_TWO_CONTIGS.splitlines(keepends=True))
@@ -236,7 +236,7 @@ class TestRefinePeakContig:
         assert "reads" in m
         assert m["reads"] == 3
 
-    @patch("open_pacmuci.alleles.run_tool_iter")
+    @patch("muc_one_span.alleles.run_tool_iter")
     def test_single_contig_is_selected_as_best(self, mock_run_tool_iter, tmp_path):
         """When only one contig has reads, it is always selected."""
         mock_run_tool_iter.return_value = iter(SAM_ONE_CONTIG.splitlines(keepends=True))
@@ -246,7 +246,7 @@ class TestRefinePeakContig:
 
         assert result["best_contig"] == "contig_51"
 
-    @patch("open_pacmuci.alleles.run_tool_iter")
+    @patch("muc_one_span.alleles.run_tool_iter")
     def test_empty_sam_output_falls_back_to_first_contig(self, mock_run_tool_iter, tmp_path):
         """With no aligned reads, best_contig defaults to the first in the list."""
         mock_run_tool_iter.return_value = iter([])
@@ -258,7 +258,7 @@ class TestRefinePeakContig:
         assert result["best_contig"] == "contig_48"
         assert result["metrics"] == {}
 
-    @patch("open_pacmuci.alleles.run_tool_iter")
+    @patch("muc_one_span.alleles.run_tool_iter")
     def test_indel_length_computed_from_cigar(self, mock_run_tool_iter, tmp_path):
         """mean_indel_bp is derived from I/D operations in the CIGAR string."""
         mock_run_tool_iter.return_value = iter(SAM_WITH_INDELS.splitlines(keepends=True))
@@ -269,7 +269,7 @@ class TestRefinePeakContig:
         # contig_50 read has 50I in CIGAR → mean_indel_bp == 50
         assert result["metrics"]["contig_50"]["mean_indel_bp"] == 50.0
 
-    @patch("open_pacmuci.alleles.run_tool_iter")
+    @patch("muc_one_span.alleles.run_tool_iter")
     def test_header_lines_are_skipped(self, mock_run_tool_iter, tmp_path):
         """SAM header lines starting with @ are ignored."""
         sam_with_header = "@HD\tVN:1.6\n@SQ\tSN:contig_51\tLN:3660\n" + SAM_ONE_CONTIG
@@ -412,7 +412,7 @@ class TestBuildAlleleInfoExtra:
         """detect_alleles calls refine_peak_contig when bam_path is provided."""
         counts = parse_idxstats(IDXSTATS_TWO_PEAKS)
         bam = Path("/fake/mapping.bam")
-        with patch("open_pacmuci.alleles.refine_peak_contig") as mock_refine:
+        with patch("muc_one_span.alleles.refine_peak_contig") as mock_refine:
             mock_refine.return_value = {
                 "best_contig": "contig_60",
                 "metrics": {"contig_60": {"mean_as": 3100.0, "mean_indel_bp": 0.0, "reads": 10}},
@@ -452,7 +452,7 @@ class TestSplitClusterByIndel:
         "contigs": [(40, 50), (42, 50), (45, 50), (48, 50), (50, 50)],
     }
 
-    @patch("open_pacmuci.alleles.run_tool_iter")
+    @patch("muc_one_span.alleles.run_tool_iter")
     def test_returns_none_when_no_reads(self, mock_run_tool_iter, tmp_path):
         """Returns None when samtools view produces no alignment lines."""
         mock_run_tool_iter.return_value = iter([])
@@ -462,7 +462,7 @@ class TestSplitClusterByIndel:
 
         assert result is None
 
-    @patch("open_pacmuci.alleles.run_tool_iter")
+    @patch("muc_one_span.alleles.run_tool_iter")
     def test_returns_none_when_single_group(self, mock_run_tool_iter, tmp_path):
         """Returns None when all reads have similar indel lengths (single valley).
 
@@ -481,7 +481,7 @@ class TestSplitClusterByIndel:
 
         assert result is None
 
-    @patch("open_pacmuci.alleles.run_tool_iter")
+    @patch("muc_one_span.alleles.run_tool_iter")
     def test_splits_with_distinct_indel_groups(self, mock_run_tool_iter, tmp_path):
         """Returns 2 sub-clusters when reads fall into two distinct indel groups.
 

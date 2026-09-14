@@ -86,6 +86,7 @@ jobs:
           target: runtime
           push: true
           tags: ${{ steps.meta.outputs.tags }}
+          labels: ${{ steps.meta.outputs.labels }}
           # The tested runtime is an ancestor of the test stage in this same
           # builder. Export its stable tools layer once, without builder copies.
           cache-to: ${{ github.ref == 'refs/heads/main' && 'type=gha,scope=runtime,mode=min' || '' }}

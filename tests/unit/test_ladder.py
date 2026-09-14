@@ -5,8 +5,8 @@ from __future__ import annotations
 
 import pytest
 
-from open_pacmuci.config import load_repeat_dictionary
-from open_pacmuci.ladder import build_contig, generate_ladder_fasta
+from muc_one_span.config import load_repeat_dictionary
+from muc_one_span.ladder import build_contig, generate_ladder_fasta
 
 
 @pytest.fixture

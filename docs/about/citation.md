@@ -1,17 +1,17 @@
 # Citation Guide
 
-How to cite open-pacmuci in your research publications.
+How to cite MucOneSpan in your research publications.
 
 ---
 
 ## Primary Citation
 
-open-pacmuci reconstructs the PacMUCI pipeline. Please cite the original publication:
+MucOneSpan implements and extends the methods described by Vrbacka et al. (2025). Please cite the original publication:
 
 ### Vrbacka et al. 2025
 
 ```bibtex
-@article{vrbacka2025pacmuci,
+@article{vrbacka2025muc1,
   author = {Vrbacka, A. and Pristoupilova, A. and Kidd, K.O. and others},
   title = {Long-Read Sequencing of the MUC1 VNTR: Genomic Variation,
            Mutational Landscape, and Its Impact on ADTKD Diagnosis
@@ -31,13 +31,14 @@ open-pacmuci reconstructs the PacMUCI pipeline. Please cite the original publica
 To cite the open-source implementation specifically:
 
 ```bibtex
-@software{openpacmuci2026,
+@software{muconespan2026,
   author = {Popp, Bernt},
-  title = {open-pacmuci: Open-Source MUC1 VNTR Analysis Pipeline},
+  title = {MucOneSpan: Open-Source MUC1 VNTR Analysis Pipeline},
+  version = {0.10.0},
   year = {2026},
   publisher = {GitHub},
-  url = {https://github.com/berntpopp/open-pacmuci},
-  note = {Software version available at https://github.com/berntpopp/open-pacmuci/releases}
+  url = {https://github.com/berntpopp/MucOneSpan},
+  note = {Software version available at https://github.com/berntpopp/MucOneSpan/releases}
 }
 ```
 
@@ -62,15 +63,15 @@ If you use MucOneUp for benchmarking or test data generation:
 
 ## Methods Section Template
 
-Use this template when describing open-pacmuci in your methods:
+Use this template when describing MucOneSpan in your methods:
 
-> MUC1 VNTR analysis was performed using open-pacmuci v[VERSION] (Popp, 2026; https://github.com/berntpopp/open-pacmuci), an open-source reconstruction of the PacMUCI pipeline (Vrbacka et al., 2025). PacBio HiFi CCS reads were mapped to a synthetic reference ladder (150 contigs, 1-150 repeat units) using minimap2. Allele lengths were determined using gap-based clustering with indel-valley splitting. Variants were called per allele using Clair3 with the PacBio HiFi model. Consensus sequences were classified into repeat units using the Vrbacka nomenclature with pre-computed mutation template matching.
+> MUC1 VNTR analysis was performed using MucOneSpan v[VERSION] (Popp, 2026; https://github.com/berntpopp/MucOneSpan), an open-source implementation of the methods described by Vrbacka et al. (2025). PacBio HiFi CCS reads were mapped to a synthetic reference ladder (150 contigs, 1-150 repeat units) using minimap2. Allele lengths were determined using gap-based clustering with indel-valley splitting. Variants were called per allele using Clair3 with the PacBio HiFi model. Consensus sequences were classified into repeat units using the Vrbacka nomenclature with pre-computed mutation template matching.
 
 ---
 
 ## Acknowledging Tool Dependencies
 
-open-pacmuci integrates several external tools. Please cite them as appropriate:
+MucOneSpan integrates several external tools. Please cite them as appropriate:
 
 - **minimap2** -- Li H. Minimap2: pairwise alignment for nucleotide sequences. *Bioinformatics.* 2018;34(18):3094-3100.
 - **Clair3** -- Zheng Z, et al. Symphonizing pileup and full-alignment for deep learning-based long-read variant calling. *Nat Comput Sci.* 2022;2:797-803.
@@ -84,6 +85,6 @@ open-pacmuci integrates several external tools. Please cite them as appropriate:
 
 **GitHub:** [@berntpopp](https://github.com/berntpopp)
 
-**Repository:** [berntpopp/open-pacmuci](https://github.com/berntpopp/open-pacmuci)
+**Repository:** [berntpopp/MucOneSpan](https://github.com/berntpopp/MucOneSpan)
 
-**Issues:** [GitHub Issue Tracker](https://github.com/berntpopp/open-pacmuci/issues)
+**Issues:** [GitHub Issue Tracker](https://github.com/berntpopp/MucOneSpan/issues)

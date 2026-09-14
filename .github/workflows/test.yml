@@ -71,7 +71,7 @@ jobs:
               - 'requirements/**'
               - '.python-version'
               - 'Makefile'
-              - 'src/open_pacmuci/version.py'
+              - 'src/muc_one_span/version.py'
               - '.github/workflows/**'
               - '.github/actions/**'
       - uses: astral-sh/setup-uv@bec219d24cd3e171d82865faccec33120bb574f4 # v10.1.0

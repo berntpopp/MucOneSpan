@@ -1,4 +1,4 @@
-# src/open_pacmuci/classify.py
+# src/muc_one_span/classify.py
 """Repeat unit classification and mutation detection.
 
 The classification algorithm handles frameshifted sequences by tracking
@@ -17,26 +17,26 @@ from __future__ import annotations
 
 import logging
 
-from open_pacmuci.classify_types import (
+from muc_one_span.classify_types import (
     MutationDetected as MutationDetected,
 )
-from open_pacmuci.classify_types import (
+from muc_one_span.classify_types import (
     RepeatClassification as RepeatClassification,
 )
-from open_pacmuci.classify_types import (
+from muc_one_span.classify_types import (
     RepeatDifference as RepeatDifference,
 )
-from open_pacmuci.classify_types import (
+from muc_one_span.classify_types import (
     SequenceClassification as SequenceClassification,
 )
-from open_pacmuci.config import RepeatDictionary
-from open_pacmuci.repeat_alignment import (
+from muc_one_span.config import RepeatDictionary
+from muc_one_span.repeat_alignment import (
     _compute_net_indel as _compute_net_indel,
 )
-from open_pacmuci.repeat_alignment import (
+from muc_one_span.repeat_alignment import (
     characterize_differences as characterize_differences,
 )
-from open_pacmuci.repeat_alignment import (
+from muc_one_span.repeat_alignment import (
     edit_distance as edit_distance,
 )
 

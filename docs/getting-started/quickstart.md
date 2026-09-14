@@ -1,12 +1,12 @@
 # Quick Start
 
-Get started with open-pacmuci in under 5 minutes. This tutorial walks through the full analysis pipeline.
+Get started with MucOneSpan in under 5 minutes. This tutorial walks through the full analysis pipeline.
 
 ---
 
 ## Prerequisites
 
-- open-pacmuci installed ([Installation Guide](installation.md))
+- MucOneSpan installed ([Installation Guide](installation.md))
 - External tools on PATH: minimap2, samtools, bcftools, Clair3
 - PacBio HiFi CCS reads or Oxford Nanopore (ONT) Q20+ reads from a MUC1 VNTR PCR amplicon
 
@@ -17,7 +17,7 @@ Get started with open-pacmuci in under 5 minutes. This tutorial walks through th
 Run all five stages in a single command:
 
 ```bash
-open-pacmuci run \
+muconespan run \
   --input reads.fastq \
   --output-dir results/ \
   --clair3-model /path/to/clair3/models/hifi \
@@ -41,7 +41,7 @@ For more control, run each stage individually:
 ### 1. Generate Reference Ladder
 
 ```bash
-open-pacmuci ladder --output reference_ladder.fa
+muconespan ladder --output reference_ladder.fa
 ```
 
 This creates a FASTA with 150 contigs, each containing 1-150 canonical X repeats plus flanking sequences.
@@ -49,7 +49,7 @@ This creates a FASTA with 150 contigs, each containing 1-150 canonical X repeats
 ### 2. Map Reads
 
 ```bash
-open-pacmuci map \
+muconespan map \
   --input reads.fastq \
   --reference reference_ladder.fa \
   --output-dir results/ \
@@ -59,7 +59,7 @@ open-pacmuci map \
 ### 3. Detect Alleles
 
 ```bash
-open-pacmuci alleles \
+muconespan alleles \
   --input results/mapping.bam \
   --output-dir results/
 ```
@@ -67,7 +67,7 @@ open-pacmuci alleles \
 ### 4. Call Variants
 
 ```bash
-open-pacmuci call \
+muconespan call \
   --input results/mapping.bam \
   --reference reference_ladder.fa \
   --alleles-json results/alleles.json \
@@ -78,13 +78,13 @@ open-pacmuci call \
 ### 5. Build Consensus and Classify
 
 ```bash
-open-pacmuci consensus \
+muconespan consensus \
   --input results/mapping.bam \
   --reference reference_ladder.fa \
   --alleles-json results/alleles.json \
   --output-dir results/
 
-open-pacmuci classify \
+muconespan classify \
   --input results/consensus_allele_1.fa \
   --output-dir results/
 ```
@@ -97,7 +97,7 @@ To analyze Oxford Nanopore reads, add `--platform ont` to `run` or individual su
 The pipeline auto-selects `minimap2 -x lr:hq` and `Clair3 --platform=ont`:
 
 ```bash
-open-pacmuci run \
+muconespan run \
   --input ont_reads.fastq \
   --output-dir results/ \
   --platform ont \
@@ -107,14 +107,14 @@ open-pacmuci run \
 For step-by-step execution, pass `--platform ont` to `map` and `call`:
 
 ```bash
-open-pacmuci map --input ont_reads.fastq --reference ref.fa --output-dir results/ --platform ont
-open-pacmuci call --input results/mapping.bam --reference ref.fa --alleles-json results/alleles.json --output-dir results/ --platform ont
+muconespan map --input ont_reads.fastq --reference ref.fa --output-dir results/ --platform ont
+muconespan call --input results/mapping.bam --reference ref.fa --alleles-json results/alleles.json --output-dir results/ --platform ont
 ```
 
 You can also override the minimap2 preset explicitly with `--minimap2-preset`:
 
 ```bash
-open-pacmuci run --input reads.fastq --output-dir results/ --minimap2-preset map-ont
+muconespan run --input reads.fastq --output-dir results/ --minimap2-preset map-ont
 ```
 
 ---
@@ -179,6 +179,6 @@ python -c "import json; d=json.load(open('results/repeats.json')); print(d['alle
 ## Next Steps
 
 - **[Core Concepts](concepts.md)** -- Understand the pipeline architecture
-- **[Deviations from PacMUCI](deviations.md)** -- What changed and why
+- **[Differences from the Published Method](deviations.md)** -- What changed and why
 - **[CLI Reference](../reference/cli.md)** -- All command options
 - **[Benchmarking](../guides/benchmarking.md)** -- Validate with simulated data

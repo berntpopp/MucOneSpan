@@ -51,7 +51,7 @@ Expected: Jinja2 installed
 git add pyproject.toml uv.lock
 git commit -m "feat: add optional [report] dependency group for Jinja2
 
-Install with: pip install open-pacmuci[report]
+Install with: pip install muc_one_span[report]
 Jinja2 is only required for HTML report generation."
 ```
 
@@ -60,7 +60,7 @@ Jinja2 is only required for HTML report generation."
 ### Task 2: Create report module with graceful import handling
 
 **Files:**
-- Create: `src/open_pacmuci/report.py`
+- Create: `src/muc_one_span/report.py`
 - Test: `tests/unit/test_report.py`
 
 - [ ] **Step 1: Write failing tests**
@@ -173,7 +173,7 @@ class TestGenerateReport:
 
     def test_creates_html_file(self, tmp_path, sample_summary):
         """Report generates a valid HTML file."""
-        from open_pacmuci.report import generate_report
+        from muc_one_span.report import generate_report
 
         out = tmp_path / "report.html"
         result = generate_report(sample_summary, out, sample_name="test_sample")
@@ -183,11 +183,11 @@ class TestGenerateReport:
         html = out.read_text()
         assert "<html" in html
         assert "test_sample" in html
-        assert "open-pacmuci" in html
+        assert "muconespan" in html
 
     def test_report_self_contained(self, tmp_path, sample_summary):
         """Report must not reference external URLs."""
-        from open_pacmuci.report import generate_report
+        from muc_one_span.report import generate_report
 
         out = tmp_path / "report.html"
         generate_report(sample_summary, out)
@@ -199,7 +199,7 @@ class TestGenerateReport:
 
     def test_report_includes_allele_data(self, tmp_path, sample_summary):
         """Report includes allele detection data."""
-        from open_pacmuci.report import generate_report
+        from muc_one_span.report import generate_report
 
         out = tmp_path / "report.html"
         generate_report(sample_summary, out, sample_name="test")
@@ -211,7 +211,7 @@ class TestGenerateReport:
 
     def test_report_includes_mutations(self, tmp_path, sample_summary):
         """Report includes mutation data."""
-        from open_pacmuci.report import generate_report
+        from muc_one_span.report import generate_report
 
         out = tmp_path / "report.html"
         generate_report(sample_summary, out)
@@ -222,7 +222,7 @@ class TestGenerateReport:
 
     def test_report_includes_tool_versions(self, tmp_path, sample_summary):
         """Report includes tool version metadata."""
-        from open_pacmuci.report import generate_report
+        from muc_one_span.report import generate_report
 
         out = tmp_path / "report.html"
         generate_report(sample_summary, out)
@@ -233,7 +233,7 @@ class TestGenerateReport:
 
     def test_report_with_detailed_repeats(self, tmp_path, sample_summary, sample_repeats):
         """Report enriched with detailed repeat data."""
-        from open_pacmuci.report import generate_report
+        from muc_one_span.report import generate_report
 
         out = tmp_path / "report.html"
         generate_report(sample_summary, out, detailed_repeats=sample_repeats)
@@ -244,7 +244,7 @@ class TestGenerateReport:
 
     def test_report_creates_parent_dirs(self, tmp_path, sample_summary):
         """Report creates parent directories if they don't exist."""
-        from open_pacmuci.report import generate_report
+        from muc_one_span.report import generate_report
 
         out = tmp_path / "nested" / "dir" / "report.html"
         generate_report(sample_summary, out)
@@ -252,7 +252,7 @@ class TestGenerateReport:
 
     def test_report_size_under_100kb(self, tmp_path, sample_summary):
         """Report file size should be under 100KB."""
-        from open_pacmuci.report import generate_report
+        from muc_one_span.report import generate_report
 
         out = tmp_path / "report.html"
         generate_report(sample_summary, out)
@@ -265,7 +265,7 @@ class TestReportMissingJinja2:
     def test_import_error_message(self, tmp_path, sample_summary, monkeypatch):
         """Helpful error message when Jinja2 is missing."""
         import importlib
-        import open_pacmuci.report as report_module
+        import muc_one_span.report as report_module
 
         original_import = __builtins__.__import__ if hasattr(__builtins__, '__import__') else __import__
 
@@ -294,13 +294,13 @@ Expected: FAIL (module doesn't exist)
 
 - [ ] **Step 3: Create report.py**
 
-Create `src/open_pacmuci/report.py`:
+Create `src/muc_one_span/report.py`:
 
 ```python
 """Self-contained HTML report generation.
 
 Requires the ``jinja2`` package, which is an optional dependency.
-Install with: ``pip install open-pacmuci[report]``
+Install with: ``pip install muc_one_span[report]``
 """
 
 from __future__ import annotations
@@ -315,7 +315,7 @@ try:
 except ImportError:
     _HAS_JINJA2 = False
 
-from open_pacmuci.version import __version__
+from muc_one_span.version import __version__
 
 
 def generate_report(
@@ -345,11 +345,11 @@ def generate_report(
     if not _HAS_JINJA2:
         raise ImportError(
             "Jinja2 is required for report generation. "
-            "Install with: pip install open-pacmuci[report]"
+            "Install with: pip install muc_one_span[report]"
         )
 
     env = Environment(
-        loader=PackageLoader("open_pacmuci", "templates"),
+        loader=PackageLoader("muc_one_span", "templates"),
         autoescape=True,
     )
     template = env.get_template("report.html.j2")
@@ -379,7 +379,7 @@ Expected: FAIL (template not found yet -- that's expected, we create it next)
 - [ ] **Step 5: Commit**
 
 ```bash
-git add src/open_pacmuci/report.py tests/unit/test_report.py
+git add src/muc_one_span/report.py tests/unit/test_report.py
 git commit -m "feat: add report module with graceful Jinja2 import handling
 
 generate_report() renders summary.json into self-contained HTML.
@@ -391,15 +391,15 @@ Raises helpful ImportError if Jinja2 not installed."
 ### Task 3: Create HTML report template
 
 **Files:**
-- Create: `src/open_pacmuci/templates/report.html.j2`
+- Create: `src/muc_one_span/templates/report.html.j2`
 
 - [ ] **Step 1: Create template directory**
 
-Run: `mkdir -p src/open_pacmuci/templates`
+Run: `mkdir -p src/muc_one_span/templates`
 
 - [ ] **Step 2: Create the HTML template**
 
-Create `src/open_pacmuci/templates/report.html.j2`. This is a large file -- the executor should use the `frontend-design` skill or create a modern, self-contained HTML template with these requirements:
+Create `src/muc_one_span/templates/report.html.j2`. This is a large file -- the executor should use the `frontend-design` skill or create a modern, self-contained HTML template with these requirements:
 
 **Sections:**
 1. **Header** -- sample name, pipeline version, generation date
@@ -441,7 +441,7 @@ Create `src/open_pacmuci/templates/report.html.j2`. This is a large file -- the 
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>open-pacmuci Report: {{ sample_name }}</title>
+  <title>muconespan Report: {{ sample_name }}</title>
   <style>
     :root {
       --bg: #ffffff; --fg: #1a1a2e; --card-bg: #f8f9fa;
@@ -505,7 +505,7 @@ Create `src/open_pacmuci/templates/report.html.j2`. This is a large file -- the 
   <header>
     <h1>MUC1 VNTR Analysis Report</h1>
     <p><strong>{{ sample_name }}</strong> &mdash; {{ generated_at }}</p>
-    <p>open-pacmuci v{{ pipeline_version }}</p>
+    <p>muconespan v{{ pipeline_version }}</p>
   </header>
 
   <!-- Allele Summary -->
@@ -529,7 +529,7 @@ Expected: All pass
 - [ ] **Step 4: Commit**
 
 ```bash
-git add src/open_pacmuci/templates/report.html.j2
+git add src/muc_one_span/templates/report.html.j2
 git commit -m "feat: add self-contained HTML report template
 
 Modern, accessible report with allele summary, repeat structure
@@ -543,17 +543,17 @@ dark/light mode, colorblind-safe."
 ### Task 4: Wire report into CLI
 
 **Files:**
-- Modify: `src/open_pacmuci/cli.py`
+- Modify: `src/muc_one_span/cli.py`
 
 - [ ] **Step 1: Add --report flag to run subcommand**
 
-In `src/open_pacmuci/cli.py`, add option to the `run` command (after `--min-qual`):
+In `src/muc_one_span/cli.py`, add option to the `run` command (after `--min-qual`):
 
 ```python
 @click.option(
     "--report/--no-report",
     default=False,
-    help="Generate HTML report (requires jinja2: pip install open-pacmuci[report]).",
+    help="Generate HTML report (requires jinja2: pip install muc_one_span[report]).",
 )
 ```
 
@@ -564,7 +564,7 @@ At the end of `run()`, after writing `summary.json` and before "Pipeline complet
 ```python
     if report:
         try:
-            from open_pacmuci.report import generate_report
+            from muc_one_span.report import generate_report
 
             report_path = out / "report.html"
             generate_report(
@@ -605,7 +605,7 @@ def report(input_path: str, output: str, sample_name: str | None, repeats: str |
     import json
 
     try:
-        from open_pacmuci.report import generate_report
+        from muc_one_span.report import generate_report
     except ImportError as e:
         click.echo(f"Error: {e}", err=True)
         raise SystemExit(1) from e
@@ -669,7 +669,7 @@ Expected: PASS
 - [ ] **Step 5: Commit**
 
 ```bash
-git add src/open_pacmuci/cli.py tests/unit/test_cli.py
+git add src/muc_one_span/cli.py tests/unit/test_cli.py
 git commit -m "feat: add --report flag to run and standalone report subcommand
 
 --report on run generates HTML alongside JSON output.
@@ -682,7 +682,7 @@ Both handle missing Jinja2 gracefully."
 ### Task 5: Add streaming run_tool_iter to tools.py
 
 **Files:**
-- Modify: `src/open_pacmuci/tools.py`
+- Modify: `src/muc_one_span/tools.py`
 - Test: `tests/unit/test_tools.py`
 
 - [ ] **Step 1: Write failing test**
@@ -693,14 +693,14 @@ Add to `tests/unit/test_tools.py`:
 def test_run_tool_iter_yields_lines(mocker):
     """run_tool_iter yields stdout lines without buffering."""
     from unittest.mock import MagicMock
-    from open_pacmuci.tools import run_tool_iter
+    from muc_one_span.tools import run_tool_iter
 
     mock_proc = MagicMock()
     mock_proc.stdout = iter(["line1\n", "line2\n", "line3\n"])
     mock_proc.wait.return_value = 0
     mock_proc.returncode = 0
 
-    mocker.patch("open_pacmuci.tools.subprocess.Popen", return_value=mock_proc)
+    mocker.patch("muc_one_span.tools.subprocess.Popen", return_value=mock_proc)
 
     lines = list(run_tool_iter(["echo", "hello"]))
     assert lines == ["line1\n", "line2\n", "line3\n"]
@@ -709,14 +709,14 @@ def test_run_tool_iter_yields_lines(mocker):
 def test_run_tool_iter_raises_on_failure(mocker):
     """run_tool_iter raises RuntimeError on non-zero exit."""
     from unittest.mock import MagicMock
-    from open_pacmuci.tools import run_tool_iter
+    from muc_one_span.tools import run_tool_iter
 
     mock_proc = MagicMock()
     mock_proc.stdout = iter([])
     mock_proc.wait.return_value = 1
     mock_proc.returncode = 1
 
-    mocker.patch("open_pacmuci.tools.subprocess.Popen", return_value=mock_proc)
+    mocker.patch("muc_one_span.tools.subprocess.Popen", return_value=mock_proc)
 
     with pytest.raises(RuntimeError, match="failed"):
         list(run_tool_iter(["failing_tool"]))
@@ -729,7 +729,7 @@ Expected: FAIL (function doesn't exist)
 
 - [ ] **Step 3: Add run_tool_iter to tools.py**
 
-Add to `src/open_pacmuci/tools.py` after `run_tool()`:
+Add to `src/muc_one_span/tools.py` after `run_tool()`:
 
 ```python
 def run_tool_iter(
@@ -796,7 +796,7 @@ Expected: PASS
 - [ ] **Step 5: Commit**
 
 ```bash
-git add src/open_pacmuci/tools.py tests/unit/test_tools.py
+git add src/muc_one_span/tools.py tests/unit/test_tools.py
 git commit -m "feat: add streaming run_tool_iter for large output handling
 
 Yields stdout lines without buffering all in memory. Uses same
@@ -809,7 +809,7 @@ large BAMs."
 ### Task 6: Parallelize per-allele variant calling
 
 **Files:**
-- Modify: `src/open_pacmuci/calling.py`
+- Modify: `src/muc_one_span/calling.py`
 - Test: `tests/unit/test_calling.py`
 
 - [ ] **Step 1: Write failing test**
@@ -819,7 +819,7 @@ Add to `tests/unit/test_calling.py`:
 ```python
 def test_call_variants_parallel_execution(mocker, tmp_path):
     """call_variants_per_allele processes alleles in parallel."""
-    from open_pacmuci.calling import call_variants_per_allele
+    from muc_one_span.calling import call_variants_per_allele
 
     alleles = {
         "allele_1": {
@@ -847,9 +847,9 @@ def test_call_variants_parallel_execution(mocker, tmp_path):
     vcf_a1.touch()
     vcf_a2.touch()
 
-    mocker.patch("open_pacmuci.calling.extract_allele_reads", return_value=tmp_path / "reads.bam")
-    mocker.patch("open_pacmuci.calling.run_clair3", return_value=tmp_path / "clair3.vcf.gz")
-    mocker.patch("open_pacmuci.calling.filter_vcf", side_effect=[vcf_a1, vcf_a2])
+    mocker.patch("muc_one_span.calling.extract_allele_reads", return_value=tmp_path / "reads.bam")
+    mocker.patch("muc_one_span.calling.run_clair3", return_value=tmp_path / "clair3.vcf.gz")
+    mocker.patch("muc_one_span.calling.filter_vcf", side_effect=[vcf_a1, vcf_a2])
 
     result = call_variants_per_allele(
         bam_path=tmp_path / "mapped.bam",
@@ -865,7 +865,7 @@ def test_call_variants_parallel_execution(mocker, tmp_path):
 
 - [ ] **Step 2: Add parallel execution to call_variants_per_allele**
 
-In `src/open_pacmuci/calling.py`, modify `call_variants_per_allele` to use `ThreadPoolExecutor` when both alleles are independent (not same_length, not homozygous):
+In `src/muc_one_span/calling.py`, modify `call_variants_per_allele` to use `ThreadPoolExecutor` when both alleles are independent (not same_length, not homozygous):
 
 ```python
 from concurrent.futures import ThreadPoolExecutor
@@ -901,7 +901,7 @@ Expected: All pass
 - [ ] **Step 4: Commit**
 
 ```bash
-git add src/open_pacmuci/calling.py tests/unit/test_calling.py
+git add src/muc_one_span/calling.py tests/unit/test_calling.py
 git commit -m "feat: parallelize per-allele variant calling
 
 Use ThreadPoolExecutor(max_workers=2) for independent allele
@@ -914,14 +914,14 @@ disambiguation."
 ### Task 7: Use streaming in alleles.py
 
 **Files:**
-- Modify: `src/open_pacmuci/alleles.py`
+- Modify: `src/muc_one_span/alleles.py`
 
 - [ ] **Step 1: Update refine_peak_contig to use run_tool_iter**
 
-In `src/open_pacmuci/alleles.py`, update the import:
+In `src/muc_one_span/alleles.py`, update the import:
 
 ```python
-from open_pacmuci.tools import run_tool, run_tool_iter
+from muc_one_span.tools import run_tool, run_tool_iter
 ```
 
 In `refine_peak_contig()`, replace the `run_tool` call for `samtools view` with `run_tool_iter` and process lines as they stream:
@@ -954,7 +954,7 @@ Expected: All pass (tests mock run_tool, need to also mock run_tool_iter -- upda
 - [ ] **Step 3: Commit**
 
 ```bash
-git add src/open_pacmuci/alleles.py
+git add src/muc_one_span/alleles.py
 git commit -m "feat: use streaming SAM parsing in allele refinement
 
 Replace run_tool with run_tool_iter for samtools view calls in
@@ -1012,8 +1012,8 @@ def main() -> None:
 
     args.output_dir.mkdir(parents=True, exist_ok=True)
 
-    from open_pacmuci.config import load_repeat_dictionary
-    from open_pacmuci.tools import check_tools
+    from muc_one_span.config import load_repeat_dictionary
+    from muc_one_span.tools import check_tools
 
     check_tools(["minimap2", "samtools", "bcftools", "run_clair3.sh"])
     rd = load_repeat_dictionary()
@@ -1035,8 +1035,8 @@ def main() -> None:
         print(f"\n{sample_name}:")
 
         # Stage 1: Mapping
-        from open_pacmuci.ladder import generate_ladder
-        from open_pacmuci.mapping import get_idxstats, map_reads
+        from muc_one_span.ladder import generate_ladder
+        from muc_one_span.mapping import get_idxstats, map_reads
 
         ref = out / "ladder.fa"
         t0 = time.perf_counter()
@@ -1046,7 +1046,7 @@ def main() -> None:
         print(f"  mapping: {timings['mapping']:.2f}s")
 
         # Stage 2: Allele detection
-        from open_pacmuci.alleles import detect_alleles, parse_idxstats
+        from muc_one_span.alleles import detect_alleles, parse_idxstats
 
         t0 = time.perf_counter()
         idxstats = get_idxstats(mapped)
@@ -1056,7 +1056,7 @@ def main() -> None:
         print(f"  alleles: {timings['alleles']:.2f}s")
 
         # Stage 3: Variant calling
-        from open_pacmuci.calling import call_variants_per_allele
+        from muc_one_span.calling import call_variants_per_allele
 
         t0 = time.perf_counter()
         vcf_paths = call_variants_per_allele(
@@ -1066,7 +1066,7 @@ def main() -> None:
         print(f"  calling: {timings['calling']:.2f}s")
 
         # Stage 4: Consensus
-        from open_pacmuci.consensus import build_consensus_per_allele
+        from muc_one_span.consensus import build_consensus_per_allele
 
         t0 = time.perf_counter()
         consensus = build_consensus_per_allele(ref, vcf_paths, alleles_result, out, repeat_dict=rd)
@@ -1074,7 +1074,7 @@ def main() -> None:
         print(f"  consensus: {timings['consensus']:.2f}s")
 
         # Stage 5: Classification
-        from open_pacmuci.classify import classify_sequence
+        from muc_one_span.classify import classify_sequence
 
         t0 = time.perf_counter()
         for allele_key, fa_path in consensus.items():
@@ -1115,17 +1115,17 @@ timings to benchmark_results.json for performance tracking."
 
 - [ ] **Step 1: Run lint**
 
-Run: `uv run ruff check src/open_pacmuci/`
+Run: `uv run ruff check src/muc_one_span/`
 Expected: No errors
 
 - [ ] **Step 2: Run type check**
 
-Run: `uv run mypy src/open_pacmuci/`
+Run: `uv run mypy src/muc_one_span/`
 Expected: No errors
 
 - [ ] **Step 3: Run full test suite with coverage**
 
-Run: `uv run pytest tests/unit/ --cov=open_pacmuci --cov-report=term-missing --cov-fail-under=80`
+Run: `uv run pytest tests/unit/ --cov=muc_one_span --cov-report=term-missing --cov-fail-under=80`
 Expected: All pass, coverage >= 80%
 
 - [ ] **Step 4: Fix any issues and commit**

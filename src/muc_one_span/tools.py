@@ -1,4 +1,4 @@
-# src/open_pacmuci/tools.py
+# src/muc_one_span/tools.py
 """Subprocess helpers for running external bioinformatics tools."""
 
 from __future__ import annotations

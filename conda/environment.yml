@@ -1,4 +1,4 @@
-name: open-pacmuci-tools
+name: muconespan-tools
 channels:
   - conda-forge
   - bioconda

@@ -13,11 +13,11 @@
 ### Task 1: Add TypedDict for classification results
 
 **Files:**
-- Modify: `src/open_pacmuci/classify.py:16-18`
+- Modify: `src/muc_one_span/classify.py:16-18`
 
 - [ ] **Step 1: Add TypedDict definitions**
 
-In `src/open_pacmuci/classify.py`, after the existing imports (line 18), add:
+In `src/muc_one_span/classify.py`, after the existing imports (line 18), add:
 
 ```python
 from typing import TypedDict
@@ -115,13 +115,13 @@ def classify_sequence(
 Run: `uv run pytest tests/unit/test_classify.py --no-cov -q`
 Expected: All pass (TypedDict is structurally compatible with dict)
 
-Run: `uv run mypy src/open_pacmuci/classify.py`
+Run: `uv run mypy src/muc_one_span/classify.py`
 Expected: Pass or minor issues to fix
 
 - [ ] **Step 5: Commit**
 
 ```bash
-git add src/open_pacmuci/classify.py
+git add src/muc_one_span/classify.py
 git commit -m "feat: add TypedDict types for classification results
 
 Add RepeatClassification, MutationDetected, SequenceClassification,
@@ -134,11 +134,11 @@ classify_sequence return type annotations."
 ### Task 2: Add TypedDict for allele results
 
 **Files:**
-- Modify: `src/open_pacmuci/alleles.py`
+- Modify: `src/muc_one_span/alleles.py`
 
 - [ ] **Step 1: Add TypedDict definitions**
 
-In `src/open_pacmuci/alleles.py`, after the existing imports (around line 15), add:
+In `src/muc_one_span/alleles.py`, after the existing imports (around line 15), add:
 
 ```python
 from typing import TypedDict
@@ -194,13 +194,13 @@ def detect_alleles(
 Run: `uv run pytest tests/unit/test_alleles.py --no-cov -q`
 Expected: All pass
 
-Run: `uv run mypy src/open_pacmuci/alleles.py`
+Run: `uv run mypy src/muc_one_span/alleles.py`
 Expected: Pass or minor issues to fix
 
 - [ ] **Step 4: Commit**
 
 ```bash
-git add src/open_pacmuci/alleles.py
+git add src/muc_one_span/alleles.py
 git commit -m "feat: add TypedDict types for allele detection results
 
 Add AlleleInfo and AlleleResult TypedDicts. Update _build_allele_info
@@ -212,7 +212,7 @@ and detect_alleles return type annotations."
 ### Task 3: Decompose classify_sequence into helpers
 
 **Files:**
-- Modify: `src/open_pacmuci/classify.py:320-536`
+- Modify: `src/muc_one_span/classify.py:320-536`
 
 This refactors the 216-line `classify_sequence()` into three focused helpers. The public API and return types remain identical.
 
@@ -515,13 +515,13 @@ Expected: All pass (refactor preserves exact behavior)
 
 - [ ] **Step 6: Run full test suite and type check**
 
-Run: `uv run pytest tests/unit/ --no-cov -q && uv run mypy src/open_pacmuci/classify.py`
+Run: `uv run pytest tests/unit/ --no-cov -q && uv run mypy src/muc_one_span/classify.py`
 Expected: All pass
 
 - [ ] **Step 7: Commit**
 
 ```bash
-git add src/open_pacmuci/classify.py
+git add src/muc_one_span/classify.py
 git commit -m "refactor: decompose classify_sequence into focused helpers
 
 Extract _forward_classify(), _apply_bidirectional_fallback(), and
@@ -534,15 +534,15 @@ No behavior change -- all existing tests pass."
 ### Task 4: Extract VCF parsing into vcf.py
 
 **Files:**
-- Create: `src/open_pacmuci/vcf.py`
-- Modify: `src/open_pacmuci/calling.py`
-- Modify: `src/open_pacmuci/cli.py`
+- Create: `src/muc_one_span/vcf.py`
+- Modify: `src/muc_one_span/calling.py`
+- Modify: `src/muc_one_span/cli.py`
 - Modify: `tests/unit/test_calling.py`
 - Create: `tests/unit/test_vcf.py`
 
 - [ ] **Step 1: Create vcf.py with extracted functions**
 
-Create `src/open_pacmuci/vcf.py`:
+Create `src/muc_one_span/vcf.py`:
 
 ```python
 """VCF parsing and filtering utilities."""
@@ -551,7 +551,7 @@ from __future__ import annotations
 
 from pathlib import Path
 
-from open_pacmuci.tools import run_tool
+from muc_one_span.tools import run_tool
 
 
 def filter_vcf(
@@ -682,12 +682,12 @@ def parse_vcf_variants(vcf_path: Path) -> list[dict]:
 
 - [ ] **Step 2: Update calling.py to import from vcf.py**
 
-In `src/open_pacmuci/calling.py`:
+In `src/muc_one_span/calling.py`:
 - Remove `filter_vcf`, `parse_vcf_genotypes`, and `parse_vcf_variants` function definitions (lines 181-315)
 - Add re-exports at the top for backwards compatibility:
 
 ```python
-from open_pacmuci.vcf import filter_vcf, parse_vcf_genotypes, parse_vcf_variants
+from muc_one_span.vcf import filter_vcf, parse_vcf_genotypes, parse_vcf_variants
 
 __all__ = [
     "extract_allele_reads",
@@ -704,15 +704,15 @@ And update internal uses of `filter_vcf` in `disambiguate_same_length_alleles` a
 
 - [ ] **Step 3: Update cli.py import**
 
-In `src/open_pacmuci/cli.py` line 333, update:
+In `src/muc_one_span/cli.py` line 333, update:
 
 ```python
 # Before:
-from open_pacmuci.calling import call_variants_per_allele, parse_vcf_variants
+from muc_one_span.calling import call_variants_per_allele, parse_vcf_variants
 
 # After:
-from open_pacmuci.calling import call_variants_per_allele
-from open_pacmuci.vcf import parse_vcf_variants
+from muc_one_span.calling import call_variants_per_allele
+from muc_one_span.vcf import parse_vcf_variants
 ```
 
 - [ ] **Step 4: Create test_vcf.py by moving relevant tests**
@@ -723,7 +723,7 @@ Create `tests/unit/test_vcf.py` with tests for the three extracted functions. Co
 - `TestFilterVcfQuality`
 - `TestParseVcfGenotypes`
 
-Update the patch targets from `open_pacmuci.calling.run_tool` to `open_pacmuci.vcf.run_tool`.
+Update the patch targets from `muc_one_span.calling.run_tool` to `muc_one_span.vcf.run_tool`.
 
 - [ ] **Step 5: Update test_calling.py**
 
@@ -739,13 +739,13 @@ Remove the test classes that were moved to `test_vcf.py`. Keep tests for:
 Run: `uv run pytest tests/unit/ --no-cov -q`
 Expected: All pass
 
-Run: `uv run mypy src/open_pacmuci/`
+Run: `uv run mypy src/muc_one_span/`
 Expected: Pass
 
 - [ ] **Step 7: Commit**
 
 ```bash
-git add src/open_pacmuci/vcf.py src/open_pacmuci/calling.py src/open_pacmuci/cli.py tests/unit/test_vcf.py tests/unit/test_calling.py
+git add src/muc_one_span/vcf.py src/muc_one_span/calling.py src/muc_one_span/cli.py tests/unit/test_vcf.py tests/unit/test_calling.py
 git commit -m "refactor: extract VCF parsing into dedicated vcf.py module
 
 Move filter_vcf, parse_vcf_genotypes, parse_vcf_variants from
@@ -773,9 +773,9 @@ class TestRunMappingPipeline:
 
     def test_minimap2_not_found(self):
         """Raises FileNotFoundError when minimap2 is missing."""
-        from open_pacmuci.mapping import _run_mapping_pipeline
+        from muc_one_span.mapping import _run_mapping_pipeline
 
-        with patch("open_pacmuci.mapping.subprocess.Popen", side_effect=FileNotFoundError):
+        with patch("muc_one_span.mapping.subprocess.Popen", side_effect=FileNotFoundError):
             with pytest.raises(FileNotFoundError, match="minimap2"):
                 _run_mapping_pipeline(
                     input_path=Path("/tmp/test.fastq"),
@@ -786,7 +786,7 @@ class TestRunMappingPipeline:
 
     def test_samtools_not_found(self):
         """Raises FileNotFoundError when samtools is missing."""
-        from open_pacmuci.mapping import _run_mapping_pipeline
+        from muc_one_span.mapping import _run_mapping_pipeline
 
         mock_p1 = MagicMock()
         mock_p1.stdout = MagicMock()
@@ -796,7 +796,7 @@ class TestRunMappingPipeline:
                 return mock_p1
             raise FileNotFoundError
 
-        with patch("open_pacmuci.mapping.subprocess.Popen", side_effect=popen_side_effect):
+        with patch("muc_one_span.mapping.subprocess.Popen", side_effect=popen_side_effect):
             with pytest.raises(FileNotFoundError, match="samtools"):
                 _run_mapping_pipeline(
                     input_path=Path("/tmp/test.fastq"),
@@ -807,7 +807,7 @@ class TestRunMappingPipeline:
 
     def test_minimap2_nonzero_exit(self):
         """Raises RuntimeError when minimap2 exits with non-zero code."""
-        from open_pacmuci.mapping import _run_mapping_pipeline
+        from muc_one_span.mapping import _run_mapping_pipeline
 
         mock_p1 = MagicMock()
         mock_p1.stdout = MagicMock()
@@ -821,7 +821,7 @@ class TestRunMappingPipeline:
         mock_p2.returncode = 0
 
         with patch(
-            "open_pacmuci.mapping.subprocess.Popen",
+            "muc_one_span.mapping.subprocess.Popen",
             side_effect=[mock_p1, mock_p2],
         ):
             with pytest.raises(RuntimeError, match="minimap2 failed"):
@@ -834,7 +834,7 @@ class TestRunMappingPipeline:
 
     def test_samtools_nonzero_exit(self):
         """Raises RuntimeError when samtools exits with non-zero code."""
-        from open_pacmuci.mapping import _run_mapping_pipeline
+        from muc_one_span.mapping import _run_mapping_pipeline
 
         mock_p1 = MagicMock()
         mock_p1.stdout = MagicMock()
@@ -848,7 +848,7 @@ class TestRunMappingPipeline:
         mock_p2.returncode = 1
 
         with patch(
-            "open_pacmuci.mapping.subprocess.Popen",
+            "muc_one_span.mapping.subprocess.Popen",
             side_effect=[mock_p1, mock_p2],
         ):
             with pytest.raises(RuntimeError, match="samtools sort failed"):
@@ -861,7 +861,7 @@ class TestRunMappingPipeline:
 
     def test_successful_pipeline(self, tmp_path):
         """Successful pipeline completes without errors."""
-        from open_pacmuci.mapping import _run_mapping_pipeline
+        from muc_one_span.mapping import _run_mapping_pipeline
 
         mock_p1 = MagicMock()
         mock_p1.stdout = MagicMock()
@@ -875,7 +875,7 @@ class TestRunMappingPipeline:
         mock_p2.returncode = 0
 
         with patch(
-            "open_pacmuci.mapping.subprocess.Popen",
+            "muc_one_span.mapping.subprocess.Popen",
             side_effect=[mock_p1, mock_p2],
         ):
             _run_mapping_pipeline(
@@ -960,24 +960,24 @@ class TestRunSubcommand:
         consensus_fa.write_text(">allele_1\nACGT\n")
 
         with (
-            patch("open_pacmuci.cli.check_tools"),
-            patch("open_pacmuci.cli.get_tool_versions", return_value={}),
-            patch("open_pacmuci.cli.map_reads", return_value=tmp_path / "mapped.bam"),
-            patch("open_pacmuci.cli.get_idxstats", return_value="contig_41\t100\t50\t0\n"),
-            patch("open_pacmuci.cli.parse_idxstats", return_value={41: 100, 51: 80}),
-            patch("open_pacmuci.cli.detect_alleles", return_value=mock_alleles),
+            patch("muc_one_span.cli.check_tools"),
+            patch("muc_one_span.cli.get_tool_versions", return_value={}),
+            patch("muc_one_span.cli.map_reads", return_value=tmp_path / "mapped.bam"),
+            patch("muc_one_span.cli.get_idxstats", return_value="contig_41\t100\t50\t0\n"),
+            patch("muc_one_span.cli.parse_idxstats", return_value={41: 100, 51: 80}),
+            patch("muc_one_span.cli.detect_alleles", return_value=mock_alleles),
             patch(
-                "open_pacmuci.cli.call_variants_per_allele",
+                "muc_one_span.cli.call_variants_per_allele",
                 return_value={"allele_1": tmp_path / "a1.vcf.gz"},
             ),
             patch(
-                "open_pacmuci.cli.build_consensus_per_allele",
+                "muc_one_span.cli.build_consensus_per_allele",
                 return_value={"allele_1": consensus_fa},
             ),
-            patch("open_pacmuci.cli.classify_sequence", return_value=mock_classification),
-            patch("open_pacmuci.cli.validate_mutations_against_vcf", return_value=mock_classification),
-            patch("open_pacmuci.cli.parse_vcf_variants", return_value=[]),
-            patch("open_pacmuci.cli._bundled_reference", return_value=tmp_path / "ref.fa"),
+            patch("muc_one_span.cli.classify_sequence", return_value=mock_classification),
+            patch("muc_one_span.cli.validate_mutations_against_vcf", return_value=mock_classification),
+            patch("muc_one_span.cli.parse_vcf_variants", return_value=[]),
+            patch("muc_one_span.cli._bundled_reference", return_value=tmp_path / "ref.fa"),
         ):
             result = runner.invoke(
                 main,
@@ -988,7 +988,7 @@ class TestRunSubcommand:
         assert "Pipeline complete" in result.output
 ```
 
-**Note:** The exact patch targets depend on where the `run()` function imports from. Since `run()` uses lazy imports inside the function body, patches need to target the `open_pacmuci.cli` namespace. The executor should verify and adjust patch targets based on the actual import structure at execution time.
+**Note:** The exact patch targets depend on where the `run()` function imports from. Since `run()` uses lazy imports inside the function body, patches need to target the `muc_one_span.cli` namespace. The executor should verify and adjust patch targets based on the actual import structure at execution time.
 
 - [ ] **Step 2: Run the test**
 
@@ -1022,7 +1022,7 @@ class TestForwardClassify:
 
     def test_single_exact_repeat(self, repeat_dict):
         """Forward pass classifies a single known repeat."""
-        from open_pacmuci.classify import _forward_classify
+        from muc_one_span.classify import _forward_classify
 
         # Get a known repeat sequence
         first_id = list(repeat_dict.repeats.keys())[0]
@@ -1040,7 +1040,7 @@ class TestForwardClassify:
 
     def test_two_exact_repeats(self, repeat_dict):
         """Forward pass classifies two concatenated known repeats."""
-        from open_pacmuci.classify import _forward_classify
+        from muc_one_span.classify import _forward_classify
 
         ids = list(repeat_dict.repeats.keys())[:2]
         seq = repeat_dict.repeats[ids[0]] + repeat_dict.repeats[ids[1]]
@@ -1059,7 +1059,7 @@ class TestApplyBidirectionalFallback:
 
     def test_no_fallback_when_fully_consumed(self, repeat_dict):
         """No fallback when forward pass consumed all sequence."""
-        from open_pacmuci.classify import _apply_bidirectional_fallback
+        from muc_one_span.classify import _apply_bidirectional_fallback
 
         seq = repeat_dict.repeats[list(repeat_dict.repeats.keys())[0]]
         repeats = [{"type": "X", "match": "exact", "confidence": 1.0, "index": 1}]
@@ -1078,7 +1078,7 @@ class TestComputeClassificationSummary:
 
     def test_empty_repeats(self):
         """Summary handles empty repeat list."""
-        from open_pacmuci.classify import _compute_classification_summary
+        from muc_one_span.classify import _compute_classification_summary
 
         result = _compute_classification_summary([], [], [], 0)
         assert result["structure"] == ""
@@ -1087,7 +1087,7 @@ class TestComputeClassificationSummary:
 
     def test_all_exact_matches(self):
         """Summary computes 100% confidence for all exact matches."""
-        from open_pacmuci.classify import _compute_classification_summary
+        from muc_one_span.classify import _compute_classification_summary
 
         repeats = [
             {"type": "X", "match": "exact", "confidence": 1.0, "index": 1},
@@ -1133,7 +1133,7 @@ class TestSplitClusterByIndel:
 
     def test_returns_none_when_no_bam(self):
         """Returns None when BAM has no reads for cluster contigs."""
-        from open_pacmuci.alleles import _split_cluster_by_indel
+        from muc_one_span.alleles import _split_cluster_by_indel
 
         cluster = {
             "center": 50,
@@ -1141,14 +1141,14 @@ class TestSplitClusterByIndel:
             "contigs": [(50, 100)],
         }
 
-        with patch("open_pacmuci.alleles.run_tool", return_value=""):
+        with patch("muc_one_span.alleles.run_tool", return_value=""):
             result = _split_cluster_by_indel(Path("/tmp/test.bam"), cluster)
 
         assert result is None
 
     def test_returns_none_when_fewer_than_two_valleys(self):
         """Returns None when reads don't form two distinct indel clusters."""
-        from open_pacmuci.alleles import _split_cluster_by_indel
+        from muc_one_span.alleles import _split_cluster_by_indel
 
         cluster = {
             "center": 50,
@@ -1162,7 +1162,7 @@ class TestSplitClusterByIndel:
             for i in range(20)
         )
 
-        with patch("open_pacmuci.alleles.run_tool", return_value=sam_lines):
+        with patch("muc_one_span.alleles.run_tool", return_value=sam_lines):
             result = _split_cluster_by_indel(Path("/tmp/test.bam"), cluster)
 
         # With all-0 indel lengths, there's only one valley -> None
@@ -1170,7 +1170,7 @@ class TestSplitClusterByIndel:
 
     def test_splits_when_two_clear_valleys(self):
         """Returns two sub-clusters when reads form distinct indel groups."""
-        from open_pacmuci.alleles import _split_cluster_by_indel
+        from muc_one_span.alleles import _split_cluster_by_indel
 
         cluster = {
             "center": 50,
@@ -1189,7 +1189,7 @@ class TestSplitClusterByIndel:
             for i in range(20)
         )
 
-        with patch("open_pacmuci.alleles.run_tool", return_value=f"{sam_group_a}\n{sam_group_b}"):
+        with patch("muc_one_span.alleles.run_tool", return_value=f"{sam_group_a}\n{sam_group_b}"):
             result = _split_cluster_by_indel(Path("/tmp/test.bam"), cluster)
 
         if result is not None:
@@ -1222,7 +1222,7 @@ indel-based allele disambiguation."
 
 - [ ] **Step 1: Verify current coverage meets new threshold**
 
-Run: `uv run pytest tests/unit/ --cov=open_pacmuci --cov-report=term-missing`
+Run: `uv run pytest tests/unit/ --cov=muc_one_span --cov-report=term-missing`
 Expected: Coverage >= 80%
 
 - [ ] **Step 2: Update threshold**
@@ -1231,10 +1231,10 @@ In `.github/workflows/test.yml`, line 68:
 
 ```yaml
 # Before:
-        run: pytest tests/unit/ --cov=open_pacmuci --cov-report=xml --cov-report=term-missing --cov-fail-under=70
+        run: pytest tests/unit/ --cov=muc_one_span --cov-report=xml --cov-report=term-missing --cov-fail-under=70
 
 # After:
-        run: pytest tests/unit/ --cov=open_pacmuci --cov-report=xml --cov-report=term-missing --cov-fail-under=80
+        run: pytest tests/unit/ --cov=muc_one_span --cov-report=xml --cov-report=term-missing --cov-fail-under=80
 ```
 
 - [ ] **Step 3: Commit**
@@ -1252,17 +1252,17 @@ Coverage hardening in Phase 3 brings actual coverage above 80%."
 
 - [ ] **Step 1: Run lint**
 
-Run: `uv run ruff check src/open_pacmuci/`
+Run: `uv run ruff check src/muc_one_span/`
 Expected: No errors
 
 - [ ] **Step 2: Run type check**
 
-Run: `uv run mypy src/open_pacmuci/`
+Run: `uv run mypy src/muc_one_span/`
 Expected: No errors
 
 - [ ] **Step 3: Run full test suite with coverage**
 
-Run: `uv run pytest tests/unit/ --cov=open_pacmuci --cov-report=term-missing --cov-fail-under=80`
+Run: `uv run pytest tests/unit/ --cov=muc_one_span --cov-report=term-missing --cov-fail-under=80`
 Expected: All pass, coverage >= 80%
 
 - [ ] **Step 4: Fix any issues and commit**

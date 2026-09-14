@@ -5,7 +5,7 @@ from __future__ import annotations
 
 import pytest
 
-from open_pacmuci.classify import (
+from muc_one_span.classify import (
     _apply_bidirectional_fallback,
     _compute_classification_summary,
     _forward_classify,
@@ -16,7 +16,7 @@ from open_pacmuci.classify import (
     edit_distance,
     validate_mutations_against_vcf,
 )
-from open_pacmuci.config import load_repeat_dictionary
+from muc_one_span.config import load_repeat_dictionary
 
 
 @pytest.fixture
@@ -205,7 +205,7 @@ class TestMutationTemplateMatching:
 
     def test_dupc_exact_template_match(self, repeat_dict):
         """dupC on X matches the pre-computed 61bp template exactly."""
-        from open_pacmuci.config import _apply_mutation
+        from muc_one_span.config import _apply_mutation
 
         x_seq = repeat_dict.repeats["X"]
         dupc_seq = _apply_mutation(x_seq, repeat_dict.mutations["dupC"]["changes"])
@@ -217,7 +217,7 @@ class TestMutationTemplateMatching:
 
     def test_ins16bp_exact_template_match(self, repeat_dict):
         """16bp insertion on C matches the 76bp template exactly."""
-        from open_pacmuci.config import _apply_mutation
+        from muc_one_span.config import _apply_mutation
 
         c_seq = repeat_dict.repeats["C"]
         ins_seq = _apply_mutation(c_seq, repeat_dict.mutations["ins16bp"]["changes"])
@@ -229,7 +229,7 @@ class TestMutationTemplateMatching:
 
     def test_del18_31_exact_template_match(self, repeat_dict):
         """14bp deletion on X matches the 46bp template exactly."""
-        from open_pacmuci.config import _apply_mutation
+        from muc_one_span.config import _apply_mutation
 
         x_seq = repeat_dict.repeats["X"]
         del_seq = _apply_mutation(x_seq, repeat_dict.mutations["del18_31"]["changes"])
@@ -240,7 +240,7 @@ class TestMutationTemplateMatching:
 
     def test_sequence_with_dupc_classifies_correctly(self, repeat_dict):
         """classify_sequence finds dupC at correct window size."""
-        from open_pacmuci.config import _apply_mutation
+        from muc_one_span.config import _apply_mutation
 
         x_seq = repeat_dict.repeats["X"]
         dupc_seq = _apply_mutation(x_seq, repeat_dict.mutations["dupC"]["changes"])
@@ -252,7 +252,7 @@ class TestMutationTemplateMatching:
 
     def test_sequence_with_16bp_ins_classifies_correctly(self, repeat_dict):
         """classify_sequence handles 76bp mutated repeat with template match."""
-        from open_pacmuci.config import _apply_mutation
+        from muc_one_span.config import _apply_mutation
 
         x_seq = repeat_dict.repeats["X"]
         c_seq = repeat_dict.repeats["C"]
@@ -499,9 +499,9 @@ def test_classify_sequence_raises_on_no_match(mocker):
     after both the exact-match and fuzzy-fallback phases, triggering the
     guard at the bottom of the inner loop.
     """
-    import open_pacmuci.classify as classify_mod
-    from open_pacmuci.classify import classify_sequence
-    from open_pacmuci.config import RepeatDictionary
+    import muc_one_span.classify as classify_mod
+    from muc_one_span.classify import classify_sequence
+    from muc_one_span.config import RepeatDictionary
 
     # Create a minimal but structurally valid repeat dict.
     rd = RepeatDictionary(

@@ -12,7 +12,7 @@ RUN micromamba create --yes --strict-channel-priority --file /tmp/environment.ym
     micromamba clean --all --force-pkgs-dirs --yes
 # Inherit the cleaned tools layer directly: mode=min exports keep this expensive
 # solve, and neither builds nor cache exports copy the multi-GB environment twice.
-ENV PATH="/opt/conda/envs/open-pacmuci-tools/bin:${PATH}"
+ENV PATH="/opt/conda/envs/muconespan-tools/bin:${PATH}"
 
 FROM tools-runtime AS app-builder
 COPY --from=uv /uv /usr/local/bin/uv
@@ -23,7 +23,7 @@ ENV UV_PROJECT_ENVIRONMENT=/opt/venv UV_PYTHON_DOWNLOADS=never UV_LINK_MODE=copy
 WORKDIR /app
 COPY --chown=$MAMBA_USER:$MAMBA_USER pyproject.toml uv.lock README.md ./
 RUN uv sync --locked --no-default-groups --extra report --no-install-project --no-editable \
-    --python /opt/conda/envs/open-pacmuci-tools/bin/python
+    --python /opt/conda/envs/muconespan-tools/bin/python
 COPY --chown=$MAMBA_USER:$MAMBA_USER src/ ./src/
 RUN uv sync --locked --no-default-groups --extra report --no-editable
 
@@ -34,10 +34,12 @@ COPY --from=app-builder /opt/venv /opt/venv
 ENV PATH="/opt/venv/bin:${PATH}" VIRTUAL_ENV=/opt/venv
 USER $MAMBA_USER
 WORKDIR /data
-LABEL org.opencontainers.image.source="https://github.com/berntpopp/open-pacmuci" \
-      org.opencontainers.image.description="open-pacmuci: MUC1 VNTR analysis pipeline for PacBio HiFi and ONT amplicon data" \
+LABEL org.opencontainers.image.source="https://github.com/berntpopp/MucOneSpan" \
+      org.opencontainers.image.title="MucOneSpan" \
+      org.opencontainers.image.url="https://github.com/berntpopp/MucOneSpan" \
+      org.opencontainers.image.description="MucOneSpan: MUC1 VNTR analysis pipeline for PacBio HiFi and ONT amplicon data" \
       org.opencontainers.image.licenses="MIT"
-ENTRYPOINT ["open-pacmuci"]
+ENTRYPOINT ["muconespan"]
 CMD ["--help"]
 
 # CI executes the real runtime checks in BuildKit, avoiding a multi-GB Docker

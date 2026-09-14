@@ -1,0 +1,20 @@
+Bootstrap: docker
+From: ghcr.io/berntpopp/muconespan:0.10.0
+
+%labels
+    Author Bernt Popp
+    Version 0.10.0
+    Description MucOneSpan: MUC1 VNTR analysis pipeline for PacBio HiFi and ONT amplicon data
+
+%help
+    MucOneSpan: MUC1 VNTR analysis pipeline for PacBio HiFi and ONT amplicon data.
+
+    Usage:
+        singularity run muconespan.sif --help
+        singularity run muconespan.sif run --input reads.bam --output-dir results/
+
+    Build:
+        singularity build muconespan.sif docker/muconespan.def
+
+%runscript
+    exec muconespan "$@"

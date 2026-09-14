@@ -1,6 +1,6 @@
-# Contributing to open-pacmuci
+# Contributing to MucOneSpan
 
-Open-pacmuci analyzes MUC1 VNTR amplicons from PacBio HiFi and ONT sequencing.
+MucOneSpan analyzes MUC1 VNTR amplicons from PacBio HiFi and ONT sequencing.
 Shared repository conventions live in [AGENTS.md](../AGENTS.md); architecture,
 scientific contracts, and detailed commands live in
 [the developer guide](../docs/development.md).
@@ -10,8 +10,8 @@ scientific contracts, and detailed commands live in
 Install Python 3.10+ and [uv](https://docs.astral.sh/uv/), then:
 
 ```bash
-git clone https://github.com/berntpopp/open-pacmuci.git
-cd open-pacmuci
+git clone https://github.com/berntpopp/MucOneSpan.git
+cd MucOneSpan
 make dev
 make hooks
 make ci-check
