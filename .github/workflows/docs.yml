@@ -29,7 +29,7 @@ jobs:
 
     steps:
       - name: Checkout repository
-        uses: actions/checkout@v6
+        uses: actions/checkout@v7
         with:
           fetch-depth: 0  # Fetch all history for git info plugin
 
@@ -53,7 +53,7 @@ jobs:
           uv run mkdocs build --strict --verbose 2>&1 | tee build.log || (cat build.log && exit 1)
 
       - name: Upload artifact
-        uses: actions/upload-pages-artifact@v4
+        uses: actions/upload-pages-artifact@v5
         with:
           path: ./site
 
