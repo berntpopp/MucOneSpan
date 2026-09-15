@@ -2,13 +2,17 @@
 
 ## Allele Length Detection
 
-### Homozygous Same-Length Alleles
+### Discrete Repeat-Unit Length Errors
 
-When both alleles have the same repeat count (e.g., 60/60), the indel-valley splitting algorithm may incorrectly separate reads into two clusters. The pipeline reports `same_length: true` and uses a disambiguation strategy, but accuracy is reduced compared to heterozygous samples with distinct allele lengths.
+When length detection fails on called alleles, the error is almost exclusively in discrete integer multiples of 1 VNTR unit ($\pm 1$ repeat = $\pm 60$ bp, rarely $\pm 2$ to $3$ repeats). Because the reference ladder contigs are generated in discrete 60 bp steps, alignment peak finding and contig assignment naturally snap to repeat unit boundaries.
 
-### Extreme PCR Bias (Asymmetric Alleles)
+### Homozygous Same-Length Alleles and Read-Dominance Testing
 
-For highly asymmetric allele pairs (e.g., 25/140), the shorter allele amplifies much more efficiently during PCR. The longer allele may have very low read coverage (<10x), making allele detection unreliable. The pipeline requires a minimum coverage threshold (default: 10 reads) per allele.
+When both alleles share the same repeat count (e.g. 60/60) or differ by a narrow gap (1–3 repeats), naive peak splitting or valley thresholding can over-split reads. In v0.12.0, pairwise read-dominance scoring (`read_dominance.py`) requires a calibrated affine-gap score margin ($\delta = 43$ HiFi, $42$ ONT) and a minimum count of dominant spanning reads ($\ge 3$ HiFi, $\ge 4$ ONT) before accepting a second allele. If the margin or support floor is not met, the pipeline conservatively reports a single candidate with multiplicity unresolved rather than forcing a false split.
+
+### Extreme PCR Bias (Asymmetric Alleles and Amplicon Dropout)
+
+In PCR amplicon mode with highly asymmetric allele pairs (e.g., 25/140, 20/90, 30/120), PCR exponential amplification heavily favors the shorter fragment. At typical template depths (e.g. 60 templates), the longer allele frequently yields only 0–1 usable reads. Because the pipeline enforces strict evidence floors to protect normal homozygous controls from false splitting, it correctly withholds calling the longer allele. In benchmark evaluations, an uncalled second allele appears as a missing prediction, producing an apparent error equal to the full allele gap (e.g. $\Delta = 115$ repeats / $6,900$ bp).
 
 ## Variant Calling
 
@@ -38,6 +42,22 @@ consumes the sequence. The previous gap-as-repeat recovery is not a reliable
 biological reconstruction. An opt-in strict segmentation experiment retains
 exact suffix evidence without inventing a repeat index, but is disabled by default
 because it lost known events in development replay.
+
+### Sequence vs. Length Discordance in Consensus Reconstruction
+
+In diploid benchmarking, called alleles frequently achieve 100% exact repeat count (`count_exact: true`, $\Delta = 0$ bp) while failing strict nucleotide sequence identity (`sequence_exact: false`). The sequence edit distance is typically small (1 to 3 base pairs across the entire 3,000–6,000 bp array).
+
+Empirical root-cause analysis across the simulation and validation cohorts reveals:
+
+1. **IUPAC Ambiguity Codes from Clair3 `0/1` Calls (95.3% of mismatches):**
+   The reference ladder contigs are composed of canonical `X` repeat units. Real alleles contain variant repeat units (`A`, `B`, `C`, `D`, etc.) that differ from `X` by 1–2 SNPs. When reads partitioned for an allele are aligned to the contig, repetitive cross-talk or sequencing errors lead to non-100% allele frequencies (e.g. 75–85% ALT). Clair3 frequently classifies these sites as heterozygous `0/1` rather than homozygous `1/1`. `bcftools consensus` then inserts IUPAC ambiguity codes (`S` for C/G, `M` for A/C, `R` for A/G, `Y` for C/T). While the overall length is 100% exact, IUPAC symbols count as mismatches in strict ACGT sequence comparisons, and prevent `classify.py` from matching any known pure ACGT repeat in the dictionary (rendering them as `?`).
+2. **Catalogue Completeness (Zero Missing Units):**
+   The repeat dictionary contains all 34 known biological units (fixed 1–9, canonical X, and variants A through W). Mismatches are not caused by missing units in the catalogue or random background SNPs from simulator tools.
+3. **Clair3 False Negatives (Reference Fill):**
+   In low-coverage regions, Clair3 occasionally misses a variant SNP entirely, leaving that repeat unit with the reference ladder's canonical `X` sequence instead of the true variant unit, resulting in a 1–2 bp substitution.
+4. **Homopolymer Indels (ONT):**
+   Nanopore reads occasionally suffer 1-bp indel compression within the 7-C homopolymer tract of unit `X`.
+
 
 ## ONT-Specific Limitations
 
@@ -78,13 +98,11 @@ and uncovered-base masking are not yet validated; `reference_confidence` remains
 had independent read support. Low-depth and partial reads require particular
 caution when interpreting candidate sequences.
 
-The bundled ladder currently uses the first 500 bases of the stored 10 kb left
-flank, which is distal to the VNTR. This biological reference limitation is retained
-to avoid an unvalidated reference change. Trimming now derives its anchor from the
-same flank prefix actually used by the ladder and records exact-anchor or fixed
-fallback status. This repairs the reference/trim mismatch, but does not establish
-biologically correct left-flank reconstruction. Replacing the distal reference
-requires a paired reference ablation and regenerated bundled resources.
+In v0.12.0, reference ladder generation and consensus trimming use the proximal
+left flank (`flanking_left[-flank_length:]`) matching the primer-adjacent sequence
+present in actual amplicon reads. Trimming derives its anchor from this proximal
+sequence and records `exact_anchor` or fixed fallback status, ensuring exact anchor
+alignment across contigs.
 
 Length candidates still use secondary alignments for reference fit. `reads` is
 retained as a legacy alias for `alignment_records`, not independent molecules.

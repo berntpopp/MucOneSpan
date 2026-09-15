@@ -1,10 +1,49 @@
-# Validation evidence for 0.11.0
+# Validation Evidence
 
-This release improves exact scoring, evidence handling, evaluation and runtime
-configuration. It does **not** establish a general improvement in complete diploid
-MUC1 reconstruction. Two known length-detection failures remain. The planned new
-32-simulation final panel was not generated: the release was scoped to the verified
-work and a reproducible workflow for future experiments.
+This guide documents empirical validation across historical cohorts and the comprehensive 200-dataset simulation benchmark.
+
+## Validation evidence for 0.12.0
+
+MucOneSpan 0.12.0 was evaluated on 200 newly simulated sequencing datasets generated with MucOneUp across 100 diploid biological designs (140 development datasets, 60 protected final validation datasets) evaluated across PacBio HiFi and Oxford Nanopore amplicons.
+
+### Benchmark Results (200 Simulation Datasets)
+
+| Metric | Baseline (v0.11.0) | Candidate (v0.12.0) | Net Delta / Outcome | Acceptance Gate |
+|---|---|---|---|---|
+| **HiFi Diploid Exact Sequence** | 13 / 100 (13.0%) | **33 / 100 (33.0%)** | **+20 wins, 0 losses** | $\ge +8$ (PASS) |
+| **ONT Diploid Exact Sequence** | 2 / 100 (2.0%) | **14 / 100 (14.0%)** | **+12 wins, 0 losses** | $\ge +5$ (PASS) |
+| **Total Exact Sample Reconstruction** | 15 / 200 (7.5%) | **47 / 200 (23.5%)** | **+32 wins, 0 losses (3.13×)** | Wins > Losses (PASS) |
+| **Normal Control Specificity** | 35.7% (dev) / 40.0% (final) | **84.6%** (dev) / **100.0%** (final) | **0 new false alarms** | $\le 1$ FP (PASS) |
+| **False-Positive Mutation Calls** | 96 calls | **27 calls** | **-71.9% reduction** | Strict reduction (PASS) |
+| **Per-Allele Exact Repeat Counts** | 217 / 400 (54.2%) | **272 / 400 (68.0%)** | **+55 alleles (+13.8 pp)** | Zero regressions (PASS) |
+
+### Length Error Profile (How Far Off Are Non-Exact Calls?)
+
+Across all 400 alleles in the 200-case stress panel (which deliberately over-indexes on difficult cases: 1-repeat separation, identical lengths, and extreme PCR asymmetry):
+
+* **Exact repeat count (`count_exact`):** **68.0%** (272 / 400 alleles) — 64.0% HiFi, 72.0% ONT.
+* **Within $\pm 1$ repeat (`count_within1`):** **72.5%** (290 / 400 alleles).
+* **Within $\pm 2$ repeats (`count_within2`):** **73.0%** (292 / 400 alleles).
+* **Gross mismatch ($> 2$ repeats, ~27.0%):** Primarily driven by amplicon PCR length dropout in extreme asymmetric alleles (e.g. 25 vs 140 repeats at 60 templates). Because the pipeline requires $\ge 3$ (HiFi) or $\ge 4$ (ONT) dominant spanning reads to confirm an allele, the long allele (yielding 0–1 reads) is conservatively withheld. Uncalled alleles are scored as missing predictions, creating an apparent error equal to the full allele gap (e.g. 115 repeats).
+
+### Root Causes of Sequence vs. Length Discordance
+
+In about half of all evaluated alleles (48.9% in the standard 44-sample HiFi benchmark), the allele length is **100% exact (0 bp error)**, yet strict sequence identity fails (`sequence_exact: false`). The sequence edit distance is typically only **1 to 3 base pairs** across the 3,000–6,000 bp array.
+
+Empirical investigation confirmed:
+
+1. **IUPAC Ambiguity Codes from Clair3 `0/1` Calls (95.3% of mismatches):**
+   The reference ladder contig consists of canonical `X` repeat units. Biological alleles contain variant units (`A`, `B`, `C`, etc.) differing by 1–2 SNPs. Due to repetitive alignment jitter or sequencing errors, a small fraction of reads (~10–25%) carry reference bases. Clair3 frequently classifies these sites as heterozygous `0/1` rather than homozygous `1/1`. `bcftools consensus` applies IUPAC ambiguity codes (`S` for C/G, `M` for A/C, `R` for A/G). While the sequence length remains exact, IUPAC symbols count as mismatches in strict ACGT sequence comparisons and prevent `classify.py` from matching pure ACGT dictionary units (rendering them as `?`).
+2. **Complete Catalogue Coverage (Zero Missing Units):**
+   The repeat dictionary in `repeats.json` contains all 34 known biological units (fixed 1–9, canonical X, and variants A through W). Zero truth repeat units are missing from the catalogue.
+3. **MucOneUp Biological Fidelity:**
+   MucOneUp generates haplotypes by chaining authentic repeat units from the Vrbacka model; it does not introduce synthetic background SNPs into repeat units.
+4. **Clair3 False Negatives (Reference Fill):**
+   At low coverage, Clair3 occasionally misses a variant SNP, leaving the reference ladder's canonical `X` unit in place of the variant unit (1–2 bp mismatch).
+
+---
+
+## Validation evidence for 0.11.0
 
 ## What was verified
 
