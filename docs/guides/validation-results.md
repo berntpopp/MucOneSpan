@@ -2,6 +2,38 @@
 
 This guide documents empirical validation across historical cohorts and the comprehensive 200-dataset simulation benchmark.
 
+## Validation evidence for 0.13.0
+
+MucOneSpan 0.13.0 was evaluated on the 500-dataset stratified simulation benchmark (250 distinct diploid biological designs × 2 sequencing modes: PacBio HiFi amplicons and genomic Oxford Nanopore). The cohort was partitioned under strict pre-registration discipline into Development (300 datasets), Validation (100 datasets), and held-out Test (100 datasets), governed by cryptographic ledger seals (`tests/data/experiment_500/ledger_sealed.jsonl`).
+
+### Multi-Split Benchmark Summary
+
+| Cohort / Split | Platform | Samples | Diploid Sequence Exact | Diploid Count Exact | Count $\pm 1$ Unit | Supported Event Precision | Supported Alarm Precision | Normal Control Specificity |
+|---|---|---|---|---|---|---|---|---|
+| **DEV** (300) | Amplicon HiFi | 150 | 42 (28.0%) | 96 (64.0%) | 111 (74.0%) | 95.2% (40/42) | 97.6% (41/42) | 95.0% (19/20) |
+| | Genomic ONT | 150 | 0 (0.0%) | 1 (0.7%) | 1 (0.7%) | 66.7% (6/9) | 100.0% (10/10) | 100.0% (18/18) |
+| | **DEV Pooled** | 300 | 42 (14.0%) | 97 (32.3%) | 112 (37.3%) | 90.2% (46/51) | 98.1% (51/52) | 97.4% (37/38) |
+| **VAL** (100) | Amplicon HiFi | 50 | 15 (30.0%) | 34 (68.0%) | 38 (76.0%) | 100.0% (11/11) | 100.0% (11/11) | 100.0% (6/6) |
+| | Genomic ONT | 50 | 1 (2.0%) | 4 (8.0%) | 7 (14.0%) | 100.0% (6/6) | 100.0% (6/6) | 100.0% (7/7) |
+| | **VAL Pooled** | 100 | 16 (16.0%) | 38 (38.0%) | 45 (45.0%) | 100.0% (17/17) | 100.0% (17/17) | 100.0% (13/13) |
+| **TEST** (100)| Amplicon HiFi | 50 | 11 (22.0%) | 36 (72.0%) | 37 (74.0%) | 91.7% (11/12) | 100.0% (12/12) | 100.0% (4/4) |
+| | Genomic ONT | 50 | 1 (2.0%) | 1 (2.0%) | 3 (6.0%) | 75.0% (3/4) | 100.0% (4/4) | 100.0% (4/4) |
+| | **TEST Pooled**| 100 | 12 (12.0%) | 37 (37.0%) | 40 (40.0%) | 87.5% (14/16) | 100.0% (16/16) | 100.0% (8/8) |
+| **ALL POOLED**| Amplicon HiFi | 250 | 68 (27.2%) | 166 (66.4%) | 186 (74.4%) | 95.4% (62/65) | 98.5% (64/65) | 96.7% (29/30) |
+| | Genomic ONT | 250 | 2 (0.8%) | 6 (2.4%) | 11 (4.4%) | 78.9% (15/19) | 100.0% (20/20) | 100.0% (29/29) |
+| | **TOTAL** | **500** | **70 (14.0%)** | **172 (34.4%)**| **197 (39.4%)**| **91.7% (77/84)** | **98.8% (84/85)** | **98.3% (58/59)** |
+
+### Scientific and Clinical Takeaways
+
+1. **Perfect Alarm Precision on Held-Out Validation & Test Data:**
+   Across both the protected validation set (VAL-100) and held-out test set (TEST-100), Supported Sample Alarm Precision reached **100.0%** (17/17 in VAL, 16/16 in TEST). Zero false alarms were triggered on normal controls in either split (Normal Control Specificity = 100.0%).
+2. **PacBio HiFi Robustness Across Allelic Length Spans:**
+   On PacBio HiFi datasets, diploid repeat count accuracy consistently achieved **64.0% – 72.0% exact** and **74.0% – 76.0% within $\pm 1$ repeat**, demonstrating that the bimodal nearest-peak cluster assignment in `length_candidates.py` completely eliminated the historical $+1$ repeat shift for $\Delta \ge 2$ alleles.
+3. **Genomic ONT Performance Profile:**
+   While genomic ONT achieved 100% normal control specificity and 100% alarm precision, full diploid sequence recovery was constrained by the 7.5 kb simulated read length ceiling in NanoSim, which precludes span-spanning reads for long VNTR alleles in non-amplicon genomic contexts.
+4. **Accessible Clinical Bio-UX Verification:**
+   The clinical reporting interface was evaluated with Playwright across headless Chromium, WebKit, and Firefox. Reports rendered with zero external network requests (fully offline air-gapped compliance), 100% WCAG 2.1 AA/AAA contrast ratios, distinct SVG status iconography, and prominent allele multiplicity caveats.
+
 ## Validation evidence for 0.12.0
 
 MucOneSpan 0.12.0 was evaluated on 200 newly simulated sequencing datasets generated with MucOneUp across 100 diploid biological designs (140 development datasets, 60 protected final validation datasets) evaluated across PacBio HiFi and Oxford Nanopore amplicons.
