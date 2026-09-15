@@ -74,6 +74,7 @@ scientific defaults, not recommendations to tune against a validation sample.
 | `run.clair3_model` | `""` | Model path; empty preserves the external default. |
 | `run.reference` | `null` | Reference FASTA path; bundled ladder when omitted. |
 | `run.minimap2_preset` | `null` | Explicit preset or automatic platform selection. |
+| `run.mapping_timeout` | `3600.0` | Total mapping budget in seconds, including sorting, indexing and cleanup; finite number >0. `map`/`run --mapping-timeout` overrides it. |
 | `run.report` | `false` | Generate the optional HTML report. |
 | `allele_selection.min_gap` | `5` | Minimum gap between contig repeat counts separating clusters; integer >=1. |
 | `allele_selection.valley_min_points` | `3` | Minimum points for valley consideration; integer >=3. |

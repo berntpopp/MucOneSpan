@@ -8,6 +8,7 @@
     "clair3_model": "",
     "reference": null,
     "minimap2_preset": null,
+    "mapping_timeout": 3600.0,
     "report": false
   },
   "allele_selection": {

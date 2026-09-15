@@ -75,3 +75,40 @@ def test_keyboard_interrupt_writes_interrupted_status(tmp_path: Path) -> None:
     status = json.loads((tmp_path / "run_status.json").read_text())
     assert status["status"] == "interrupted"
     assert status["error_type"] == "KeyboardInterrupt"
+
+
+@pytest.mark.parametrize(
+    "error,status",
+    [(RuntimeError("render failed"), "execution_failed"), (KeyboardInterrupt(), "interrupted")],
+)
+def test_failed_report_updates_summary_provenance_for_portable_reports(tmp_path, error, status):
+    from muc_one_span.run_status import record_run_status
+
+    summary = tmp_path / "summary.json"
+
+    @record_run_status
+    def run(output_dir: str) -> None:
+        summary.write_text(
+            json.dumps({"classifications": {}, "run_status": {"status": "analysis_completed"}})
+        )
+        raise error
+
+    with pytest.raises(type(error)):
+        run(str(tmp_path))
+    assert json.loads(summary.read_text())["run_status"]["status"] == status
+    assert json.loads((tmp_path / "run_status.json").read_text())["status"] == status
+
+
+@pytest.mark.parametrize("contents", ["{invalid", "[]"])
+def test_malformed_old_summary_does_not_mask_execution_error(tmp_path, contents):
+    from muc_one_span.run_status import record_run_status
+
+    (tmp_path / "summary.json").write_text(contents)
+
+    @record_run_status
+    def run(output_dir: str) -> None:
+        raise RuntimeError("original execution error")
+
+    with pytest.raises(RuntimeError, match="original execution error"):
+        run(str(tmp_path))
+    assert json.loads((tmp_path / "run_status.json").read_text())["status"] == "execution_failed"

@@ -278,3 +278,58 @@ layout IDs, dictionary or flank length requires an explicit compatible reference
 The evaluator records `fixed_repeat_count` and the generic
 `canonical_plus_fixed_matches_reported` diagnostic; the older
 `canonical_plus9_matches_reported` field remains a literal legacy diagnostic.
+
+## Mapping and report lifecycle
+
+Mapping retains the streaming `minimap2 -> samtools sort` pipe.
+`run.mapping_timeout` / `map --mapping-timeout` / `run --mapping-timeout` set a
+finite positive total budget (default 3600 seconds). Tool groups are isolated,
+stderr drains concurrently, and failure/interruption/timeout terminates the
+launched groups and removes partial BAM/index files. On Linux, an isolated
+supervisor adopts and reaps orphan descendants without changing the application
+process or reaping its unrelated children. Other POSIX platforms retain process
+group cleanup and delegate orphan reaping to the operating system.
+A cleanup reserve is inside
+the deadline; elapsed indexing time shares the mapping budget. Descendants must
+remain in their launched process groups; the operating system cannot guarantee
+bounded reaping of a process stuck in uninterruptible kernel I/O. Such cleanup
+failures are reported explicitly.
+
+Standalone reports retain `--vcf PATH` and accept repeated
+`--allele-vcf LABEL PATH`. Explicit plural input overrides singular input.
+Without either option, recorded allele VCF paths are used. Library callers can
+supply `vcf_paths`; an explicitly empty mapping also overrides `vcf_path`.
+Shared files produce one shared track and do not establish independent haplotypes.
+IGV loci come from `summary.alleles[key].contig_name`; unavailable requested
+contigs and missing requested files produce visible failures rather than silently
+opening another contig. IGV still requires the external `create_report` executable. Real session/browser
+verification uses igv-reports 1.13.0. The installed 1.16.0 implementation was
+observed concatenating the first VCF record into the column header; reports reject
+that malformed output explicitly. Select a working `create_report` on PATH;
+this does not change the project dependency lock or variant-calling toolchain.
+
+`report --run-status PATH` supplies explicit execution provenance; otherwise the
+report command reads `run_status.json` next to its input summary. It never reads
+a sidecar from the report destination. Explicit provenance overrides embedded
+summary status, so a failed rerun defeats stale successful artifacts. Malformed
+sidecar JSON is an error. Legacy inputs without status retain established
+decision behavior with an unavailable-status label. Failed, interrupted,
+insufficient and running execution cannot produce a reassuring negative banner.
+Recorded mutation evidence is retained with execution warnings.
+
+The full pipeline passes an `analysis_completed` rendering context after all
+analysis stages succeed. This means analysis completed and the report is being
+generated; it is not terminal execution success. The sidecar remains `running`
+while rendering and becomes `completed` only after the callback returns.
+Summary status becomes completed after successful rendering (or analysis when
+no report was requested). The decorator also synchronizes terminal failure,
+interruption and insufficient-evidence status into existing readable summaries,
+so moving a summary alone preserves known failure provenance. A requested report
+failure propagates to the sidecar and nonzero CLI result, including a missing
+optional report dependency.
+
+`exact_match_pct` always uses percent units from 0 through 100: `0.5` means
+0.5%, and `1` means 1%. Report text, progress width and ARIA use the same value.
+Missing or invalid values are unavailable; historical JSON is never guessed to
+contain fractions. Unicode em dashes represent absent nomenclature while Jinja
+autoescaping continues to protect supplied strings.

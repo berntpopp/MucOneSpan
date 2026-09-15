@@ -221,3 +221,91 @@ def test_generate_report_with_igv_and_hgvs(tmp_path: Path):
     assert "loadIgv()" in html
     assert "DecompressionStream" in html
     assert "igv.js 3.0.2" in html
+
+
+@pytest.mark.parametrize("kind", ["fasta", "bed", "bam", "vcf"])
+def test_requested_missing_files_are_errors(tmp_path, kind):
+    fasta = tmp_path / "reference.fa"
+    fasta.write_text(">c\nACGT\n")
+    arguments = {"fasta_path": fasta, f"{kind}_path": tmp_path / f"missing.{kind}"}
+    with pytest.raises(FileNotFoundError, match="Requested"):
+        build_igv_context(tmp_path, **arguments)
+
+
+def test_plural_vcf_precedence_dedup_and_labels(tmp_path):
+    fasta = tmp_path / "ref.fa"
+    fasta.write_text(">c\nACGT\n")
+    bed = tmp_path / "locus.bed"
+    bed.write_text("c\t0\t4\tlocus\n")
+    vcf = tmp_path / "merged.vcf"
+    vcf.touch()
+    import json
+
+    configs = []
+
+    def capture_config(cmd):
+        configs.extend(json.loads(Path(cmd[cmd.index("--track-config") + 1]).read_text()))
+
+    with patch("muc_one_span.report_igv.run_tool", side_effect=capture_config):
+        run_igv_report(
+            bed,
+            fasta,
+            tmp_path / "igv.html",
+            vcf_file=tmp_path / "ignored.vcf",
+            vcf_paths={"allele_2": vcf, "allele_1": vcf},
+            report_igv="embedded",
+        )
+    assert len(configs) == 1
+    assert configs[0]["name"] == "Shared variants (Allele 1, Allele 2)"
+
+
+def test_explicit_bed_does_not_hide_missing_assigned_contig(tmp_path):
+    fasta = tmp_path / "reference.fa"
+    fasta.write_text(">contig_1\nACGT\n")
+    bed = tmp_path / "locus.bed"
+    bed.write_text("contig_1\t0\t4\tlocus\n")
+
+    def fake_report(cmd):
+        Path(cmd[cmd.index("--output") + 1]).write_text("<html></html>")
+
+    with (
+        patch("muc_one_span.report_igv.run_tool", side_effect=fake_report),
+        pytest.raises(ValueError, match="contig_11"),
+    ):
+        build_igv_context(tmp_path, fasta, bed_path=bed, contig_names=["contig_11"])
+
+
+def test_malformed_generated_vcf_is_rejected(tmp_path):
+    import base64
+    import gzip
+    import json
+
+    fasta = tmp_path / "ref.fa"
+    fasta.write_text(">c\nACGT\n")
+    bed = tmp_path / "locus.bed"
+    bed.write_text("c\t0\t4\tlocus\n")
+    vcf = tmp_path / "variants.vcf"
+    header = "#CHROM\tPOS\tID\tREF\tALT\tQUAL\tFILTER\tINFO\tFORMAT\tSAMPLE"
+    vcf.write_text("##fileformat=VCFv4.2\n" + header + "\nc\t2\t.\tA\tC\t60\tPASS\t.\tGT\t1/1\n")
+
+    def uri(data):
+        return (
+            "data:application/gzip;base64,"
+            + base64.b64encode(gzip.compress(data.encode())).decode()
+        )
+
+    def fake_report(cmd):
+        malformed_vcf = header + "c\t2\t.\tA\tC\t60\tPASS\t.\tGT\t1/1\n"
+        session = {"tracks": [{"type": "variant", "name": "Variants", "url": uri(malformed_vcf)}]}
+        generated = (
+            '<div id="container"></div></body>\nconst tableJson = {}\nconst sessionDictionary = '
+            + json.dumps({"0": uri(json.dumps(session))})
+            + "\n"
+        )
+        Path(cmd[cmd.index("--output") + 1]).write_text(generated)
+
+    with (
+        patch("muc_one_span.report_igv.run_tool", side_effect=fake_report),
+        pytest.raises(ValueError, match=r"Malformed VCF.*create_report"),
+    ):
+        run_igv_report(bed, fasta, tmp_path / "igv.html", vcf_file=vcf, report_igv="embedded")

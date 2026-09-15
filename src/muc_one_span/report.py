@@ -6,6 +6,7 @@ Install with: ``pip install muc_one_span[report]``
 
 from __future__ import annotations
 
+import math
 from datetime import datetime, timezone
 from pathlib import Path
 
@@ -33,8 +34,49 @@ def _enrich_mutation_nomenclature(mutation: dict) -> dict:
     return enrich_mutation_record(mutation)
 
 
-def compute_clinical_decision(summary: dict[str, Any]) -> dict[str, Any]:
+def _exact_match_percentage(value: Any) -> float | None:
+    """Validate the producer's 0-100 percent contract without guessing units."""
+    if isinstance(value, bool) or not isinstance(value, (int, float)):
+        return None
+    return float(value) if 0 <= value <= 100 and math.isfinite(value) else None
+
+
+def _execution_context(summary: dict, execution_status: dict | None) -> dict[str, Any]:
+    """Prefer explicitly supplied provenance; never guess a sidecar location."""
+    record = execution_status if execution_status is not None else summary.get("run_status")
+    if record is None:
+        return {"label": "Execution status unavailable (legacy input)", "warning": None}
+    status = record.get("status") if isinstance(record, dict) else None
+    if not isinstance(status, str):
+        status = None
+    labels = {
+        "completed": "Completed",
+        "analysis_completed": "Analysis completed; report generated",
+        "execution_failed": "Execution failed",
+        "interrupted": "Interrupted",
+        "insufficient_evidence": "Insufficient evidence",
+        "running": "Running",
+    }
+    label = (
+        labels.get(status, "Unknown execution status")
+        if status is not None
+        else "Unknown execution status"
+    )
+    warning = None
+    if status not in {"completed", "analysis_completed"}:
+        warning = (
+            f"{label}. Execution does not establish a completed analysis. "
+            "Existing mutation evidence is retained; absence of detected mutations "
+            "cannot establish a negative result."
+        )
+    return {"label": label, "warning": warning}
+
+
+def compute_clinical_decision(
+    summary: dict[str, Any], *, execution_status: dict | None = None
+) -> dict[str, Any]:
     """Derive 3-state clinical decision support banner and multiplicity caveats."""
+    execution = _execution_context(summary, execution_status)
     classifications = summary.get("classifications", {})
     alleles = summary.get("alleles", {})
 
@@ -89,17 +131,15 @@ def compute_clinical_decision(summary: dict[str, Any]) -> dict[str, Any]:
             "Recommend genetic counseling and nephrology clinical correlation. "
             "Cascade variant testing is available for at-risk family members."
         )
-    elif (
-        low_coverage
-        or ambiguous_bases > 10
-        or summary.get("run_status", {}).get("status") == "insufficient_evidence"
-    ):
+    elif low_coverage or ambiguous_bases > 10 or execution["warning"] is not None:
         state = "INCONCLUSIVE"
         title = "Inconclusive / Quality Warning"
         badge_label = "INCONCLUSIVE"
         badge_class = "badge-warning"
         banner_class = "decision-inconclusive"
         reasons: list[str] = []
+        if execution["warning"]:
+            reasons.append(execution["warning"])
         if low_coverage:
             reasons.append(
                 f"Total read depth ({total_reads} reads) is below diagnostic threshold (30 reads)."
@@ -111,7 +151,7 @@ def compute_clinical_decision(summary: dict[str, Any]) -> dict[str, Any]:
         if not reasons:
             reasons.append("Quality control metrics did not meet validation standards.")
         summary_text = (
-            "The test result is inconclusive due to quality or coverage limitations. "
+            "The test result is inconclusive due to execution, quality or coverage limitations. "
             "No definitive clinical call can be rendered."
         )
         details = reasons
@@ -160,6 +200,7 @@ def compute_clinical_decision(summary: dict[str, Any]) -> dict[str, Any]:
         )
 
     return {
+        "execution": execution,
         "state": state,
         "title": title,
         "badge_label": badge_label,
@@ -184,6 +225,8 @@ def generate_report(
     vcf_path: Path | None = None,
     fasta_path: Path | None = None,
     bed_path: Path | None = None,
+    vcf_paths: dict[str, Path] | None = None,
+    execution_status: dict | None = None,
 ) -> Path:
     """Render pipeline results as a self-contained HTML report.
 
@@ -206,6 +249,12 @@ def generate_report(
         vcf_path: Optional VCF track for variant visualization.
         fasta_path: Optional reference FASTA for alignment visualization.
         bed_path: Optional BED region for alignment visualization.
+        vcf_paths: Allele-keyed VCF tracks, sorted by key and deduplicated by path.
+            When supplied (including empty), takes precedence over vcf_path.
+        execution_status: Authoritative execution provenance, overriding summary
+            run_status. Missing legacy status retains prior evidence decisions.
+            analysis_completed is reserved for the successful pipeline analysis
+            before its report callback has returned; it is not terminal status.
 
     Returns:
         The resolved *output_path* after writing the report.
@@ -228,6 +277,7 @@ def generate_report(
         loader=PackageLoader("muc_one_span", "templates"),
         autoescape=True,
     )
+    env.filters["exact_match_percentage"] = _exact_match_percentage
     template = env.get_template("report.html.j2")
 
     versions = tool_versions or summary.get("tool_versions", {})
@@ -253,19 +303,20 @@ def generate_report(
     igv_context = None
     igv_payload_b64 = None
     igv_provenance_str = None
-    if report_igv != REPORT_IGV_OFF and fasta_path and fasta_path.exists():
+    if report_igv != REPORT_IGV_OFF and fasta_path is not None:
         from muc_one_span.report_igv import build_igv_context
 
         contig_names = [
-            d["contig"]
-            for d in (detailed_repeats or {}).values()
-            if isinstance(d, dict) and "contig" in d
+            allele["contig_name"]
+            for _, allele in sorted(summary.get("alleles", {}).items())
+            if isinstance(allele, dict) and allele.get("contig_name")
         ]
         igv_context = build_igv_context(
             output_dir=output_path.parent,
             fasta_path=fasta_path,
             bam_path=bam_path,
             vcf_path=vcf_path,
+            vcf_paths=vcf_paths,
             bed_path=bed_path,
             report_igv=report_igv,
             flanking=0,
@@ -274,7 +325,7 @@ def generate_report(
         igv_payload_b64 = igv_payload(report_igv)
         igv_provenance_str = igv_provenance(report_igv)
 
-    decision = compute_clinical_decision(summary_copy)
+    decision = compute_clinical_decision(summary_copy, execution_status=execution_status)
 
     html = template.render(
         sample_name=sample_name,

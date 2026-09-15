@@ -31,6 +31,10 @@
     <span class="badge {{ clinical_decision.badge_class }}" aria-label="Status: {{ clinical_decision.badge_label }}">{{ clinical_decision.badge_label }}</span>
     <h2 id="decision-heading" class="decision-title">{{ clinical_decision.title }}</h2>
   </div>
+  <p class="execution-status"><strong>Execution:</strong> {{ clinical_decision.execution.label }}</p>
+  {% if clinical_decision.execution.warning %}
+  <p class="execution-warning" role="status">{{ clinical_decision.execution.warning }}</p>
+  {% endif %}
   <p class="decision-summary">{{ clinical_decision.summary }}</p>
   {% if clinical_decision.details %}
   <ul class="decision-details">
@@ -228,8 +232,8 @@
             <br><small style="color:var(--fg-muted);">({{ m.get("mutation_name") }})</small>
           {% endif %}
         </td>
-        <td><code>{{ m.get("hgvs_cdna", "&mdash;") }}</code></td>
-        <td><code>{{ m.get("repeat_form") or "&mdash;" }}</code></td>
+        <td><code>{{ m.get("hgvs_cdna") or "—" }}</code></td>
+        <td><code>{{ m.get("repeat_form") or "—" }}</code></td>
         <td>
           {% if m.get("ambiguity_interval") %}
             <code>({{ m["ambiguity_interval"][0] }}, {{ m["ambiguity_interval"][1] }})</code>
@@ -291,7 +295,7 @@
     {% for allele_key in ["allele_1", "allele_2"] %}
     {% set dr = detailed_repeats.get(allele_key, {}) %}
     {% set conf = dr.get("confidence", dr.get("allele_confidence", 0)) %}
-    {% set exact = dr.get("exact_match_pct", 0) %}
+    {% set exact = dr.get("exact_match_pct") | exact_match_percentage %}
     <div class="card">
       <h3>{{ allele_key | replace("_", " ") | title }}</h3>
 
@@ -313,16 +317,18 @@
       <div>
         <div class="metric-row">
           <span class="metric-label tip" data-tip="Percentage of repeat units that exactly match a known reference sequence">Exact match</span>
-          <span class="metric-value">{{ "%.1f"|format(exact * 100) if exact <= 1 else "%.1f"|format(exact) }}%</span>
+          <span class="metric-value">{{ "%.1f%%"|format(exact) if exact is not none else "—" }}</span>
         </div>
+        {% if exact is not none %}
         <div class="progress-track" role="progressbar"
-             aria-valuenow="{{ (exact * 100)|round(1) if exact <= 1 else exact|round(1) }}"
+             aria-valuenow="{{ '%.1f'|format(exact) }}"
              aria-valuemin="0" aria-valuemax="100"
              aria-label="{{ allele_key }} exact match percentage">
-          {% set exact_pct = (exact * 100) if exact <= 1 else exact %}
+          {% set exact_pct = exact %}
           <div class="progress-fill {{ 'good' if exact_pct >= 80 else ('ok' if exact_pct >= 50 else 'poor') }}"
-               style="width:{{ exact_pct|round(1) }}%"></div>
+               style="width:{{ '%.1f'|format(exact_pct) }}%"></div>
         </div>
+        {% endif %}
       </div>
     </div>
     {% endfor %}

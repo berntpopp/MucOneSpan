@@ -7,6 +7,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+### Fixed
+
+- Bound streaming minimap2/samtools mapping with a configurable finite timeout,
+  isolated process groups, concurrent stderr draining and partial BAM/index cleanup (#41).
+- Open report IGV sessions on actual allele contigs and include every allele VCF,
+  deduplicating shared files. Preserve `--vcf`; add repeatable `--allele-vcf LABEL PATH` (#39).
+  Reject malformed VCF payloads from affected external igv-reports versions
+  instead of silently displaying empty evidence tracks (1.13.0 verified).
+- Carry execution provenance into reports, prevent known unfinished/failed runs
+  from appearing negative, and propagate requested report-generation failures.
+  Preserve autoescaping with Unicode missing-value dashes and display
+  `exact_match_pct` consistently as the producer's 0–100 percentage (#40).
+
 ## [0.14.0] - 2026-09-15
 
 ### Added

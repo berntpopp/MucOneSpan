@@ -25,6 +25,7 @@ def execute_pipeline(
     minimap2_preset: str | None,
     *,
     report_igv: str = "off",
+    mapping_timeout: float | None = None,
     settings: RuntimeSettings | None = None,
     configuration: Path | None = None,
 ) -> None:
@@ -61,6 +62,9 @@ def execute_pipeline(
         report_igv=report_igv,
         platform=platform,
         minimap2_preset=minimap2_preset,
+        mapping_timeout=mapping_timeout
+        if mapping_timeout is not None
+        else (settings or DEFAULT_SETTINGS).run.mapping_timeout,
     )
     if reference is None and (
         settings.repeat_dictionary is not None
@@ -88,7 +92,9 @@ def execute_pipeline(
 
     # Step 1: Map reads
     click.echo("Step 1/5: Mapping reads...")
-    bam = map_reads(Path(input_path), ref, out, threads, preset=preset)
+    bam = map_reads(
+        Path(input_path), ref, out, threads, preset=preset, timeout=settings.run.mapping_timeout
+    )
 
     # Step 2: Detect alleles
     click.echo("Step 2/5: Detecting alleles...")
@@ -169,6 +175,7 @@ def execute_pipeline(
 
     # Summary
     summary = {
+        "run_status": {"status": "analysis_completed"},
         "alleles": alleles_result,
         "classifications": {
             k: {
@@ -190,23 +197,22 @@ def execute_pipeline(
 
     effective_igv = settings.run.report_igv
     if report or effective_igv != "off":
-        try:
-            from muc_one_span.report import generate_report
+        from muc_one_span.report import generate_report
 
-            report_path = out / "report.html"
-            primary_vcf = next(iter(vcf_paths.values()), None)
-            generate_report(
-                summary,
-                report_path,
-                sample_name=Path(input_path).stem,
-                detailed_repeats=all_results,
-                report_igv=effective_igv,
-                bam_path=bam,
-                vcf_path=primary_vcf,
-                fasta_path=ref,
-            )
-            click.echo(f"Report: {report_path}")
-        except ImportError as e:
-            click.echo(f"Warning: {e}", err=True)
+        report_path = out / "report.html"
+        generate_report(
+            summary,
+            report_path,
+            sample_name=Path(input_path).stem,
+            detailed_repeats=all_results,
+            report_igv=effective_igv,
+            bam_path=bam,
+            vcf_paths=vcf_paths,
+            fasta_path=ref,
+            execution_status={"status": "analysis_completed"},
+        )
+        click.echo(f"Report: {report_path}")
 
+    summary["run_status"] = {"status": "completed"}
+    (out / "summary.json").write_text(json.dumps(summary, indent=2) + "\n")
     click.echo("Pipeline complete.")
