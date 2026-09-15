@@ -14,12 +14,24 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 - PRJEB92208 ONT cohort baseline and independently sourced HG002 Q100 sequence
   comparison; reported positive controls, unknown negatives and unresolved sample
   identity remain explicit. No PacBio validation or general clinical-performance claim.
+- Containerized VNTRPipeline v1.0 diagnostic comparator evaluation on PRJEB92208
+  clinical inputs under pinned dependencies and offline BiocManager runtime (#56).
 
 ### Fixed
 
 - Recognize exact seven-C-tract duplications across compatible MUC1 repeat
   backgrounds, preserving the parent repeat and 61-base boundary. This corrects
   B-repeat dupC being misreported as an A insertion in the following repeat (#52).
+- Guard consensus genotype selection when phase status is unphased, disconnected,
+  or conflicting, selecting IUPAC candidate consensus ("I") and clearing independent
+  haplotype evidence instead of forcing alternate GT1 (#53).
+- Normalize allele candidate valley splitting by contig reference length and filter
+  out sub-biological degradation contigs (< 10 units), preventing long full-span
+  alleles from being lost to short fragment clusters (#54).
+- Calibrate clinical decision calling to require frameshift, unambiguous localization,
+  and confirmed VCF support for PATHOGENIC calls, appropriately classifying in-frame
+  insertions, unresolved duplicate candidates, and unphased heterozygous reconstructions
+  as INCONCLUSIVE (#55).
 
 ## [0.14.1] - 2026-09-15
 

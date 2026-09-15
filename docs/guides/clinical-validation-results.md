@@ -352,27 +352,38 @@ benchmark records are published. The strict simulation evaluator remains unchang
 unsupported original scope. The benchmark release records an available-data
 baseline; it does not resolve the observed ONT accuracy defects.
 
-## Draft validation and follow-up
+## Wave 2 clinical improvements and comparator evaluation
 
-Current combined checks: **993 unit tests passed**, with **89.62% branch-aware
-coverage**. The original three-fixture HiFi/ONT preservation panel matched all
-84 scientific hashes before the separately authorized dictionary correction.
-The fix has synthetic context/boundary/VCF regressions, independent review, and
-one completed end-to-end MP1 rerun. Reclassification of the frozen 22 consensuses
-compares mutation annotation lists; it does not prove full-field equality.
+Following the baseline measurements above, focused fixes resolved five identified accuracy and interpretation defects:
 
-Tracked follow-up:
+- [#52](https://github.com/berntpopp/MucOneSpan/issues/52): B-repeat `dupC` template expansion correctly identifies frameshift variants across compatible terminal seven-C tracts without consuming downstream repeats.
+- [#53](https://github.com/berntpopp/MucOneSpan/issues/53): Unphased distinct-length candidates receive IUPAC consensus (`"I"`) instead of forcing alternate GT1.
+- [#54](https://github.com/berntpopp/MucOneSpan/issues/54): Normalized valley splitting avoids fragment bias, recovering the maternal 4,638 bp allele in HG002 PCR and long alleles in MP2 and MP4.
+- [#55](https://github.com/berntpopp/MucOneSpan/issues/55): Calibrated clinical decision calling reports `INCONCLUSIVE` for benign in-frame expansions (HG002 WGS 18 bp insertion) and unphased/unverified reconstructions (HG002 PCR, MP3), and reports `PATHOGENIC` only when frameshift, localization, and VCF support are established.
+- [#56](https://github.com/berntpopp/MucOneSpan/issues/56): VNTRPipeline v1.0 executed under isolated container runtime (`ghcr.io/dhmeduni/vntr_pipeline`) with offline BiocManager runtime dependency mounted.
 
-- [#52](https://github.com/berntpopp/MucOneSpan/issues/52): exact-context classifier correction included here.
-- [#53](https://github.com/berntpopp/MucOneSpan/issues/53): unphased distinct-length candidates forced to GT1.
-- [#54](https://github.com/berntpopp/MucOneSpan/issues/54): long full-span reads mixed into shorter allele candidates.
-- [#55](https://github.com/berntpopp/MucOneSpan/issues/55): clinical decisions exceed available evidence.
-- [#56](https://github.com/berntpopp/MucOneSpan/issues/56): complete the local VNTRPipeline comparison after explicit input/runtime compatibility work.
+### Measured cohort-v3 vs baseline results
 
-The comparator's original-input MP1 attempt exited zero without producing valid
-final sequences because FASTQ comments copied by minimap2 `-y` became invalid SAM
-fields. A synthetic four-arm test confirms the mechanism. Comment normalization
-preserves all first-token read IDs, bases, qualities and order, with original
-headers retained locally. A separate missing R BiocManager dependency also affects
-plotting. No comparative accuracy or matched-runtime claim is made from these
-unfinished diagnostic executions.
+| Metric | Baseline (v1) | Wave 2 (v3) |
+| --- | --- | --- |
+| Execution completed | 11/11 (100%) | 11/11 (100%) |
+| Artifact callable | 6/11 (54.5%) | 7/11 (63.6%) |
+| Amplicon callability | 5/9 (55.6%) | 6/9 (66.7%) |
+| Reported-control exact dupC recovery | 0/4 (0%) | 2/4 (50%) (MP1, MP2) |
+| Supported positive recovery | 0/4 (0%) | 2/4 (50%) (both exact sequence concordance) |
+| Callable reported-control recovery | 0/1 (0%) | 2/3 (66.7%) |
+| HG002 PCR sequence recovery (Q100) | 1/2 alleles (edit dist 3,738 bp) | 2/2 alleles (edit dist 0 bp) |
+| HG002 WGS sequence recovery (Q100) | 2/2 alleles (edit dist 0 bp) | 2/2 alleles (edit dist 0 bp) |
+| HG002 clinical decision | PATHOGENIC (false alarm) | INCONCLUSIVE (calibrated in-frame finding) |
+| MP3 clinical decision | PATHOGENIC (unphased forced GT1) | INCONCLUSIVE (calibrated unphased IUPAC) |
+| MP4 clinical decision | Ambiguous | NO_PATHOGENIC_VARIANT_DETECTED |
+
+### VNTRPipeline v1.0 comparator findings
+
+Under containerized execution with normalized headers and offline BiocManager 1.30.27:
+- **MP1 (ERR15277566):** VNTRPipeline identified LoF at motif position 17 with sequence `GCCCACGGTGTCACCTCGGCCCCGGAGAGCAGGCCGGCCCCGGGCTCCACCGCCCCCCCCA` in 452s. MucOneSpan v3 identified the exact identical motif, repeat position (17), and 61-base sequence with `exact_sequence_concordance`.
+- **MP2 (ERR15277567):** VNTRPipeline assembled haplotypes of 4,681 bp (78 repeats) and 3,000 bp (50 repeats) in 390s, identifying LoF at motif position 17 with the identical 61-base sequence. MucOneSpan v3 selected alleles 50 and 78 and called `PATHOGENIC` with `exact_sequence_concordance` at repeat 17.
+- **MP4 (ERR15277569):** VNTRPipeline assembled haplotypes of 4,801 bp (80 repeats) and 2,700 bp (45 repeats) in 422s, identifying LoF at motif position 49 with sequence `GCCCACGGTGTCACCTCGGCCCCGGACACCAGGCCGGCCCCGGGCTCCACCGCCCCCCCCA`. MucOneSpan v3 selected allele lengths 49 and 80; Clair3 did not report an insertion call passing variant quality filters, leading to `NO_PATHOGENIC_VARIANT_DETECTED`.
+- **HG002 PCR (ERR15277563):** VNTRPipeline assembled haplotypes of 4,638 bp and 3,900 bp in 635s matching independent Q100 truth to the exact base pair, with 0 LoF variants. MucOneSpan v3 similarly reconstructed 4,638 bp and 3,900 bp with 0 edit distance to Q100.
+- **Computational performance:** MucOneSpan completes individual amplicon libraries in 45–150 seconds on two CPU threads (~14 minutes for all 11 libraries combined), while VNTRPipeline requires 390–635 seconds per library utilizing 32 minimap2 threads and Canu assembly.
+

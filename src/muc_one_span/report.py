@@ -81,13 +81,23 @@ def compute_clinical_decision(
     alleles = summary.get("alleles", {})
 
     pathogenic_mutations: list[dict[str, Any]] = []
+    uncertain_mutations: list[dict[str, Any]] = []
     for allele_key, acls in classifications.items():
         if isinstance(acls, dict):
             for mut in acls.get("mutations", []):
                 if isinstance(mut, dict):
                     mut_copy = dict(mut)
                     mut_copy["allele"] = allele_key
-                    pathogenic_mutations.append(mut_copy)
+                    frameshift = mut.get("frameshift") is True
+                    loc_ok = mut.get("localization_status") != "ambiguous"
+                    supp_ok = (
+                        mut.get("vcf_support") is not False
+                        and mut.get("vcf_support_status") != "absent"
+                    )
+                    if frameshift and loc_ok and supp_ok:
+                        pathogenic_mutations.append(mut_copy)
+                    else:
+                        uncertain_mutations.append(mut_copy)
 
     a1 = alleles.get("allele_1", {}) if isinstance(alleles, dict) else {}
     a2 = alleles.get("allele_2", {}) if isinstance(alleles, dict) else {}
@@ -99,6 +109,32 @@ def compute_clinical_decision(
         for acls in classifications.values()
         if isinstance(acls, dict)
     )
+
+    reconstruction_reasons: list[str] = []
+    if not bool(alleles.get("homozygous")):
+        for a_key, a_info in (("Allele 1", a1), ("Allele 2", a2)):
+            if not a_info:
+                continue
+            if a_info.get("independent_haplotype_evidence") is False:
+                reconstruction_reasons.append(
+                    f"{a_key}: Reconstruction incomplete; independent biological haplotype evidence not established."
+                )
+            elif a_info.get("phase_status") in (
+                "unphased",
+                "missing_phase_set",
+                "disconnected_phase_sets",
+                "conflicting_variant_records",
+            ):
+                reconstruction_reasons.append(
+                    f"{a_key}: Genotype phase is unphased or conflicting."
+                )
+            elif a_info.get("reconstruction_status") in (
+                "not_separately_resolved",
+                "candidate_reference_confidence_unverified",
+            ) and a_info.get("candidate_duplicate_of"):
+                reconstruction_reasons.append(
+                    f"{a_key}: Candidate reconstruction not separately resolved."
+                )
 
     if pathogenic_mutations:
         state = "PATHOGENIC"
@@ -122,6 +158,13 @@ def compute_clinical_decision(
             if supp:
                 det += f" - Evidence: {supp}"
             details.append(det)
+        for m in uncertain_mutations:
+            m_name = m.get("name") or m.get("mutation_name", "Unknown variant")
+            rep_idx = m.get("repeat_index", "N/A")
+            allele_name = str(m.get("allele", "allele")).replace("_", " ").title()
+            details.append(
+                f"{allele_name}: Additional uncertain variant ({m_name} at repeat {rep_idx}) observed."
+            )
         summary_text = (
             "A pathogenic frameshift variant was identified in the MUC1 VNTR region. "
             "This finding is consistent with autosomal dominant tubulointerstitial "
@@ -131,7 +174,13 @@ def compute_clinical_decision(
             "Recommend genetic counseling and nephrology clinical correlation. "
             "Cascade variant testing is available for at-risk family members."
         )
-    elif low_coverage or ambiguous_bases > 10 or execution["warning"] is not None:
+    elif (
+        low_coverage
+        or ambiguous_bases > 10
+        or execution["warning"] is not None
+        or bool(uncertain_mutations)
+        or bool(reconstruction_reasons)
+    ):
         state = "INCONCLUSIVE"
         title = "Inconclusive / Quality Warning"
         badge_label = "INCONCLUSIVE"
@@ -148,6 +197,16 @@ def compute_clinical_decision(
             reasons.append(
                 f"High number of ambiguous consensus bases ({ambiguous_bases}) detected."
             )
+        for m in uncertain_mutations:
+            m_name = m.get("name") or m.get("mutation_name", "Unknown variant")
+            rep_idx = m.get("repeat_index", "N/A")
+            allele_name = str(m.get("allele", "allele")).replace("_", " ").title()
+            reasons.append(
+                f"{allele_name}: Observed sequence variant ({m_name} at repeat {rep_idx}) "
+                "is inconclusive (in-frame or ambiguous localization/support)."
+            )
+        if reconstruction_reasons:
+            reasons.extend(reconstruction_reasons)
         if not reasons:
             reasons.append("Quality control metrics did not meet validation standards.")
         summary_text = (
