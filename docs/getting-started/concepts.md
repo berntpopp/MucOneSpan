@@ -117,7 +117,7 @@ For known mutations (e.g., dupC), the pipeline has **pre-computed the exact sequ
 ```
 Input:  60bp unit from consensus
 Step 1: Check exact match against 34 known repeat types      --> match? done
-Step 2: Check exact match against 44 mutation templates       --> match? report mutation
+Step 2: Check exact match against known mutation templates       --> match? report mutation
 Step 3: Compute edit distance against all repeat types        --> report as novel
 ```
 

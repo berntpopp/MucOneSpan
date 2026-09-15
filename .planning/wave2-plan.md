@@ -66,3 +66,16 @@ A standalone script would duplicate provenance and scoring; modifying the strict
 ## Progress and validation
 
 Initial main clean at c08000a; refreshed origin unchanged; isolated .worktrees/wave2-clinical. Task-local worktree exclusion in .git/info/exclude preserves tracked main. Baseline tests running; external data/results root will be explicit and outside Git.
+
+
+## Current delivery steering (2026-09-16)
+
+The user subsequently requested root-cause debugging, actual VNTRPipeline
+comparison, an explicit MP1 classifier fix, issues, and a **draft PR with current
+code**. Preserve the original frozen results and keep this delivery unmerged.
+The separate fix worktree's exact-context dictionary correction is integrated
+into the draft branch; end-to-end MP1 now recovers supported B:dupC at repeat17.
+All22 frozen consensus mutation lists were replayed, with only MP1allele2 changed.
+993combined unit tests pass (89.62%branch-aware). Issues52–56 track the fixed and
+remaining defects. Full comparator execution and a complete post-fix cohort are
+not yet validated. Release/version/merge/cleanup remain pending draft review.

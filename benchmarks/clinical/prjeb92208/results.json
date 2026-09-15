@@ -1,0 +1,1130 @@
+{
+  "schema_version": 1,
+  "eligible_runs": 11,
+  "biological_samples": 9,
+  "status_counts": {
+    "completed": 11,
+    "insufficient_evidence": 0,
+    "execution_failed": 0,
+    "invalid_artifacts": 0,
+    "unsupported_input": 0,
+    "unattempted": 0
+  },
+  "execution_success": {
+    "numerator": 11,
+    "denominator": 11,
+    "value": 1.0,
+    "reason": null
+  },
+  "callability": {
+    "numerator": 6,
+    "denominator": 11,
+    "value": 0.5454545454545454,
+    "reason": null
+  },
+  "insufficient_evidence": {
+    "numerator": 0,
+    "denominator": 11,
+    "value": 0.0,
+    "reason": null
+  },
+  "arms": {
+    "primary_amplicon": {
+      "eligible_runs": 9,
+      "biological_samples": 9,
+      "status_counts": {
+        "completed": 9,
+        "insufficient_evidence": 0,
+        "execution_failed": 0,
+        "invalid_artifacts": 0,
+        "unsupported_input": 0,
+        "unattempted": 0
+      },
+      "execution_success": {
+        "numerator": 9,
+        "denominator": 9,
+        "value": 1.0,
+        "reason": null
+      },
+      "callability": {
+        "numerator": 5,
+        "denominator": 9,
+        "value": 0.5555555555555556,
+        "reason": null
+      },
+      "insufficient_evidence": {
+        "numerator": 0,
+        "denominator": 9,
+        "value": 0.0,
+        "reason": null
+      },
+      "events": {
+        "dupC": {
+          "biological_recovery_any_run": {
+            "numerator": 0,
+            "denominator": 0,
+            "value": null,
+            "reason": "no independently confirmed biological positives"
+          },
+          "evidence_category": "independent_confirmation",
+          "eligible_positive_runs": 0,
+          "eligible_negative_runs": 0,
+          "confirmed_positive_runs": 0,
+          "confirmed_negative_runs": 0,
+          "unknown_truth_runs": 9,
+          "all_positive_recovery": {
+            "numerator": 0,
+            "denominator": 0,
+            "value": null,
+            "reason": "no independently confirmed positive truth"
+          },
+          "supported_positive_recovery": {
+            "numerator": 0,
+            "denominator": 0,
+            "value": null,
+            "reason": "no independently confirmed positive truth"
+          },
+          "callable_positive_recovery": {
+            "numerator": 0,
+            "denominator": 0,
+            "value": null,
+            "reason": "no callable independently confirmed positives"
+          },
+          "callable_specificity": {
+            "numerator": 0,
+            "denominator": 0,
+            "value": null,
+            "reason": "no callable independently confirmed negatives"
+          },
+          "uncallable_positive_runs": 0,
+          "uncallable_negative_runs": 0
+        }
+      },
+      "reported_controls": {
+        "dupC": {
+          "biological_recovery_any_run": {
+            "numerator": 0,
+            "denominator": 4,
+            "value": 0.0,
+            "reason": null
+          },
+          "evidence_category": "reported_known_control",
+          "eligible_positive_runs": 4,
+          "eligible_negative_runs": 0,
+          "confirmed_positive_runs": 0,
+          "confirmed_negative_runs": 0,
+          "unknown_truth_runs": 5,
+          "all_positive_recovery": {
+            "numerator": 0,
+            "denominator": 4,
+            "value": 0.0,
+            "reason": null
+          },
+          "supported_positive_recovery": {
+            "numerator": 0,
+            "denominator": 4,
+            "value": 0.0,
+            "reason": null
+          },
+          "callable_positive_recovery": {
+            "numerator": 0,
+            "denominator": 1,
+            "value": 0.0,
+            "reason": null
+          },
+          "callable_specificity": {
+            "numerator": 0,
+            "denominator": 0,
+            "value": null,
+            "reason": "no callable reported known-control negatives"
+          },
+          "uncallable_positive_runs": 3,
+          "uncallable_negative_runs": 0
+        }
+      }
+    },
+    "secondary_wgs": {
+      "eligible_runs": 2,
+      "biological_samples": 1,
+      "status_counts": {
+        "completed": 2,
+        "insufficient_evidence": 0,
+        "execution_failed": 0,
+        "invalid_artifacts": 0,
+        "unsupported_input": 0,
+        "unattempted": 0
+      },
+      "execution_success": {
+        "numerator": 2,
+        "denominator": 2,
+        "value": 1.0,
+        "reason": null
+      },
+      "callability": {
+        "numerator": 1,
+        "denominator": 2,
+        "value": 0.5,
+        "reason": null
+      },
+      "insufficient_evidence": {
+        "numerator": 0,
+        "denominator": 2,
+        "value": 0.0,
+        "reason": null
+      },
+      "events": {
+        "dupC": {
+          "biological_recovery_any_run": {
+            "numerator": 0,
+            "denominator": 0,
+            "value": null,
+            "reason": "no independently confirmed biological positives"
+          },
+          "evidence_category": "independent_confirmation",
+          "eligible_positive_runs": 0,
+          "eligible_negative_runs": 0,
+          "confirmed_positive_runs": 0,
+          "confirmed_negative_runs": 0,
+          "unknown_truth_runs": 2,
+          "all_positive_recovery": {
+            "numerator": 0,
+            "denominator": 0,
+            "value": null,
+            "reason": "no independently confirmed positive truth"
+          },
+          "supported_positive_recovery": {
+            "numerator": 0,
+            "denominator": 0,
+            "value": null,
+            "reason": "no independently confirmed positive truth"
+          },
+          "callable_positive_recovery": {
+            "numerator": 0,
+            "denominator": 0,
+            "value": null,
+            "reason": "no callable independently confirmed positives"
+          },
+          "callable_specificity": {
+            "numerator": 0,
+            "denominator": 0,
+            "value": null,
+            "reason": "no callable independently confirmed negatives"
+          },
+          "uncallable_positive_runs": 0,
+          "uncallable_negative_runs": 0
+        }
+      },
+      "reported_controls": {
+        "dupC": {
+          "biological_recovery_any_run": {
+            "numerator": 0,
+            "denominator": 0,
+            "value": null,
+            "reason": "no reported known-control biological positives"
+          },
+          "evidence_category": "reported_known_control",
+          "eligible_positive_runs": 0,
+          "eligible_negative_runs": 0,
+          "confirmed_positive_runs": 0,
+          "confirmed_negative_runs": 0,
+          "unknown_truth_runs": 2,
+          "all_positive_recovery": {
+            "numerator": 0,
+            "denominator": 0,
+            "value": null,
+            "reason": "no reported known-control positive truth"
+          },
+          "supported_positive_recovery": {
+            "numerator": 0,
+            "denominator": 0,
+            "value": null,
+            "reason": "no reported known-control positive truth"
+          },
+          "callable_positive_recovery": {
+            "numerator": 0,
+            "denominator": 0,
+            "value": null,
+            "reason": "no callable reported known-control positives"
+          },
+          "callable_specificity": {
+            "numerator": 0,
+            "denominator": 0,
+            "value": null,
+            "reason": "no callable reported known-control negatives"
+          },
+          "uncallable_positive_runs": 0,
+          "uncallable_negative_runs": 0
+        }
+      }
+    }
+  },
+  "events": {
+    "dupC": {
+      "biological_recovery_any_run": {
+        "numerator": 0,
+        "denominator": 0,
+        "value": null,
+        "reason": "no independently confirmed biological positives"
+      },
+      "evidence_category": "independent_confirmation",
+      "eligible_positive_runs": 0,
+      "eligible_negative_runs": 0,
+      "confirmed_positive_runs": 0,
+      "confirmed_negative_runs": 0,
+      "unknown_truth_runs": 11,
+      "all_positive_recovery": {
+        "numerator": 0,
+        "denominator": 0,
+        "value": null,
+        "reason": "no independently confirmed positive truth"
+      },
+      "supported_positive_recovery": {
+        "numerator": 0,
+        "denominator": 0,
+        "value": null,
+        "reason": "no independently confirmed positive truth"
+      },
+      "callable_positive_recovery": {
+        "numerator": 0,
+        "denominator": 0,
+        "value": null,
+        "reason": "no callable independently confirmed positives"
+      },
+      "callable_specificity": {
+        "numerator": 0,
+        "denominator": 0,
+        "value": null,
+        "reason": "no callable independently confirmed negatives"
+      },
+      "uncallable_positive_runs": 0,
+      "uncallable_negative_runs": 0
+    }
+  },
+  "reported_controls": {
+    "dupC": {
+      "biological_recovery_any_run": {
+        "numerator": 0,
+        "denominator": 4,
+        "value": 0.0,
+        "reason": null
+      },
+      "evidence_category": "reported_known_control",
+      "eligible_positive_runs": 4,
+      "eligible_negative_runs": 0,
+      "confirmed_positive_runs": 0,
+      "confirmed_negative_runs": 0,
+      "unknown_truth_runs": 7,
+      "all_positive_recovery": {
+        "numerator": 0,
+        "denominator": 4,
+        "value": 0.0,
+        "reason": null
+      },
+      "supported_positive_recovery": {
+        "numerator": 0,
+        "denominator": 4,
+        "value": 0.0,
+        "reason": null
+      },
+      "callable_positive_recovery": {
+        "numerator": 0,
+        "denominator": 1,
+        "value": 0.0,
+        "reason": null
+      },
+      "callable_specificity": {
+        "numerator": 0,
+        "denominator": 0,
+        "value": null,
+        "reason": "no callable reported known-control negatives"
+      },
+      "uncallable_positive_runs": 3,
+      "uncallable_negative_runs": 0
+    }
+  },
+  "runs": [
+    {
+      "run_accession": "ERR15277564",
+      "arm": "primary_amplicon",
+      "biological_sample": "HG003",
+      "identity_resolved": true,
+      "status": "completed",
+      "recorded_status": "completed",
+      "execution_completed": true,
+      "callable": true,
+      "analysis_state": "completed",
+      "events": [],
+      "event_results": {
+        "dupC": {
+          "truth": "unknown",
+          "evidence_category": "unknown",
+          "source_ids": [],
+          "resolution": "event_identity",
+          "detected": false,
+          "recovered": null,
+          "supported_recovered": null,
+          "wrong_positive_alarm": null
+        }
+      },
+      "sequence_truth_available": false,
+      "sequence_equal": null,
+      "literal_sequence_equal": null,
+      "sequence_length_equal": null,
+      "sequence_length_error_bp": null,
+      "sequence_assignments": null,
+      "sequence_edit_distance": null,
+      "literal_exact_alleles": null,
+      "independent_exact_alleles": null,
+      "sequence_intervals": null,
+      "sequence_comparison_reason": "no independent sequence truth",
+      "limitations": [
+        "Healthy/reference label does not establish endpoint-specific negative truth."
+      ]
+    },
+    {
+      "run_accession": "ERR15277565",
+      "arm": "primary_amplicon",
+      "biological_sample": "HG004",
+      "identity_resolved": true,
+      "status": "completed",
+      "recorded_status": "completed",
+      "execution_completed": true,
+      "callable": true,
+      "analysis_state": "completed",
+      "events": [],
+      "event_results": {
+        "dupC": {
+          "truth": "unknown",
+          "evidence_category": "unknown",
+          "source_ids": [],
+          "resolution": "event_identity",
+          "detected": false,
+          "recovered": null,
+          "supported_recovered": null,
+          "wrong_positive_alarm": null
+        }
+      },
+      "sequence_truth_available": false,
+      "sequence_equal": null,
+      "literal_sequence_equal": null,
+      "sequence_length_equal": null,
+      "sequence_length_error_bp": null,
+      "sequence_assignments": null,
+      "sequence_edit_distance": null,
+      "literal_exact_alleles": null,
+      "independent_exact_alleles": null,
+      "sequence_intervals": null,
+      "sequence_comparison_reason": "no independent sequence truth",
+      "limitations": [
+        "Healthy/reference label does not establish endpoint-specific negative truth."
+      ]
+    },
+    {
+      "run_accession": "ERR15277569",
+      "arm": "primary_amplicon",
+      "biological_sample": "MP4",
+      "identity_resolved": true,
+      "status": "completed",
+      "recorded_status": "completed",
+      "execution_completed": true,
+      "callable": false,
+      "analysis_state": "ambiguous_reconstruction",
+      "events": null,
+      "event_results": {
+        "dupC": {
+          "truth": "present",
+          "evidence_category": "reported_known_control",
+          "source_ids": [
+            "paper_known_controls"
+          ],
+          "resolution": "event_identity",
+          "detected": null,
+          "recovered": false,
+          "supported_recovered": false,
+          "wrong_positive_alarm": null
+        }
+      },
+      "sequence_truth_available": false,
+      "sequence_equal": null,
+      "literal_sequence_equal": null,
+      "sequence_length_equal": null,
+      "sequence_length_error_bp": null,
+      "sequence_assignments": null,
+      "sequence_edit_distance": null,
+      "literal_exact_alleles": null,
+      "independent_exact_alleles": null,
+      "sequence_intervals": null,
+      "sequence_comparison_reason": "no independent sequence truth",
+      "limitations": [
+        "No independently mapped orthogonal diagnostic assay is published for this alias."
+      ]
+    },
+    {
+      "run_accession": "ERR15277562",
+      "arm": "primary_amplicon",
+      "biological_sample": "HG001",
+      "identity_resolved": true,
+      "status": "completed",
+      "recorded_status": "completed",
+      "execution_completed": true,
+      "callable": true,
+      "analysis_state": "completed",
+      "events": [],
+      "event_results": {
+        "dupC": {
+          "truth": "unknown",
+          "evidence_category": "unknown",
+          "source_ids": [],
+          "resolution": "event_identity",
+          "detected": false,
+          "recovered": null,
+          "supported_recovered": null,
+          "wrong_positive_alarm": null
+        }
+      },
+      "sequence_truth_available": false,
+      "sequence_equal": null,
+      "literal_sequence_equal": null,
+      "sequence_length_equal": null,
+      "sequence_length_error_bp": null,
+      "sequence_assignments": null,
+      "sequence_edit_distance": null,
+      "literal_exact_alleles": null,
+      "independent_exact_alleles": null,
+      "sequence_intervals": null,
+      "sequence_comparison_reason": "no independent sequence truth",
+      "limitations": [
+        "Healthy/reference label does not establish endpoint-specific negative truth."
+      ]
+    },
+    {
+      "run_accession": "ERR15277570",
+      "arm": "primary_amplicon",
+      "biological_sample": "MP5",
+      "identity_resolved": true,
+      "status": "completed",
+      "recorded_status": "completed",
+      "execution_completed": true,
+      "callable": true,
+      "analysis_state": "completed",
+      "events": [
+        {
+          "event": null,
+          "allele": "allele_2",
+          "repeat_index": 35,
+          "parent": "X",
+          "supported": false,
+          "support_status": "exact_sequence_concordance"
+        }
+      ],
+      "event_results": {
+        "dupC": {
+          "truth": "unknown",
+          "evidence_category": "unknown",
+          "source_ids": [],
+          "resolution": "event_identity",
+          "detected": false,
+          "recovered": null,
+          "supported_recovered": null,
+          "wrong_positive_alarm": null
+        }
+      },
+      "sequence_truth_available": false,
+      "sequence_equal": null,
+      "literal_sequence_equal": null,
+      "sequence_length_equal": null,
+      "sequence_length_error_bp": null,
+      "sequence_assignments": null,
+      "sequence_edit_distance": null,
+      "literal_exact_alleles": null,
+      "independent_exact_alleles": null,
+      "sequence_intervals": null,
+      "sequence_comparison_reason": "no independent sequence truth",
+      "limitations": [
+        "Exploratory comparator finding only; independent confirmation unavailable."
+      ]
+    },
+    {
+      "run_accession": "ERR15277563",
+      "arm": "primary_amplicon",
+      "biological_sample": "HG002",
+      "identity_resolved": true,
+      "status": "completed",
+      "recorded_status": "completed",
+      "execution_completed": true,
+      "callable": false,
+      "analysis_state": "ambiguous_reconstruction",
+      "events": null,
+      "event_results": {
+        "dupC": {
+          "truth": "unknown",
+          "evidence_category": "unknown",
+          "source_ids": [],
+          "resolution": "event_identity",
+          "detected": null,
+          "recovered": null,
+          "supported_recovered": null,
+          "wrong_positive_alarm": null
+        }
+      },
+      "sequence_truth_available": true,
+      "sequence_equal": false,
+      "literal_sequence_equal": false,
+      "sequence_length_equal": false,
+      "sequence_length_error_bp": [
+        -3000,
+        -738
+      ],
+      "sequence_assignments": [
+        [
+          {
+            "truth_allele": 0,
+            "predicted_allele": 0,
+            "edit_distance": 0,
+            "length_error_bp": 0,
+            "exact": true,
+            "independent_recovery": true
+          },
+          {
+            "truth_allele": 1,
+            "predicted_allele": 1,
+            "edit_distance": 3738,
+            "length_error_bp": -3738,
+            "exact": false,
+            "independent_recovery": true
+          }
+        ]
+      ],
+      "sequence_edit_distance": 3738,
+      "literal_exact_alleles": 1,
+      "independent_exact_alleles": 0,
+      "sequence_intervals": [
+        [
+          0,
+          3900
+        ],
+        [
+          0,
+          900
+        ]
+      ],
+      "sequence_comparison_reason": null,
+      "limitations": [
+        "Healthy/reference label does not establish endpoint-specific negative truth."
+      ]
+    },
+    {
+      "run_accession": "ERR15277552",
+      "arm": "secondary_wgs",
+      "biological_sample": "HG002",
+      "identity_resolved": true,
+      "status": "completed",
+      "recorded_status": "completed",
+      "execution_completed": true,
+      "callable": false,
+      "analysis_state": "ambiguous_reconstruction",
+      "events": null,
+      "event_results": {
+        "dupC": {
+          "truth": "unknown",
+          "evidence_category": "unknown",
+          "source_ids": [],
+          "resolution": "event_identity",
+          "detected": null,
+          "recovered": null,
+          "supported_recovered": null,
+          "wrong_positive_alarm": null
+        }
+      },
+      "sequence_truth_available": true,
+      "sequence_equal": false,
+      "literal_sequence_equal": true,
+      "sequence_length_equal": true,
+      "sequence_length_error_bp": [
+        0,
+        0
+      ],
+      "sequence_assignments": [
+        [
+          {
+            "truth_allele": 0,
+            "predicted_allele": 0,
+            "edit_distance": 0,
+            "length_error_bp": 0,
+            "exact": true,
+            "independent_recovery": true
+          },
+          {
+            "truth_allele": 1,
+            "predicted_allele": 1,
+            "edit_distance": 0,
+            "length_error_bp": 0,
+            "exact": true,
+            "independent_recovery": true
+          }
+        ]
+      ],
+      "sequence_edit_distance": 0,
+      "literal_exact_alleles": 2,
+      "independent_exact_alleles": 0,
+      "sequence_intervals": [
+        [
+          0,
+          3900
+        ],
+        [
+          0,
+          4638
+        ]
+      ],
+      "sequence_comparison_reason": null,
+      "limitations": [
+        "Healthy/reference label does not establish endpoint-specific negative truth."
+      ]
+    },
+    {
+      "run_accession": "ERR15277553",
+      "arm": "secondary_wgs",
+      "biological_sample": "MP1_WGS_identity_unresolved",
+      "identity_resolved": false,
+      "status": "completed",
+      "recorded_status": "completed",
+      "execution_completed": true,
+      "callable": true,
+      "analysis_state": "completed",
+      "events": [],
+      "event_results": {
+        "dupC": {
+          "truth": "unknown",
+          "evidence_category": "unknown",
+          "source_ids": [],
+          "resolution": "event_identity",
+          "detected": false,
+          "recovered": null,
+          "supported_recovered": null,
+          "wrong_positive_alarm": null
+        }
+      },
+      "sequence_truth_available": false,
+      "sequence_equal": null,
+      "literal_sequence_equal": null,
+      "sequence_length_equal": null,
+      "sequence_length_error_bp": null,
+      "sequence_assignments": null,
+      "sequence_edit_distance": null,
+      "literal_exact_alleles": null,
+      "independent_exact_alleles": null,
+      "sequence_intervals": null,
+      "sequence_comparison_reason": "no independent sequence truth",
+      "limitations": [
+        "ENA MP1_WGS_MUC1 conflicts with paper MP4 WGS and inconsistent Supplement5 labels; identity unresolved."
+      ]
+    },
+    {
+      "run_accession": "ERR15277568",
+      "arm": "primary_amplicon",
+      "biological_sample": "MP3",
+      "identity_resolved": true,
+      "status": "completed",
+      "recorded_status": "completed",
+      "execution_completed": true,
+      "callable": false,
+      "analysis_state": "ambiguous_reconstruction",
+      "events": null,
+      "event_results": {
+        "dupC": {
+          "truth": "present",
+          "evidence_category": "reported_known_control",
+          "source_ids": [
+            "paper_known_controls"
+          ],
+          "resolution": "event_identity",
+          "detected": null,
+          "recovered": false,
+          "supported_recovered": false,
+          "wrong_positive_alarm": null
+        }
+      },
+      "sequence_truth_available": false,
+      "sequence_equal": null,
+      "literal_sequence_equal": null,
+      "sequence_length_equal": null,
+      "sequence_length_error_bp": null,
+      "sequence_assignments": null,
+      "sequence_edit_distance": null,
+      "literal_exact_alleles": null,
+      "independent_exact_alleles": null,
+      "sequence_intervals": null,
+      "sequence_comparison_reason": "no independent sequence truth",
+      "limitations": [
+        "No independently mapped orthogonal diagnostic assay is published for this alias."
+      ]
+    },
+    {
+      "run_accession": "ERR15277566",
+      "arm": "primary_amplicon",
+      "biological_sample": "MP1",
+      "identity_resolved": true,
+      "status": "completed",
+      "recorded_status": "completed",
+      "execution_completed": true,
+      "callable": true,
+      "analysis_state": "completed",
+      "events": [
+        {
+          "event": null,
+          "allele": "allele_2",
+          "repeat_index": 18,
+          "parent": "X",
+          "supported": false,
+          "support_status": "absent"
+        }
+      ],
+      "event_results": {
+        "dupC": {
+          "truth": "present",
+          "evidence_category": "reported_known_control",
+          "source_ids": [
+            "paper_known_controls"
+          ],
+          "resolution": "event_identity",
+          "detected": false,
+          "recovered": false,
+          "supported_recovered": false,
+          "wrong_positive_alarm": true
+        }
+      },
+      "sequence_truth_available": false,
+      "sequence_equal": null,
+      "literal_sequence_equal": null,
+      "sequence_length_equal": null,
+      "sequence_length_error_bp": null,
+      "sequence_assignments": null,
+      "sequence_edit_distance": null,
+      "literal_exact_alleles": null,
+      "independent_exact_alleles": null,
+      "sequence_intervals": null,
+      "sequence_comparison_reason": "no independent sequence truth",
+      "limitations": [
+        "No independently mapped orthogonal diagnostic assay is published for this alias."
+      ]
+    },
+    {
+      "run_accession": "ERR15277567",
+      "arm": "primary_amplicon",
+      "biological_sample": "MP2",
+      "identity_resolved": true,
+      "status": "completed",
+      "recorded_status": "completed",
+      "execution_completed": true,
+      "callable": false,
+      "analysis_state": "ambiguous_reconstruction",
+      "events": null,
+      "event_results": {
+        "dupC": {
+          "truth": "present",
+          "evidence_category": "reported_known_control",
+          "source_ids": [
+            "paper_known_controls"
+          ],
+          "resolution": "event_identity",
+          "detected": null,
+          "recovered": false,
+          "supported_recovered": false,
+          "wrong_positive_alarm": null
+        }
+      },
+      "sequence_truth_available": false,
+      "sequence_equal": null,
+      "literal_sequence_equal": null,
+      "sequence_length_equal": null,
+      "sequence_length_error_bp": null,
+      "sequence_assignments": null,
+      "sequence_edit_distance": null,
+      "literal_exact_alleles": null,
+      "independent_exact_alleles": null,
+      "sequence_intervals": null,
+      "sequence_comparison_reason": "no independent sequence truth",
+      "limitations": [
+        "No independently mapped orthogonal diagnostic assay is published for this alias."
+      ]
+    }
+  ],
+  "biological_groups": [
+    {
+      "biological_sample": "HG001",
+      "identity_status": "resolved",
+      "run_accessions": [
+        "ERR15277562"
+      ],
+      "relationships": [],
+      "limitations": [
+        "Healthy/reference label does not establish endpoint-specific negative truth."
+      ],
+      "callable_runs": 1,
+      "events": {
+        "dupC": {
+          "truth": "unknown",
+          "evidence_category": "unknown",
+          "recovered_runs": 0
+        }
+      }
+    },
+    {
+      "biological_sample": "HG002",
+      "identity_status": "resolved",
+      "run_accessions": [
+        "ERR15277563",
+        "ERR15277552"
+      ],
+      "relationships": [
+        "child_of:HG003",
+        "child_of:HG004"
+      ],
+      "limitations": [
+        "Healthy/reference label does not establish endpoint-specific negative truth."
+      ],
+      "callable_runs": 0,
+      "events": {
+        "dupC": {
+          "truth": "unknown",
+          "evidence_category": "unknown",
+          "recovered_runs": 0
+        }
+      }
+    },
+    {
+      "biological_sample": "HG003",
+      "identity_status": "resolved",
+      "run_accessions": [
+        "ERR15277564"
+      ],
+      "relationships": [
+        "father_of:HG002"
+      ],
+      "limitations": [
+        "Healthy/reference label does not establish endpoint-specific negative truth."
+      ],
+      "callable_runs": 1,
+      "events": {
+        "dupC": {
+          "truth": "unknown",
+          "evidence_category": "unknown",
+          "recovered_runs": 0
+        }
+      }
+    },
+    {
+      "biological_sample": "HG004",
+      "identity_status": "resolved",
+      "run_accessions": [
+        "ERR15277565"
+      ],
+      "relationships": [
+        "mother_of:HG002"
+      ],
+      "limitations": [
+        "Healthy/reference label does not establish endpoint-specific negative truth."
+      ],
+      "callable_runs": 1,
+      "events": {
+        "dupC": {
+          "truth": "unknown",
+          "evidence_category": "unknown",
+          "recovered_runs": 0
+        }
+      }
+    },
+    {
+      "biological_sample": "MP1",
+      "identity_status": "resolved",
+      "run_accessions": [
+        "ERR15277566"
+      ],
+      "relationships": [
+        "sibling_of:MP2"
+      ],
+      "limitations": [
+        "No independently mapped orthogonal diagnostic assay is published for this alias."
+      ],
+      "callable_runs": 1,
+      "events": {
+        "dupC": {
+          "truth": "present",
+          "evidence_category": "reported_known_control",
+          "recovered_runs": 0
+        }
+      }
+    },
+    {
+      "biological_sample": "MP2",
+      "identity_status": "resolved",
+      "run_accessions": [
+        "ERR15277567"
+      ],
+      "relationships": [
+        "sibling_of:MP1"
+      ],
+      "limitations": [
+        "No independently mapped orthogonal diagnostic assay is published for this alias."
+      ],
+      "callable_runs": 0,
+      "events": {
+        "dupC": {
+          "truth": "present",
+          "evidence_category": "reported_known_control",
+          "recovered_runs": 0
+        }
+      }
+    },
+    {
+      "biological_sample": "MP3",
+      "identity_status": "resolved",
+      "run_accessions": [
+        "ERR15277568"
+      ],
+      "relationships": [],
+      "limitations": [
+        "No independently mapped orthogonal diagnostic assay is published for this alias."
+      ],
+      "callable_runs": 0,
+      "events": {
+        "dupC": {
+          "truth": "present",
+          "evidence_category": "reported_known_control",
+          "recovered_runs": 0
+        }
+      }
+    },
+    {
+      "biological_sample": "MP4",
+      "identity_status": "resolved",
+      "run_accessions": [
+        "ERR15277569"
+      ],
+      "relationships": [],
+      "limitations": [
+        "No independently mapped orthogonal diagnostic assay is published for this alias."
+      ],
+      "callable_runs": 0,
+      "events": {
+        "dupC": {
+          "truth": "present",
+          "evidence_category": "reported_known_control",
+          "recovered_runs": 0
+        }
+      }
+    },
+    {
+      "biological_sample": "MP5",
+      "identity_status": "resolved",
+      "run_accessions": [
+        "ERR15277570"
+      ],
+      "relationships": [],
+      "limitations": [
+        "Exploratory comparator finding only; independent confirmation unavailable."
+      ],
+      "callable_runs": 1,
+      "events": {
+        "dupC": {
+          "truth": "unknown",
+          "evidence_category": "unknown",
+          "recovered_runs": 0
+        }
+      }
+    },
+    {
+      "biological_sample": "MP1_WGS_identity_unresolved",
+      "identity_status": "unresolved",
+      "run_accessions": [
+        "ERR15277553"
+      ],
+      "relationships": [],
+      "limitations": [
+        "ENA MP1_WGS_MUC1 conflicts with paper MP4 WGS and inconsistent Supplement5 labels; identity unresolved."
+      ],
+      "callable_runs": 1,
+      "events": {
+        "dupC": {
+          "truth": "unknown",
+          "evidence_category": "unknown",
+          "recovered_runs": 0
+        }
+      }
+    }
+  ],
+  "unmapped_runs": [],
+  "unresolved_identity_runs": [
+    "ERR15277553"
+  ],
+  "excluded_runs": [
+    "ERR15277554",
+    "ERR15277555",
+    "ERR15277557",
+    "ERR15277559",
+    "ERR15277561",
+    "ERR15277551",
+    "ERR15277556",
+    "ERR15277558",
+    "ERR15277560"
+  ],
+  "sequence_concordance": {
+    "numerator": 0,
+    "denominator": 2,
+    "value": 0.0,
+    "reason": null
+  },
+  "literal_sequence_concordance": {
+    "numerator": 1,
+    "denominator": 2,
+    "value": 0.5,
+    "reason": null
+  },
+  "sequence_length_concordance": {
+    "numerator": 1,
+    "denominator": 2,
+    "value": 0.5,
+    "reason": null
+  },
+  "sequence_comparable_runs": 2,
+  "sources": [
+    {
+      "id": "paper_identity",
+      "url": "https://www.nature.com/articles/s41598-025-30441-3",
+      "location": "PDF p2 Sample collection; p6 related individuals",
+      "independent": false
+    },
+    {
+      "id": "paper_known_controls",
+      "url": "https://www.nature.com/articles/s41598-025-30441-3",
+      "location": "PDF pp6\u20137 Results: MP1\u2013MP4 known dupC positive controls; orthogonal method unspecified",
+      "independent": false
+    },
+    {
+      "id": "paper_comparator",
+      "url": "https://www.nature.com/articles/s41598-025-30441-3",
+      "location": "PDF pp5\u20137 and Figure5: comparator-only structures/positions; MP5 exploratory",
+      "independent": false
+    },
+    {
+      "id": "ena",
+      "url": "https://www.ebi.ac.uk/ena/portal/api/filereport?accession=PRJEB92208&result=read_run&fields=run_accession,sample_accession,experiment_accession,sample_alias,scientific_name,instrument_platform,instrument_model,library_strategy,library_source,library_selection,library_layout,fastq_ftp,fastq_bytes,fastq_md5,submitted_ftp,submitted_bytes,submitted_md5&format=tsv&download=false",
+      "location": "ENA run records retrieved 2026-09-15T21:17:57.211763Z",
+      "independent": false
+    },
+    {
+      "id": "q100",
+      "url": "https://github.com/marbl/HG002",
+      "location": "Q100 v1.1 July2024; paternal GCA_018852605.3 maternal GCA_018852615.3; independent assemblies",
+      "independent": true
+    },
+    {
+      "id": "boundaries",
+      "url": "https://github.com/DHmeduni/VNTRPipeline/blob/a8d3607d66324a936c64ed5b7e403a32bcb4c0a6/VNTR_Pipeline/scripts/lib/vntr_variables.cfg",
+      "location": "MUC1 motif1 and motif9 sequence anchors, independently located uniquely in Q100 (see sequence coordinates)",
+      "independent": true
+    }
+  ],
+  "provenance_boundary": "Callable records revalidated against local hashed artifacts; source interpretation requires independent scientific review."
+}

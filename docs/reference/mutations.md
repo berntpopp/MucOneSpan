@@ -8,7 +8,7 @@ MucOneSpan includes a catalog of **13 known MUC1 frameshift mutations** with pre
 
 | Mutation | Repeat(s) | Effect | Citation |
 |----------|-----------|--------|----------|
-| **59dupC** | X | +1bp (C duplication in 7C tract) | Kirby et al. 2013 |
+| **59dupC** | 5, X, B, D, K, W, M, N, O, P, Q, R | +1bp (C duplication in 7C tract) | Kirby et al. 2013 |
 | **60dupA** | X | +1bp (A duplication) | Olinger et al. 2020 |
 | **58_59insG** | X | +1bp (G insertion) | Olinger et al. 2020 |
 | **56_59dupCCCC** | X | +4bp (CCCC duplication) | Vrbacka et al. 2025 |
@@ -32,11 +32,20 @@ Each 60bp unit from the consensus sequence is compared against all 34 known repe
 
 ### Step 2: Mutation Template Probing
 
-If no exact match, the unit is compared against **pre-computed mutation templates** (44 templates across 13 mutations, each applied only to its allowed repeat types). Each template is the exact sequence a repeat type would have after a specific mutation is applied.
+If no exact match, the unit is compared against **pre-computed mutation templates** (across 13 mutations, each applied only to its allowed repeat types). Each template is the exact sequence a repeat type would have after a specific mutation is applied.
 
 ```
 Example: X repeat (60bp) + dupC mutation = X:dupC template (61bp)
 ```
+
+The `dupC` templates cover the exact seven-C tract at repeat positions 53–59,
+preceded by G and followed by a non-C base, in each listed 60-base repeat. A
+single additional C in this tract consumes a 61-base unit and retains its parent
+label, for example `B:dupC`. Other insertion positions, bases, and tract contexts
+do not receive this exact template match. This sequence-based applicability,
+including repeat 5, does not imply a clinically observed carrier for every listed
+repeat background. Exact template agreement is separate from VCF support and
+diagnostic validation.
 
 !!! note "O(1) lookup"
     For the 13 known mutations, detection is an O(1) hash lookup against the template dictionary. No edit distance computation is needed for common cases.
@@ -70,6 +79,7 @@ The mutation catalog is defined in `data/repeats/repeats.json`. To add a new mut
 
 ## References
 
+- Madritsch et al. Analysis of clinically relevant large tandem repeats using nanopore sequencing. *Sci Rep.* 2025. [doi:10.1038/s41598-025-30441-3](https://doi.org/10.1038/s41598-025-30441-3).
 - Kirby A, et al. Mutations causing medullary cystic kidney disease type 1 lie in a large VNTR in MUC1 missed by massively parallel sequencing. *Nat Genet.* 2013;45(3):299-303.
 - Olinger E, et al. Clinical and genetic spectra of autosomal dominant tubulointerstitial kidney disease due to mutations in MUC1. *Kidney Int.* 2020;98(2):473-487.
 - Saei H, et al. MUC1 VNTR frameshift mutations. *Kidney Int Rep.* 2023.

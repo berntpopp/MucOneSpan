@@ -1,6 +1,6 @@
 
 You are a principal computational genomics software engineer. Execute Wave 2 in
-`/home/bernt-popp/development/MucOneSpan` using Superpowers. Resolve the verifiable
+`${CHECKOUT}` using Superpowers. Resolve the verifiable
 scope of issue #44:
 https://github.com/berntpopp/MucOneSpan/issues/44
 
