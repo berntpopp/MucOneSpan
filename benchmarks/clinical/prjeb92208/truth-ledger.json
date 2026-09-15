@@ -1,0 +1,360 @@
+{
+  "schema_version": 1,
+  "sources": [
+    {
+      "id": "paper_identity",
+      "url": "https://www.nature.com/articles/s41598-025-30441-3",
+      "location": "PDF p2 Sample collection; p6 related individuals",
+      "independent": false
+    },
+    {
+      "id": "paper_known_controls",
+      "url": "https://www.nature.com/articles/s41598-025-30441-3",
+      "location": "PDF pp6\u20137 Results: MP1\u2013MP4 known dupC positive controls; orthogonal method unspecified",
+      "independent": false
+    },
+    {
+      "id": "paper_comparator",
+      "url": "https://www.nature.com/articles/s41598-025-30441-3",
+      "location": "PDF pp5\u20137 and Figure5: comparator-only structures/positions; MP5 exploratory",
+      "independent": false
+    },
+    {
+      "id": "ena",
+      "url": "https://www.ebi.ac.uk/ena/portal/api/filereport?accession=PRJEB92208&result=read_run&fields=run_accession,sample_accession,experiment_accession,sample_alias,scientific_name,instrument_platform,instrument_model,library_strategy,library_source,library_selection,library_layout,fastq_ftp,fastq_bytes,fastq_md5,submitted_ftp,submitted_bytes,submitted_md5&format=tsv&download=false",
+      "location": "ENA run records retrieved 2026-09-15T21:17:57.211763Z",
+      "independent": false
+    },
+    {
+      "id": "q100",
+      "url": "https://github.com/marbl/HG002",
+      "location": "Q100 v1.1 July2024; paternal GCA_018852605.3 maternal GCA_018852615.3; independent assemblies",
+      "independent": true
+    },
+    {
+      "id": "boundaries",
+      "url": "https://github.com/DHmeduni/VNTRPipeline/blob/a8d3607d66324a936c64ed5b7e403a32bcb4c0a6/VNTR_Pipeline/scripts/lib/vntr_variables.cfg",
+      "location": "MUC1 motif1 and motif9 sequence anchors, independently located uniquely in Q100 (see sequence coordinates)",
+      "independent": true
+    }
+  ],
+  "samples": [
+    {
+      "biological_sample": "HG001",
+      "run_accessions": [
+        "ERR15277562"
+      ],
+      "identity_status": "resolved",
+      "identity_source_ids": [
+        "paper_identity",
+        "ena"
+      ],
+      "relationships": [],
+      "event_truth": [
+        {
+          "event": "dupC",
+          "status": "unknown",
+          "evidence_category": "unknown",
+          "source_ids": [],
+          "resolution": "event_identity",
+          "orthogonal_method": null
+        }
+      ],
+      "sequence_truth": null,
+      "limitations": [
+        "Healthy/reference label does not establish endpoint-specific negative truth."
+      ]
+    },
+    {
+      "biological_sample": "HG002",
+      "run_accessions": [
+        "ERR15277563",
+        "ERR15277552"
+      ],
+      "identity_status": "resolved",
+      "identity_source_ids": [
+        "paper_identity",
+        "ena"
+      ],
+      "relationships": [
+        "child_of:HG003",
+        "child_of:HG004"
+      ],
+      "event_truth": [
+        {
+          "event": "dupC",
+          "status": "unknown",
+          "evidence_category": "unknown",
+          "source_ids": [],
+          "resolution": "event_identity",
+          "orthogonal_method": null
+        }
+      ],
+      "sequence_truth": {
+        "source_ids": [
+          "q100"
+        ],
+        "version": "HG002 Q100 v1.1",
+        "coordinates": "zero-based half-open; paternal chr1_PATERNAL:158194262-158198162; maternal chr1_MATERNAL:150024488-150029126",
+        "boundaries": "Full motif1 through full motif9, inclusive; includes all intervening biological indels",
+        "orientation": "forward",
+        "normalization": "uppercase_allele_order",
+        "boundary_anchors": {
+          "left": "AAGGAGACTTCGGCTACCCAGAGAAGTTCAGTGCCCAGCTCTACTGAGAAGAATGCTGTG",
+          "right": "GGCTCCACCGCCCCTCCAGTCCACAATGTCACCTCGGCCTCAGGCTCTGCATCAGGCTCA",
+          "source_ids": [
+            "boundaries",
+            "q100"
+          ]
+        },
+        "sequence_records": [
+          {
+            "url": "https://api.genome.ucsc.edu/getData/sequence?hubUrl=https://research.nhgri.nih.gov/CustomTracks/T2T_hubs/T2Tgenomes/hub.txt;genome=HG002v1.1.PAT;chrom=chr1_PATERNAL;start=158194262;end=158198162",
+            "strand": "-",
+            "sha256": "51f51aae0ffecc6449b753ce20b4e85c2268940570b81788e37c7f065cc4c3d2",
+            "length": 3900,
+            "chrom": "chr1_PATERNAL",
+            "start_0based": 158194262,
+            "end_exclusive": 158198162
+          },
+          {
+            "url": "https://api.genome.ucsc.edu/getData/sequence?hubUrl=https://research.nhgri.nih.gov/CustomTracks/T2T_hubs/T2Tgenomes/hub.txt;genome=HG002v1.1.MAT;chrom=chr1_MATERNAL;start=150024488;end=150029126",
+            "strand": "-",
+            "sha256": "675bc2632ae3836189af8135d17f473eeaef2a6fb7bd2ba18f70a33e5d05fba6",
+            "length": 4638,
+            "chrom": "chr1_MATERNAL",
+            "start_0based": 150024488,
+            "end_exclusive": 150029126
+          }
+        ]
+      },
+      "limitations": [
+        "Healthy/reference label does not establish endpoint-specific negative truth."
+      ]
+    },
+    {
+      "biological_sample": "HG003",
+      "run_accessions": [
+        "ERR15277564"
+      ],
+      "identity_status": "resolved",
+      "identity_source_ids": [
+        "paper_identity",
+        "ena"
+      ],
+      "relationships": [
+        "father_of:HG002"
+      ],
+      "event_truth": [
+        {
+          "event": "dupC",
+          "status": "unknown",
+          "evidence_category": "unknown",
+          "source_ids": [],
+          "resolution": "event_identity",
+          "orthogonal_method": null
+        }
+      ],
+      "sequence_truth": null,
+      "limitations": [
+        "Healthy/reference label does not establish endpoint-specific negative truth."
+      ]
+    },
+    {
+      "biological_sample": "HG004",
+      "run_accessions": [
+        "ERR15277565"
+      ],
+      "identity_status": "resolved",
+      "identity_source_ids": [
+        "paper_identity",
+        "ena"
+      ],
+      "relationships": [
+        "mother_of:HG002"
+      ],
+      "event_truth": [
+        {
+          "event": "dupC",
+          "status": "unknown",
+          "evidence_category": "unknown",
+          "source_ids": [],
+          "resolution": "event_identity",
+          "orthogonal_method": null
+        }
+      ],
+      "sequence_truth": null,
+      "limitations": [
+        "Healthy/reference label does not establish endpoint-specific negative truth."
+      ]
+    },
+    {
+      "biological_sample": "MP1",
+      "run_accessions": [
+        "ERR15277566"
+      ],
+      "identity_status": "resolved",
+      "identity_source_ids": [
+        "paper_identity",
+        "ena"
+      ],
+      "relationships": [
+        "sibling_of:MP2"
+      ],
+      "event_truth": [
+        {
+          "event": "dupC",
+          "status": "present",
+          "evidence_category": "reported_known_control",
+          "source_ids": [
+            "paper_known_controls"
+          ],
+          "resolution": "event_identity",
+          "orthogonal_method": null
+        }
+      ],
+      "sequence_truth": null,
+      "limitations": [
+        "No independently mapped orthogonal diagnostic assay is published for this alias."
+      ]
+    },
+    {
+      "biological_sample": "MP2",
+      "run_accessions": [
+        "ERR15277567"
+      ],
+      "identity_status": "resolved",
+      "identity_source_ids": [
+        "paper_identity",
+        "ena"
+      ],
+      "relationships": [
+        "sibling_of:MP1"
+      ],
+      "event_truth": [
+        {
+          "event": "dupC",
+          "status": "present",
+          "evidence_category": "reported_known_control",
+          "source_ids": [
+            "paper_known_controls"
+          ],
+          "resolution": "event_identity",
+          "orthogonal_method": null
+        }
+      ],
+      "sequence_truth": null,
+      "limitations": [
+        "No independently mapped orthogonal diagnostic assay is published for this alias."
+      ]
+    },
+    {
+      "biological_sample": "MP3",
+      "run_accessions": [
+        "ERR15277568"
+      ],
+      "identity_status": "resolved",
+      "identity_source_ids": [
+        "paper_identity",
+        "ena"
+      ],
+      "relationships": [],
+      "event_truth": [
+        {
+          "event": "dupC",
+          "status": "present",
+          "evidence_category": "reported_known_control",
+          "source_ids": [
+            "paper_known_controls"
+          ],
+          "resolution": "event_identity",
+          "orthogonal_method": null
+        }
+      ],
+      "sequence_truth": null,
+      "limitations": [
+        "No independently mapped orthogonal diagnostic assay is published for this alias."
+      ]
+    },
+    {
+      "biological_sample": "MP4",
+      "run_accessions": [
+        "ERR15277569"
+      ],
+      "identity_status": "resolved",
+      "identity_source_ids": [
+        "paper_identity",
+        "ena"
+      ],
+      "relationships": [],
+      "event_truth": [
+        {
+          "event": "dupC",
+          "status": "present",
+          "evidence_category": "reported_known_control",
+          "source_ids": [
+            "paper_known_controls"
+          ],
+          "resolution": "event_identity",
+          "orthogonal_method": null
+        }
+      ],
+      "sequence_truth": null,
+      "limitations": [
+        "No independently mapped orthogonal diagnostic assay is published for this alias."
+      ]
+    },
+    {
+      "biological_sample": "MP5",
+      "run_accessions": [
+        "ERR15277570"
+      ],
+      "identity_status": "resolved",
+      "identity_source_ids": [
+        "paper_identity",
+        "ena"
+      ],
+      "relationships": [],
+      "event_truth": [
+        {
+          "event": "dupC",
+          "status": "unknown",
+          "evidence_category": "unknown",
+          "source_ids": [],
+          "resolution": "event_identity",
+          "orthogonal_method": null
+        }
+      ],
+      "sequence_truth": null,
+      "limitations": [
+        "Exploratory comparator finding only; independent confirmation unavailable."
+      ]
+    },
+    {
+      "biological_sample": "MP1_WGS_identity_unresolved",
+      "run_accessions": [
+        "ERR15277553"
+      ],
+      "identity_status": "unresolved",
+      "identity_source_ids": [
+        "paper_identity",
+        "ena"
+      ],
+      "relationships": [],
+      "event_truth": [
+        {
+          "event": "dupC",
+          "status": "unknown",
+          "evidence_category": "unknown",
+          "source_ids": [],
+          "resolution": "event_identity",
+          "orthogonal_method": null
+        }
+      ],
+      "sequence_truth": null,
+      "limitations": [
+        "ENA MP1_WGS_MUC1 conflicts with paper MP4 WGS and inconsistent Supplement5 labels; identity unresolved."
+      ]
+    }
+  ]
+}

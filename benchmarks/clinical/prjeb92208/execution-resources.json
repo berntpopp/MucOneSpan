@@ -1,0 +1,996 @@
+{
+  "schema_version": 1,
+  "cohort": "final verification cohort-v2; initial engineering and smoke executions excluded",
+  "path_placeholders": {
+    "DATA_ROOT": "external data root",
+    "RESULT_ROOT": "external final cohort output root",
+    "MODEL_ROOT": "verified external Clair3 model directory",
+    "CHECKOUT": "frozen baseline with benchmark helpers"
+  },
+  "source_hashes": {
+    "manifest_sha256": "a25ee98d13b522375a67365c7f84e25162323caf5db6e072160be15c2f52c27a",
+    "truth_ledger_sha256": "a65b8a241d6fb3f5de9948162a08cf8aded53ced126804deaf518a1a3313b2a3",
+    "results_sha256": "9920eb4bd2effcd431aaab9282d3c7e579b92bfd9b11bcea25a0cb2f3e9c3917"
+  },
+  "hash_scope": "Local record/provenance hashes bind originals containing local absolute paths. Output hashes bind actual files, which may contain paths/timestamps. Public exports contain no full participant sequences or reads.",
+  "runs": [
+    {
+      "run_accession": "ERR15277552",
+      "arm": "secondary_wgs",
+      "status": "completed",
+      "exit_code": 0,
+      "started_at": "2026-09-15T21:57:51.074808+00:00",
+      "ended_at": "2026-09-15T21:57:57.825925+00:00",
+      "analysis_state": "ambiguous_reconstruction",
+      "callable": false,
+      "report_state": "completed",
+      "argv_with_path_placeholders": [
+        "run",
+        "--input",
+        "${DATA_ROOT}/reads/ERR15277552/ERR15277552.fastq",
+        "--output-dir",
+        "${RESULT_ROOT}/ERR15277552",
+        "--platform",
+        "ont",
+        "--clair3-model",
+        "${MODEL_ROOT}",
+        "--threads",
+        "2",
+        "--report",
+        "--report-igv",
+        "off"
+      ],
+      "supervisor_argv_with_path_placeholders": [
+        "${CHECKOUT}/.venv/bin/python3",
+        "-m",
+        "muc_one_span.clinical_worker",
+        "${RESULT_ROOT}/ERR15277552/invocation.json"
+      ],
+      "input_reads": 54,
+      "output_reads": 54,
+      "excluded_reads": 0,
+      "input_fastq_sha256": "9a85465d6bbf8ed687d489633a1b468b6db4dc1ece41ffa9792fa31efd50e73d",
+      "source_files": [
+        {
+          "url": "https://ftp.sra.ebi.ac.uk/vol1/fastq/ERR152/052/ERR15277552/ERR15277552.fastq.gz",
+          "bytes": 5059452,
+          "md5": "329601d3fc20795c3acbea65d8ef2229",
+          "sha256": "c83617c45c9a994696a45888e020578c75e760a4805d3d09331d9292121f3e1d"
+        }
+      ],
+      "measurements": {
+        "supervised_wall_seconds": 6.750889181988896,
+        "requested_threads": 2,
+        "timeout_seconds": 1800.0,
+        "timings": {
+          "mapping": 0.9825222450017463,
+          "alleles": 0.036108280008193105,
+          "calling": 4.86918920899916,
+          "consensus": 0.059966679007629864,
+          "classify": 0.612322362998384,
+          "report": 0.022007064006174915,
+          "wall": 6.64533108699834
+        },
+        "peak_memory": {
+          "value": 421948,
+          "units": "KiB",
+          "method": "max(RUSAGE_SELF.ru_maxrss, RUSAGE_CHILDREN.ru_maxrss)",
+          "scope": "largest individual process high-water RSS; lower bound on concurrent process-tree peak"
+        }
+      },
+      "timed_analysis_stages_seconds": 6.560108776015113,
+      "download_preprocessing_wall_seconds": 0.7309470670006704,
+      "local_record_sha256": "d9d1f5bbab84f62ebcd476099f41e709e3e762f04373bf558522e6da99eb122f",
+      "local_provenance_object_sha256": "48ad20e7ea4a0db8449540ee1d296954b4cc73ae27dc3b91358b13f08b68e629",
+      "environment_object_sha256": "f4c89c86a1b6c84cd994067f10ae10514080c069b43fdcd6bf7bb335d0f9fb49",
+      "output_files_count": 99,
+      "output_hashes_object_sha256": "de4426654fc711e5f942e1e4bdcfe2dba0e339510b42c1259dd64af42f5f960a",
+      "selected_output_sha256": {
+        "alleles.json": "86edf085118296f27106bed1549c4d6f4180b927cdfca421754e9148801bb923",
+        "cli.log": "c57d234d34688ed6d5db1c2f1f066467bfeac806d8e9a57b819e89c96545e3b5",
+        "consensus_allele_1.fa": "b5a9444729c250bce4e61796ad3d62baf7535015c896d1c83bde09a17744c8e2",
+        "consensus_allele_1_full.fa": "ace18375bf010fa84e8ff5b9b91b0883ba822927e942329ccec4b1fb6fdd93e8",
+        "consensus_allele_2.fa": "c990a25848cddda644126e260c6d387fe5cea7d9eb735d2b7d291329a97b3980",
+        "consensus_allele_2_full.fa": "c9e1a317815bcd1e8ffe5a4ca6938bda802a2aeea0c107d3b257c6d9e099f552",
+        "repeats.json": "ff7b8e34677f204b316be20af34c3aa952a4d7ff6d3006d14969dc184b4201aa",
+        "report.html": "0c83ec8c13435e82d1fc290de116f8289c94fbe668dd9ac092357973fab1208b",
+        "run_configuration.json": "c88f4bc101c78f312633a89f31f5221710ebd86135f5a56f351bdc7b0656607d",
+        "run_status.json": "6f922fc99c101e4c69006c9a81b8f211c38fedce064967782f32f652793c716a",
+        "summary.json": "2504d412be1d1f7b87f4fb3b903d2738486d1b57cbd94b5a71431e31e9da2c41",
+        "worker.json": "0fe6a5302b9c8cb8abf5c79772babf9161ab13b8676b20c0e8c94f982d03f81c"
+      }
+    },
+    {
+      "run_accession": "ERR15277553",
+      "arm": "secondary_wgs",
+      "status": "completed",
+      "exit_code": 0,
+      "started_at": "2026-09-15T21:57:57.897519+00:00",
+      "ended_at": "2026-09-15T21:58:03.023213+00:00",
+      "analysis_state": "completed",
+      "callable": true,
+      "report_state": "completed",
+      "argv_with_path_placeholders": [
+        "run",
+        "--input",
+        "${DATA_ROOT}/reads/ERR15277553/ERR15277553.fastq",
+        "--output-dir",
+        "${RESULT_ROOT}/ERR15277553",
+        "--platform",
+        "ont",
+        "--clair3-model",
+        "${MODEL_ROOT}",
+        "--threads",
+        "2",
+        "--report",
+        "--report-igv",
+        "off"
+      ],
+      "supervisor_argv_with_path_placeholders": [
+        "${CHECKOUT}/.venv/bin/python3",
+        "-m",
+        "muc_one_span.clinical_worker",
+        "${RESULT_ROOT}/ERR15277553/invocation.json"
+      ],
+      "input_reads": 2152,
+      "output_reads": 2152,
+      "excluded_reads": 0,
+      "input_fastq_sha256": "f263f036d71e957d89055a37e7c723cc7fc0fa62f8b64868c46f93c66baa7208",
+      "source_files": [
+        {
+          "url": "https://ftp.sra.ebi.ac.uk/vol1/fastq/ERR152/053/ERR15277553/ERR15277553.fastq.gz",
+          "bytes": 2908009,
+          "md5": "98541084aea37efbff9cd1c6b222ac30",
+          "sha256": "ab7a97f155da6aa336ba36ff4a9568f629a8739626f39b75f79c1f70677b29cb"
+        }
+      ],
+      "measurements": {
+        "supervised_wall_seconds": 5.125456257999758,
+        "requested_threads": 2,
+        "timeout_seconds": 1800.0,
+        "timings": {
+          "mapping": 0.5499258030031342,
+          "alleles": 0.05014028500590939,
+          "calling": 4.289856732997578,
+          "consensus": 0.05155843999818899,
+          "classify": 0.0007663570140721276,
+          "report": 0.02239382300467696,
+          "wall": 5.018609977007145
+        },
+        "peak_memory": {
+          "value": 425032,
+          "units": "KiB",
+          "method": "max(RUSAGE_SELF.ru_maxrss, RUSAGE_CHILDREN.ru_maxrss)",
+          "scope": "largest individual process high-water RSS; lower bound on concurrent process-tree peak"
+        }
+      },
+      "timed_analysis_stages_seconds": 4.942247618018882,
+      "download_preprocessing_wall_seconds": 0.5955985580076231,
+      "local_record_sha256": "cb0dea2d0f52b791e182cda38b8a145c4dfd8160afd05881271b14cae585e623",
+      "local_provenance_object_sha256": "568f0617d59460b1771e4f169dfa18a01b4cfca5dac6ac365dbe68a58c5de306",
+      "environment_object_sha256": "f4c89c86a1b6c84cd994067f10ae10514080c069b43fdcd6bf7bb335d0f9fb49",
+      "output_files_count": 93,
+      "output_hashes_object_sha256": "6c4f679d29e86564616028c76c7709781f2a73233b62c459a629a89931be1873",
+      "selected_output_sha256": {
+        "alleles.json": "caabbbed5440c2ca78a6fdd7cd1674c8aefd24006693323dbf5a70e7cba58e19",
+        "cli.log": "a49741032696bdc41f866ee3a30a2dfd5374ca664a2ef294426c9c7a20eadf18",
+        "consensus_allele_1.fa": "64ada3370bc3315ae389382ab4f25d825194c2ad073f7fec2869167f1c20d81f",
+        "consensus_allele_1_full.fa": "181f26a0244634a37d8499f0f397cedb833ef8d90c36582a5e4e9e0ef7d66667",
+        "consensus_allele_2.fa": "ca2fff939075b14a99da06859535f97d5c92c2c2643a7906558a0b514a7ffc54",
+        "consensus_allele_2_full.fa": "a47f7ec796611572621b8ea184f5a2ed83e8e577d7cba08461318e2c39cc9c61",
+        "repeats.json": "1eb2661f4ac0bbf84fc3b90bbe9b397dfe5d206ad967bee71efe0512d5935718",
+        "report.html": "7a87034d50a1873b3af96d6849380eb34765b981b76c4ad3250688d8bf09ae5f",
+        "run_configuration.json": "a811d26587fbc642db13a54a85f71f839872c1ba801b323981e2049bd6db489b",
+        "run_status.json": "6f922fc99c101e4c69006c9a81b8f211c38fedce064967782f32f652793c716a",
+        "summary.json": "81515cc3fb6a4cb190275f18eb919131e1dec59ef5aa7c3f105255a29ae7a60c",
+        "worker.json": "c566eaeb5fc677e2f2908a89384a64cf18d886591c766f1462d1edadf005ac2d"
+      }
+    },
+    {
+      "run_accession": "ERR15277562",
+      "arm": "primary_amplicon",
+      "status": "completed",
+      "exit_code": 0,
+      "started_at": "2026-09-15T21:53:13.246470+00:00",
+      "ended_at": "2026-09-15T21:54:38.085794+00:00",
+      "analysis_state": "completed",
+      "callable": true,
+      "report_state": "completed",
+      "argv_with_path_placeholders": [
+        "run",
+        "--input",
+        "${DATA_ROOT}/reads/ERR15277562/ERR15277562.fastq",
+        "--output-dir",
+        "${RESULT_ROOT}/ERR15277562",
+        "--platform",
+        "ont",
+        "--clair3-model",
+        "${MODEL_ROOT}",
+        "--threads",
+        "2",
+        "--report",
+        "--report-igv",
+        "off"
+      ],
+      "supervisor_argv_with_path_placeholders": [
+        "${CHECKOUT}/.venv/bin/python3",
+        "-m",
+        "muc_one_span.clinical_worker",
+        "${RESULT_ROOT}/ERR15277562/invocation.json"
+      ],
+      "input_reads": 10197,
+      "output_reads": 10197,
+      "excluded_reads": 0,
+      "input_fastq_sha256": "f4150084b0519216d42cb833a57836c9981bb1f3035f327f7cc8e55267931889",
+      "source_files": [
+        {
+          "url": "https://ftp.sra.ebi.ac.uk/vol1/fastq/ERR152/062/ERR15277562/ERR15277562.fastq.gz",
+          "bytes": 19070882,
+          "md5": "135d004cb32c2848e3ea7cbd00ef5ebc",
+          "sha256": "f3e603afec3ca2d815ca15613fc13b06d76656b539b7ec0944f538b77dad6db0"
+        }
+      ],
+      "measurements": {
+        "supervised_wall_seconds": 84.83907954899769,
+        "requested_threads": 2,
+        "timeout_seconds": 1800.0,
+        "timings": {
+          "mapping": 57.58628133700404,
+          "alleles": 1.4245715599972755,
+          "calling": 25.57993578100286,
+          "consensus": 0.049598819998209365,
+          "classify": 0.0009797960083233193,
+          "report": 0.020475350989727303,
+          "wall": 84.73638182500144
+        },
+        "peak_memory": {
+          "value": 580884,
+          "units": "KiB",
+          "method": "max(RUSAGE_SELF.ru_maxrss, RUSAGE_CHILDREN.ru_maxrss)",
+          "scope": "largest individual process high-water RSS; lower bound on concurrent process-tree peak"
+        }
+      },
+      "timed_analysis_stages_seconds": 84.6413672940107,
+      "download_preprocessing_wall_seconds": 1.490383195996401,
+      "local_record_sha256": "4453993598b62c30c327bb633fde096634054c815a534f28d2742a54fa6f2e10",
+      "local_provenance_object_sha256": "d3979f4f3ce3d3cf981d2773b0213ebc063beb2c1cc0e03bc529772c2bb7af86",
+      "environment_object_sha256": "f4c89c86a1b6c84cd994067f10ae10514080c069b43fdcd6bf7bb335d0f9fb49",
+      "output_files_count": 99,
+      "output_hashes_object_sha256": "777f285503aaa286c60512c4e4443962d61337e71d5e140849f7d9ede80ce497",
+      "selected_output_sha256": {
+        "alleles.json": "89cf982de1fd51fc68e3a6ee114ffea9ff14ef142e3559b8382b243e8efd4154",
+        "cli.log": "143b9eea48d7a1819a3db74930b78c4a7e5677a457ad69a27cd7662b030e1085",
+        "consensus_allele_1.fa": "3ad45f5c7288abe4edee85c75f156ef133130296a4528c6aa8bbe0035481b2a1",
+        "consensus_allele_1_full.fa": "82f484676b80ac19395174b4096cdaedd476cec11e01e2a33ff958f47f89a705",
+        "consensus_allele_2.fa": "9b61e4afe9633974734da6cea4a902c3e6397833ea36a0bf05f882f56009add0",
+        "consensus_allele_2_full.fa": "56e3b2811ef0d6277e81443401a8126d84e865049bf38ace06c0c609c205bbc3",
+        "repeats.json": "e97cebae4ced2bcd45ec51a8410fcb9fbaf52bf9e94f6892bd1bae4bce088077",
+        "report.html": "5c1c6e15730c9a47ef7b5344a1cb2fa2684b2540bc2add6866ed7e12f125f41f",
+        "run_configuration.json": "a4c5d2dc0348383261a414bf4e012796fb181d4594126850f9c05efeaab84117",
+        "run_status.json": "6f922fc99c101e4c69006c9a81b8f211c38fedce064967782f32f652793c716a",
+        "summary.json": "32bce02147714cac825bec3ff9aaa059b3c2c831a9a140d692091cfac2f0a8c5",
+        "worker.json": "cbc9aeff1a1aa7b8e592da666959209b497788db0db0ed687b814a13ccbd1c19"
+      }
+    },
+    {
+      "run_accession": "ERR15277563",
+      "arm": "primary_amplicon",
+      "status": "completed",
+      "exit_code": 0,
+      "started_at": "2026-09-15T21:55:23.177072+00:00",
+      "ended_at": "2026-09-15T21:57:50.985940+00:00",
+      "analysis_state": "ambiguous_reconstruction",
+      "callable": false,
+      "report_state": "completed",
+      "argv_with_path_placeholders": [
+        "run",
+        "--input",
+        "${DATA_ROOT}/reads/ERR15277563/ERR15277563.fastq",
+        "--output-dir",
+        "${RESULT_ROOT}/ERR15277563",
+        "--platform",
+        "ont",
+        "--clair3-model",
+        "${MODEL_ROOT}",
+        "--threads",
+        "2",
+        "--report",
+        "--report-igv",
+        "off"
+      ],
+      "supervisor_argv_with_path_placeholders": [
+        "${CHECKOUT}/.venv/bin/python3",
+        "-m",
+        "muc_one_span.clinical_worker",
+        "${RESULT_ROOT}/ERR15277563/invocation.json"
+      ],
+      "input_reads": 13733,
+      "output_reads": 13733,
+      "excluded_reads": 0,
+      "input_fastq_sha256": "7338f1686a65ab96c0bd3bfb0841c32d39a053d19924d88b44591121f40df991",
+      "source_files": [
+        {
+          "url": "https://ftp.sra.ebi.ac.uk/vol1/fastq/ERR152/063/ERR15277563/ERR15277563.fastq.gz",
+          "bytes": 22562270,
+          "md5": "48f574aa536ab3443756f69b4dd749ba",
+          "sha256": "0a480c7caa69eb5b4e3cf673edd6bdf5d7eb4527cda86386981ac30cac928bb4"
+        }
+      ],
+      "measurements": {
+        "supervised_wall_seconds": 147.80857577999996,
+        "requested_threads": 2,
+        "timeout_seconds": 1800.0,
+        "timings": {
+          "mapping": 74.86638718600443,
+          "alleles": 1.4440324460010743,
+          "calling": 71.22371652998845,
+          "consensus": 0.0623961500095902,
+          "classify": 0.002423701007501222,
+          "report": 0.020833727001445368,
+          "wall": 147.7057391940034
+        },
+        "peak_memory": {
+          "value": 781924,
+          "units": "KiB",
+          "method": "max(RUSAGE_SELF.ru_maxrss, RUSAGE_CHILDREN.ru_maxrss)",
+          "scope": "largest individual process high-water RSS; lower bound on concurrent process-tree peak"
+        }
+      },
+      "timed_analysis_stages_seconds": 147.59895601301105,
+      "download_preprocessing_wall_seconds": 1.590186965011526,
+      "local_record_sha256": "f56604a7f68e5762164f76bfc7a1d545379a023b4700dd54ff0c5c2bf35448b4",
+      "local_provenance_object_sha256": "4ec378999367f78d324ac090c42a4368c97c5f7810c0e4ace28377cb527f8380",
+      "environment_object_sha256": "f4c89c86a1b6c84cd994067f10ae10514080c069b43fdcd6bf7bb335d0f9fb49",
+      "output_files_count": 99,
+      "output_hashes_object_sha256": "eaaea6747794bd7bc4a6041dd62e177ee70155b6f3010ae12f4a28e9a30053a6",
+      "selected_output_sha256": {
+        "alleles.json": "10a6b6303cc88e93d3161f94be1923e6b921c0a81d5b0aa5a2e45d378dfeb9d6",
+        "cli.log": "5d3ed57942d68ebee1d06dfa7beef7c99ee53bbb1a149288912a57c982b5866e",
+        "consensus_allele_1.fa": "b5a9444729c250bce4e61796ad3d62baf7535015c896d1c83bde09a17744c8e2",
+        "consensus_allele_1_full.fa": "d4f6a7b5125e186b80811cad37bded7e38f8056b96f8ef1557e98c12c0187ba3",
+        "consensus_allele_2.fa": "ba731cea14456e38b4467aaa75d99d1af2e506e59f54da6e467ad1e33f6e0250",
+        "consensus_allele_2_full.fa": "0233da8f49568f3325ce48581ce03f30251dc9910568be7a4b1ff422671e44eb",
+        "repeats.json": "223c08b3e88ac2d9a987b30747e63366ee4ac5d509437b8f72d196c7fe759df0",
+        "report.html": "14eb30ae6e873b5e8683fe4dcec90e42d864ccd9f730cb8ad71d9db5dd56dcee",
+        "run_configuration.json": "f1a404e18aed0e22831727386b2d6b78b14b011624ad4f9c4f48f7624bc17a34",
+        "run_status.json": "6f922fc99c101e4c69006c9a81b8f211c38fedce064967782f32f652793c716a",
+        "summary.json": "4eeca7b1470424bcb4bd8ad3556c27f5123b0b2bb1e52a87e59432c8aa771f9f",
+        "worker.json": "bcf31fb40a920d2b832324d335758a1ebc1fa34232e0d72c3c7f284844e6441d"
+      }
+    },
+    {
+      "run_accession": "ERR15277564",
+      "arm": "primary_amplicon",
+      "status": "completed",
+      "exit_code": 0,
+      "started_at": "2026-09-15T21:48:14.198981+00:00",
+      "ended_at": "2026-09-15T21:49:55.508900+00:00",
+      "analysis_state": "completed",
+      "callable": true,
+      "report_state": "completed",
+      "argv_with_path_placeholders": [
+        "run",
+        "--input",
+        "${DATA_ROOT}/reads/ERR15277564/ERR15277564.fastq",
+        "--output-dir",
+        "${RESULT_ROOT}/ERR15277564",
+        "--platform",
+        "ont",
+        "--clair3-model",
+        "${MODEL_ROOT}",
+        "--threads",
+        "2",
+        "--report",
+        "--report-igv",
+        "off"
+      ],
+      "supervisor_argv_with_path_placeholders": [
+        "${CHECKOUT}/.venv/bin/python3",
+        "-m",
+        "muc_one_span.clinical_worker",
+        "${RESULT_ROOT}/ERR15277564/invocation.json"
+      ],
+      "input_reads": 12485,
+      "output_reads": 12485,
+      "excluded_reads": 0,
+      "input_fastq_sha256": "481794505966cfaddec5ff2cd48f87cb33f60f53075275ef73d104ad269ac16c",
+      "source_files": [
+        {
+          "url": "https://ftp.sra.ebi.ac.uk/vol1/fastq/ERR152/064/ERR15277564/ERR15277564.fastq.gz",
+          "bytes": 22498050,
+          "md5": "67ed7b0ad9c79f2e09d6b2d5066af857",
+          "sha256": "50d4a70e7f7cb6788f091cc9f0d67cfed838e49b3810323819ad3a9c8c0de65a"
+        }
+      ],
+      "measurements": {
+        "supervised_wall_seconds": 101.30967782100197,
+        "requested_threads": 2,
+        "timeout_seconds": 1800.0,
+        "timings": {
+          "mapping": 67.00496969200321,
+          "alleles": 1.7729981610027608,
+          "calling": 32.25346056900162,
+          "consensus": 0.05195830100274179,
+          "classify": 0.002587774011772126,
+          "report": 0.02031503499893006,
+          "wall": 101.19896094599972
+        },
+        "peak_memory": {
+          "value": 557360,
+          "units": "KiB",
+          "method": "max(RUSAGE_SELF.ru_maxrss, RUSAGE_CHILDREN.ru_maxrss)",
+          "scope": "largest individual process high-water RSS; lower bound on concurrent process-tree peak"
+        }
+      },
+      "timed_analysis_stages_seconds": 101.08597449702211,
+      "download_preprocessing_wall_seconds": 8.969174859987106,
+      "local_record_sha256": "b7cd3f9151da927448fceedaba430bb3d2f8e88e7806583f6495a3b8ba524fc0",
+      "local_provenance_object_sha256": "01316c5bdb590dfce2b8de2d1b25eb64d2aa89095fa46ac97caf387fe4a47a96",
+      "environment_object_sha256": "f4c89c86a1b6c84cd994067f10ae10514080c069b43fdcd6bf7bb335d0f9fb49",
+      "output_files_count": 99,
+      "output_hashes_object_sha256": "7f9ffe13c55fd8ebc51b35b3bac30bb603153bf4c1913d2956ce69390625bb41",
+      "selected_output_sha256": {
+        "alleles.json": "0384f4af355fbac7fd887e1fe337b06cada015223094fe7fb14f08dcddb8500e",
+        "cli.log": "006ba4c96be6d85be45dd2b0b389e9759d1a55fda0865a9a89a8dfa973a0c2a1",
+        "consensus_allele_1.fa": "242b0dd591a7eb3a7aaf8efd63f4594424a3abb93d093e29d7e60d5c334579b2",
+        "consensus_allele_1_full.fa": "558f050e11b586a02afc60bad12d3c6a59c10fe60b9c73585afd62cdd44aa340",
+        "consensus_allele_2.fa": "b5a9444729c250bce4e61796ad3d62baf7535015c896d1c83bde09a17744c8e2",
+        "consensus_allele_2_full.fa": "d4f6a7b5125e186b80811cad37bded7e38f8056b96f8ef1557e98c12c0187ba3",
+        "repeats.json": "7bbc7091c4dc05502251d78701a6057c299e6df6710d79f25a936d687d2ed7c3",
+        "report.html": "b4e346905844f07d8ddb60771d03ea1a1dea63f40b77d34808150a7372240269",
+        "run_configuration.json": "34eb23abcf6d4a88244def048a75bdeef09e277212d4fd2a8ae78bac84f9d178",
+        "run_status.json": "6f922fc99c101e4c69006c9a81b8f211c38fedce064967782f32f652793c716a",
+        "summary.json": "225653e56c0e0d5386295ed387209fcdbbdd43dd0d0f81e170855e519348747b",
+        "worker.json": "16957537a18392bdc2bc8023200998b77503d8e2886516c39f375eaa62a5ea8f"
+      }
+    },
+    {
+      "run_accession": "ERR15277565",
+      "arm": "primary_amplicon",
+      "status": "completed",
+      "exit_code": 0,
+      "started_at": "2026-09-15T21:49:55.631362+00:00",
+      "ended_at": "2026-09-15T21:52:04.492910+00:00",
+      "analysis_state": "completed",
+      "callable": true,
+      "report_state": "completed",
+      "argv_with_path_placeholders": [
+        "run",
+        "--input",
+        "${DATA_ROOT}/reads/ERR15277565/ERR15277565.fastq",
+        "--output-dir",
+        "${RESULT_ROOT}/ERR15277565",
+        "--platform",
+        "ont",
+        "--clair3-model",
+        "${MODEL_ROOT}",
+        "--threads",
+        "2",
+        "--report",
+        "--report-igv",
+        "off"
+      ],
+      "supervisor_argv_with_path_placeholders": [
+        "${CHECKOUT}/.venv/bin/python3",
+        "-m",
+        "muc_one_span.clinical_worker",
+        "${RESULT_ROOT}/ERR15277565/invocation.json"
+      ],
+      "input_reads": 45325,
+      "output_reads": 45325,
+      "excluded_reads": 0,
+      "input_fastq_sha256": "8d7e5dd5c140c9783e03a7318ebf5d38db07bbf4b3f168d3230d17ced73fbebe",
+      "source_files": [
+        {
+          "url": "https://ftp.sra.ebi.ac.uk/vol1/fastq/ERR152/065/ERR15277565/ERR15277565.fastq.gz",
+          "bytes": 37519733,
+          "md5": "8287c3ab9a9d228c95695505110c7d8f",
+          "sha256": "635ae5bf002b5c0c9dc19b24123dc69459bf023261165d2fba8701fb6ef0731a"
+        }
+      ],
+      "measurements": {
+        "supervised_wall_seconds": 128.86131015900173,
+        "requested_threads": 2,
+        "timeout_seconds": 1800.0,
+        "timings": {
+          "mapping": 75.89998690900393,
+          "alleles": 1.7446745660126908,
+          "calling": 50.95001324999612,
+          "consensus": 0.04523263200826477,
+          "classify": 0.008991916009108536,
+          "report": 0.019799818997853436,
+          "wall": 128.762577993999
+        },
+        "peak_memory": {
+          "value": 649452,
+          "units": "KiB",
+          "method": "max(RUSAGE_SELF.ru_maxrss, RUSAGE_CHILDREN.ru_maxrss)",
+          "scope": "largest individual process high-water RSS; lower bound on concurrent process-tree peak"
+        }
+      },
+      "timed_analysis_stages_seconds": 128.6488992730301,
+      "download_preprocessing_wall_seconds": 2.20533516901196,
+      "local_record_sha256": "5c6fcbd2bea314410a2104845892e6519f3eb80026571002a149bc38dfc556ec",
+      "local_provenance_object_sha256": "28f3b5aa9687f574d9755e33422cde0db2564011efbe684b0f9b03a890866441",
+      "environment_object_sha256": "f4c89c86a1b6c84cd994067f10ae10514080c069b43fdcd6bf7bb335d0f9fb49",
+      "output_files_count": 99,
+      "output_hashes_object_sha256": "1b5d991c0f3a02ab40d1fbbeddd012e4177603e32969ff341b2662cfb651e4b5",
+      "selected_output_sha256": {
+        "alleles.json": "613ce48f97fb3e53ab9572091d91954a827f961e1371a5a011aa0a3db91499fe",
+        "cli.log": "eba235bf90c7c2f9f70878bd5e9c7e809601c12ec49efe5e724a4dd19778f238",
+        "consensus_allele_1.fa": "3d12e0712807f526d7f59954139d254bbaa0e89b0e23a06eee0eca9749de06b2",
+        "consensus_allele_1_full.fa": "56fb3cbb762b4f412618fcb3257e8cb2f164debdf941d6d2982e960dd82d4142",
+        "consensus_allele_2.fa": "57e74df040699f1cbf3eba47880f5fa3ba4a83f4b7ea3330c7d77a1f5f75e0aa",
+        "consensus_allele_2_full.fa": "a2aebb07bf76d8bbd1d49d4da63f219311865422f2cfa9dc643dec15100490f3",
+        "repeats.json": "b684e81120eae35ba04cfb08be4c249c1ab8204d7a972c76599141c793942ecd",
+        "report.html": "562f84cd1d8bab555ddf73a74388e4dadd10afb61b35aa82c9ca2ad01d2eb2e4",
+        "run_configuration.json": "8ca79833d7a8f7b9d7eb1b130d50f66831f6b1f9bf6e5bad5b64d17e3af4fe9e",
+        "run_status.json": "6f922fc99c101e4c69006c9a81b8f211c38fedce064967782f32f652793c716a",
+        "summary.json": "85056cfafe003f24745a91a2d77fcf2fbe3568bb452beac9f58324fc1f109ff6",
+        "worker.json": "3691a3bfada7850e61d6cfc05c50d0b882bcc7978be18390fcf67f67503683de"
+      }
+    },
+    {
+      "run_accession": "ERR15277566",
+      "arm": "primary_amplicon",
+      "status": "completed",
+      "exit_code": 0,
+      "started_at": "2026-09-15T22:00:26.616175+00:00",
+      "ended_at": "2026-09-15T22:01:17.831371+00:00",
+      "analysis_state": "completed",
+      "callable": true,
+      "report_state": "completed",
+      "argv_with_path_placeholders": [
+        "run",
+        "--input",
+        "${DATA_ROOT}/reads/ERR15277566/ERR15277566.fastq",
+        "--output-dir",
+        "${RESULT_ROOT}/ERR15277566",
+        "--platform",
+        "ont",
+        "--clair3-model",
+        "${MODEL_ROOT}",
+        "--threads",
+        "2",
+        "--report",
+        "--report-igv",
+        "off"
+      ],
+      "supervisor_argv_with_path_placeholders": [
+        "${CHECKOUT}/.venv/bin/python3",
+        "-m",
+        "muc_one_span.clinical_worker",
+        "${RESULT_ROOT}/ERR15277566/invocation.json"
+      ],
+      "input_reads": 5941,
+      "output_reads": 5941,
+      "excluded_reads": 0,
+      "input_fastq_sha256": "271bfb2107136e9b292de9ef9f91af02844af45a0a229e155cd7d10d7da814fd",
+      "source_files": [
+        {
+          "url": "https://ftp.sra.ebi.ac.uk/vol1/fastq/ERR152/066/ERR15277566/ERR15277566.fastq.gz",
+          "bytes": 9734222,
+          "md5": "ced7fdacafbc26110d0ce759b3c49ee3",
+          "sha256": "9cf7eab2e147bdb15b97d57de489257ab4f116300fa68961732209b32dbe82ce"
+        }
+      ],
+      "measurements": {
+        "supervised_wall_seconds": 51.214921057995525,
+        "requested_threads": 2,
+        "timeout_seconds": 1800.0,
+        "timings": {
+          "mapping": 29.7360617450031,
+          "alleles": 0.2748799120017793,
+          "calling": 20.878509022004437,
+          "consensus": 0.07883773600042332,
+          "classify": 0.03214577300241217,
+          "report": 0.023417042000801302,
+          "wall": 51.100585720007075
+        },
+        "peak_memory": {
+          "value": 451948,
+          "units": "KiB",
+          "method": "max(RUSAGE_SELF.ru_maxrss, RUSAGE_CHILDREN.ru_maxrss)",
+          "scope": "largest individual process high-water RSS; lower bound on concurrent process-tree peak"
+        }
+      },
+      "timed_analysis_stages_seconds": 51.00043418801215,
+      "download_preprocessing_wall_seconds": 1.0662883089971729,
+      "local_record_sha256": "d3d0606980df93ed5ebe203bc66bc02e0e24a070c4b5e2436ccba9d52f60cbe2",
+      "local_provenance_object_sha256": "99b045ef2eb5793df158a7f58656bdea752e7e4e4674fb217e63f6aebec0f16f",
+      "environment_object_sha256": "f4c89c86a1b6c84cd994067f10ae10514080c069b43fdcd6bf7bb335d0f9fb49",
+      "output_files_count": 99,
+      "output_hashes_object_sha256": "f69caac97a3e65bbff17026e0de6dc51842285d2c3533055d487be160e088da6",
+      "selected_output_sha256": {
+        "alleles.json": "73851920617bcf3baab9627e1c29378f60891035776ed5514c6c734eb3049d97",
+        "cli.log": "d99b3759089bd23bf80ad5b28c9399842285a1cf3d6363e4f46bc62fda8f4605",
+        "consensus_allele_1.fa": "64ada3370bc3315ae389382ab4f25d825194c2ad073f7fec2869167f1c20d81f",
+        "consensus_allele_1_full.fa": "f98a6bb3f6c7753ad921f0aa0d1926dc50c135a336f1ccdf6e321dd7d04df4f7",
+        "consensus_allele_2.fa": "52d56883b07c891c391b24f71fc8600ef2c90d9aabf569cbcee89a6407844123",
+        "consensus_allele_2_full.fa": "9d859a27776e76013384fe4a67f88f448b370e8582f48081e99c2b312dc422a6",
+        "repeats.json": "b3b5f73a06667be5d606abc201cb3a65b567ab4546bab2f3570a6092a7d9faff",
+        "report.html": "5336e214caefaf6d3247d7a5721b897909484d4700ffcccc5603cfd86d5d0046",
+        "run_configuration.json": "da6c08aef8fe5c4f6a6eed02fcddd0cc74e3967281d868937457dd94a8bb4ba9",
+        "run_status.json": "6f922fc99c101e4c69006c9a81b8f211c38fedce064967782f32f652793c716a",
+        "summary.json": "e1bb7aec6fbfd167202f2737533776b21a23d3c8bd3f1b0245cdaccf8e63c055",
+        "worker.json": "e5a41783ae0f7bd3204bfc1803cb507c65e7af223ca27e2527c2434ac8be320e"
+      }
+    },
+    {
+      "run_accession": "ERR15277567",
+      "arm": "primary_amplicon",
+      "status": "completed",
+      "exit_code": 0,
+      "started_at": "2026-09-15T22:01:17.939790+00:00",
+      "ended_at": "2026-09-15T22:02:22.593975+00:00",
+      "analysis_state": "ambiguous_reconstruction",
+      "callable": false,
+      "report_state": "completed",
+      "argv_with_path_placeholders": [
+        "run",
+        "--input",
+        "${DATA_ROOT}/reads/ERR15277567/ERR15277567.fastq",
+        "--output-dir",
+        "${RESULT_ROOT}/ERR15277567",
+        "--platform",
+        "ont",
+        "--clair3-model",
+        "${MODEL_ROOT}",
+        "--threads",
+        "2",
+        "--report",
+        "--report-igv",
+        "off"
+      ],
+      "supervisor_argv_with_path_placeholders": [
+        "${CHECKOUT}/.venv/bin/python3",
+        "-m",
+        "muc_one_span.clinical_worker",
+        "${RESULT_ROOT}/ERR15277567/invocation.json"
+      ],
+      "input_reads": 5332,
+      "output_reads": 5332,
+      "excluded_reads": 0,
+      "input_fastq_sha256": "d729a79bbe57d18d484a834f39c0d9490ea9a56352e78423c9d085d89c5e440e",
+      "source_files": [
+        {
+          "url": "https://ftp.sra.ebi.ac.uk/vol1/fastq/ERR152/067/ERR15277567/ERR15277567.fastq.gz",
+          "bytes": 10836624,
+          "md5": "aebc73ded9cdefdea70b1fae0645abe2",
+          "sha256": "487fd436ed94620e96603d79363809aedd289334afd791d8b409e05b7a9dade4"
+        }
+      ],
+      "measurements": {
+        "supervised_wall_seconds": 64.65379339799983,
+        "requested_threads": 2,
+        "timeout_seconds": 1800.0,
+        "timings": {
+          "mapping": 36.37115596300282,
+          "alleles": 1.4573506779997842,
+          "calling": 26.51714807099779,
+          "consensus": 0.07717605399375316,
+          "classify": 0.004068820009706542,
+          "report": 0.02713653299724683,
+          "wall": 64.5315242830111
+        },
+        "peak_memory": {
+          "value": 687244,
+          "units": "KiB",
+          "method": "max(RUSAGE_SELF.ru_maxrss, RUSAGE_CHILDREN.ru_maxrss)",
+          "scope": "largest individual process high-water RSS; lower bound on concurrent process-tree peak"
+        }
+      },
+      "timed_analysis_stages_seconds": 64.42689958600386,
+      "download_preprocessing_wall_seconds": 4.51904568199825,
+      "local_record_sha256": "cbdd2680fb2d21edc0047d9e7851ba4c4d1ae1d2a7da253961c44bca4cdaf4db",
+      "local_provenance_object_sha256": "7043058a6f355a56086f81a24799062001c7e8a95adbd30e17d9187566041ad9",
+      "environment_object_sha256": "f4c89c86a1b6c84cd994067f10ae10514080c069b43fdcd6bf7bb335d0f9fb49",
+      "output_files_count": 99,
+      "output_hashes_object_sha256": "892e62e67484453fb7f8e1c5e8a1ce72d2f1419bb40fff35b835db3d83f12c12",
+      "selected_output_sha256": {
+        "alleles.json": "3cd252dd53fcee63231e7b00a385d2648269446b4d90d5afbd4ad568ddbf6f42",
+        "cli.log": "cd4072de3e46be8e862753e37b5b4517ca4ac881e543baa4a229d7bf0304449e",
+        "consensus_allele_1.fa": "555719129793693c80040d9bf4b40a7938a4d9c286a7ef1bd13edec74e35b283",
+        "consensus_allele_1_full.fa": "60213b52835fc36b5370b71bd748a09c17925037f5be34d5328c46afb49c4c8c",
+        "consensus_allele_2.fa": "88b5c5bfa9190b745b6f10be348174e901ee9b04919c1a9890e786e8cfb341f1",
+        "consensus_allele_2_full.fa": "2957e45c1fa3e98f903ffa1047f579daa658c53122d9b8dd002500a59c95ecc6",
+        "repeats.json": "c5ccd2e37e222a4850f5195265fcc0a855aaa8f6e25d2111a476208dda4d5d29",
+        "report.html": "dbb88822505965a4b8fc172ded96dac2927bbfd05fb29b5c73d1683ab6e1e96d",
+        "run_configuration.json": "b930214fb505fa895ebbf715d45c5362f9cf9b4d837cbf21859c44240bd34965",
+        "run_status.json": "6f922fc99c101e4c69006c9a81b8f211c38fedce064967782f32f652793c716a",
+        "summary.json": "faeedfc61458f58b8143b3d0769b36567046be42cbbb0fd9fd445a52c87b6931",
+        "worker.json": "eea7ff819ca7221c58690cab900364a79e1fbee28a11f3c519ee23cd84cdcdca"
+      }
+    },
+    {
+      "run_accession": "ERR15277568",
+      "arm": "primary_amplicon",
+      "status": "completed",
+      "exit_code": 0,
+      "started_at": "2026-09-15T21:58:03.125143+00:00",
+      "ended_at": "2026-09-15T22:00:26.495158+00:00",
+      "analysis_state": "ambiguous_reconstruction",
+      "callable": false,
+      "report_state": "completed",
+      "argv_with_path_placeholders": [
+        "run",
+        "--input",
+        "${DATA_ROOT}/reads/ERR15277568/ERR15277568.fastq",
+        "--output-dir",
+        "${RESULT_ROOT}/ERR15277568",
+        "--platform",
+        "ont",
+        "--clair3-model",
+        "${MODEL_ROOT}",
+        "--threads",
+        "2",
+        "--report",
+        "--report-igv",
+        "off"
+      ],
+      "supervisor_argv_with_path_placeholders": [
+        "${CHECKOUT}/.venv/bin/python3",
+        "-m",
+        "muc_one_span.clinical_worker",
+        "${RESULT_ROOT}/ERR15277568/invocation.json"
+      ],
+      "input_reads": 26672,
+      "output_reads": 26672,
+      "excluded_reads": 0,
+      "input_fastq_sha256": "a0a821bf26bfb950ccb27aad13844364bdb2a06233bf151ee5c702cfb7d62f39",
+      "source_files": [
+        {
+          "url": "https://ftp.sra.ebi.ac.uk/vol1/fastq/ERR152/068/ERR15277568/ERR15277568.fastq.gz",
+          "bytes": 36105797,
+          "md5": "4d4df2bb70d0f332a696f713e06137cc",
+          "sha256": "3b106f9446b55d50b0ac594227ee5a1ed742980d16cbd885663d95faa6714a7d"
+        }
+      ],
+      "measurements": {
+        "supervised_wall_seconds": 143.36976267299906,
+        "requested_threads": 2,
+        "timeout_seconds": 1800.0,
+        "timings": {
+          "mapping": 83.25950136900065,
+          "alleles": 0.9344652680010768,
+          "calling": 58.60845300300571,
+          "consensus": 0.07072703799349256,
+          "classify": 0.24734364500909578,
+          "report": 0.025125574000412598,
+          "wall": 143.25534550800512
+        },
+        "peak_memory": {
+          "value": 823556,
+          "units": "KiB",
+          "method": "max(RUSAGE_SELF.ru_maxrss, RUSAGE_CHILDREN.ru_maxrss)",
+          "scope": "largest individual process high-water RSS; lower bound on concurrent process-tree peak"
+        }
+      },
+      "timed_analysis_stages_seconds": 143.12049032301002,
+      "download_preprocessing_wall_seconds": 2.1913249400095083,
+      "local_record_sha256": "87c323ca321b26882128d104eff0876a7b10be3556edd33611883eff9e4add60",
+      "local_provenance_object_sha256": "e759c90d740dc7c2e7a25bf177f0bc09f09e17bd31536c2deb141eccb752187b",
+      "environment_object_sha256": "f4c89c86a1b6c84cd994067f10ae10514080c069b43fdcd6bf7bb335d0f9fb49",
+      "output_files_count": 99,
+      "output_hashes_object_sha256": "fac7e742fbf2bb2b6d29366fd759832a8566135bb310003aeeac55d79d1e2512",
+      "selected_output_sha256": {
+        "alleles.json": "74eed45119d33a5162419650bc60d777f7d4ed7692086d9e264ed7ab566f0ccd",
+        "cli.log": "4242e38f716a357822b8dc4d7cf6ca05589165c6de3b9f37601dc95f8ef13334",
+        "consensus_allele_1.fa": "f30984cb05e5b123269b1b5af459bb7952cc72929c3ced4c3c6ac36611f40b49",
+        "consensus_allele_1_full.fa": "f97c0ce313c1ada4a0f48f775f509cae4041a8db55e5c08ac11f36bd647bf383",
+        "consensus_allele_2.fa": "adf28355b9ae934125eda6b70af28d2996d15ff2a712cb2f955d4e6103526f68",
+        "consensus_allele_2_full.fa": "239d06b94981066fa1015d99a4aad04750cdf5fab5dc3567ef4dc3f37e5e3632",
+        "repeats.json": "25e2728a53abc0a872de39c759e0190180f3981a2963cedeb43037ec1d4c3215",
+        "report.html": "0666bd3e3f2771b3972dfe7918315de1a7c93e660fff77a3f756f8f52e8eb1d1",
+        "run_configuration.json": "865da64ab7455703fa7f54e1a7e06c8bd303afd09236f7907163d70c681e1293",
+        "run_status.json": "6f922fc99c101e4c69006c9a81b8f211c38fedce064967782f32f652793c716a",
+        "summary.json": "05386a7e2953e5e48fc628bdc8b2d21049c1a98ee2d2abcea5c62e1b7c7d2082",
+        "worker.json": "97e8d568fdd4abf875cb6ea5726d80557f2069e6d71b1793aed3b2a0eb85d770"
+      }
+    },
+    {
+      "run_accession": "ERR15277569",
+      "arm": "primary_amplicon",
+      "status": "completed",
+      "exit_code": 0,
+      "started_at": "2026-09-15T21:52:04.606759+00:00",
+      "ended_at": "2026-09-15T21:53:13.145658+00:00",
+      "analysis_state": "ambiguous_reconstruction",
+      "callable": false,
+      "report_state": "completed",
+      "argv_with_path_placeholders": [
+        "run",
+        "--input",
+        "${DATA_ROOT}/reads/ERR15277569/ERR15277569.fastq",
+        "--output-dir",
+        "${RESULT_ROOT}/ERR15277569",
+        "--platform",
+        "ont",
+        "--clair3-model",
+        "${MODEL_ROOT}",
+        "--threads",
+        "2",
+        "--report",
+        "--report-igv",
+        "off"
+      ],
+      "supervisor_argv_with_path_placeholders": [
+        "${CHECKOUT}/.venv/bin/python3",
+        "-m",
+        "muc_one_span.clinical_worker",
+        "${RESULT_ROOT}/ERR15277569/invocation.json"
+      ],
+      "input_reads": 31808,
+      "output_reads": 31808,
+      "excluded_reads": 0,
+      "input_fastq_sha256": "65c6df3f1cdf4686da8a6cfd5cd8d020e0fb3652dd692a2767d6724c65b9e02c",
+      "source_files": [
+        {
+          "url": "https://ftp.sra.ebi.ac.uk/vol1/fastq/ERR152/069/ERR15277569/ERR15277569.fastq.gz",
+          "bytes": 22543918,
+          "md5": "f2b61e916c433b5fd3b8ff07eb41b589",
+          "sha256": "a2ef14b8f3c55fba7b02f946b51f3fddce9d497e144830829d500bbfb5697e00"
+        }
+      ],
+      "measurements": {
+        "supervised_wall_seconds": 68.53867428400554,
+        "requested_threads": 2,
+        "timeout_seconds": 1800.0,
+        "timings": {
+          "mapping": 41.124863206990995,
+          "alleles": 1.6352717070112703,
+          "calling": 25.522691445992677,
+          "consensus": 0.055196328001329675,
+          "classify": 0.0005501729901880026,
+          "report": 0.020895587003906257,
+          "wall": 68.43608737199975
+        },
+        "peak_memory": {
+          "value": 509948,
+          "units": "KiB",
+          "method": "max(RUSAGE_SELF.ru_maxrss, RUSAGE_CHILDREN.ru_maxrss)",
+          "scope": "largest individual process high-water RSS; lower bound on concurrent process-tree peak"
+        }
+      },
+      "timed_analysis_stages_seconds": 68.33857286098646,
+      "download_preprocessing_wall_seconds": 1.5647928379912628,
+      "local_record_sha256": "ccca25d67439222956121926e8bb7a3caee901ae56f82ff989f936e611cbc66a",
+      "local_provenance_object_sha256": "1835551624dc09dea5d383b76942547b1071220ce3059acc3fc1257de8ecc09e",
+      "environment_object_sha256": "f4c89c86a1b6c84cd994067f10ae10514080c069b43fdcd6bf7bb335d0f9fb49",
+      "output_files_count": 99,
+      "output_hashes_object_sha256": "e0bca484414724017c32ad5eeaf6bd03b1e3f3ddc722ba97fb480e87520b8f12",
+      "selected_output_sha256": {
+        "alleles.json": "38925d256f2fe7698a17d902e77c4c3dc1ba448bb3b01007e63b7dbf34e22489",
+        "cli.log": "46bd4d322e844ceb0b99d18858a20785342c339adefdf574ebe470e31b8687f2",
+        "consensus_allele_1.fa": "2093499c7f41b6c7e81faa83a4d769f4577cfc38e812889341d6b7a54ff56337",
+        "consensus_allele_1_full.fa": "d4a5148926a128aa0667d9f4aba65536fa89122ba0b0be721665ab913c9587cf",
+        "consensus_allele_2.fa": "74439390741c30209d4ca2236f41f5110c6db40ee1a33070d0e107b7cab23dda",
+        "consensus_allele_2_full.fa": "02526408d7a2cd9983f9f9c94f70cbec66c8764bea31e7809873f98fa4b6b620",
+        "repeats.json": "cf9116d20f459b6910489cdcef873a0709d1448c863529b79acc5327aee5fa8c",
+        "report.html": "7aa3e8fc0ce858a6422ad795a808bd07c474e18de7e294107a9800a3b391aac1",
+        "run_configuration.json": "2172fda5fd010dfd9e927946b8f47a7800bebdcf876e07ff2808dea038b3f1ae",
+        "run_status.json": "6f922fc99c101e4c69006c9a81b8f211c38fedce064967782f32f652793c716a",
+        "summary.json": "90b74844cb7ddd4e9c1f0e28d75a1a6d579afec269b1c51b9f8117272ae6e35a",
+        "worker.json": "52d229d936f48a7a62256465cc4f51818690bcbe13de1fa0cfd6c9a8592f64a8"
+      }
+    },
+    {
+      "run_accession": "ERR15277570",
+      "arm": "primary_amplicon",
+      "status": "completed",
+      "exit_code": 0,
+      "started_at": "2026-09-15T21:54:38.176435+00:00",
+      "ended_at": "2026-09-15T21:55:23.080656+00:00",
+      "analysis_state": "completed",
+      "callable": true,
+      "report_state": "completed",
+      "argv_with_path_placeholders": [
+        "run",
+        "--input",
+        "${DATA_ROOT}/reads/ERR15277570/ERR15277570.fastq",
+        "--output-dir",
+        "${RESULT_ROOT}/ERR15277570",
+        "--platform",
+        "ont",
+        "--clair3-model",
+        "${MODEL_ROOT}",
+        "--threads",
+        "2",
+        "--report",
+        "--report-igv",
+        "off"
+      ],
+      "supervisor_argv_with_path_placeholders": [
+        "${CHECKOUT}/.venv/bin/python3",
+        "-m",
+        "muc_one_span.clinical_worker",
+        "${RESULT_ROOT}/ERR15277570/invocation.json"
+      ],
+      "input_reads": 8307,
+      "output_reads": 8307,
+      "excluded_reads": 0,
+      "input_fastq_sha256": "e16cabf798dcd4f95f770c2baa61b94e8cdd13b4d05130e1c305ba8017985207",
+      "source_files": [
+        {
+          "url": "https://ftp.sra.ebi.ac.uk/vol1/fastq/ERR152/070/ERR15277570/ERR15277570.fastq.gz",
+          "bytes": 9317492,
+          "md5": "25c2b9f724ffac12ba446449fd9edc32",
+          "sha256": "cb5bfcc900b3503821873b387c1e3b1cdce40f36aaf0a04ad52490eeb189219f"
+        }
+      ],
+      "measurements": {
+        "supervised_wall_seconds": 44.90397692800616,
+        "requested_threads": 2,
+        "timeout_seconds": 1800.0,
+        "timings": {
+          "mapping": 24.108015028003138,
+          "alleles": 0.6854341250000289,
+          "calling": 19.82936862000497,
+          "consensus": 0.04915161299868487,
+          "classify": 0.0269435360096395,
+          "report": 0.021113563008839265,
+          "wall": 44.78551684899139
+        },
+        "peak_memory": {
+          "value": 434100,
+          "units": "KiB",
+          "method": "max(RUSAGE_SELF.ru_maxrss, RUSAGE_CHILDREN.ru_maxrss)",
+          "scope": "largest individual process high-water RSS; lower bound on concurrent process-tree peak"
+        }
+      },
+      "timed_analysis_stages_seconds": 44.69891292201646,
+      "download_preprocessing_wall_seconds": 0.9732406089897268,
+      "local_record_sha256": "7157e080c66a0a68efea4ef1df51dc7f31b490f64fb844da62329787db3b1434",
+      "local_provenance_object_sha256": "1cda832492d33e2f717f024904ff1eec1302333b8782cb61a7e582d1c873261f",
+      "environment_object_sha256": "f4c89c86a1b6c84cd994067f10ae10514080c069b43fdcd6bf7bb335d0f9fb49",
+      "output_files_count": 99,
+      "output_hashes_object_sha256": "b349c07f3c1c2585799cb112c1ce2c987d64b9f3c920a570e92f523a8617ba23",
+      "selected_output_sha256": {
+        "alleles.json": "bda549337b6014f50fd7a0843fe2d0dbba5b904a41d36a97bc4740a4248c1ac7",
+        "cli.log": "a278cfe033e1ae4992f2ae6270b27b6dc2447ccb62f493f33fc4bad8eea7bc6f",
+        "consensus_allele_1.fa": "b5b245d737911d2d7d645ab60096e47b98cd7ebeb4fc235c3c2a7885d97939eb",
+        "consensus_allele_1_full.fa": "8c43d3507102994a430e598e71d12641ceee345c1f99f6d19df30e599cb575a4",
+        "consensus_allele_2.fa": "22056b523f17dfcc9a793490b32283c1583ed907f7e9e1e0e6b1c4d055c0500b",
+        "consensus_allele_2_full.fa": "423e51762263e28e37e44b828c23e50e1bac0f4b8910b9c97dcceb4920f83a8e",
+        "repeats.json": "8513ef63e5dfa5c7fa38a692536c9e540588d5055e7467c2b5a628880cad71f6",
+        "report.html": "38ecceb93035625174dd34ec595b08a72c6bc9bb8948faa16e60a679707b385e",
+        "run_configuration.json": "60a69d778a313f7904eba7d451eaeef904159d5df69df1b3b11dfe785d7b5b6e",
+        "run_status.json": "6f922fc99c101e4c69006c9a81b8f211c38fedce064967782f32f652793c716a",
+        "summary.json": "1e13993090436f9b63d8e740259b156828307428c4db68c4e52deccce620c557",
+        "worker.json": "d7235c8094261d4aa6c8f10f396d810b9ba2cd24c4243c738cc522205d9644c7"
+      }
+    }
+  ],
+  "arms": {
+    "primary_amplicon": {
+      "runs": 9,
+      "supervised_wall_seconds_sum": 835.4997716500075,
+      "supervised_wall_seconds_range": [
+        44.90397692800616,
+        147.80857577999996
+      ],
+      "timed_analysis_stages_seconds_sum": 833.5605069571029,
+      "report_seconds_sum": 0.19911223099916242,
+      "peak_single_process_rss_kib_range": [
+        434100,
+        823556
+      ],
+      "download_preprocessing_wall_seconds_sum": 24.569772567992914
+    },
+    "secondary_wgs": {
+      "runs": 2,
+      "supervised_wall_seconds_sum": 11.876345439988654,
+      "supervised_wall_seconds_range": [
+        5.125456257999758,
+        6.750889181988896
+      ],
+      "timed_analysis_stages_seconds_sum": 11.502356394033995,
+      "report_seconds_sum": 0.044400887010851875,
+      "peak_single_process_rss_kib_range": [
+        421948,
+        425032
+      ],
+      "download_preprocessing_wall_seconds_sum": 1.3265456250082934
+    }
+  }
+}

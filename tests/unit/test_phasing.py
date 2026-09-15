@@ -66,7 +66,9 @@ def test_unequal_length_cluster_retains_residual_heterozygosity_status(tmp_path,
     alleles = {"homozygous": False, "allele_1": {"length": 60, "contig_name": "c"}}
     paths = calling.call_variants_per_allele(tmp_path / "bam", tmp_path / "ref", alleles, tmp_path)
     assert alleles["allele_1"]["phase_status"] == "unphased"
-    assert alleles["allele_1"]["consensus_haplotype"] == 1
+    assert alleles["allele_1"]["consensus_haplotype"] == "I"
+    assert alleles["allele_1"]["consensus_policy"] == "genotype_iupac_candidate"
+    assert alleles["allele_1"]["independent_haplotype_evidence"] is False
     assert alleles["allele_1"]["vcf_path"] == str(paths["allele_1"])
 
 
