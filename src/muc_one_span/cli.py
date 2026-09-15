@@ -475,6 +475,12 @@ def classify(
     help="Generate HTML report (requires jinja2: pip install muc_one_span[report]).",
 )
 @click.option(
+    "--report-igv",
+    type=click.Choice(["embedded", "sidecar", "off"], case_sensitive=False),
+    default="off",
+    help="IGV alignment browser mode in HTML report (default: off).",
+)
+@click.option(
     "--platform",
     type=click.Choice(["hifi", "ont"], case_sensitive=False),
     default=DEFAULT_SETTINGS.run.platform,
@@ -496,6 +502,7 @@ def run(
     min_coverage: int,
     min_qual: float,
     report: bool,
+    report_igv: str,
     platform: str,
     minimap2_preset: str | None,
 ) -> None:
@@ -513,6 +520,7 @@ def run(
         report,
         platform,
         minimap2_preset,
+        report_igv=report_igv,
         settings=current_settings(),
         configuration=current_configuration_path(),
     )
@@ -535,7 +543,27 @@ def run(
     default=None,
     help="Path to repeats.json for detailed repeat table.",
 )
-def report(input_path: str, output: str, sample_name: str | None, repeats: str | None) -> None:
+@click.option(
+    "--report-igv",
+    type=click.Choice(["embedded", "sidecar", "off"]),
+    default="off",
+    help="IGV report generation mode: embedded, sidecar, or off.",
+)
+@click.option(
+    "--fasta", type=click.Path(exists=True), default=None, help="Reference FASTA for IGV."
+)
+@click.option("--bam", type=click.Path(exists=True), default=None, help="BAM file for IGV.")
+@click.option("--vcf", type=click.Path(exists=True), default=None, help="VCF file for IGV.")
+def report(
+    input_path: str,
+    output: str,
+    sample_name: str | None,
+    repeats: str | None,
+    report_igv: str = "off",
+    fasta: str | None = None,
+    bam: str | None = None,
+    vcf: str | None = None,
+) -> None:
     """Generate an HTML report from pipeline results."""
     import json
 
@@ -561,7 +589,16 @@ def report(input_path: str, output: str, sample_name: str | None, repeats: str |
             click.echo(f"Error: Failed to parse JSON from {repeats}: {e}", err=True)
             raise SystemExit(1) from e
 
-    out_path = generate_report(summary, Path(output), sample_name=name, detailed_repeats=detailed)
+    out_path = generate_report(
+        summary,
+        Path(output),
+        sample_name=name,
+        detailed_repeats=detailed,
+        report_igv=report_igv,
+        fasta_path=Path(fasta) if fasta else None,
+        bam_path=Path(bam) if bam else None,
+        vcf_path=Path(vcf) if vcf else None,
+    )
     click.echo(f"Report written to {out_path}")
 
 

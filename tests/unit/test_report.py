@@ -101,12 +101,17 @@ class TestGenerateReport:
         assert "432" in content
 
     def test_report_includes_mutations(self, tmp_path, sample_summary):
-        """Report must include the mutation name."""
+        """Report must include HGVS nomenclature, repeat form, ambiguity, and clinical tier."""
         out = tmp_path / "report.html"
         generate_report(sample_summary, out, sample_name="test_sample")
         content = out.read_text()
 
         assert "dupC" in content
+        assert "59dupC" in content
+        assert "NM_001204286.1:c.59dupC" in content
+        assert "53C[7]&gt;53C[8]" in content or "53C[7]>53C[8]" in content
+        assert "(53, 59)" in content
+        assert "Tier A" in content
 
     def test_report_includes_tool_versions(self, tmp_path, sample_summary):
         """Report must display tool version strings."""

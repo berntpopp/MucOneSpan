@@ -170,7 +170,11 @@
         <th>Allele</th>
         <th class="tip" data-tip="Position of the mutated repeat unit in the allele">Repeat #</th>
         <th class="tip" data-tip="The canonical repeat type before mutation occurred">Parent type</th>
-        <th class="tip" data-tip="Name of the detected mutation (e.g. dupC = cytosine duplication)">Mutation</th>
+        <th class="tip" data-tip="Name of the detected mutation (e.g. 59dupC = cytosine duplication)">Mutation</th>
+        <th class="tip" data-tip="Official HGVS cDNA nomenclature (NM_001204286.1)">HGVS cDNA</th>
+        <th class="tip" data-tip="Repeat tract copy-number transition notation">Repeat form</th>
+        <th class="tip" data-tip="5'-roll to 3'-most normalization ambiguity interval (1-based)">Ambiguity</th>
+        <th class="tip" data-tip="Clinical confidence tier (Tier A = established pathogenic)">Tier</th>
         <th class="tip" data-tip="Frameshift: indel length not divisible by 3, disrupts reading frame">Frameshift</th>
         <th class="tip" data-tip="Exact sequence concordance with the VCF used to construct the consensus, or unavailable when projection cannot be verified">VCF support</th>
         <th class="tip" data-tip="Clair3 quality score: higher = more confident variant call">QUAL</th>
@@ -184,7 +188,30 @@
         <td>{{ entry.allele | replace("_", " ") | title }}</td>
         <td>{{ m.get("repeat_index", "N/A") }}</td>
         <td>{{ m.get("closest_type", "N/A") }}</td>
-        <td><strong>{{ m.get("mutation_name", "N/A") }}</strong></td>
+        <td>
+          <strong>{{ m.get("canonical_name", m.get("mutation_name", "N/A")) }}</strong>
+          {% if m.get("canonical_name") and m.get("mutation_name") and m.get("canonical_name") != m.get("mutation_name") %}
+            <br><small style="color:var(--fg-muted);">({{ m.get("mutation_name") }})</small>
+          {% endif %}
+        </td>
+        <td><code>{{ m.get("hgvs_cdna", "&mdash;") }}</code></td>
+        <td><code>{{ m.get("repeat_form") or "&mdash;" }}</code></td>
+        <td>
+          {% if m.get("ambiguity_interval") %}
+            <code>({{ m["ambiguity_interval"][0] }}, {{ m["ambiguity_interval"][1] }})</code>
+          {% else %}
+            &mdash;
+          {% endif %}
+        </td>
+        <td>
+          {% if m.get("confidence_tier") == "Tier_A" or m.get("is_known_variant") %}
+            <span class="badge badge-danger tip" data-tip="{{ m.get('literature_citation', 'Pathogenic') }}">Tier A</span>
+          {% elif m.get("confidence_tier") == "Tier_B" or m.get("frameshift") %}
+            <span class="badge badge-warning">Tier B</span>
+          {% else %}
+            <span class="badge badge-info">Tier C</span>
+          {% endif %}
+        </td>
         <td>
           {% if m.get("frameshift") %}
             <span class="badge badge-danger">Frameshift</span>
@@ -314,7 +341,26 @@
 {% endif %}
 
 <!-- ════════════════════════════════════════════════════════
-     7. REPRODUCIBILITY FOOTER
+     7. INTERACTIVE ALIGNMENT BROWSER
+     ════════════════════════════════════════════════════════ -->
+{% if igv and igv.has_igv %}
+<section aria-label="Interactive alignment browser">
+  <h2>Interactive Alignment Browser <span class="help-icon tip tip-wide" data-tip="Zero-network offline IGV alignment browser showing reads and variants across the MUC1 VNTR locus.">?</span></h2>
+  {% if igv.mode == "embedded" %}
+  <div class="igv-container-wrapper" style="margin-top:1rem;background:var(--bg-surface);border:1px solid var(--border);border-radius:var(--radius);padding:1rem;">
+    {{ igv.igv_content | safe }}
+  </div>
+  {% elif igv.mode == "sidecar" and igv.sidecar_path %}
+  <div class="card" style="margin-top:1rem;padding:1.25rem;">
+    <p>Alignment browser generated in a separate offline HTML sidecar:</p>
+    <p><a href="{{ igv.sidecar_path.name }}" class="badge badge-info" style="font-size:0.95rem;padding:0.4rem 0.8rem;text-decoration:none;" target="_blank" rel="noopener">Open Interactive Alignment Browser ({{ igv.sidecar_path.name }}) &rarr;</a></p>
+  </div>
+  {% endif %}
+</section>
+{% endif %}
+
+<!-- ════════════════════════════════════════════════════════
+     8. REPRODUCIBILITY FOOTER
      ════════════════════════════════════════════════════════ -->
 <footer class="report-footer" aria-label="Reproducibility information">
   <dl>
@@ -322,12 +368,140 @@
     <dd>MucOneSpan v{{ pipeline_version }}</dd>
     <dt>Generated</dt>
     <dd>{{ generated_at }}</dd>
+    {% if igv_provenance %}
+    <dt>Alignment Browser</dt>
+    <dd>{{ igv_provenance }}</dd>
+    {% endif %}
     {% for name, version in tool_versions.items() %}
     <dt>{{ name }}</dt>
     <dd>{{ version }}</dd>
     {% endfor %}
   </dl>
 </footer>
+
+{% if igv and igv.mode == "embedded" and igv.has_igv %}
+<script>
+const tableJson = {{ igv.table_json | safe }};
+const sessionDictionary = {{ igv.session_dictionary | safe }};
+const IGV_GZ_B64 = "{{ igv_payload }}";
+let igvBrowser = null;
+
+function describeRow(headers, rowData) {
+    const parts = [];
+    for (let i = 1; i < headers.length; i++) {
+        parts.push(headers[i] + " " + rowData[i]);
+    }
+    return parts.join(", ");
+}
+
+function selectRow(row, button) {
+    document.querySelectorAll("#variant_table tbody tr").forEach(function (candidate) {
+        const selected = candidate === row;
+        candidate.setAttribute("aria-selected", String(selected));
+        const candidateBtn = candidate.querySelector("button");
+        if (candidateBtn) candidateBtn.textContent = selected ? "Showing" : "Show";
+    });
+    button.focus();
+}
+
+function showSession(row, button) {
+    const session = sessionDictionary[row.dataset.id];
+    if (!igvBrowser || !session) return;
+    igvBrowser.loadSession({url: session}).then(function () {
+        selectRow(row, button);
+    });
+}
+
+function initTable() {
+    const host = document.getElementById("tableSelectorDiv");
+    if (!host || !tableJson || !tableJson.headers || !tableJson.rows) return;
+    const table = document.createElement("table");
+    table.id = "variant_table";
+    const head = table.createTHead();
+    const headerRow = head.insertRow();
+    const viewHeader = document.createElement("th");
+    viewHeader.scope = "col";
+    viewHeader.textContent = "View";
+    headerRow.appendChild(viewHeader);
+
+    tableJson.headers.slice(1).forEach(function (header) {
+        const cell = document.createElement("th");
+        cell.scope = "col";
+        cell.textContent = header;
+        headerRow.appendChild(cell);
+    });
+
+    const body = table.createTBody();
+    tableJson.rows.forEach(function (rowData, rowIndex) {
+        const row = body.insertRow();
+        row.dataset.id = rowData[0];
+        row.setAttribute("aria-selected", String(rowIndex === 0));
+        const action = row.insertCell();
+        const button = document.createElement("button");
+        button.type = "button";
+        button.textContent = rowIndex === 0 ? "Showing" : "Show";
+        button.setAttribute("aria-label", button.textContent + " " + describeRow(tableJson.headers, rowData));
+        button.addEventListener("click", function () {
+            showSession(row, button);
+        });
+        action.appendChild(button);
+
+        rowData.slice(1).forEach(function (value) {
+            const cell = row.insertCell();
+            cell.textContent = value;
+        });
+    });
+    host.appendChild(table);
+}
+
+function setIgvState(message) {
+    const state = document.getElementById("igvState");
+    if (state) state.textContent = message;
+}
+
+async function loadIgv() {
+    if (typeof IGV_GZ_B64 === "undefined" || typeof DecompressionStream === "undefined") {
+        return null;
+    }
+    const bytes = Uint8Array.from(atob(IGV_GZ_B64), function (c) { return c.charCodeAt(0); });
+    const stream = new Blob([bytes]).stream().pipeThrough(new DecompressionStream("gzip"));
+    const source = await new Response(stream).text();
+    (0, eval)(source);
+    return window.igv;
+}
+
+document.addEventListener("DOMContentLoaded", function () {
+    initTable();
+    if (typeof sessionDictionary !== "undefined" && Object.keys(sessionDictionary).length > 0) {
+        loadIgv().then(function (igv) {
+            if (!igv) {
+                setIgvState("The alignment browser library is unavailable. The variant table remains complete.");
+                return;
+            }
+            const igvDiv = document.getElementById("igvDiv");
+            if (!igvDiv) return;
+            const firstKey = Object.keys(sessionDictionary)[0];
+            const options = {
+                sessionURL: sessionDictionary[firstKey],
+                showChromosomeWidget: false,
+                showCenterGuide: true,
+                search: false,
+                loadDefaultGenomes: false,
+            };
+            igv.createBrowser(igvDiv, options).then(function (browser) {
+                igvBrowser = browser;
+                const state = document.getElementById("igvState");
+                if (state) state.remove();
+            }).catch(function (error) {
+                setIgvState("The alignment browser could not be started: " + String(error));
+            });
+        }).catch(function (error) {
+            setIgvState("The alignment browser could not be loaded: " + String(error));
+        });
+    }
+});
+</script>
+{% endif %}
 
 </body>
 </html>

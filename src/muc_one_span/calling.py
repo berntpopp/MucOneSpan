@@ -441,7 +441,9 @@ def call_variants_per_allele(
         variants = parse_vcf_genotypes(filtered)
         evidence = phase_evidence(variants)
         sample = variants[0].get("sample") if variants else None
-        annotate_consensus_candidate(allele_info, evidence, "I", sample, str(filtered))
+        annotate_consensus_candidate(allele_info, evidence, 1, sample, str(filtered))
+        if len(allele_keys) > 1:
+            allele_info["independent_haplotype_evidence"] = True
         return allele_key, filtered
 
     # Process both alleles in parallel when they are independent

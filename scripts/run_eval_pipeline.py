@@ -59,9 +59,19 @@ def parse_args() -> argparse.ArgumentParser:
     )
     parser.add_argument(
         "--platform",
-        choices=["hifi", "ont", "all"],
+        choices=["hifi", "ont", "amplicon_hifi", "genomic_ont", "genomic_pacbio", "all"],
         default="all",
         help="Filter by platform",
+    )
+    parser.add_argument(
+        "--skip-existing",
+        action="store_true",
+        help="Skip pipeline execution if summary.json already exists",
+    )
+    parser.add_argument(
+        "--report",
+        action="store_true",
+        help="Generate HTML report with embedded IGV for each sample",
     )
     parser.add_argument(
         "--threads",
@@ -160,6 +170,10 @@ def diagnose_first_failure(
     total_truth_events = len([e for h in truth_obj.haplotypes for e in h.events])
 
     if not all_sequences_exact:
+        seq_exact = metrics.get("sequence_exact", {}).get("min", 0)
+        status = eval_row.get("status")
+        if status == "ambiguous_reconstruction" and seq_exact >= 1 and event_fp == 0:
+            return {"first_failure_stage": "none", "reason": "homozygous unphased sequence exact"}
         return {
             "first_failure_stage": "consensus",
             "reason": "exact sequence discordance despite correct length pair",
@@ -188,10 +202,15 @@ def run_sample(
     threads: int,
     config_path: Path | None = None,
     src_dir: Path | None = None,
+    report: bool = False,
+    skip_existing: bool = False,
 ) -> int:
     """Run muconespan on a single sample."""
+    if skip_existing and (sample_out_dir / "summary.json").exists():
+        return 0
     sample_out_dir.mkdir(parents=True, exist_ok=True)
-    model = MODELS[platform]
+    platform_key = "hifi" if ("hifi" in platform or "pacbio" in platform) else "ont"
+    model = MODELS[platform_key]
 
     cmd = [
         sys.executable,
@@ -208,13 +227,15 @@ def run_sample(
             "--output-dir",
             str(sample_out_dir),
             "--platform",
-            platform,
+            platform_key,
             "--clair3-model",
             model,
             "--threads",
             str(threads),
         ]
     )
+    if report:
+        cmd.extend(["--report", "--report-igv", "embedded"])
 
     env = dict(os.environ)
     env["PATH"] = f"/home/bernt-popp/miniforge3/envs/env_clair3/bin:{env.get('PATH', '')}"
@@ -238,8 +259,30 @@ def process_entry(
 ) -> tuple[dict[str, Any], dict[str, Any]]:
     sample_name = f"{entry['design_name']}_{entry['platform']}"
     sample_out = args.output_dir / sample_name
-    raw_reads = ROOT / entry["raw_reads_path"]
-    truth_dir = args.data_dir / "truth" / entry["design_name"]
+    reads_rel = entry.get("raw_reads_path") or entry.get("reads_file")
+    if not reads_rel:
+        raise ValueError(f"Missing read path in ledger entry: {entry}")
+    reads_path = Path(reads_rel)
+    if reads_path.is_absolute() and reads_path.exists():
+        raw_reads = reads_path
+    elif (args.data_dir / reads_path).exists():
+        raw_reads = args.data_dir / reads_path
+    else:
+        raw_reads = ROOT / reads_path
+
+    truth_rel = entry.get("truth_dir") or (
+        Path(entry["truth_fa"]).parent if "truth_fa" in entry else None
+    )
+    if truth_rel:
+        t_path = Path(truth_rel)
+        if t_path.is_absolute() and t_path.exists():
+            truth_dir = t_path
+        elif (args.data_dir / t_path).exists():
+            truth_dir = args.data_dir / t_path
+        else:
+            truth_dir = ROOT / t_path
+    else:
+        truth_dir = args.data_dir / "truth" / entry["design_name"]
 
     t0 = time.monotonic()
     exit_code = run_sample(
@@ -250,6 +293,8 @@ def process_entry(
         args.threads,
         args.config,
         args.src_dir,
+        report=args.report,
+        skip_existing=args.skip_existing,
     )
     elapsed = time.monotonic() - t0
 
@@ -292,7 +337,13 @@ def main() -> int:
     # Filter by split and platform
     filtered = [e for e in entries if e["split"] == args.split]
     if args.platform != "all":
-        filtered = [e for e in filtered if e["platform"] == args.platform]
+        filtered = [
+            e
+            for e in filtered
+            if e["platform"] == args.platform
+            or (args.platform == "hifi" and ("hifi" in e["platform"] or "pacbio" in e["platform"]))
+            or (args.platform == "ont" and "ont" in e["platform"])
+        ]
     if args.limit:
         filtered = filtered[: args.limit]
 
@@ -348,10 +399,13 @@ def main() -> int:
     stages = sorted({d["first_failure_stage"] for d in failure_atlas})
     for st in stages:
         h_cnt = sum(
-            1 for d in failure_atlas if d["first_failure_stage"] == st and d["platform"] == "hifi"
+            1
+            for d in failure_atlas
+            if d["first_failure_stage"] == st
+            and ("hifi" in d["platform"] or "pacbio" in d["platform"])
         )
         o_cnt = sum(
-            1 for d in failure_atlas if d["first_failure_stage"] == st and d["platform"] == "ont"
+            1 for d in failure_atlas if d["first_failure_stage"] == st and "ont" in d["platform"]
         )
         md_lines.append(f"| `{st}` | {h_cnt} | {o_cnt} | {h_cnt + o_cnt} |")
 

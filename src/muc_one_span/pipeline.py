@@ -24,6 +24,7 @@ def execute_pipeline(
     platform: str,
     minimap2_preset: str | None,
     *,
+    report_igv: str = "off",
     settings: RuntimeSettings | None = None,
     configuration: Path | None = None,
 ) -> None:
@@ -57,6 +58,7 @@ def execute_pipeline(
         min_coverage=min_coverage,
         min_qual=min_qual,
         report=report,
+        report_igv=report_igv,
         platform=platform,
         minimap2_preset=minimap2_preset,
     )
@@ -186,16 +188,22 @@ def execute_pipeline(
     }
     (out / "summary.json").write_text(json.dumps(summary, indent=2) + "\n")
 
-    if report:
+    effective_igv = settings.run.report_igv
+    if report or effective_igv != "off":
         try:
             from muc_one_span.report import generate_report
 
             report_path = out / "report.html"
+            primary_vcf = next(iter(vcf_paths.values()), None)
             generate_report(
                 summary,
                 report_path,
                 sample_name=Path(input_path).stem,
                 detailed_repeats=all_results,
+                report_igv=effective_igv,
+                bam_path=bam,
+                vcf_path=primary_vcf,
+                fasta_path=ref,
             )
             click.echo(f"Report: {report_path}")
         except ImportError as e:

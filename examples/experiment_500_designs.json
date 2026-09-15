@@ -1,0 +1,5152 @@
+[
+  {
+    "design_id": 1,
+    "name": "c1_homo_30_30_dev",
+    "split": "dev",
+    "category": "C1_HOMOZYGOUS_WT",
+    "lengths": [
+      30,
+      30
+    ],
+    "mutation": null,
+    "targets": [],
+    "requested_templates": 200,
+    "structure_file": "examples/structures_500/identical_30_30.txt",
+    "bio_seed": 5000010,
+    "hifi_seed": 6000010,
+    "ont_seed": 7000010,
+    "platform_mode": "all"
+  },
+  {
+    "design_id": 2,
+    "name": "c1_homo_40_40_dev",
+    "split": "dev",
+    "category": "C1_HOMOZYGOUS_WT",
+    "lengths": [
+      40,
+      40
+    ],
+    "mutation": null,
+    "targets": [],
+    "requested_templates": 200,
+    "structure_file": "examples/structures_500/identical_40_40.txt",
+    "bio_seed": 5000020,
+    "hifi_seed": 6000020,
+    "ont_seed": 7000020,
+    "platform_mode": "all"
+  },
+  {
+    "design_id": 3,
+    "name": "c1_homo_50_50_dev",
+    "split": "dev",
+    "category": "C1_HOMOZYGOUS_WT",
+    "lengths": [
+      50,
+      50
+    ],
+    "mutation": null,
+    "targets": [],
+    "requested_templates": 200,
+    "structure_file": "examples/structures_500/identical_50_50.txt",
+    "bio_seed": 5000030,
+    "hifi_seed": 6000030,
+    "ont_seed": 7000030,
+    "platform_mode": "all"
+  },
+  {
+    "design_id": 4,
+    "name": "c1_homo_60_60_dev",
+    "split": "dev",
+    "category": "C1_HOMOZYGOUS_WT",
+    "lengths": [
+      60,
+      60
+    ],
+    "mutation": null,
+    "targets": [],
+    "requested_templates": 200,
+    "structure_file": "examples/structures_500/identical_60_60.txt",
+    "bio_seed": 5000040,
+    "hifi_seed": 6000040,
+    "ont_seed": 7000040,
+    "platform_mode": "all"
+  },
+  {
+    "design_id": 5,
+    "name": "c1_homo_70_70_dev",
+    "split": "dev",
+    "category": "C1_HOMOZYGOUS_WT",
+    "lengths": [
+      70,
+      70
+    ],
+    "mutation": null,
+    "targets": [],
+    "requested_templates": 200,
+    "structure_file": "examples/structures_500/identical_70_70.txt",
+    "bio_seed": 5000050,
+    "hifi_seed": 6000050,
+    "ont_seed": 7000050,
+    "platform_mode": "all"
+  },
+  {
+    "design_id": 6,
+    "name": "c1_homo_80_80_dev",
+    "split": "dev",
+    "category": "C1_HOMOZYGOUS_WT",
+    "lengths": [
+      80,
+      80
+    ],
+    "mutation": null,
+    "targets": [],
+    "requested_templates": 200,
+    "structure_file": "examples/structures_500/identical_80_80.txt",
+    "bio_seed": 5000060,
+    "hifi_seed": 6000060,
+    "ont_seed": 7000060,
+    "platform_mode": "all"
+  },
+  {
+    "design_id": 7,
+    "name": "c1_homo_90_90_dev",
+    "split": "dev",
+    "category": "C1_HOMOZYGOUS_WT",
+    "lengths": [
+      90,
+      90
+    ],
+    "mutation": null,
+    "targets": [],
+    "requested_templates": 200,
+    "structure_file": "examples/structures_500/identical_90_90.txt",
+    "bio_seed": 5000070,
+    "hifi_seed": 6000070,
+    "ont_seed": 7000070,
+    "platform_mode": "all"
+  },
+  {
+    "design_id": 8,
+    "name": "c1_homo_100_100_dev",
+    "split": "dev",
+    "category": "C1_HOMOZYGOUS_WT",
+    "lengths": [
+      100,
+      100
+    ],
+    "mutation": null,
+    "targets": [],
+    "requested_templates": 200,
+    "structure_file": "examples/structures_500/identical_100_100.txt",
+    "bio_seed": 5000080,
+    "hifi_seed": 6000080,
+    "ont_seed": 7000080,
+    "platform_mode": "all"
+  },
+  {
+    "design_id": 9,
+    "name": "c1_homo_25_25_dev",
+    "split": "dev",
+    "category": "C1_HOMOZYGOUS_WT",
+    "lengths": [
+      25,
+      25
+    ],
+    "mutation": null,
+    "targets": [],
+    "requested_templates": 200,
+    "structure_file": "examples/structures_500/identical_25_25.txt",
+    "bio_seed": 5000090,
+    "hifi_seed": 6000090,
+    "ont_seed": 7000090,
+    "platform_mode": "all"
+  },
+  {
+    "design_id": 10,
+    "name": "c1_homo_35_35_dev",
+    "split": "dev",
+    "category": "C1_HOMOZYGOUS_WT",
+    "lengths": [
+      35,
+      35
+    ],
+    "mutation": null,
+    "targets": [],
+    "requested_templates": 200,
+    "structure_file": "examples/structures_500/identical_35_35.txt",
+    "bio_seed": 5000100,
+    "hifi_seed": 6000100,
+    "ont_seed": 7000100,
+    "platform_mode": "all"
+  },
+  {
+    "design_id": 11,
+    "name": "c1_homo_45_45_dev",
+    "split": "dev",
+    "category": "C1_HOMOZYGOUS_WT",
+    "lengths": [
+      45,
+      45
+    ],
+    "mutation": null,
+    "targets": [],
+    "requested_templates": 200,
+    "structure_file": "examples/structures_500/identical_45_45.txt",
+    "bio_seed": 5000110,
+    "hifi_seed": 6000110,
+    "ont_seed": 7000110,
+    "platform_mode": "all"
+  },
+  {
+    "design_id": 12,
+    "name": "c1_homo_55_55_dev",
+    "split": "dev",
+    "category": "C1_HOMOZYGOUS_WT",
+    "lengths": [
+      55,
+      55
+    ],
+    "mutation": null,
+    "targets": [],
+    "requested_templates": 200,
+    "structure_file": "examples/structures_500/identical_55_55.txt",
+    "bio_seed": 5000120,
+    "hifi_seed": 6000120,
+    "ont_seed": 7000120,
+    "platform_mode": "all"
+  },
+  {
+    "design_id": 13,
+    "name": "c1_homo_65_65_dev",
+    "split": "dev",
+    "category": "C1_HOMOZYGOUS_WT",
+    "lengths": [
+      65,
+      65
+    ],
+    "mutation": null,
+    "targets": [],
+    "requested_templates": 200,
+    "structure_file": "examples/structures_500/identical_65_65.txt",
+    "bio_seed": 5000130,
+    "hifi_seed": 6000130,
+    "ont_seed": 7000130,
+    "platform_mode": "all"
+  },
+  {
+    "design_id": 14,
+    "name": "c1_homo_75_75_dev",
+    "split": "dev",
+    "category": "C1_HOMOZYGOUS_WT",
+    "lengths": [
+      75,
+      75
+    ],
+    "mutation": null,
+    "targets": [],
+    "requested_templates": 200,
+    "structure_file": "examples/structures_500/identical_75_75.txt",
+    "bio_seed": 5000140,
+    "hifi_seed": 6000140,
+    "ont_seed": 7000140,
+    "platform_mode": "all"
+  },
+  {
+    "design_id": 15,
+    "name": "c1_homo_85_85_dev",
+    "split": "dev",
+    "category": "C1_HOMOZYGOUS_WT",
+    "lengths": [
+      85,
+      85
+    ],
+    "mutation": null,
+    "targets": [],
+    "requested_templates": 200,
+    "structure_file": "examples/structures_500/identical_85_85.txt",
+    "bio_seed": 5000150,
+    "hifi_seed": 6000150,
+    "ont_seed": 7000150,
+    "platform_mode": "all"
+  },
+  {
+    "design_id": 16,
+    "name": "c1_homo_30_30_val",
+    "split": "val",
+    "category": "C1_HOMOZYGOUS_WT",
+    "lengths": [
+      30,
+      30
+    ],
+    "mutation": null,
+    "targets": [],
+    "requested_templates": 200,
+    "structure_file": "examples/structures_500/identical_30_30.txt",
+    "bio_seed": 5000160,
+    "hifi_seed": 6000160,
+    "ont_seed": 7000160,
+    "platform_mode": "all"
+  },
+  {
+    "design_id": 17,
+    "name": "c1_homo_50_50_val",
+    "split": "val",
+    "category": "C1_HOMOZYGOUS_WT",
+    "lengths": [
+      50,
+      50
+    ],
+    "mutation": null,
+    "targets": [],
+    "requested_templates": 200,
+    "structure_file": "examples/structures_500/identical_50_50.txt",
+    "bio_seed": 5000170,
+    "hifi_seed": 6000170,
+    "ont_seed": 7000170,
+    "platform_mode": "all"
+  },
+  {
+    "design_id": 18,
+    "name": "c1_homo_60_60_val",
+    "split": "val",
+    "category": "C1_HOMOZYGOUS_WT",
+    "lengths": [
+      60,
+      60
+    ],
+    "mutation": null,
+    "targets": [],
+    "requested_templates": 200,
+    "structure_file": "examples/structures_500/identical_60_60.txt",
+    "bio_seed": 5000180,
+    "hifi_seed": 6000180,
+    "ont_seed": 7000180,
+    "platform_mode": "all"
+  },
+  {
+    "design_id": 19,
+    "name": "c1_homo_80_80_val",
+    "split": "val",
+    "category": "C1_HOMOZYGOUS_WT",
+    "lengths": [
+      80,
+      80
+    ],
+    "mutation": null,
+    "targets": [],
+    "requested_templates": 200,
+    "structure_file": "examples/structures_500/identical_80_80.txt",
+    "bio_seed": 5000190,
+    "hifi_seed": 6000190,
+    "ont_seed": 7000190,
+    "platform_mode": "all"
+  },
+  {
+    "design_id": 20,
+    "name": "c1_homo_100_100_val",
+    "split": "val",
+    "category": "C1_HOMOZYGOUS_WT",
+    "lengths": [
+      100,
+      100
+    ],
+    "mutation": null,
+    "targets": [],
+    "requested_templates": 200,
+    "structure_file": "examples/structures_500/identical_100_100.txt",
+    "bio_seed": 5000200,
+    "hifi_seed": 6000200,
+    "ont_seed": 7000200,
+    "platform_mode": "all"
+  },
+  {
+    "design_id": 21,
+    "name": "c1_homo_40_40_test",
+    "split": "test",
+    "category": "C1_HOMOZYGOUS_WT",
+    "lengths": [
+      40,
+      40
+    ],
+    "mutation": null,
+    "targets": [],
+    "requested_templates": 200,
+    "structure_file": "examples/structures_500/identical_40_40.txt",
+    "bio_seed": 5000210,
+    "hifi_seed": 6000210,
+    "ont_seed": 7000210,
+    "platform_mode": "all"
+  },
+  {
+    "design_id": 22,
+    "name": "c1_homo_55_55_test",
+    "split": "test",
+    "category": "C1_HOMOZYGOUS_WT",
+    "lengths": [
+      55,
+      55
+    ],
+    "mutation": null,
+    "targets": [],
+    "requested_templates": 200,
+    "structure_file": "examples/structures_500/identical_55_55.txt",
+    "bio_seed": 5000220,
+    "hifi_seed": 6000220,
+    "ont_seed": 7000220,
+    "platform_mode": "all"
+  },
+  {
+    "design_id": 23,
+    "name": "c1_homo_70_70_test",
+    "split": "test",
+    "category": "C1_HOMOZYGOUS_WT",
+    "lengths": [
+      70,
+      70
+    ],
+    "mutation": null,
+    "targets": [],
+    "requested_templates": 200,
+    "structure_file": "examples/structures_500/identical_70_70.txt",
+    "bio_seed": 5000230,
+    "hifi_seed": 6000230,
+    "ont_seed": 7000230,
+    "platform_mode": "all"
+  },
+  {
+    "design_id": 24,
+    "name": "c1_homo_90_90_test",
+    "split": "test",
+    "category": "C1_HOMOZYGOUS_WT",
+    "lengths": [
+      90,
+      90
+    ],
+    "mutation": null,
+    "targets": [],
+    "requested_templates": 200,
+    "structure_file": "examples/structures_500/identical_90_90.txt",
+    "bio_seed": 5000240,
+    "hifi_seed": 6000240,
+    "ont_seed": 7000240,
+    "platform_mode": "all"
+  },
+  {
+    "design_id": 25,
+    "name": "c1_homo_110_110_test",
+    "split": "test",
+    "category": "C1_HOMOZYGOUS_WT",
+    "lengths": [
+      110,
+      110
+    ],
+    "mutation": null,
+    "targets": [],
+    "requested_templates": 200,
+    "structure_file": "examples/structures_500/identical_110_110.txt",
+    "bio_seed": 5000250,
+    "hifi_seed": 6000250,
+    "ont_seed": 7000250,
+    "platform_mode": "all"
+  },
+  {
+    "design_id": 26,
+    "name": "c2_asym_25_60_dev",
+    "split": "dev",
+    "category": "C2_ASYMMETRIC_LENGTH",
+    "lengths": [
+      25,
+      60
+    ],
+    "mutation": null,
+    "targets": [],
+    "requested_templates": 200,
+    "structure_file": null,
+    "bio_seed": 5000260,
+    "hifi_seed": 6000260,
+    "ont_seed": 7000260,
+    "platform_mode": "all"
+  },
+  {
+    "design_id": 27,
+    "name": "c2_asym_25_80_dev",
+    "split": "dev",
+    "category": "C2_ASYMMETRIC_LENGTH",
+    "lengths": [
+      25,
+      80
+    ],
+    "mutation": null,
+    "targets": [],
+    "requested_templates": 200,
+    "structure_file": null,
+    "bio_seed": 5000270,
+    "hifi_seed": 6000270,
+    "ont_seed": 7000270,
+    "platform_mode": "all"
+  },
+  {
+    "design_id": 28,
+    "name": "c2_asym_25_100_dev",
+    "split": "dev",
+    "category": "C2_ASYMMETRIC_LENGTH",
+    "lengths": [
+      25,
+      100
+    ],
+    "mutation": null,
+    "targets": [],
+    "requested_templates": 200,
+    "structure_file": null,
+    "bio_seed": 5000280,
+    "hifi_seed": 6000280,
+    "ont_seed": 7000280,
+    "platform_mode": "all"
+  },
+  {
+    "design_id": 29,
+    "name": "c2_asym_25_120_dev",
+    "split": "dev",
+    "category": "C2_ASYMMETRIC_LENGTH",
+    "lengths": [
+      25,
+      120
+    ],
+    "mutation": null,
+    "targets": [],
+    "requested_templates": 200,
+    "structure_file": null,
+    "bio_seed": 5000290,
+    "hifi_seed": 6000290,
+    "ont_seed": 7000290,
+    "platform_mode": "all"
+  },
+  {
+    "design_id": 30,
+    "name": "c2_asym_25_140_dev",
+    "split": "dev",
+    "category": "C2_ASYMMETRIC_LENGTH",
+    "lengths": [
+      25,
+      140
+    ],
+    "mutation": null,
+    "targets": [],
+    "requested_templates": 200,
+    "structure_file": null,
+    "bio_seed": 5000300,
+    "hifi_seed": 6000300,
+    "ont_seed": 7000300,
+    "platform_mode": "all"
+  },
+  {
+    "design_id": 31,
+    "name": "c2_asym_30_70_dev",
+    "split": "dev",
+    "category": "C2_ASYMMETRIC_LENGTH",
+    "lengths": [
+      30,
+      70
+    ],
+    "mutation": null,
+    "targets": [],
+    "requested_templates": 200,
+    "structure_file": null,
+    "bio_seed": 5000310,
+    "hifi_seed": 6000310,
+    "ont_seed": 7000310,
+    "platform_mode": "all"
+  },
+  {
+    "design_id": 32,
+    "name": "c2_asym_30_90_dev",
+    "split": "dev",
+    "category": "C2_ASYMMETRIC_LENGTH",
+    "lengths": [
+      30,
+      90
+    ],
+    "mutation": null,
+    "targets": [],
+    "requested_templates": 200,
+    "structure_file": null,
+    "bio_seed": 5000320,
+    "hifi_seed": 6000320,
+    "ont_seed": 7000320,
+    "platform_mode": "all"
+  },
+  {
+    "design_id": 33,
+    "name": "c2_asym_30_110_dev",
+    "split": "dev",
+    "category": "C2_ASYMMETRIC_LENGTH",
+    "lengths": [
+      30,
+      110
+    ],
+    "mutation": null,
+    "targets": [],
+    "requested_templates": 200,
+    "structure_file": null,
+    "bio_seed": 5000330,
+    "hifi_seed": 6000330,
+    "ont_seed": 7000330,
+    "platform_mode": "all"
+  },
+  {
+    "design_id": 34,
+    "name": "c2_asym_30_130_dev",
+    "split": "dev",
+    "category": "C2_ASYMMETRIC_LENGTH",
+    "lengths": [
+      30,
+      130
+    ],
+    "mutation": null,
+    "targets": [],
+    "requested_templates": 200,
+    "structure_file": null,
+    "bio_seed": 5000340,
+    "hifi_seed": 6000340,
+    "ont_seed": 7000340,
+    "platform_mode": "all"
+  },
+  {
+    "design_id": 35,
+    "name": "c2_asym_35_75_dev",
+    "split": "dev",
+    "category": "C2_ASYMMETRIC_LENGTH",
+    "lengths": [
+      35,
+      75
+    ],
+    "mutation": null,
+    "targets": [],
+    "requested_templates": 200,
+    "structure_file": null,
+    "bio_seed": 5000350,
+    "hifi_seed": 6000350,
+    "ont_seed": 7000350,
+    "platform_mode": "all"
+  },
+  {
+    "design_id": 36,
+    "name": "c2_asym_35_95_dev",
+    "split": "dev",
+    "category": "C2_ASYMMETRIC_LENGTH",
+    "lengths": [
+      35,
+      95
+    ],
+    "mutation": null,
+    "targets": [],
+    "requested_templates": 200,
+    "structure_file": null,
+    "bio_seed": 5000360,
+    "hifi_seed": 6000360,
+    "ont_seed": 7000360,
+    "platform_mode": "all"
+  },
+  {
+    "design_id": 37,
+    "name": "c2_asym_35_115_dev",
+    "split": "dev",
+    "category": "C2_ASYMMETRIC_LENGTH",
+    "lengths": [
+      35,
+      115
+    ],
+    "mutation": null,
+    "targets": [],
+    "requested_templates": 200,
+    "structure_file": null,
+    "bio_seed": 5000370,
+    "hifi_seed": 6000370,
+    "ont_seed": 7000370,
+    "platform_mode": "all"
+  },
+  {
+    "design_id": 38,
+    "name": "c2_asym_40_80_dev",
+    "split": "dev",
+    "category": "C2_ASYMMETRIC_LENGTH",
+    "lengths": [
+      40,
+      80
+    ],
+    "mutation": null,
+    "targets": [],
+    "requested_templates": 200,
+    "structure_file": null,
+    "bio_seed": 5000380,
+    "hifi_seed": 6000380,
+    "ont_seed": 7000380,
+    "platform_mode": "all"
+  },
+  {
+    "design_id": 39,
+    "name": "c2_asym_40_100_dev",
+    "split": "dev",
+    "category": "C2_ASYMMETRIC_LENGTH",
+    "lengths": [
+      40,
+      100
+    ],
+    "mutation": null,
+    "targets": [],
+    "requested_templates": 200,
+    "structure_file": null,
+    "bio_seed": 5000390,
+    "hifi_seed": 6000390,
+    "ont_seed": 7000390,
+    "platform_mode": "all"
+  },
+  {
+    "design_id": 40,
+    "name": "c2_asym_40_120_dev",
+    "split": "dev",
+    "category": "C2_ASYMMETRIC_LENGTH",
+    "lengths": [
+      40,
+      120
+    ],
+    "mutation": null,
+    "targets": [],
+    "requested_templates": 200,
+    "structure_file": null,
+    "bio_seed": 5000400,
+    "hifi_seed": 6000400,
+    "ont_seed": 7000400,
+    "platform_mode": "all"
+  },
+  {
+    "design_id": 41,
+    "name": "c2_asym_45_85_dev",
+    "split": "dev",
+    "category": "C2_ASYMMETRIC_LENGTH",
+    "lengths": [
+      45,
+      85
+    ],
+    "mutation": null,
+    "targets": [],
+    "requested_templates": 200,
+    "structure_file": null,
+    "bio_seed": 5000410,
+    "hifi_seed": 6000410,
+    "ont_seed": 7000410,
+    "platform_mode": "all"
+  },
+  {
+    "design_id": 42,
+    "name": "c2_asym_45_105_dev",
+    "split": "dev",
+    "category": "C2_ASYMMETRIC_LENGTH",
+    "lengths": [
+      45,
+      105
+    ],
+    "mutation": null,
+    "targets": [],
+    "requested_templates": 200,
+    "structure_file": null,
+    "bio_seed": 5000420,
+    "hifi_seed": 6000420,
+    "ont_seed": 7000420,
+    "platform_mode": "all"
+  },
+  {
+    "design_id": 43,
+    "name": "c2_asym_45_125_dev",
+    "split": "dev",
+    "category": "C2_ASYMMETRIC_LENGTH",
+    "lengths": [
+      45,
+      125
+    ],
+    "mutation": null,
+    "targets": [],
+    "requested_templates": 200,
+    "structure_file": null,
+    "bio_seed": 5000430,
+    "hifi_seed": 6000430,
+    "ont_seed": 7000430,
+    "platform_mode": "all"
+  },
+  {
+    "design_id": 44,
+    "name": "c2_asym_50_90_dev",
+    "split": "dev",
+    "category": "C2_ASYMMETRIC_LENGTH",
+    "lengths": [
+      50,
+      90
+    ],
+    "mutation": null,
+    "targets": [],
+    "requested_templates": 200,
+    "structure_file": null,
+    "bio_seed": 5000440,
+    "hifi_seed": 6000440,
+    "ont_seed": 7000440,
+    "platform_mode": "all"
+  },
+  {
+    "design_id": 45,
+    "name": "c2_asym_50_110_dev",
+    "split": "dev",
+    "category": "C2_ASYMMETRIC_LENGTH",
+    "lengths": [
+      50,
+      110
+    ],
+    "mutation": null,
+    "targets": [],
+    "requested_templates": 200,
+    "structure_file": null,
+    "bio_seed": 5000450,
+    "hifi_seed": 6000450,
+    "ont_seed": 7000450,
+    "platform_mode": "all"
+  },
+  {
+    "design_id": 46,
+    "name": "c2_asym_50_130_dev",
+    "split": "dev",
+    "category": "C2_ASYMMETRIC_LENGTH",
+    "lengths": [
+      50,
+      130
+    ],
+    "mutation": null,
+    "targets": [],
+    "requested_templates": 200,
+    "structure_file": null,
+    "bio_seed": 5000460,
+    "hifi_seed": 6000460,
+    "ont_seed": 7000460,
+    "platform_mode": "all"
+  },
+  {
+    "design_id": 47,
+    "name": "c2_asym_25_90_dev",
+    "split": "dev",
+    "category": "C2_ASYMMETRIC_LENGTH",
+    "lengths": [
+      25,
+      90
+    ],
+    "mutation": null,
+    "targets": [],
+    "requested_templates": 200,
+    "structure_file": null,
+    "bio_seed": 5000470,
+    "hifi_seed": 6000470,
+    "ont_seed": 7000470,
+    "platform_mode": "all"
+  },
+  {
+    "design_id": 48,
+    "name": "c2_asym_30_100_dev",
+    "split": "dev",
+    "category": "C2_ASYMMETRIC_LENGTH",
+    "lengths": [
+      30,
+      100
+    ],
+    "mutation": null,
+    "targets": [],
+    "requested_templates": 200,
+    "structure_file": null,
+    "bio_seed": 5000480,
+    "hifi_seed": 6000480,
+    "ont_seed": 7000480,
+    "platform_mode": "all"
+  },
+  {
+    "design_id": 49,
+    "name": "c2_asym_35_110_dev",
+    "split": "dev",
+    "category": "C2_ASYMMETRIC_LENGTH",
+    "lengths": [
+      35,
+      110
+    ],
+    "mutation": null,
+    "targets": [],
+    "requested_templates": 200,
+    "structure_file": null,
+    "bio_seed": 5000490,
+    "hifi_seed": 6000490,
+    "ont_seed": 7000490,
+    "platform_mode": "all"
+  },
+  {
+    "design_id": 50,
+    "name": "c2_asym_40_115_dev",
+    "split": "dev",
+    "category": "C2_ASYMMETRIC_LENGTH",
+    "lengths": [
+      40,
+      115
+    ],
+    "mutation": null,
+    "targets": [],
+    "requested_templates": 200,
+    "structure_file": null,
+    "bio_seed": 5000500,
+    "hifi_seed": 6000500,
+    "ont_seed": 7000500,
+    "platform_mode": "all"
+  },
+  {
+    "design_id": 51,
+    "name": "c2_asym_45_120_dev",
+    "split": "dev",
+    "category": "C2_ASYMMETRIC_LENGTH",
+    "lengths": [
+      45,
+      120
+    ],
+    "mutation": null,
+    "targets": [],
+    "requested_templates": 200,
+    "structure_file": null,
+    "bio_seed": 5000510,
+    "hifi_seed": 6000510,
+    "ont_seed": 7000510,
+    "platform_mode": "all"
+  },
+  {
+    "design_id": 52,
+    "name": "c2_asym_50_125_dev",
+    "split": "dev",
+    "category": "C2_ASYMMETRIC_LENGTH",
+    "lengths": [
+      50,
+      125
+    ],
+    "mutation": null,
+    "targets": [],
+    "requested_templates": 200,
+    "structure_file": null,
+    "bio_seed": 5000520,
+    "hifi_seed": 6000520,
+    "ont_seed": 7000520,
+    "platform_mode": "all"
+  },
+  {
+    "design_id": 53,
+    "name": "c2_asym_25_70_val",
+    "split": "val",
+    "category": "C2_ASYMMETRIC_LENGTH",
+    "lengths": [
+      25,
+      70
+    ],
+    "mutation": null,
+    "targets": [],
+    "requested_templates": 200,
+    "structure_file": null,
+    "bio_seed": 5000530,
+    "hifi_seed": 6000530,
+    "ont_seed": 7000530,
+    "platform_mode": "all"
+  },
+  {
+    "design_id": 54,
+    "name": "c2_asym_30_80_val",
+    "split": "val",
+    "category": "C2_ASYMMETRIC_LENGTH",
+    "lengths": [
+      30,
+      80
+    ],
+    "mutation": null,
+    "targets": [],
+    "requested_templates": 200,
+    "structure_file": null,
+    "bio_seed": 5000540,
+    "hifi_seed": 6000540,
+    "ont_seed": 7000540,
+    "platform_mode": "all"
+  },
+  {
+    "design_id": 55,
+    "name": "c2_asym_35_90_val",
+    "split": "val",
+    "category": "C2_ASYMMETRIC_LENGTH",
+    "lengths": [
+      35,
+      90
+    ],
+    "mutation": null,
+    "targets": [],
+    "requested_templates": 200,
+    "structure_file": null,
+    "bio_seed": 5000550,
+    "hifi_seed": 6000550,
+    "ont_seed": 7000550,
+    "platform_mode": "all"
+  },
+  {
+    "design_id": 56,
+    "name": "c2_asym_40_95_val",
+    "split": "val",
+    "category": "C2_ASYMMETRIC_LENGTH",
+    "lengths": [
+      40,
+      95
+    ],
+    "mutation": null,
+    "targets": [],
+    "requested_templates": 200,
+    "structure_file": null,
+    "bio_seed": 5000560,
+    "hifi_seed": 6000560,
+    "ont_seed": 7000560,
+    "platform_mode": "all"
+  },
+  {
+    "design_id": 57,
+    "name": "c2_asym_45_110_val",
+    "split": "val",
+    "category": "C2_ASYMMETRIC_LENGTH",
+    "lengths": [
+      45,
+      110
+    ],
+    "mutation": null,
+    "targets": [],
+    "requested_templates": 200,
+    "structure_file": null,
+    "bio_seed": 5000570,
+    "hifi_seed": 6000570,
+    "ont_seed": 7000570,
+    "platform_mode": "all"
+  },
+  {
+    "design_id": 58,
+    "name": "c2_asym_50_115_val",
+    "split": "val",
+    "category": "C2_ASYMMETRIC_LENGTH",
+    "lengths": [
+      50,
+      115
+    ],
+    "mutation": null,
+    "targets": [],
+    "requested_templates": 200,
+    "structure_file": null,
+    "bio_seed": 5000580,
+    "hifi_seed": 6000580,
+    "ont_seed": 7000580,
+    "platform_mode": "all"
+  },
+  {
+    "design_id": 59,
+    "name": "c2_asym_25_110_val",
+    "split": "val",
+    "category": "C2_ASYMMETRIC_LENGTH",
+    "lengths": [
+      25,
+      110
+    ],
+    "mutation": null,
+    "targets": [],
+    "requested_templates": 200,
+    "structure_file": null,
+    "bio_seed": 5000590,
+    "hifi_seed": 6000590,
+    "ont_seed": 7000590,
+    "platform_mode": "all"
+  },
+  {
+    "design_id": 60,
+    "name": "c2_asym_30_120_val",
+    "split": "val",
+    "category": "C2_ASYMMETRIC_LENGTH",
+    "lengths": [
+      30,
+      120
+    ],
+    "mutation": null,
+    "targets": [],
+    "requested_templates": 200,
+    "structure_file": null,
+    "bio_seed": 5000600,
+    "hifi_seed": 6000600,
+    "ont_seed": 7000600,
+    "platform_mode": "all"
+  },
+  {
+    "design_id": 61,
+    "name": "c2_asym_35_130_val",
+    "split": "val",
+    "category": "C2_ASYMMETRIC_LENGTH",
+    "lengths": [
+      35,
+      130
+    ],
+    "mutation": null,
+    "targets": [],
+    "requested_templates": 200,
+    "structure_file": null,
+    "bio_seed": 5000610,
+    "hifi_seed": 6000610,
+    "ont_seed": 7000610,
+    "platform_mode": "all"
+  },
+  {
+    "design_id": 62,
+    "name": "c2_asym_25_85_test",
+    "split": "test",
+    "category": "C2_ASYMMETRIC_LENGTH",
+    "lengths": [
+      25,
+      85
+    ],
+    "mutation": null,
+    "targets": [],
+    "requested_templates": 200,
+    "structure_file": null,
+    "bio_seed": 5000620,
+    "hifi_seed": 6000620,
+    "ont_seed": 7000620,
+    "platform_mode": "all"
+  },
+  {
+    "design_id": 63,
+    "name": "c2_asym_30_95_test",
+    "split": "test",
+    "category": "C2_ASYMMETRIC_LENGTH",
+    "lengths": [
+      30,
+      95
+    ],
+    "mutation": null,
+    "targets": [],
+    "requested_templates": 200,
+    "structure_file": null,
+    "bio_seed": 5000630,
+    "hifi_seed": 6000630,
+    "ont_seed": 7000630,
+    "platform_mode": "all"
+  },
+  {
+    "design_id": 64,
+    "name": "c2_asym_35_105_test",
+    "split": "test",
+    "category": "C2_ASYMMETRIC_LENGTH",
+    "lengths": [
+      35,
+      105
+    ],
+    "mutation": null,
+    "targets": [],
+    "requested_templates": 200,
+    "structure_file": null,
+    "bio_seed": 5000640,
+    "hifi_seed": 6000640,
+    "ont_seed": 7000640,
+    "platform_mode": "all"
+  },
+  {
+    "design_id": 65,
+    "name": "c2_asym_40_105_test",
+    "split": "test",
+    "category": "C2_ASYMMETRIC_LENGTH",
+    "lengths": [
+      40,
+      105
+    ],
+    "mutation": null,
+    "targets": [],
+    "requested_templates": 200,
+    "structure_file": null,
+    "bio_seed": 5000650,
+    "hifi_seed": 6000650,
+    "ont_seed": 7000650,
+    "platform_mode": "all"
+  },
+  {
+    "design_id": 66,
+    "name": "c2_asym_45_115_test",
+    "split": "test",
+    "category": "C2_ASYMMETRIC_LENGTH",
+    "lengths": [
+      45,
+      115
+    ],
+    "mutation": null,
+    "targets": [],
+    "requested_templates": 200,
+    "structure_file": null,
+    "bio_seed": 5000660,
+    "hifi_seed": 6000660,
+    "ont_seed": 7000660,
+    "platform_mode": "all"
+  },
+  {
+    "design_id": 67,
+    "name": "c2_asym_50_120_test",
+    "split": "test",
+    "category": "C2_ASYMMETRIC_LENGTH",
+    "lengths": [
+      50,
+      120
+    ],
+    "mutation": null,
+    "targets": [],
+    "requested_templates": 200,
+    "structure_file": null,
+    "bio_seed": 5000670,
+    "hifi_seed": 6000670,
+    "ont_seed": 7000670,
+    "platform_mode": "all"
+  },
+  {
+    "design_id": 68,
+    "name": "c2_asym_25_130_test",
+    "split": "test",
+    "category": "C2_ASYMMETRIC_LENGTH",
+    "lengths": [
+      25,
+      130
+    ],
+    "mutation": null,
+    "targets": [],
+    "requested_templates": 200,
+    "structure_file": null,
+    "bio_seed": 5000680,
+    "hifi_seed": 6000680,
+    "ont_seed": 7000680,
+    "platform_mode": "all"
+  },
+  {
+    "design_id": 69,
+    "name": "c2_asym_30_140_test",
+    "split": "test",
+    "category": "C2_ASYMMETRIC_LENGTH",
+    "lengths": [
+      30,
+      140
+    ],
+    "mutation": null,
+    "targets": [],
+    "requested_templates": 200,
+    "structure_file": null,
+    "bio_seed": 5000690,
+    "hifi_seed": 6000690,
+    "ont_seed": 7000690,
+    "platform_mode": "all"
+  },
+  {
+    "design_id": 70,
+    "name": "c2_asym_40_130_test",
+    "split": "test",
+    "category": "C2_ASYMMETRIC_LENGTH",
+    "lengths": [
+      40,
+      130
+    ],
+    "mutation": null,
+    "targets": [],
+    "requested_templates": 200,
+    "structure_file": null,
+    "bio_seed": 5000700,
+    "hifi_seed": 6000700,
+    "ont_seed": 7000700,
+    "platform_mode": "all"
+  },
+  {
+    "design_id": 71,
+    "name": "c3_near_40_41_dev",
+    "split": "dev",
+    "category": "C3_NEAR_EQUAL_LENGTH",
+    "lengths": [
+      40,
+      41
+    ],
+    "mutation": null,
+    "targets": [],
+    "requested_templates": 200,
+    "structure_file": null,
+    "bio_seed": 5000710,
+    "hifi_seed": 6000710,
+    "ont_seed": 7000710,
+    "platform_mode": "all"
+  },
+  {
+    "design_id": 72,
+    "name": "c3_near_50_51_dev",
+    "split": "dev",
+    "category": "C3_NEAR_EQUAL_LENGTH",
+    "lengths": [
+      50,
+      51
+    ],
+    "mutation": null,
+    "targets": [],
+    "requested_templates": 200,
+    "structure_file": null,
+    "bio_seed": 5000720,
+    "hifi_seed": 6000720,
+    "ont_seed": 7000720,
+    "platform_mode": "all"
+  },
+  {
+    "design_id": 73,
+    "name": "c3_near_60_61_dev",
+    "split": "dev",
+    "category": "C3_NEAR_EQUAL_LENGTH",
+    "lengths": [
+      60,
+      61
+    ],
+    "mutation": null,
+    "targets": [],
+    "requested_templates": 200,
+    "structure_file": null,
+    "bio_seed": 5000730,
+    "hifi_seed": 6000730,
+    "ont_seed": 7000730,
+    "platform_mode": "all"
+  },
+  {
+    "design_id": 74,
+    "name": "c3_near_70_71_dev",
+    "split": "dev",
+    "category": "C3_NEAR_EQUAL_LENGTH",
+    "lengths": [
+      70,
+      71
+    ],
+    "mutation": null,
+    "targets": [],
+    "requested_templates": 200,
+    "structure_file": null,
+    "bio_seed": 5000740,
+    "hifi_seed": 6000740,
+    "ont_seed": 7000740,
+    "platform_mode": "all"
+  },
+  {
+    "design_id": 75,
+    "name": "c3_near_80_81_dev",
+    "split": "dev",
+    "category": "C3_NEAR_EQUAL_LENGTH",
+    "lengths": [
+      80,
+      81
+    ],
+    "mutation": null,
+    "targets": [],
+    "requested_templates": 200,
+    "structure_file": null,
+    "bio_seed": 5000750,
+    "hifi_seed": 6000750,
+    "ont_seed": 7000750,
+    "platform_mode": "all"
+  },
+  {
+    "design_id": 76,
+    "name": "c3_near_90_91_dev",
+    "split": "dev",
+    "category": "C3_NEAR_EQUAL_LENGTH",
+    "lengths": [
+      90,
+      91
+    ],
+    "mutation": null,
+    "targets": [],
+    "requested_templates": 200,
+    "structure_file": null,
+    "bio_seed": 5000760,
+    "hifi_seed": 6000760,
+    "ont_seed": 7000760,
+    "platform_mode": "all"
+  },
+  {
+    "design_id": 77,
+    "name": "c3_near_100_101_dev",
+    "split": "dev",
+    "category": "C3_NEAR_EQUAL_LENGTH",
+    "lengths": [
+      100,
+      101
+    ],
+    "mutation": null,
+    "targets": [],
+    "requested_templates": 200,
+    "structure_file": null,
+    "bio_seed": 5000770,
+    "hifi_seed": 6000770,
+    "ont_seed": 7000770,
+    "platform_mode": "all"
+  },
+  {
+    "design_id": 78,
+    "name": "c3_near_110_111_dev",
+    "split": "dev",
+    "category": "C3_NEAR_EQUAL_LENGTH",
+    "lengths": [
+      110,
+      111
+    ],
+    "mutation": null,
+    "targets": [],
+    "requested_templates": 200,
+    "structure_file": null,
+    "bio_seed": 5000780,
+    "hifi_seed": 6000780,
+    "ont_seed": 7000780,
+    "platform_mode": "all"
+  },
+  {
+    "design_id": 79,
+    "name": "c3_near_40_42_dev",
+    "split": "dev",
+    "category": "C3_NEAR_EQUAL_LENGTH",
+    "lengths": [
+      40,
+      42
+    ],
+    "mutation": null,
+    "targets": [],
+    "requested_templates": 200,
+    "structure_file": null,
+    "bio_seed": 5000790,
+    "hifi_seed": 6000790,
+    "ont_seed": 7000790,
+    "platform_mode": "all"
+  },
+  {
+    "design_id": 80,
+    "name": "c3_near_50_52_dev",
+    "split": "dev",
+    "category": "C3_NEAR_EQUAL_LENGTH",
+    "lengths": [
+      50,
+      52
+    ],
+    "mutation": null,
+    "targets": [],
+    "requested_templates": 200,
+    "structure_file": null,
+    "bio_seed": 5000800,
+    "hifi_seed": 6000800,
+    "ont_seed": 7000800,
+    "platform_mode": "all"
+  },
+  {
+    "design_id": 81,
+    "name": "c3_near_60_62_dev",
+    "split": "dev",
+    "category": "C3_NEAR_EQUAL_LENGTH",
+    "lengths": [
+      60,
+      62
+    ],
+    "mutation": null,
+    "targets": [],
+    "requested_templates": 200,
+    "structure_file": null,
+    "bio_seed": 5000810,
+    "hifi_seed": 6000810,
+    "ont_seed": 7000810,
+    "platform_mode": "all"
+  },
+  {
+    "design_id": 82,
+    "name": "c3_near_70_72_dev",
+    "split": "dev",
+    "category": "C3_NEAR_EQUAL_LENGTH",
+    "lengths": [
+      70,
+      72
+    ],
+    "mutation": null,
+    "targets": [],
+    "requested_templates": 200,
+    "structure_file": null,
+    "bio_seed": 5000820,
+    "hifi_seed": 6000820,
+    "ont_seed": 7000820,
+    "platform_mode": "all"
+  },
+  {
+    "design_id": 83,
+    "name": "c3_near_80_82_dev",
+    "split": "dev",
+    "category": "C3_NEAR_EQUAL_LENGTH",
+    "lengths": [
+      80,
+      82
+    ],
+    "mutation": null,
+    "targets": [],
+    "requested_templates": 200,
+    "structure_file": null,
+    "bio_seed": 5000830,
+    "hifi_seed": 6000830,
+    "ont_seed": 7000830,
+    "platform_mode": "all"
+  },
+  {
+    "design_id": 84,
+    "name": "c3_near_90_92_dev",
+    "split": "dev",
+    "category": "C3_NEAR_EQUAL_LENGTH",
+    "lengths": [
+      90,
+      92
+    ],
+    "mutation": null,
+    "targets": [],
+    "requested_templates": 200,
+    "structure_file": null,
+    "bio_seed": 5000840,
+    "hifi_seed": 6000840,
+    "ont_seed": 7000840,
+    "platform_mode": "all"
+  },
+  {
+    "design_id": 85,
+    "name": "c3_near_100_102_dev",
+    "split": "dev",
+    "category": "C3_NEAR_EQUAL_LENGTH",
+    "lengths": [
+      100,
+      102
+    ],
+    "mutation": null,
+    "targets": [],
+    "requested_templates": 200,
+    "structure_file": null,
+    "bio_seed": 5000850,
+    "hifi_seed": 6000850,
+    "ont_seed": 7000850,
+    "platform_mode": "all"
+  },
+  {
+    "design_id": 86,
+    "name": "c3_near_110_112_dev",
+    "split": "dev",
+    "category": "C3_NEAR_EQUAL_LENGTH",
+    "lengths": [
+      110,
+      112
+    ],
+    "mutation": null,
+    "targets": [],
+    "requested_templates": 200,
+    "structure_file": null,
+    "bio_seed": 5000860,
+    "hifi_seed": 6000860,
+    "ont_seed": 7000860,
+    "platform_mode": "all"
+  },
+  {
+    "design_id": 87,
+    "name": "c3_near_40_43_dev",
+    "split": "dev",
+    "category": "C3_NEAR_EQUAL_LENGTH",
+    "lengths": [
+      40,
+      43
+    ],
+    "mutation": null,
+    "targets": [],
+    "requested_templates": 200,
+    "structure_file": null,
+    "bio_seed": 5000870,
+    "hifi_seed": 6000870,
+    "ont_seed": 7000870,
+    "platform_mode": "all"
+  },
+  {
+    "design_id": 88,
+    "name": "c3_near_50_53_dev",
+    "split": "dev",
+    "category": "C3_NEAR_EQUAL_LENGTH",
+    "lengths": [
+      50,
+      53
+    ],
+    "mutation": null,
+    "targets": [],
+    "requested_templates": 200,
+    "structure_file": null,
+    "bio_seed": 5000880,
+    "hifi_seed": 6000880,
+    "ont_seed": 7000880,
+    "platform_mode": "all"
+  },
+  {
+    "design_id": 89,
+    "name": "c3_near_60_63_dev",
+    "split": "dev",
+    "category": "C3_NEAR_EQUAL_LENGTH",
+    "lengths": [
+      60,
+      63
+    ],
+    "mutation": null,
+    "targets": [],
+    "requested_templates": 200,
+    "structure_file": null,
+    "bio_seed": 5000890,
+    "hifi_seed": 6000890,
+    "ont_seed": 7000890,
+    "platform_mode": "all"
+  },
+  {
+    "design_id": 90,
+    "name": "c3_near_70_73_dev",
+    "split": "dev",
+    "category": "C3_NEAR_EQUAL_LENGTH",
+    "lengths": [
+      70,
+      73
+    ],
+    "mutation": null,
+    "targets": [],
+    "requested_templates": 200,
+    "structure_file": null,
+    "bio_seed": 5000900,
+    "hifi_seed": 6000900,
+    "ont_seed": 7000900,
+    "platform_mode": "all"
+  },
+  {
+    "design_id": 91,
+    "name": "c3_near_80_83_dev",
+    "split": "dev",
+    "category": "C3_NEAR_EQUAL_LENGTH",
+    "lengths": [
+      80,
+      83
+    ],
+    "mutation": null,
+    "targets": [],
+    "requested_templates": 200,
+    "structure_file": null,
+    "bio_seed": 5000910,
+    "hifi_seed": 6000910,
+    "ont_seed": 7000910,
+    "platform_mode": "all"
+  },
+  {
+    "design_id": 92,
+    "name": "c3_near_90_93_dev",
+    "split": "dev",
+    "category": "C3_NEAR_EQUAL_LENGTH",
+    "lengths": [
+      90,
+      93
+    ],
+    "mutation": null,
+    "targets": [],
+    "requested_templates": 200,
+    "structure_file": null,
+    "bio_seed": 5000920,
+    "hifi_seed": 6000920,
+    "ont_seed": 7000920,
+    "platform_mode": "all"
+  },
+  {
+    "design_id": 93,
+    "name": "c3_near_100_103_dev",
+    "split": "dev",
+    "category": "C3_NEAR_EQUAL_LENGTH",
+    "lengths": [
+      100,
+      103
+    ],
+    "mutation": null,
+    "targets": [],
+    "requested_templates": 200,
+    "structure_file": null,
+    "bio_seed": 5000930,
+    "hifi_seed": 6000930,
+    "ont_seed": 7000930,
+    "platform_mode": "all"
+  },
+  {
+    "design_id": 94,
+    "name": "c3_near_110_113_dev",
+    "split": "dev",
+    "category": "C3_NEAR_EQUAL_LENGTH",
+    "lengths": [
+      110,
+      113
+    ],
+    "mutation": null,
+    "targets": [],
+    "requested_templates": 200,
+    "structure_file": null,
+    "bio_seed": 5000940,
+    "hifi_seed": 6000940,
+    "ont_seed": 7000940,
+    "platform_mode": "all"
+  },
+  {
+    "design_id": 95,
+    "name": "c3_near_45_46_val",
+    "split": "val",
+    "category": "C3_NEAR_EQUAL_LENGTH",
+    "lengths": [
+      45,
+      46
+    ],
+    "mutation": null,
+    "targets": [],
+    "requested_templates": 200,
+    "structure_file": null,
+    "bio_seed": 5000950,
+    "hifi_seed": 6000950,
+    "ont_seed": 7000950,
+    "platform_mode": "all"
+  },
+  {
+    "design_id": 96,
+    "name": "c3_near_55_56_val",
+    "split": "val",
+    "category": "C3_NEAR_EQUAL_LENGTH",
+    "lengths": [
+      55,
+      56
+    ],
+    "mutation": null,
+    "targets": [],
+    "requested_templates": 200,
+    "structure_file": null,
+    "bio_seed": 5000960,
+    "hifi_seed": 6000960,
+    "ont_seed": 7000960,
+    "platform_mode": "all"
+  },
+  {
+    "design_id": 97,
+    "name": "c3_near_65_66_val",
+    "split": "val",
+    "category": "C3_NEAR_EQUAL_LENGTH",
+    "lengths": [
+      65,
+      66
+    ],
+    "mutation": null,
+    "targets": [],
+    "requested_templates": 200,
+    "structure_file": null,
+    "bio_seed": 5000970,
+    "hifi_seed": 6000970,
+    "ont_seed": 7000970,
+    "platform_mode": "all"
+  },
+  {
+    "design_id": 98,
+    "name": "c3_near_75_76_val",
+    "split": "val",
+    "category": "C3_NEAR_EQUAL_LENGTH",
+    "lengths": [
+      75,
+      76
+    ],
+    "mutation": null,
+    "targets": [],
+    "requested_templates": 200,
+    "structure_file": null,
+    "bio_seed": 5000980,
+    "hifi_seed": 6000980,
+    "ont_seed": 7000980,
+    "platform_mode": "all"
+  },
+  {
+    "design_id": 99,
+    "name": "c3_near_45_47_val",
+    "split": "val",
+    "category": "C3_NEAR_EQUAL_LENGTH",
+    "lengths": [
+      45,
+      47
+    ],
+    "mutation": null,
+    "targets": [],
+    "requested_templates": 200,
+    "structure_file": null,
+    "bio_seed": 5000990,
+    "hifi_seed": 6000990,
+    "ont_seed": 7000990,
+    "platform_mode": "all"
+  },
+  {
+    "design_id": 100,
+    "name": "c3_near_55_57_val",
+    "split": "val",
+    "category": "C3_NEAR_EQUAL_LENGTH",
+    "lengths": [
+      55,
+      57
+    ],
+    "mutation": null,
+    "targets": [],
+    "requested_templates": 200,
+    "structure_file": null,
+    "bio_seed": 5001000,
+    "hifi_seed": 6001000,
+    "ont_seed": 7001000,
+    "platform_mode": "all"
+  },
+  {
+    "design_id": 101,
+    "name": "c3_near_65_67_val",
+    "split": "val",
+    "category": "C3_NEAR_EQUAL_LENGTH",
+    "lengths": [
+      65,
+      67
+    ],
+    "mutation": null,
+    "targets": [],
+    "requested_templates": 200,
+    "structure_file": null,
+    "bio_seed": 5001010,
+    "hifi_seed": 6001010,
+    "ont_seed": 7001010,
+    "platform_mode": "all"
+  },
+  {
+    "design_id": 102,
+    "name": "c3_near_75_77_val",
+    "split": "val",
+    "category": "C3_NEAR_EQUAL_LENGTH",
+    "lengths": [
+      75,
+      77
+    ],
+    "mutation": null,
+    "targets": [],
+    "requested_templates": 200,
+    "structure_file": null,
+    "bio_seed": 5001020,
+    "hifi_seed": 6001020,
+    "ont_seed": 7001020,
+    "platform_mode": "all"
+  },
+  {
+    "design_id": 103,
+    "name": "c3_near_35_36_test",
+    "split": "test",
+    "category": "C3_NEAR_EQUAL_LENGTH",
+    "lengths": [
+      35,
+      36
+    ],
+    "mutation": null,
+    "targets": [],
+    "requested_templates": 200,
+    "structure_file": null,
+    "bio_seed": 5001030,
+    "hifi_seed": 6001030,
+    "ont_seed": 7001030,
+    "platform_mode": "all"
+  },
+  {
+    "design_id": 104,
+    "name": "c3_near_48_49_test",
+    "split": "test",
+    "category": "C3_NEAR_EQUAL_LENGTH",
+    "lengths": [
+      48,
+      49
+    ],
+    "mutation": null,
+    "targets": [],
+    "requested_templates": 200,
+    "structure_file": null,
+    "bio_seed": 5001040,
+    "hifi_seed": 6001040,
+    "ont_seed": 7001040,
+    "platform_mode": "all"
+  },
+  {
+    "design_id": 105,
+    "name": "c3_near_58_59_test",
+    "split": "test",
+    "category": "C3_NEAR_EQUAL_LENGTH",
+    "lengths": [
+      58,
+      59
+    ],
+    "mutation": null,
+    "targets": [],
+    "requested_templates": 200,
+    "structure_file": null,
+    "bio_seed": 5001050,
+    "hifi_seed": 6001050,
+    "ont_seed": 7001050,
+    "platform_mode": "all"
+  },
+  {
+    "design_id": 106,
+    "name": "c3_near_68_69_test",
+    "split": "test",
+    "category": "C3_NEAR_EQUAL_LENGTH",
+    "lengths": [
+      68,
+      69
+    ],
+    "mutation": null,
+    "targets": [],
+    "requested_templates": 200,
+    "structure_file": null,
+    "bio_seed": 5001060,
+    "hifi_seed": 6001060,
+    "ont_seed": 7001060,
+    "platform_mode": "all"
+  },
+  {
+    "design_id": 107,
+    "name": "c3_near_35_37_test",
+    "split": "test",
+    "category": "C3_NEAR_EQUAL_LENGTH",
+    "lengths": [
+      35,
+      37
+    ],
+    "mutation": null,
+    "targets": [],
+    "requested_templates": 200,
+    "structure_file": null,
+    "bio_seed": 5001070,
+    "hifi_seed": 6001070,
+    "ont_seed": 7001070,
+    "platform_mode": "all"
+  },
+  {
+    "design_id": 108,
+    "name": "c3_near_48_50_test",
+    "split": "test",
+    "category": "C3_NEAR_EQUAL_LENGTH",
+    "lengths": [
+      48,
+      50
+    ],
+    "mutation": null,
+    "targets": [],
+    "requested_templates": 200,
+    "structure_file": null,
+    "bio_seed": 5001080,
+    "hifi_seed": 6001080,
+    "ont_seed": 7001080,
+    "platform_mode": "all"
+  },
+  {
+    "design_id": 109,
+    "name": "c3_near_58_60_test",
+    "split": "test",
+    "category": "C3_NEAR_EQUAL_LENGTH",
+    "lengths": [
+      58,
+      60
+    ],
+    "mutation": null,
+    "targets": [],
+    "requested_templates": 200,
+    "structure_file": null,
+    "bio_seed": 5001090,
+    "hifi_seed": 6001090,
+    "ont_seed": 7001090,
+    "platform_mode": "all"
+  },
+  {
+    "design_id": 110,
+    "name": "c3_near_68_70_test",
+    "split": "test",
+    "category": "C3_NEAR_EQUAL_LENGTH",
+    "lengths": [
+      68,
+      70
+    ],
+    "mutation": null,
+    "targets": [],
+    "requested_templates": 200,
+    "structure_file": null,
+    "bio_seed": 5001100,
+    "hifi_seed": 6001100,
+    "ont_seed": 7001100,
+    "platform_mode": "all"
+  },
+  {
+    "design_id": 111,
+    "name": "c4_dupc_60_60_h1_r25_dev",
+    "split": "dev",
+    "category": "C4_PATHOGENIC_DUPC",
+    "lengths": [
+      60,
+      60
+    ],
+    "mutation": "dupC",
+    "targets": [
+      [
+        1,
+        25
+      ]
+    ],
+    "requested_templates": 200,
+    "structure_file": null,
+    "bio_seed": 5001110,
+    "hifi_seed": 6001110,
+    "ont_seed": 7001110,
+    "platform_mode": "all"
+  },
+  {
+    "design_id": 112,
+    "name": "c4_dupc_60_60_h2_r35_dev",
+    "split": "dev",
+    "category": "C4_PATHOGENIC_DUPC",
+    "lengths": [
+      60,
+      60
+    ],
+    "mutation": "dupC",
+    "targets": [
+      [
+        2,
+        35
+      ]
+    ],
+    "requested_templates": 200,
+    "structure_file": null,
+    "bio_seed": 5001120,
+    "hifi_seed": 6001120,
+    "ont_seed": 7001120,
+    "platform_mode": "all"
+  },
+  {
+    "design_id": 113,
+    "name": "c4_dupc_50_50_h1_r20_dev",
+    "split": "dev",
+    "category": "C4_PATHOGENIC_DUPC",
+    "lengths": [
+      50,
+      50
+    ],
+    "mutation": "dupC",
+    "targets": [
+      [
+        1,
+        20
+      ]
+    ],
+    "requested_templates": 200,
+    "structure_file": null,
+    "bio_seed": 5001130,
+    "hifi_seed": 6001130,
+    "ont_seed": 7001130,
+    "platform_mode": "all"
+  },
+  {
+    "design_id": 114,
+    "name": "c4_dupc_70_70_h2_r40_dev",
+    "split": "dev",
+    "category": "C4_PATHOGENIC_DUPC",
+    "lengths": [
+      70,
+      70
+    ],
+    "mutation": "dupC",
+    "targets": [
+      [
+        2,
+        40
+      ]
+    ],
+    "requested_templates": 200,
+    "structure_file": null,
+    "bio_seed": 5001140,
+    "hifi_seed": 6001140,
+    "ont_seed": 7001140,
+    "platform_mode": "all"
+  },
+  {
+    "design_id": 115,
+    "name": "c4_dupc_40_40_h1_r15_dev",
+    "split": "dev",
+    "category": "C4_PATHOGENIC_DUPC",
+    "lengths": [
+      40,
+      40
+    ],
+    "mutation": "dupC",
+    "targets": [
+      [
+        1,
+        15
+      ]
+    ],
+    "requested_templates": 200,
+    "structure_file": null,
+    "bio_seed": 5001150,
+    "hifi_seed": 6001150,
+    "ont_seed": 7001150,
+    "platform_mode": "all"
+  },
+  {
+    "design_id": 116,
+    "name": "c4_dupc_80_80_h2_r50_dev",
+    "split": "dev",
+    "category": "C4_PATHOGENIC_DUPC",
+    "lengths": [
+      80,
+      80
+    ],
+    "mutation": "dupC",
+    "targets": [
+      [
+        2,
+        50
+      ]
+    ],
+    "requested_templates": 200,
+    "structure_file": null,
+    "bio_seed": 5001160,
+    "hifi_seed": 6001160,
+    "ont_seed": 7001160,
+    "platform_mode": "all"
+  },
+  {
+    "design_id": 117,
+    "name": "c4_dupc_60_80_h1_r25_dev",
+    "split": "dev",
+    "category": "C4_PATHOGENIC_DUPC",
+    "lengths": [
+      60,
+      80
+    ],
+    "mutation": "dupC",
+    "targets": [
+      [
+        1,
+        25
+      ]
+    ],
+    "requested_templates": 200,
+    "structure_file": null,
+    "bio_seed": 5001170,
+    "hifi_seed": 6001170,
+    "ont_seed": 7001170,
+    "platform_mode": "all"
+  },
+  {
+    "design_id": 118,
+    "name": "c4_dupc_60_80_h2_r45_dev",
+    "split": "dev",
+    "category": "C4_PATHOGENIC_DUPC",
+    "lengths": [
+      60,
+      80
+    ],
+    "mutation": "dupC",
+    "targets": [
+      [
+        2,
+        45
+      ]
+    ],
+    "requested_templates": 200,
+    "structure_file": null,
+    "bio_seed": 5001180,
+    "hifi_seed": 6001180,
+    "ont_seed": 7001180,
+    "platform_mode": "all"
+  },
+  {
+    "design_id": 119,
+    "name": "c4_dupc_50_70_h1_r20_dev",
+    "split": "dev",
+    "category": "C4_PATHOGENIC_DUPC",
+    "lengths": [
+      50,
+      70
+    ],
+    "mutation": "dupC",
+    "targets": [
+      [
+        1,
+        20
+      ]
+    ],
+    "requested_templates": 200,
+    "structure_file": null,
+    "bio_seed": 5001190,
+    "hifi_seed": 6001190,
+    "ont_seed": 7001190,
+    "platform_mode": "all"
+  },
+  {
+    "design_id": 120,
+    "name": "c4_dupc_50_70_h2_r35_dev",
+    "split": "dev",
+    "category": "C4_PATHOGENIC_DUPC",
+    "lengths": [
+      50,
+      70
+    ],
+    "mutation": "dupC",
+    "targets": [
+      [
+        2,
+        35
+      ]
+    ],
+    "requested_templates": 200,
+    "structure_file": null,
+    "bio_seed": 5001200,
+    "hifi_seed": 6001200,
+    "ont_seed": 7001200,
+    "platform_mode": "all"
+  },
+  {
+    "design_id": 121,
+    "name": "c4_dupc_40_60_h1_r15_dev",
+    "split": "dev",
+    "category": "C4_PATHOGENIC_DUPC",
+    "lengths": [
+      40,
+      60
+    ],
+    "mutation": "dupC",
+    "targets": [
+      [
+        1,
+        15
+      ]
+    ],
+    "requested_templates": 200,
+    "structure_file": null,
+    "bio_seed": 5001210,
+    "hifi_seed": 6001210,
+    "ont_seed": 7001210,
+    "platform_mode": "all"
+  },
+  {
+    "design_id": 122,
+    "name": "c4_dupc_40_60_h2_r30_dev",
+    "split": "dev",
+    "category": "C4_PATHOGENIC_DUPC",
+    "lengths": [
+      40,
+      60
+    ],
+    "mutation": "dupC",
+    "targets": [
+      [
+        2,
+        30
+      ]
+    ],
+    "requested_templates": 200,
+    "structure_file": null,
+    "bio_seed": 5001220,
+    "hifi_seed": 6001220,
+    "ont_seed": 7001220,
+    "platform_mode": "all"
+  },
+  {
+    "design_id": 123,
+    "name": "c4_dupc_30_90_h1_r12_dev",
+    "split": "dev",
+    "category": "C4_PATHOGENIC_DUPC",
+    "lengths": [
+      30,
+      90
+    ],
+    "mutation": "dupC",
+    "targets": [
+      [
+        1,
+        12
+      ]
+    ],
+    "requested_templates": 200,
+    "structure_file": null,
+    "bio_seed": 5001230,
+    "hifi_seed": 6001230,
+    "ont_seed": 7001230,
+    "platform_mode": "all"
+  },
+  {
+    "design_id": 124,
+    "name": "c4_dupc_30_90_h2_r60_dev",
+    "split": "dev",
+    "category": "C4_PATHOGENIC_DUPC",
+    "lengths": [
+      30,
+      90
+    ],
+    "mutation": "dupC",
+    "targets": [
+      [
+        2,
+        60
+      ]
+    ],
+    "requested_templates": 200,
+    "structure_file": null,
+    "bio_seed": 5001240,
+    "hifi_seed": 6001240,
+    "ont_seed": 7001240,
+    "platform_mode": "all"
+  },
+  {
+    "design_id": 125,
+    "name": "c4_dupc_25_100_h1_r10_dev",
+    "split": "dev",
+    "category": "C4_PATHOGENIC_DUPC",
+    "lengths": [
+      25,
+      100
+    ],
+    "mutation": "dupC",
+    "targets": [
+      [
+        1,
+        10
+      ]
+    ],
+    "requested_templates": 200,
+    "structure_file": null,
+    "bio_seed": 5001250,
+    "hifi_seed": 6001250,
+    "ont_seed": 7001250,
+    "platform_mode": "all"
+  },
+  {
+    "design_id": 126,
+    "name": "c4_dupc_25_100_h2_r70_dev",
+    "split": "dev",
+    "category": "C4_PATHOGENIC_DUPC",
+    "lengths": [
+      25,
+      100
+    ],
+    "mutation": "dupC",
+    "targets": [
+      [
+        2,
+        70
+      ]
+    ],
+    "requested_templates": 200,
+    "structure_file": null,
+    "bio_seed": 5001260,
+    "hifi_seed": 6001260,
+    "ont_seed": 7001260,
+    "platform_mode": "all"
+  },
+  {
+    "design_id": 127,
+    "name": "c4_dupc_25_140_h1_r10_dev",
+    "split": "dev",
+    "category": "C4_PATHOGENIC_DUPC",
+    "lengths": [
+      25,
+      140
+    ],
+    "mutation": "dupC",
+    "targets": [
+      [
+        1,
+        10
+      ]
+    ],
+    "requested_templates": 200,
+    "structure_file": null,
+    "bio_seed": 5001270,
+    "hifi_seed": 6001270,
+    "ont_seed": 7001270,
+    "platform_mode": "all"
+  },
+  {
+    "design_id": 128,
+    "name": "c4_dupc_25_140_h2_r90_dev",
+    "split": "dev",
+    "category": "C4_PATHOGENIC_DUPC",
+    "lengths": [
+      25,
+      140
+    ],
+    "mutation": "dupC",
+    "targets": [
+      [
+        2,
+        90
+      ]
+    ],
+    "requested_templates": 200,
+    "structure_file": null,
+    "bio_seed": 5001280,
+    "hifi_seed": 6001280,
+    "ont_seed": 7001280,
+    "platform_mode": "all"
+  },
+  {
+    "design_id": 129,
+    "name": "c4_dupc_60_61_h1_r25_dev",
+    "split": "dev",
+    "category": "C4_PATHOGENIC_DUPC",
+    "lengths": [
+      60,
+      61
+    ],
+    "mutation": "dupC",
+    "targets": [
+      [
+        1,
+        25
+      ]
+    ],
+    "requested_templates": 200,
+    "structure_file": null,
+    "bio_seed": 5001290,
+    "hifi_seed": 6001290,
+    "ont_seed": 7001290,
+    "platform_mode": "all"
+  },
+  {
+    "design_id": 130,
+    "name": "c4_dupc_60_61_h2_r30_dev",
+    "split": "dev",
+    "category": "C4_PATHOGENIC_DUPC",
+    "lengths": [
+      60,
+      61
+    ],
+    "mutation": "dupC",
+    "targets": [
+      [
+        2,
+        30
+      ]
+    ],
+    "requested_templates": 200,
+    "structure_file": null,
+    "bio_seed": 5001300,
+    "hifi_seed": 6001300,
+    "ont_seed": 7001300,
+    "platform_mode": "all"
+  },
+  {
+    "design_id": 131,
+    "name": "c4_dupc_50_51_h1_r20_dev",
+    "split": "dev",
+    "category": "C4_PATHOGENIC_DUPC",
+    "lengths": [
+      50,
+      51
+    ],
+    "mutation": "dupC",
+    "targets": [
+      [
+        1,
+        20
+      ]
+    ],
+    "requested_templates": 200,
+    "structure_file": null,
+    "bio_seed": 5001310,
+    "hifi_seed": 6001310,
+    "ont_seed": 7001310,
+    "platform_mode": "all"
+  },
+  {
+    "design_id": 132,
+    "name": "c4_dupc_70_71_h2_r35_dev",
+    "split": "dev",
+    "category": "C4_PATHOGENIC_DUPC",
+    "lengths": [
+      70,
+      71
+    ],
+    "mutation": "dupC",
+    "targets": [
+      [
+        2,
+        35
+      ]
+    ],
+    "requested_templates": 200,
+    "structure_file": null,
+    "bio_seed": 5001320,
+    "hifi_seed": 6001320,
+    "ont_seed": 7001320,
+    "platform_mode": "all"
+  },
+  {
+    "design_id": 133,
+    "name": "c4_dupc_60_62_h1_r25_dev",
+    "split": "dev",
+    "category": "C4_PATHOGENIC_DUPC",
+    "lengths": [
+      60,
+      62
+    ],
+    "mutation": "dupC",
+    "targets": [
+      [
+        1,
+        25
+      ]
+    ],
+    "requested_templates": 200,
+    "structure_file": null,
+    "bio_seed": 5001330,
+    "hifi_seed": 6001330,
+    "ont_seed": 7001330,
+    "platform_mode": "all"
+  },
+  {
+    "design_id": 134,
+    "name": "c4_dupc_60_62_h2_r35_dev",
+    "split": "dev",
+    "category": "C4_PATHOGENIC_DUPC",
+    "lengths": [
+      60,
+      62
+    ],
+    "mutation": "dupC",
+    "targets": [
+      [
+        2,
+        35
+      ]
+    ],
+    "requested_templates": 200,
+    "structure_file": null,
+    "bio_seed": 5001340,
+    "hifi_seed": 6001340,
+    "ont_seed": 7001340,
+    "platform_mode": "all"
+  },
+  {
+    "design_id": 135,
+    "name": "c4_dupc_50_52_h1_r20_dev",
+    "split": "dev",
+    "category": "C4_PATHOGENIC_DUPC",
+    "lengths": [
+      50,
+      52
+    ],
+    "mutation": "dupC",
+    "targets": [
+      [
+        1,
+        20
+      ]
+    ],
+    "requested_templates": 200,
+    "structure_file": null,
+    "bio_seed": 5001350,
+    "hifi_seed": 6001350,
+    "ont_seed": 7001350,
+    "platform_mode": "all"
+  },
+  {
+    "design_id": 136,
+    "name": "c4_dupc_70_72_h2_r40_dev",
+    "split": "dev",
+    "category": "C4_PATHOGENIC_DUPC",
+    "lengths": [
+      70,
+      72
+    ],
+    "mutation": "dupC",
+    "targets": [
+      [
+        2,
+        40
+      ]
+    ],
+    "requested_templates": 200,
+    "structure_file": null,
+    "bio_seed": 5001360,
+    "hifi_seed": 6001360,
+    "ont_seed": 7001360,
+    "platform_mode": "all"
+  },
+  {
+    "design_id": 137,
+    "name": "c4_dupc_60_63_h1_r25_dev",
+    "split": "dev",
+    "category": "C4_PATHOGENIC_DUPC",
+    "lengths": [
+      60,
+      63
+    ],
+    "mutation": "dupC",
+    "targets": [
+      [
+        1,
+        25
+      ]
+    ],
+    "requested_templates": 200,
+    "structure_file": null,
+    "bio_seed": 5001370,
+    "hifi_seed": 6001370,
+    "ont_seed": 7001370,
+    "platform_mode": "all"
+  },
+  {
+    "design_id": 138,
+    "name": "c4_dupc_60_63_h2_r35_dev",
+    "split": "dev",
+    "category": "C4_PATHOGENIC_DUPC",
+    "lengths": [
+      60,
+      63
+    ],
+    "mutation": "dupC",
+    "targets": [
+      [
+        2,
+        35
+      ]
+    ],
+    "requested_templates": 200,
+    "structure_file": null,
+    "bio_seed": 5001380,
+    "hifi_seed": 6001380,
+    "ont_seed": 7001380,
+    "platform_mode": "all"
+  },
+  {
+    "design_id": 139,
+    "name": "c4_dupc_50_53_h1_r20_dev",
+    "split": "dev",
+    "category": "C4_PATHOGENIC_DUPC",
+    "lengths": [
+      50,
+      53
+    ],
+    "mutation": "dupC",
+    "targets": [
+      [
+        1,
+        20
+      ]
+    ],
+    "requested_templates": 200,
+    "structure_file": null,
+    "bio_seed": 5001390,
+    "hifi_seed": 6001390,
+    "ont_seed": 7001390,
+    "platform_mode": "all"
+  },
+  {
+    "design_id": 140,
+    "name": "c4_dupc_70_73_h2_r40_dev",
+    "split": "dev",
+    "category": "C4_PATHOGENIC_DUPC",
+    "lengths": [
+      70,
+      73
+    ],
+    "mutation": "dupC",
+    "targets": [
+      [
+        2,
+        40
+      ]
+    ],
+    "requested_templates": 200,
+    "structure_file": null,
+    "bio_seed": 5001400,
+    "hifi_seed": 6001400,
+    "ont_seed": 7001400,
+    "platform_mode": "all"
+  },
+  {
+    "design_id": 141,
+    "name": "c4_dupc_60_60_h1_r30_val",
+    "split": "val",
+    "category": "C4_PATHOGENIC_DUPC",
+    "lengths": [
+      60,
+      60
+    ],
+    "mutation": "dupC",
+    "targets": [
+      [
+        1,
+        30
+      ]
+    ],
+    "requested_templates": 200,
+    "structure_file": null,
+    "bio_seed": 5001410,
+    "hifi_seed": 6001410,
+    "ont_seed": 7001410,
+    "platform_mode": "all"
+  },
+  {
+    "design_id": 142,
+    "name": "c4_dupc_50_50_h2_r25_val",
+    "split": "val",
+    "category": "C4_PATHOGENIC_DUPC",
+    "lengths": [
+      50,
+      50
+    ],
+    "mutation": "dupC",
+    "targets": [
+      [
+        2,
+        25
+      ]
+    ],
+    "requested_templates": 200,
+    "structure_file": null,
+    "bio_seed": 5001420,
+    "hifi_seed": 6001420,
+    "ont_seed": 7001420,
+    "platform_mode": "all"
+  },
+  {
+    "design_id": 143,
+    "name": "c4_dupc_60_80_h1_r30_val",
+    "split": "val",
+    "category": "C4_PATHOGENIC_DUPC",
+    "lengths": [
+      60,
+      80
+    ],
+    "mutation": "dupC",
+    "targets": [
+      [
+        1,
+        30
+      ]
+    ],
+    "requested_templates": 200,
+    "structure_file": null,
+    "bio_seed": 5001430,
+    "hifi_seed": 6001430,
+    "ont_seed": 7001430,
+    "platform_mode": "all"
+  },
+  {
+    "design_id": 144,
+    "name": "c4_dupc_50_70_h2_r40_val",
+    "split": "val",
+    "category": "C4_PATHOGENIC_DUPC",
+    "lengths": [
+      50,
+      70
+    ],
+    "mutation": "dupC",
+    "targets": [
+      [
+        2,
+        40
+      ]
+    ],
+    "requested_templates": 200,
+    "structure_file": null,
+    "bio_seed": 5001440,
+    "hifi_seed": 6001440,
+    "ont_seed": 7001440,
+    "platform_mode": "all"
+  },
+  {
+    "design_id": 145,
+    "name": "c4_dupc_30_100_h1_r15_val",
+    "split": "val",
+    "category": "C4_PATHOGENIC_DUPC",
+    "lengths": [
+      30,
+      100
+    ],
+    "mutation": "dupC",
+    "targets": [
+      [
+        1,
+        15
+      ]
+    ],
+    "requested_templates": 200,
+    "structure_file": null,
+    "bio_seed": 5001450,
+    "hifi_seed": 6001450,
+    "ont_seed": 7001450,
+    "platform_mode": "all"
+  },
+  {
+    "design_id": 146,
+    "name": "c4_dupc_25_120_h2_r80_val",
+    "split": "val",
+    "category": "C4_PATHOGENIC_DUPC",
+    "lengths": [
+      25,
+      120
+    ],
+    "mutation": "dupC",
+    "targets": [
+      [
+        2,
+        80
+      ]
+    ],
+    "requested_templates": 200,
+    "structure_file": null,
+    "bio_seed": 5001460,
+    "hifi_seed": 6001460,
+    "ont_seed": 7001460,
+    "platform_mode": "all"
+  },
+  {
+    "design_id": 147,
+    "name": "c4_dupc_60_61_h1_r28_val",
+    "split": "val",
+    "category": "C4_PATHOGENIC_DUPC",
+    "lengths": [
+      60,
+      61
+    ],
+    "mutation": "dupC",
+    "targets": [
+      [
+        1,
+        28
+      ]
+    ],
+    "requested_templates": 200,
+    "structure_file": null,
+    "bio_seed": 5001470,
+    "hifi_seed": 6001470,
+    "ont_seed": 7001470,
+    "platform_mode": "all"
+  },
+  {
+    "design_id": 148,
+    "name": "c4_dupc_70_71_h2_r42_val",
+    "split": "val",
+    "category": "C4_PATHOGENIC_DUPC",
+    "lengths": [
+      70,
+      71
+    ],
+    "mutation": "dupC",
+    "targets": [
+      [
+        2,
+        42
+      ]
+    ],
+    "requested_templates": 200,
+    "structure_file": null,
+    "bio_seed": 5001480,
+    "hifi_seed": 6001480,
+    "ont_seed": 7001480,
+    "platform_mode": "all"
+  },
+  {
+    "design_id": 149,
+    "name": "c4_dupc_60_62_h1_r32_val",
+    "split": "val",
+    "category": "C4_PATHOGENIC_DUPC",
+    "lengths": [
+      60,
+      62
+    ],
+    "mutation": "dupC",
+    "targets": [
+      [
+        1,
+        32
+      ]
+    ],
+    "requested_templates": 200,
+    "structure_file": null,
+    "bio_seed": 5001490,
+    "hifi_seed": 6001490,
+    "ont_seed": 7001490,
+    "platform_mode": "all"
+  },
+  {
+    "design_id": 150,
+    "name": "c4_dupc_50_52_h2_r28_val",
+    "split": "val",
+    "category": "C4_PATHOGENIC_DUPC",
+    "lengths": [
+      50,
+      52
+    ],
+    "mutation": "dupC",
+    "targets": [
+      [
+        2,
+        28
+      ]
+    ],
+    "requested_templates": 200,
+    "structure_file": null,
+    "bio_seed": 5001500,
+    "hifi_seed": 6001500,
+    "ont_seed": 7001500,
+    "platform_mode": "all"
+  },
+  {
+    "design_id": 151,
+    "name": "c4_dupc_70_70_h1_r35_test",
+    "split": "test",
+    "category": "C4_PATHOGENIC_DUPC",
+    "lengths": [
+      70,
+      70
+    ],
+    "mutation": "dupC",
+    "targets": [
+      [
+        1,
+        35
+      ]
+    ],
+    "requested_templates": 200,
+    "structure_file": null,
+    "bio_seed": 5001510,
+    "hifi_seed": 6001510,
+    "ont_seed": 7001510,
+    "platform_mode": "all"
+  },
+  {
+    "design_id": 152,
+    "name": "c4_dupc_80_80_h2_r45_test",
+    "split": "test",
+    "category": "C4_PATHOGENIC_DUPC",
+    "lengths": [
+      80,
+      80
+    ],
+    "mutation": "dupC",
+    "targets": [
+      [
+        2,
+        45
+      ]
+    ],
+    "requested_templates": 200,
+    "structure_file": null,
+    "bio_seed": 5001520,
+    "hifi_seed": 6001520,
+    "ont_seed": 7001520,
+    "platform_mode": "all"
+  },
+  {
+    "design_id": 153,
+    "name": "c4_dupc_40_80_h1_r20_test",
+    "split": "test",
+    "category": "C4_PATHOGENIC_DUPC",
+    "lengths": [
+      40,
+      80
+    ],
+    "mutation": "dupC",
+    "targets": [
+      [
+        1,
+        20
+      ]
+    ],
+    "requested_templates": 200,
+    "structure_file": null,
+    "bio_seed": 5001530,
+    "hifi_seed": 6001530,
+    "ont_seed": 7001530,
+    "platform_mode": "all"
+  },
+  {
+    "design_id": 154,
+    "name": "c4_dupc_35_110_h2_r75_test",
+    "split": "test",
+    "category": "C4_PATHOGENIC_DUPC",
+    "lengths": [
+      35,
+      110
+    ],
+    "mutation": "dupC",
+    "targets": [
+      [
+        2,
+        75
+      ]
+    ],
+    "requested_templates": 200,
+    "structure_file": null,
+    "bio_seed": 5001540,
+    "hifi_seed": 6001540,
+    "ont_seed": 7001540,
+    "platform_mode": "all"
+  },
+  {
+    "design_id": 155,
+    "name": "c4_dupc_25_130_h1_r12_test",
+    "split": "test",
+    "category": "C4_PATHOGENIC_DUPC",
+    "lengths": [
+      25,
+      130
+    ],
+    "mutation": "dupC",
+    "targets": [
+      [
+        1,
+        12
+      ]
+    ],
+    "requested_templates": 200,
+    "structure_file": null,
+    "bio_seed": 5001550,
+    "hifi_seed": 6001550,
+    "ont_seed": 7001550,
+    "platform_mode": "all"
+  },
+  {
+    "design_id": 156,
+    "name": "c4_dupc_30_140_h2_r95_test",
+    "split": "test",
+    "category": "C4_PATHOGENIC_DUPC",
+    "lengths": [
+      30,
+      140
+    ],
+    "mutation": "dupC",
+    "targets": [
+      [
+        2,
+        95
+      ]
+    ],
+    "requested_templates": 200,
+    "structure_file": null,
+    "bio_seed": 5001560,
+    "hifi_seed": 6001560,
+    "ont_seed": 7001560,
+    "platform_mode": "all"
+  },
+  {
+    "design_id": 157,
+    "name": "c4_dupc_55_56_h1_r25_test",
+    "split": "test",
+    "category": "C4_PATHOGENIC_DUPC",
+    "lengths": [
+      55,
+      56
+    ],
+    "mutation": "dupC",
+    "targets": [
+      [
+        1,
+        25
+      ]
+    ],
+    "requested_templates": 200,
+    "structure_file": null,
+    "bio_seed": 5001570,
+    "hifi_seed": 6001570,
+    "ont_seed": 7001570,
+    "platform_mode": "all"
+  },
+  {
+    "design_id": 158,
+    "name": "c4_dupc_65_66_h2_r38_test",
+    "split": "test",
+    "category": "C4_PATHOGENIC_DUPC",
+    "lengths": [
+      65,
+      66
+    ],
+    "mutation": "dupC",
+    "targets": [
+      [
+        2,
+        38
+      ]
+    ],
+    "requested_templates": 200,
+    "structure_file": null,
+    "bio_seed": 5001580,
+    "hifi_seed": 6001580,
+    "ont_seed": 7001580,
+    "platform_mode": "all"
+  },
+  {
+    "design_id": 159,
+    "name": "c4_dupc_55_57_h1_r26_test",
+    "split": "test",
+    "category": "C4_PATHOGENIC_DUPC",
+    "lengths": [
+      55,
+      57
+    ],
+    "mutation": "dupC",
+    "targets": [
+      [
+        1,
+        26
+      ]
+    ],
+    "requested_templates": 200,
+    "structure_file": null,
+    "bio_seed": 5001590,
+    "hifi_seed": 6001590,
+    "ont_seed": 7001590,
+    "platform_mode": "all"
+  },
+  {
+    "design_id": 160,
+    "name": "c4_dupc_65_67_h2_r40_test",
+    "split": "test",
+    "category": "C4_PATHOGENIC_DUPC",
+    "lengths": [
+      65,
+      67
+    ],
+    "mutation": "dupC",
+    "targets": [
+      [
+        2,
+        40
+      ]
+    ],
+    "requested_templates": 200,
+    "structure_file": null,
+    "bio_seed": 5001600,
+    "hifi_seed": 6001600,
+    "ont_seed": 7001600,
+    "platform_mode": "all"
+  },
+  {
+    "design_id": 161,
+    "name": "c5_rare_insg_60_60_h1_r20_dev",
+    "split": "dev",
+    "category": "C5_RARE_PATHOGENIC",
+    "lengths": [
+      60,
+      60
+    ],
+    "mutation": "insG",
+    "targets": [
+      [
+        1,
+        20
+      ]
+    ],
+    "requested_templates": 200,
+    "structure_file": null,
+    "bio_seed": 5001610,
+    "hifi_seed": 6001610,
+    "ont_seed": 7001610,
+    "platform_mode": "all"
+  },
+  {
+    "design_id": 162,
+    "name": "c5_rare_60dupa_60_60_h2_r25_dev",
+    "split": "dev",
+    "category": "C5_RARE_PATHOGENIC",
+    "lengths": [
+      60,
+      60
+    ],
+    "mutation": "60dupA",
+    "targets": [
+      [
+        2,
+        25
+      ]
+    ],
+    "requested_templates": 200,
+    "structure_file": null,
+    "bio_seed": 5001620,
+    "hifi_seed": 6001620,
+    "ont_seed": 7001620,
+    "platform_mode": "all"
+  },
+  {
+    "design_id": 163,
+    "name": "c5_rare_delinsat_60_60_h1_r15_dev",
+    "split": "dev",
+    "category": "C5_RARE_PATHOGENIC",
+    "lengths": [
+      60,
+      60
+    ],
+    "mutation": "delinsAT",
+    "targets": [
+      [
+        1,
+        15
+      ]
+    ],
+    "requested_templates": 200,
+    "structure_file": null,
+    "bio_seed": 5001630,
+    "hifi_seed": 6001630,
+    "ont_seed": 7001630,
+    "platform_mode": "all"
+  },
+  {
+    "design_id": 164,
+    "name": "c5_rare_delgccca_60_60_h2_r5_dev",
+    "split": "dev",
+    "category": "C5_RARE_PATHOGENIC",
+    "lengths": [
+      60,
+      60
+    ],
+    "mutation": "delGCCCA",
+    "targets": [
+      [
+        2,
+        5
+      ]
+    ],
+    "requested_templates": 200,
+    "structure_file": null,
+    "bio_seed": 5001640,
+    "hifi_seed": 6001640,
+    "ont_seed": 7001640,
+    "platform_mode": "all"
+  },
+  {
+    "design_id": 165,
+    "name": "c5_rare_inscccc_60_60_h1_r30_dev",
+    "split": "dev",
+    "category": "C5_RARE_PATHOGENIC",
+    "lengths": [
+      60,
+      60
+    ],
+    "mutation": "insCCCC",
+    "targets": [
+      [
+        1,
+        30
+      ]
+    ],
+    "requested_templates": 200,
+    "structure_file": null,
+    "bio_seed": 5001650,
+    "hifi_seed": 6001650,
+    "ont_seed": 7001650,
+    "platform_mode": "all"
+  },
+  {
+    "design_id": 166,
+    "name": "c5_rare_insg_60_80_h1_r25_dev",
+    "split": "dev",
+    "category": "C5_RARE_PATHOGENIC",
+    "lengths": [
+      60,
+      80
+    ],
+    "mutation": "insG",
+    "targets": [
+      [
+        1,
+        25
+      ]
+    ],
+    "requested_templates": 200,
+    "structure_file": null,
+    "bio_seed": 5001660,
+    "hifi_seed": 6001660,
+    "ont_seed": 7001660,
+    "platform_mode": "all"
+  },
+  {
+    "design_id": 167,
+    "name": "c5_rare_60dupa_60_80_h2_r40_dev",
+    "split": "dev",
+    "category": "C5_RARE_PATHOGENIC",
+    "lengths": [
+      60,
+      80
+    ],
+    "mutation": "60dupA",
+    "targets": [
+      [
+        2,
+        40
+      ]
+    ],
+    "requested_templates": 200,
+    "structure_file": null,
+    "bio_seed": 5001670,
+    "hifi_seed": 6001670,
+    "ont_seed": 7001670,
+    "platform_mode": "all"
+  },
+  {
+    "design_id": 168,
+    "name": "c5_rare_delinsat_50_70_h1_r20_dev",
+    "split": "dev",
+    "category": "C5_RARE_PATHOGENIC",
+    "lengths": [
+      50,
+      70
+    ],
+    "mutation": "delinsAT",
+    "targets": [
+      [
+        1,
+        20
+      ]
+    ],
+    "requested_templates": 200,
+    "structure_file": null,
+    "bio_seed": 5001680,
+    "hifi_seed": 6001680,
+    "ont_seed": 7001680,
+    "platform_mode": "all"
+  },
+  {
+    "design_id": 169,
+    "name": "c5_rare_delgccca_50_70_h2_r6_dev",
+    "split": "dev",
+    "category": "C5_RARE_PATHOGENIC",
+    "lengths": [
+      50,
+      70
+    ],
+    "mutation": "delGCCCA",
+    "targets": [
+      [
+        2,
+        6
+      ]
+    ],
+    "requested_templates": 200,
+    "structure_file": null,
+    "bio_seed": 5001690,
+    "hifi_seed": 6001690,
+    "ont_seed": 7001690,
+    "platform_mode": "all"
+  },
+  {
+    "design_id": 170,
+    "name": "c5_rare_inscccc_40_60_h1_r18_dev",
+    "split": "dev",
+    "category": "C5_RARE_PATHOGENIC",
+    "lengths": [
+      40,
+      60
+    ],
+    "mutation": "insCCCC",
+    "targets": [
+      [
+        1,
+        18
+      ]
+    ],
+    "requested_templates": 200,
+    "structure_file": null,
+    "bio_seed": 5001700,
+    "hifi_seed": 6001700,
+    "ont_seed": 7001700,
+    "platform_mode": "all"
+  },
+  {
+    "design_id": 171,
+    "name": "c5_rare_insg_30_90_h2_r50_dev",
+    "split": "dev",
+    "category": "C5_RARE_PATHOGENIC",
+    "lengths": [
+      30,
+      90
+    ],
+    "mutation": "insG",
+    "targets": [
+      [
+        2,
+        50
+      ]
+    ],
+    "requested_templates": 200,
+    "structure_file": null,
+    "bio_seed": 5001710,
+    "hifi_seed": 6001710,
+    "ont_seed": 7001710,
+    "platform_mode": "all"
+  },
+  {
+    "design_id": 172,
+    "name": "c5_rare_60dupa_25_100_h1_r12_dev",
+    "split": "dev",
+    "category": "C5_RARE_PATHOGENIC",
+    "lengths": [
+      25,
+      100
+    ],
+    "mutation": "60dupA",
+    "targets": [
+      [
+        1,
+        12
+      ]
+    ],
+    "requested_templates": 200,
+    "structure_file": null,
+    "bio_seed": 5001720,
+    "hifi_seed": 6001720,
+    "ont_seed": 7001720,
+    "platform_mode": "all"
+  },
+  {
+    "design_id": 173,
+    "name": "c5_rare_delinsat_25_120_h2_r80_dev",
+    "split": "dev",
+    "category": "C5_RARE_PATHOGENIC",
+    "lengths": [
+      25,
+      120
+    ],
+    "mutation": "delinsAT",
+    "targets": [
+      [
+        2,
+        80
+      ]
+    ],
+    "requested_templates": 200,
+    "structure_file": null,
+    "bio_seed": 5001730,
+    "hifi_seed": 6001730,
+    "ont_seed": 7001730,
+    "platform_mode": "all"
+  },
+  {
+    "design_id": 174,
+    "name": "c5_rare_inscccc_25_140_h1_r10_dev",
+    "split": "dev",
+    "category": "C5_RARE_PATHOGENIC",
+    "lengths": [
+      25,
+      140
+    ],
+    "mutation": "insCCCC",
+    "targets": [
+      [
+        1,
+        10
+      ]
+    ],
+    "requested_templates": 200,
+    "structure_file": null,
+    "bio_seed": 5001740,
+    "hifi_seed": 6001740,
+    "ont_seed": 7001740,
+    "platform_mode": "all"
+  },
+  {
+    "design_id": 175,
+    "name": "c5_rare_insg_60_61_h1_r25_dev",
+    "split": "dev",
+    "category": "C5_RARE_PATHOGENIC",
+    "lengths": [
+      60,
+      61
+    ],
+    "mutation": "insG",
+    "targets": [
+      [
+        1,
+        25
+      ]
+    ],
+    "requested_templates": 200,
+    "structure_file": null,
+    "bio_seed": 5001750,
+    "hifi_seed": 6001750,
+    "ont_seed": 7001750,
+    "platform_mode": "all"
+  },
+  {
+    "design_id": 176,
+    "name": "c5_rare_60dupa_60_61_h2_r30_dev",
+    "split": "dev",
+    "category": "C5_RARE_PATHOGENIC",
+    "lengths": [
+      60,
+      61
+    ],
+    "mutation": "60dupA",
+    "targets": [
+      [
+        2,
+        30
+      ]
+    ],
+    "requested_templates": 200,
+    "structure_file": null,
+    "bio_seed": 5001760,
+    "hifi_seed": 6001760,
+    "ont_seed": 7001760,
+    "platform_mode": "all"
+  },
+  {
+    "design_id": 177,
+    "name": "c5_rare_delinsat_50_52_h1_r20_dev",
+    "split": "dev",
+    "category": "C5_RARE_PATHOGENIC",
+    "lengths": [
+      50,
+      52
+    ],
+    "mutation": "delinsAT",
+    "targets": [
+      [
+        1,
+        20
+      ]
+    ],
+    "requested_templates": 200,
+    "structure_file": null,
+    "bio_seed": 5001770,
+    "hifi_seed": 6001770,
+    "ont_seed": 7001770,
+    "platform_mode": "all"
+  },
+  {
+    "design_id": 178,
+    "name": "c5_rare_delgccca_60_62_h2_r5_dev",
+    "split": "dev",
+    "category": "C5_RARE_PATHOGENIC",
+    "lengths": [
+      60,
+      62
+    ],
+    "mutation": "delGCCCA",
+    "targets": [
+      [
+        2,
+        5
+      ]
+    ],
+    "requested_templates": 200,
+    "structure_file": null,
+    "bio_seed": 5001780,
+    "hifi_seed": 6001780,
+    "ont_seed": 7001780,
+    "platform_mode": "all"
+  },
+  {
+    "design_id": 179,
+    "name": "c5_rare_inscccc_70_72_h1_r35_dev",
+    "split": "dev",
+    "category": "C5_RARE_PATHOGENIC",
+    "lengths": [
+      70,
+      72
+    ],
+    "mutation": "insCCCC",
+    "targets": [
+      [
+        1,
+        35
+      ]
+    ],
+    "requested_templates": 200,
+    "structure_file": null,
+    "bio_seed": 5001790,
+    "hifi_seed": 6001790,
+    "ont_seed": 7001790,
+    "platform_mode": "all"
+  },
+  {
+    "design_id": 180,
+    "name": "c5_rare_insg_60_63_h2_r35_dev",
+    "split": "dev",
+    "category": "C5_RARE_PATHOGENIC",
+    "lengths": [
+      60,
+      63
+    ],
+    "mutation": "insG",
+    "targets": [
+      [
+        2,
+        35
+      ]
+    ],
+    "requested_templates": 200,
+    "structure_file": null,
+    "bio_seed": 5001800,
+    "hifi_seed": 6001800,
+    "ont_seed": 7001800,
+    "platform_mode": "all"
+  },
+  {
+    "design_id": 181,
+    "name": "c5_rare_60dupa_50_53_h1_r22_dev",
+    "split": "dev",
+    "category": "C5_RARE_PATHOGENIC",
+    "lengths": [
+      50,
+      53
+    ],
+    "mutation": "60dupA",
+    "targets": [
+      [
+        1,
+        22
+      ]
+    ],
+    "requested_templates": 200,
+    "structure_file": null,
+    "bio_seed": 5001810,
+    "hifi_seed": 6001810,
+    "ont_seed": 7001810,
+    "platform_mode": "all"
+  },
+  {
+    "design_id": 182,
+    "name": "c5_rare_insg_55_55_h1_r24_val",
+    "split": "val",
+    "category": "C5_RARE_PATHOGENIC",
+    "lengths": [
+      55,
+      55
+    ],
+    "mutation": "insG",
+    "targets": [
+      [
+        1,
+        24
+      ]
+    ],
+    "requested_templates": 200,
+    "structure_file": null,
+    "bio_seed": 5001820,
+    "hifi_seed": 6001820,
+    "ont_seed": 7001820,
+    "platform_mode": "all"
+  },
+  {
+    "design_id": 183,
+    "name": "c5_rare_60dupa_65_65_h2_r32_val",
+    "split": "val",
+    "category": "C5_RARE_PATHOGENIC",
+    "lengths": [
+      65,
+      65
+    ],
+    "mutation": "60dupA",
+    "targets": [
+      [
+        2,
+        32
+      ]
+    ],
+    "requested_templates": 200,
+    "structure_file": null,
+    "bio_seed": 5001830,
+    "hifi_seed": 6001830,
+    "ont_seed": 7001830,
+    "platform_mode": "all"
+  },
+  {
+    "design_id": 184,
+    "name": "c5_rare_delinsat_45_75_h1_r22_val",
+    "split": "val",
+    "category": "C5_RARE_PATHOGENIC",
+    "lengths": [
+      45,
+      75
+    ],
+    "mutation": "delinsAT",
+    "targets": [
+      [
+        1,
+        22
+      ]
+    ],
+    "requested_templates": 200,
+    "structure_file": null,
+    "bio_seed": 5001840,
+    "hifi_seed": 6001840,
+    "ont_seed": 7001840,
+    "platform_mode": "all"
+  },
+  {
+    "design_id": 185,
+    "name": "c5_rare_inscccc_35_105_h2_r65_val",
+    "split": "val",
+    "category": "C5_RARE_PATHOGENIC",
+    "lengths": [
+      35,
+      105
+    ],
+    "mutation": "insCCCC",
+    "targets": [
+      [
+        2,
+        65
+      ]
+    ],
+    "requested_templates": 200,
+    "structure_file": null,
+    "bio_seed": 5001850,
+    "hifi_seed": 6001850,
+    "ont_seed": 7001850,
+    "platform_mode": "all"
+  },
+  {
+    "design_id": 186,
+    "name": "c5_rare_delgccca_25_115_h1_r5_val",
+    "split": "val",
+    "category": "C5_RARE_PATHOGENIC",
+    "lengths": [
+      25,
+      115
+    ],
+    "mutation": "delGCCCA",
+    "targets": [
+      [
+        1,
+        5
+      ]
+    ],
+    "requested_templates": 200,
+    "structure_file": null,
+    "bio_seed": 5001860,
+    "hifi_seed": 6001860,
+    "ont_seed": 7001860,
+    "platform_mode": "all"
+  },
+  {
+    "design_id": 187,
+    "name": "c5_rare_insg_55_56_h2_r28_val",
+    "split": "val",
+    "category": "C5_RARE_PATHOGENIC",
+    "lengths": [
+      55,
+      56
+    ],
+    "mutation": "insG",
+    "targets": [
+      [
+        2,
+        28
+      ]
+    ],
+    "requested_templates": 200,
+    "structure_file": null,
+    "bio_seed": 5001870,
+    "hifi_seed": 6001870,
+    "ont_seed": 7001870,
+    "platform_mode": "all"
+  },
+  {
+    "design_id": 188,
+    "name": "c5_rare_60dupa_65_67_h1_r30_val",
+    "split": "val",
+    "category": "C5_RARE_PATHOGENIC",
+    "lengths": [
+      65,
+      67
+    ],
+    "mutation": "60dupA",
+    "targets": [
+      [
+        1,
+        30
+      ]
+    ],
+    "requested_templates": 200,
+    "structure_file": null,
+    "bio_seed": 5001880,
+    "hifi_seed": 6001880,
+    "ont_seed": 7001880,
+    "platform_mode": "all"
+  },
+  {
+    "design_id": 189,
+    "name": "c5_rare_insg_75_75_h2_r42_test",
+    "split": "test",
+    "category": "C5_RARE_PATHOGENIC",
+    "lengths": [
+      75,
+      75
+    ],
+    "mutation": "insG",
+    "targets": [
+      [
+        2,
+        42
+      ]
+    ],
+    "requested_templates": 200,
+    "structure_file": null,
+    "bio_seed": 5001890,
+    "hifi_seed": 6001890,
+    "ont_seed": 7001890,
+    "platform_mode": "all"
+  },
+  {
+    "design_id": 190,
+    "name": "c5_rare_60dupa_45_45_h1_r18_test",
+    "split": "test",
+    "category": "C5_RARE_PATHOGENIC",
+    "lengths": [
+      45,
+      45
+    ],
+    "mutation": "60dupA",
+    "targets": [
+      [
+        1,
+        18
+      ]
+    ],
+    "requested_templates": 200,
+    "structure_file": null,
+    "bio_seed": 5001900,
+    "hifi_seed": 6001900,
+    "ont_seed": 7001900,
+    "platform_mode": "all"
+  },
+  {
+    "design_id": 191,
+    "name": "c5_rare_delinsat_35_85_h2_r48_test",
+    "split": "test",
+    "category": "C5_RARE_PATHOGENIC",
+    "lengths": [
+      35,
+      85
+    ],
+    "mutation": "delinsAT",
+    "targets": [
+      [
+        2,
+        48
+      ]
+    ],
+    "requested_templates": 200,
+    "structure_file": null,
+    "bio_seed": 5001910,
+    "hifi_seed": 6001910,
+    "ont_seed": 7001910,
+    "platform_mode": "all"
+  },
+  {
+    "design_id": 192,
+    "name": "c5_rare_inscccc_25_125_h1_r10_test",
+    "split": "test",
+    "category": "C5_RARE_PATHOGENIC",
+    "lengths": [
+      25,
+      125
+    ],
+    "mutation": "insCCCC",
+    "targets": [
+      [
+        1,
+        10
+      ]
+    ],
+    "requested_templates": 200,
+    "structure_file": null,
+    "bio_seed": 5001920,
+    "hifi_seed": 6001920,
+    "ont_seed": 7001920,
+    "platform_mode": "all"
+  },
+  {
+    "design_id": 193,
+    "name": "c5_rare_delgccca_30_135_h2_r6_test",
+    "split": "test",
+    "category": "C5_RARE_PATHOGENIC",
+    "lengths": [
+      30,
+      135
+    ],
+    "mutation": "delGCCCA",
+    "targets": [
+      [
+        2,
+        6
+      ]
+    ],
+    "requested_templates": 200,
+    "structure_file": null,
+    "bio_seed": 5001930,
+    "hifi_seed": 6001930,
+    "ont_seed": 7001930,
+    "platform_mode": "all"
+  },
+  {
+    "design_id": 194,
+    "name": "c5_rare_insg_48_49_h1_r24_test",
+    "split": "test",
+    "category": "C5_RARE_PATHOGENIC",
+    "lengths": [
+      48,
+      49
+    ],
+    "mutation": "insG",
+    "targets": [
+      [
+        1,
+        24
+      ]
+    ],
+    "requested_templates": 200,
+    "structure_file": null,
+    "bio_seed": 5001940,
+    "hifi_seed": 6001940,
+    "ont_seed": 7001940,
+    "platform_mode": "all"
+  },
+  {
+    "design_id": 195,
+    "name": "c5_rare_60dupa_58_60_h2_r32_test",
+    "split": "test",
+    "category": "C5_RARE_PATHOGENIC",
+    "lengths": [
+      58,
+      60
+    ],
+    "mutation": "60dupA",
+    "targets": [
+      [
+        2,
+        32
+      ]
+    ],
+    "requested_templates": 200,
+    "structure_file": null,
+    "bio_seed": 5001950,
+    "hifi_seed": 6001950,
+    "ont_seed": 7001950,
+    "platform_mode": "all"
+  },
+  {
+    "design_id": 196,
+    "name": "c6_cmplx_del18_31_60_60_h1_r20_dev",
+    "split": "dev",
+    "category": "C6_COMPLEX_SNV_INDEL",
+    "lengths": [
+      60,
+      60
+    ],
+    "mutation": "del18_31",
+    "targets": [
+      [
+        1,
+        20
+      ]
+    ],
+    "requested_templates": 200,
+    "structure_file": null,
+    "bio_seed": 5001960,
+    "hifi_seed": 6001960,
+    "ont_seed": 7001960,
+    "platform_mode": "all"
+  },
+  {
+    "design_id": 197,
+    "name": "c6_cmplx_ins16bp_60_60_h2_r25_dev",
+    "split": "dev",
+    "category": "C6_COMPLEX_SNV_INDEL",
+    "lengths": [
+      60,
+      60
+    ],
+    "mutation": "ins16bp",
+    "targets": [
+      [
+        2,
+        25
+      ]
+    ],
+    "requested_templates": 200,
+    "structure_file": null,
+    "bio_seed": 5001970,
+    "hifi_seed": 6001970,
+    "ont_seed": 7001970,
+    "platform_mode": "all"
+  },
+  {
+    "design_id": 198,
+    "name": "c6_cmplx_ins25bp_60_60_h1_r30_dev",
+    "split": "dev",
+    "category": "C6_COMPLEX_SNV_INDEL",
+    "lengths": [
+      60,
+      60
+    ],
+    "mutation": "ins25bp",
+    "targets": [
+      [
+        1,
+        30
+      ]
+    ],
+    "requested_templates": 200,
+    "structure_file": null,
+    "bio_seed": 5001980,
+    "hifi_seed": 6001980,
+    "ont_seed": 7001980,
+    "platform_mode": "all"
+  },
+  {
+    "design_id": 199,
+    "name": "c6_cmplx_del18_31_60_80_h2_r40_dev",
+    "split": "dev",
+    "category": "C6_COMPLEX_SNV_INDEL",
+    "lengths": [
+      60,
+      80
+    ],
+    "mutation": "del18_31",
+    "targets": [
+      [
+        2,
+        40
+      ]
+    ],
+    "requested_templates": 200,
+    "structure_file": null,
+    "bio_seed": 5001990,
+    "hifi_seed": 6001990,
+    "ont_seed": 7001990,
+    "platform_mode": "all"
+  },
+  {
+    "design_id": 200,
+    "name": "c6_cmplx_ins16bp_60_80_h1_r25_dev",
+    "split": "dev",
+    "category": "C6_COMPLEX_SNV_INDEL",
+    "lengths": [
+      60,
+      80
+    ],
+    "mutation": "ins16bp",
+    "targets": [
+      [
+        1,
+        25
+      ]
+    ],
+    "requested_templates": 200,
+    "structure_file": null,
+    "bio_seed": 5002000,
+    "hifi_seed": 6002000,
+    "ont_seed": 7002000,
+    "platform_mode": "all"
+  },
+  {
+    "design_id": 201,
+    "name": "c6_cmplx_ins25bp_50_70_h2_r35_dev",
+    "split": "dev",
+    "category": "C6_COMPLEX_SNV_INDEL",
+    "lengths": [
+      50,
+      70
+    ],
+    "mutation": "ins25bp",
+    "targets": [
+      [
+        2,
+        35
+      ]
+    ],
+    "requested_templates": 200,
+    "structure_file": null,
+    "bio_seed": 5002010,
+    "hifi_seed": 6002010,
+    "ont_seed": 7002010,
+    "platform_mode": "all"
+  },
+  {
+    "design_id": 202,
+    "name": "c6_cmplx_del18_31_50_70_h1_r22_dev",
+    "split": "dev",
+    "category": "C6_COMPLEX_SNV_INDEL",
+    "lengths": [
+      50,
+      70
+    ],
+    "mutation": "del18_31",
+    "targets": [
+      [
+        1,
+        22
+      ]
+    ],
+    "requested_templates": 200,
+    "structure_file": null,
+    "bio_seed": 5002020,
+    "hifi_seed": 6002020,
+    "ont_seed": 7002020,
+    "platform_mode": "all"
+  },
+  {
+    "design_id": 203,
+    "name": "c6_cmplx_ins16bp_40_60_h2_r30_dev",
+    "split": "dev",
+    "category": "C6_COMPLEX_SNV_INDEL",
+    "lengths": [
+      40,
+      60
+    ],
+    "mutation": "ins16bp",
+    "targets": [
+      [
+        2,
+        30
+      ]
+    ],
+    "requested_templates": 200,
+    "structure_file": null,
+    "bio_seed": 5002030,
+    "hifi_seed": 6002030,
+    "ont_seed": 7002030,
+    "platform_mode": "all"
+  },
+  {
+    "design_id": 204,
+    "name": "c6_cmplx_ins25bp_40_60_h1_r18_dev",
+    "split": "dev",
+    "category": "C6_COMPLEX_SNV_INDEL",
+    "lengths": [
+      40,
+      60
+    ],
+    "mutation": "ins25bp",
+    "targets": [
+      [
+        1,
+        18
+      ]
+    ],
+    "requested_templates": 200,
+    "structure_file": null,
+    "bio_seed": 5002040,
+    "hifi_seed": 6002040,
+    "ont_seed": 7002040,
+    "platform_mode": "all"
+  },
+  {
+    "design_id": 205,
+    "name": "c6_cmplx_del18_31_30_90_h2_r50_dev",
+    "split": "dev",
+    "category": "C6_COMPLEX_SNV_INDEL",
+    "lengths": [
+      30,
+      90
+    ],
+    "mutation": "del18_31",
+    "targets": [
+      [
+        2,
+        50
+      ]
+    ],
+    "requested_templates": 200,
+    "structure_file": null,
+    "bio_seed": 5002050,
+    "hifi_seed": 6002050,
+    "ont_seed": 7002050,
+    "platform_mode": "all"
+  },
+  {
+    "design_id": 206,
+    "name": "c6_cmplx_ins16bp_25_100_h1_r10_dev",
+    "split": "dev",
+    "category": "C6_COMPLEX_SNV_INDEL",
+    "lengths": [
+      25,
+      100
+    ],
+    "mutation": "ins16bp",
+    "targets": [
+      [
+        1,
+        10
+      ]
+    ],
+    "requested_templates": 200,
+    "structure_file": null,
+    "bio_seed": 5002060,
+    "hifi_seed": 6002060,
+    "ont_seed": 7002060,
+    "platform_mode": "all"
+  },
+  {
+    "design_id": 207,
+    "name": "c6_cmplx_ins25bp_25_120_h2_r70_dev",
+    "split": "dev",
+    "category": "C6_COMPLEX_SNV_INDEL",
+    "lengths": [
+      25,
+      120
+    ],
+    "mutation": "ins25bp",
+    "targets": [
+      [
+        2,
+        70
+      ]
+    ],
+    "requested_templates": 200,
+    "structure_file": null,
+    "bio_seed": 5002070,
+    "hifi_seed": 6002070,
+    "ont_seed": 7002070,
+    "platform_mode": "all"
+  },
+  {
+    "design_id": 208,
+    "name": "c6_cmplx_del18_31_25_140_h1_r12_dev",
+    "split": "dev",
+    "category": "C6_COMPLEX_SNV_INDEL",
+    "lengths": [
+      25,
+      140
+    ],
+    "mutation": "del18_31",
+    "targets": [
+      [
+        1,
+        12
+      ]
+    ],
+    "requested_templates": 200,
+    "structure_file": null,
+    "bio_seed": 5002080,
+    "hifi_seed": 6002080,
+    "ont_seed": 7002080,
+    "platform_mode": "all"
+  },
+  {
+    "design_id": 209,
+    "name": "c6_cmplx_ins16bp_60_61_h2_r30_dev",
+    "split": "dev",
+    "category": "C6_COMPLEX_SNV_INDEL",
+    "lengths": [
+      60,
+      61
+    ],
+    "mutation": "ins16bp",
+    "targets": [
+      [
+        2,
+        30
+      ]
+    ],
+    "requested_templates": 200,
+    "structure_file": null,
+    "bio_seed": 5002090,
+    "hifi_seed": 6002090,
+    "ont_seed": 7002090,
+    "platform_mode": "all"
+  },
+  {
+    "design_id": 210,
+    "name": "c6_cmplx_ins25bp_60_61_h1_r25_dev",
+    "split": "dev",
+    "category": "C6_COMPLEX_SNV_INDEL",
+    "lengths": [
+      60,
+      61
+    ],
+    "mutation": "ins25bp",
+    "targets": [
+      [
+        1,
+        25
+      ]
+    ],
+    "requested_templates": 200,
+    "structure_file": null,
+    "bio_seed": 5002100,
+    "hifi_seed": 6002100,
+    "ont_seed": 7002100,
+    "platform_mode": "all"
+  },
+  {
+    "design_id": 211,
+    "name": "c6_cmplx_del18_31_50_52_h2_r28_dev",
+    "split": "dev",
+    "category": "C6_COMPLEX_SNV_INDEL",
+    "lengths": [
+      50,
+      52
+    ],
+    "mutation": "del18_31",
+    "targets": [
+      [
+        2,
+        28
+      ]
+    ],
+    "requested_templates": 200,
+    "structure_file": null,
+    "bio_seed": 5002110,
+    "hifi_seed": 6002110,
+    "ont_seed": 7002110,
+    "platform_mode": "all"
+  },
+  {
+    "design_id": 212,
+    "name": "c6_cmplx_ins16bp_60_62_h1_r25_dev",
+    "split": "dev",
+    "category": "C6_COMPLEX_SNV_INDEL",
+    "lengths": [
+      60,
+      62
+    ],
+    "mutation": "ins16bp",
+    "targets": [
+      [
+        1,
+        25
+      ]
+    ],
+    "requested_templates": 200,
+    "structure_file": null,
+    "bio_seed": 5002120,
+    "hifi_seed": 6002120,
+    "ont_seed": 7002120,
+    "platform_mode": "all"
+  },
+  {
+    "design_id": 213,
+    "name": "c6_cmplx_ins25bp_70_72_h2_r40_dev",
+    "split": "dev",
+    "category": "C6_COMPLEX_SNV_INDEL",
+    "lengths": [
+      70,
+      72
+    ],
+    "mutation": "ins25bp",
+    "targets": [
+      [
+        2,
+        40
+      ]
+    ],
+    "requested_templates": 200,
+    "structure_file": null,
+    "bio_seed": 5002130,
+    "hifi_seed": 6002130,
+    "ont_seed": 7002130,
+    "platform_mode": "all"
+  },
+  {
+    "design_id": 214,
+    "name": "c6_cmplx_del18_31_60_63_h1_r25_dev",
+    "split": "dev",
+    "category": "C6_COMPLEX_SNV_INDEL",
+    "lengths": [
+      60,
+      63
+    ],
+    "mutation": "del18_31",
+    "targets": [
+      [
+        1,
+        25
+      ]
+    ],
+    "requested_templates": 200,
+    "structure_file": null,
+    "bio_seed": 5002140,
+    "hifi_seed": 6002140,
+    "ont_seed": 7002140,
+    "platform_mode": "all"
+  },
+  {
+    "design_id": 215,
+    "name": "c6_cmplx_ins16bp_50_53_h2_r25_dev",
+    "split": "dev",
+    "category": "C6_COMPLEX_SNV_INDEL",
+    "lengths": [
+      50,
+      53
+    ],
+    "mutation": "ins16bp",
+    "targets": [
+      [
+        2,
+        25
+      ]
+    ],
+    "requested_templates": 200,
+    "structure_file": null,
+    "bio_seed": 5002150,
+    "hifi_seed": 6002150,
+    "ont_seed": 7002150,
+    "platform_mode": "all"
+  },
+  {
+    "design_id": 216,
+    "name": "c6_cmplx_ins25bp_70_73_h1_r35_dev",
+    "split": "dev",
+    "category": "C6_COMPLEX_SNV_INDEL",
+    "lengths": [
+      70,
+      73
+    ],
+    "mutation": "ins25bp",
+    "targets": [
+      [
+        1,
+        35
+      ]
+    ],
+    "requested_templates": 200,
+    "structure_file": null,
+    "bio_seed": 5002160,
+    "hifi_seed": 6002160,
+    "ont_seed": 7002160,
+    "platform_mode": "all"
+  },
+  {
+    "design_id": 217,
+    "name": "c6_cmplx_del18_31_55_55_h1_r26_val",
+    "split": "val",
+    "category": "C6_COMPLEX_SNV_INDEL",
+    "lengths": [
+      55,
+      55
+    ],
+    "mutation": "del18_31",
+    "targets": [
+      [
+        1,
+        26
+      ]
+    ],
+    "requested_templates": 200,
+    "structure_file": null,
+    "bio_seed": 5002170,
+    "hifi_seed": 6002170,
+    "ont_seed": 7002170,
+    "platform_mode": "all"
+  },
+  {
+    "design_id": 218,
+    "name": "c6_cmplx_ins16bp_65_65_h2_r34_val",
+    "split": "val",
+    "category": "C6_COMPLEX_SNV_INDEL",
+    "lengths": [
+      65,
+      65
+    ],
+    "mutation": "ins16bp",
+    "targets": [
+      [
+        2,
+        34
+      ]
+    ],
+    "requested_templates": 200,
+    "structure_file": null,
+    "bio_seed": 5002180,
+    "hifi_seed": 6002180,
+    "ont_seed": 7002180,
+    "platform_mode": "all"
+  },
+  {
+    "design_id": 219,
+    "name": "c6_cmplx_ins25bp_45_75_h1_r22_val",
+    "split": "val",
+    "category": "C6_COMPLEX_SNV_INDEL",
+    "lengths": [
+      45,
+      75
+    ],
+    "mutation": "ins25bp",
+    "targets": [
+      [
+        1,
+        22
+      ]
+    ],
+    "requested_templates": 200,
+    "structure_file": null,
+    "bio_seed": 5002190,
+    "hifi_seed": 6002190,
+    "ont_seed": 7002190,
+    "platform_mode": "all"
+  },
+  {
+    "design_id": 220,
+    "name": "c6_cmplx_del18_31_35_105_h2_r60_val",
+    "split": "val",
+    "category": "C6_COMPLEX_SNV_INDEL",
+    "lengths": [
+      35,
+      105
+    ],
+    "mutation": "del18_31",
+    "targets": [
+      [
+        2,
+        60
+      ]
+    ],
+    "requested_templates": 200,
+    "structure_file": null,
+    "bio_seed": 5002200,
+    "hifi_seed": 6002200,
+    "ont_seed": 7002200,
+    "platform_mode": "all"
+  },
+  {
+    "design_id": 221,
+    "name": "c6_cmplx_ins16bp_25_115_h1_r10_val",
+    "split": "val",
+    "category": "C6_COMPLEX_SNV_INDEL",
+    "lengths": [
+      25,
+      115
+    ],
+    "mutation": "ins16bp",
+    "targets": [
+      [
+        1,
+        10
+      ]
+    ],
+    "requested_templates": 200,
+    "structure_file": null,
+    "bio_seed": 5002210,
+    "hifi_seed": 6002210,
+    "ont_seed": 7002210,
+    "platform_mode": "all"
+  },
+  {
+    "design_id": 222,
+    "name": "c6_cmplx_ins25bp_55_56_h2_r28_val",
+    "split": "val",
+    "category": "C6_COMPLEX_SNV_INDEL",
+    "lengths": [
+      55,
+      56
+    ],
+    "mutation": "ins25bp",
+    "targets": [
+      [
+        2,
+        28
+      ]
+    ],
+    "requested_templates": 200,
+    "structure_file": null,
+    "bio_seed": 5002220,
+    "hifi_seed": 6002220,
+    "ont_seed": 7002220,
+    "platform_mode": "all"
+  },
+  {
+    "design_id": 223,
+    "name": "c6_cmplx_del18_31_65_67_h1_r32_val",
+    "split": "val",
+    "category": "C6_COMPLEX_SNV_INDEL",
+    "lengths": [
+      65,
+      67
+    ],
+    "mutation": "del18_31",
+    "targets": [
+      [
+        1,
+        32
+      ]
+    ],
+    "requested_templates": 200,
+    "structure_file": null,
+    "bio_seed": 5002230,
+    "hifi_seed": 6002230,
+    "ont_seed": 7002230,
+    "platform_mode": "all"
+  },
+  {
+    "design_id": 224,
+    "name": "c6_cmplx_del18_31_75_75_h2_r40_test",
+    "split": "test",
+    "category": "C6_COMPLEX_SNV_INDEL",
+    "lengths": [
+      75,
+      75
+    ],
+    "mutation": "del18_31",
+    "targets": [
+      [
+        2,
+        40
+      ]
+    ],
+    "requested_templates": 200,
+    "structure_file": null,
+    "bio_seed": 5002240,
+    "hifi_seed": 6002240,
+    "ont_seed": 7002240,
+    "platform_mode": "all"
+  },
+  {
+    "design_id": 225,
+    "name": "c6_cmplx_ins16bp_45_45_h1_r18_test",
+    "split": "test",
+    "category": "C6_COMPLEX_SNV_INDEL",
+    "lengths": [
+      45,
+      45
+    ],
+    "mutation": "ins16bp",
+    "targets": [
+      [
+        1,
+        18
+      ]
+    ],
+    "requested_templates": 200,
+    "structure_file": null,
+    "bio_seed": 5002250,
+    "hifi_seed": 6002250,
+    "ont_seed": 7002250,
+    "platform_mode": "all"
+  },
+  {
+    "design_id": 226,
+    "name": "c6_cmplx_ins25bp_35_85_h2_r45_test",
+    "split": "test",
+    "category": "C6_COMPLEX_SNV_INDEL",
+    "lengths": [
+      35,
+      85
+    ],
+    "mutation": "ins25bp",
+    "targets": [
+      [
+        2,
+        45
+      ]
+    ],
+    "requested_templates": 200,
+    "structure_file": null,
+    "bio_seed": 5002260,
+    "hifi_seed": 6002260,
+    "ont_seed": 7002260,
+    "platform_mode": "all"
+  },
+  {
+    "design_id": 227,
+    "name": "c6_cmplx_del18_31_25_125_h1_r10_test",
+    "split": "test",
+    "category": "C6_COMPLEX_SNV_INDEL",
+    "lengths": [
+      25,
+      125
+    ],
+    "mutation": "del18_31",
+    "targets": [
+      [
+        1,
+        10
+      ]
+    ],
+    "requested_templates": 200,
+    "structure_file": null,
+    "bio_seed": 5002270,
+    "hifi_seed": 6002270,
+    "ont_seed": 7002270,
+    "platform_mode": "all"
+  },
+  {
+    "design_id": 228,
+    "name": "c6_cmplx_ins16bp_30_135_h2_r80_test",
+    "split": "test",
+    "category": "C6_COMPLEX_SNV_INDEL",
+    "lengths": [
+      30,
+      135
+    ],
+    "mutation": "ins16bp",
+    "targets": [
+      [
+        2,
+        80
+      ]
+    ],
+    "requested_templates": 200,
+    "structure_file": null,
+    "bio_seed": 5002280,
+    "hifi_seed": 6002280,
+    "ont_seed": 7002280,
+    "platform_mode": "all"
+  },
+  {
+    "design_id": 229,
+    "name": "c6_cmplx_ins25bp_48_49_h1_r22_test",
+    "split": "test",
+    "category": "C6_COMPLEX_SNV_INDEL",
+    "lengths": [
+      48,
+      49
+    ],
+    "mutation": "ins25bp",
+    "targets": [
+      [
+        1,
+        22
+      ]
+    ],
+    "requested_templates": 200,
+    "structure_file": null,
+    "bio_seed": 5002290,
+    "hifi_seed": 6002290,
+    "ont_seed": 7002290,
+    "platform_mode": "all"
+  },
+  {
+    "design_id": 230,
+    "name": "c6_cmplx_del18_31_58_60_h2_r30_test",
+    "split": "test",
+    "category": "C6_COMPLEX_SNV_INDEL",
+    "lengths": [
+      58,
+      60
+    ],
+    "mutation": "del18_31",
+    "targets": [
+      [
+        2,
+        30
+      ]
+    ],
+    "requested_templates": 200,
+    "structure_file": null,
+    "bio_seed": 5002300,
+    "hifi_seed": 6002300,
+    "ont_seed": 7002300,
+    "platform_mode": "all"
+  },
+  {
+    "design_id": 231,
+    "name": "c7_cov20_60_60_wt_dev",
+    "split": "dev",
+    "category": "C7_BORDERLINE_COVERAGE",
+    "lengths": [
+      60,
+      60
+    ],
+    "mutation": null,
+    "targets": [],
+    "requested_templates": 20,
+    "structure_file": null,
+    "bio_seed": 5002310,
+    "hifi_seed": 6002310,
+    "ont_seed": 7002310,
+    "platform_mode": "all"
+  },
+  {
+    "design_id": 232,
+    "name": "c7_cov20_60_60_dupc_dev",
+    "split": "dev",
+    "category": "C7_BORDERLINE_COVERAGE",
+    "lengths": [
+      60,
+      60
+    ],
+    "mutation": "dupC",
+    "targets": [
+      [
+        1,
+        25
+      ]
+    ],
+    "requested_templates": 20,
+    "structure_file": null,
+    "bio_seed": 5002320,
+    "hifi_seed": 6002320,
+    "ont_seed": 7002320,
+    "platform_mode": "all"
+  },
+  {
+    "design_id": 233,
+    "name": "c7_cov30_60_80_wt_dev",
+    "split": "dev",
+    "category": "C7_BORDERLINE_COVERAGE",
+    "lengths": [
+      60,
+      80
+    ],
+    "mutation": null,
+    "targets": [],
+    "requested_templates": 30,
+    "structure_file": null,
+    "bio_seed": 5002330,
+    "hifi_seed": 6002330,
+    "ont_seed": 7002330,
+    "platform_mode": "all"
+  },
+  {
+    "design_id": 234,
+    "name": "c7_cov30_60_80_dupc_dev",
+    "split": "dev",
+    "category": "C7_BORDERLINE_COVERAGE",
+    "lengths": [
+      60,
+      80
+    ],
+    "mutation": "dupC",
+    "targets": [
+      [
+        2,
+        45
+      ]
+    ],
+    "requested_templates": 30,
+    "structure_file": null,
+    "bio_seed": 5002340,
+    "hifi_seed": 6002340,
+    "ont_seed": 7002340,
+    "platform_mode": "all"
+  },
+  {
+    "design_id": 235,
+    "name": "c7_cov40_50_70_wt_dev",
+    "split": "dev",
+    "category": "C7_BORDERLINE_COVERAGE",
+    "lengths": [
+      50,
+      70
+    ],
+    "mutation": null,
+    "targets": [],
+    "requested_templates": 40,
+    "structure_file": null,
+    "bio_seed": 5002350,
+    "hifi_seed": 6002350,
+    "ont_seed": 7002350,
+    "platform_mode": "all"
+  },
+  {
+    "design_id": 236,
+    "name": "c7_cov40_50_70_dupc_dev",
+    "split": "dev",
+    "category": "C7_BORDERLINE_COVERAGE",
+    "lengths": [
+      50,
+      70
+    ],
+    "mutation": "dupC",
+    "targets": [
+      [
+        1,
+        20
+      ]
+    ],
+    "requested_templates": 40,
+    "structure_file": null,
+    "bio_seed": 5002360,
+    "hifi_seed": 6002360,
+    "ont_seed": 7002360,
+    "platform_mode": "all"
+  },
+  {
+    "design_id": 237,
+    "name": "c7_cov50_40_60_wt_dev",
+    "split": "dev",
+    "category": "C7_BORDERLINE_COVERAGE",
+    "lengths": [
+      40,
+      60
+    ],
+    "mutation": null,
+    "targets": [],
+    "requested_templates": 50,
+    "structure_file": null,
+    "bio_seed": 5002370,
+    "hifi_seed": 6002370,
+    "ont_seed": 7002370,
+    "platform_mode": "all"
+  },
+  {
+    "design_id": 238,
+    "name": "c7_cov50_40_60_dupc_dev",
+    "split": "dev",
+    "category": "C7_BORDERLINE_COVERAGE",
+    "lengths": [
+      40,
+      60
+    ],
+    "mutation": "dupC",
+    "targets": [
+      [
+        2,
+        30
+      ]
+    ],
+    "requested_templates": 50,
+    "structure_file": null,
+    "bio_seed": 5002380,
+    "hifi_seed": 6002380,
+    "ont_seed": 7002380,
+    "platform_mode": "all"
+  },
+  {
+    "design_id": 239,
+    "name": "c7_cov60_25_100_wt_dev",
+    "split": "dev",
+    "category": "C7_BORDERLINE_COVERAGE",
+    "lengths": [
+      25,
+      100
+    ],
+    "mutation": null,
+    "targets": [],
+    "requested_templates": 60,
+    "structure_file": null,
+    "bio_seed": 5002390,
+    "hifi_seed": 6002390,
+    "ont_seed": 7002390,
+    "platform_mode": "all"
+  },
+  {
+    "design_id": 240,
+    "name": "c7_cov60_25_100_dupc_dev",
+    "split": "dev",
+    "category": "C7_BORDERLINE_COVERAGE",
+    "lengths": [
+      25,
+      100
+    ],
+    "mutation": "dupC",
+    "targets": [
+      [
+        2,
+        70
+      ]
+    ],
+    "requested_templates": 60,
+    "structure_file": null,
+    "bio_seed": 5002400,
+    "hifi_seed": 6002400,
+    "ont_seed": 7002400,
+    "platform_mode": "all"
+  },
+  {
+    "design_id": 241,
+    "name": "c7_cov60_60_61_wt_dev",
+    "split": "dev",
+    "category": "C7_BORDERLINE_COVERAGE",
+    "lengths": [
+      60,
+      61
+    ],
+    "mutation": null,
+    "targets": [],
+    "requested_templates": 60,
+    "structure_file": null,
+    "bio_seed": 5002410,
+    "hifi_seed": 6002410,
+    "ont_seed": 7002410,
+    "platform_mode": "all"
+  },
+  {
+    "design_id": 242,
+    "name": "c7_cov60_60_61_dupc_dev",
+    "split": "dev",
+    "category": "C7_BORDERLINE_COVERAGE",
+    "lengths": [
+      60,
+      61
+    ],
+    "mutation": "dupC",
+    "targets": [
+      [
+        1,
+        25
+      ]
+    ],
+    "requested_templates": 60,
+    "structure_file": null,
+    "bio_seed": 5002420,
+    "hifi_seed": 6002420,
+    "ont_seed": 7002420,
+    "platform_mode": "all"
+  },
+  {
+    "design_id": 243,
+    "name": "c7_cov30_55_55_wt_val",
+    "split": "val",
+    "category": "C7_BORDERLINE_COVERAGE",
+    "lengths": [
+      55,
+      55
+    ],
+    "mutation": null,
+    "targets": [],
+    "requested_templates": 30,
+    "structure_file": null,
+    "bio_seed": 5002430,
+    "hifi_seed": 6002430,
+    "ont_seed": 7002430,
+    "platform_mode": "all"
+  },
+  {
+    "design_id": 244,
+    "name": "c7_cov30_55_55_dupc_val",
+    "split": "val",
+    "category": "C7_BORDERLINE_COVERAGE",
+    "lengths": [
+      55,
+      55
+    ],
+    "mutation": "dupC",
+    "targets": [
+      [
+        1,
+        22
+      ]
+    ],
+    "requested_templates": 30,
+    "structure_file": null,
+    "bio_seed": 5002440,
+    "hifi_seed": 6002440,
+    "ont_seed": 7002440,
+    "platform_mode": "all"
+  },
+  {
+    "design_id": 245,
+    "name": "c7_cov45_45_75_wt_val",
+    "split": "val",
+    "category": "C7_BORDERLINE_COVERAGE",
+    "lengths": [
+      45,
+      75
+    ],
+    "mutation": null,
+    "targets": [],
+    "requested_templates": 45,
+    "structure_file": null,
+    "bio_seed": 5002450,
+    "hifi_seed": 6002450,
+    "ont_seed": 7002450,
+    "platform_mode": "all"
+  },
+  {
+    "design_id": 246,
+    "name": "c7_cov45_45_75_dupc_val",
+    "split": "val",
+    "category": "C7_BORDERLINE_COVERAGE",
+    "lengths": [
+      45,
+      75
+    ],
+    "mutation": "dupC",
+    "targets": [
+      [
+        2,
+        40
+      ]
+    ],
+    "requested_templates": 45,
+    "structure_file": null,
+    "bio_seed": 5002460,
+    "hifi_seed": 6002460,
+    "ont_seed": 7002460,
+    "platform_mode": "all"
+  },
+  {
+    "design_id": 247,
+    "name": "c7_cov25_65_65_wt_test",
+    "split": "test",
+    "category": "C7_BORDERLINE_COVERAGE",
+    "lengths": [
+      65,
+      65
+    ],
+    "mutation": null,
+    "targets": [],
+    "requested_templates": 25,
+    "structure_file": null,
+    "bio_seed": 5002470,
+    "hifi_seed": 6002470,
+    "ont_seed": 7002470,
+    "platform_mode": "all"
+  },
+  {
+    "design_id": 248,
+    "name": "c7_cov25_65_65_dupc_test",
+    "split": "test",
+    "category": "C7_BORDERLINE_COVERAGE",
+    "lengths": [
+      65,
+      65
+    ],
+    "mutation": "dupC",
+    "targets": [
+      [
+        2,
+        30
+      ]
+    ],
+    "requested_templates": 25,
+    "structure_file": null,
+    "bio_seed": 5002480,
+    "hifi_seed": 6002480,
+    "ont_seed": 7002480,
+    "platform_mode": "all"
+  },
+  {
+    "design_id": 249,
+    "name": "c7_cov40_35_85_wt_test",
+    "split": "test",
+    "category": "C7_BORDERLINE_COVERAGE",
+    "lengths": [
+      35,
+      85
+    ],
+    "mutation": null,
+    "targets": [],
+    "requested_templates": 40,
+    "structure_file": null,
+    "bio_seed": 5002490,
+    "hifi_seed": 6002490,
+    "ont_seed": 7002490,
+    "platform_mode": "all"
+  },
+  {
+    "design_id": 250,
+    "name": "c7_cov40_35_85_dupc_test",
+    "split": "test",
+    "category": "C7_BORDERLINE_COVERAGE",
+    "lengths": [
+      35,
+      85
+    ],
+    "mutation": "dupC",
+    "targets": [
+      [
+        1,
+        18
+      ]
+    ],
+    "requested_templates": 40,
+    "structure_file": null,
+    "bio_seed": 5002500,
+    "hifi_seed": 6002500,
+    "ont_seed": 7002500,
+    "platform_mode": "all"
+  }
+]

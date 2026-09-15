@@ -7,6 +7,40 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+## [0.13.0] - 2026-09-15
+
+### Added
+
+- Add support for Oxford Nanopore Adaptive Sampling / genomic read simulation via
+  NanoSim (`muconeup reads ont`) and PacBio HiFi genomic simulation via PBSIM3/CCS
+  (`muconeup reads pacbio`), overcoming PCR length-dependent dropout in long alleles.
+- Add 500-dataset stratified simulation catalog with 250 biological designs spanning
+  7 clinical challenge categories across development (300 datasets), validation
+  (100 datasets), and test (100 datasets) splits with dual cryptographic ledgers
+  (`scripts/build_500_design.py`, `scripts/run_500_experiment.py`,
+  `examples/experiment_500_designs.json`).
+- Add official HGVS nomenclature engine (`src/muc_one_span/nomenclature.py`)
+  conforming to HGVS recommendations (https://hgvs-nomenclature.org/stable/):
+  supports 3'-most cDNA normalization (`NM_001204286.1`), 5'-roll ambiguity intervals,
+  repeat-unit shorthand (`53C[7]>53C[8]`, `59dupC`), and clinical tiers (Tier A/B/C).
+- Add offline, zero-CDN interactive IGV alignment browser into HTML reports via
+  `--report-igv [embedded|sidecar|off]`, with vendored gzipped `igv.js` assets and
+  SHA-256 integrity validation (`src/muc_one_span/report_igv.py`, `report_assets.py`).
+- Add non-canonical/IUPAC nucleotide detection and validation warnings in consensus
+  construction (`src/muc_one_span/consensus.py`).
+
+### Fixed
+
+- Eliminate IUPAC ambiguity code injection (`S`, `M`, `R`, `Y`) by forcing haploid
+  consensus replay (`bcftools consensus -H 1`) on single-allele candidate calling
+  in `src/muc_one_span/calling.py`, eliminating the primary root cause of sequence
+  discordance on length-exact alleles.
+- Fix negative coordinate indexing underflow in `igv_reports` by creating 1-based
+  VNTR-spanning intervals on allele contigs.
+- Fix standalone embedded IGV rendering in HTML reports by cleanly extracting
+  container markup and initializing the offline variant track selector without
+  unreplaced template placeholders.
+
 ## [0.12.0] - 2026-09-15
 
 ### Added
@@ -245,7 +279,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 - Project scaffolding with uv, ruff, mypy, pytest, CI
 - Initial pipeline implementation
 
-[Unreleased]: https://github.com/berntpopp/MucOneSpan/compare/v0.12.0...HEAD
+[Unreleased]: https://github.com/berntpopp/MucOneSpan/compare/v0.13.0...HEAD
+[0.13.0]: https://github.com/berntpopp/MucOneSpan/compare/v0.12.0...v0.13.0
 [0.12.0]: https://github.com/berntpopp/MucOneSpan/compare/v0.11.0...v0.12.0
 [0.11.0]: https://github.com/berntpopp/MucOneSpan/compare/v0.10.0...v0.11.0
 [0.10.0]: https://github.com/berntpopp/MucOneSpan/compare/v0.9.0...v0.10.0
