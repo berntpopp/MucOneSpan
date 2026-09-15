@@ -2,9 +2,9 @@
 
 This guide documents empirical validation across historical cohorts and the comprehensive 200-dataset simulation benchmark.
 
-## Validation evidence for 0.13.0
+## Validation evidence for 0.14.0
 
-MucOneSpan 0.13.0 was evaluated on the 500-dataset stratified simulation benchmark (250 distinct diploid biological designs × 2 sequencing modes: PacBio HiFi amplicons and genomic Oxford Nanopore). The cohort was partitioned under strict pre-registration discipline into Development (300 datasets), Validation (100 datasets), and held-out Test (100 datasets), governed by cryptographic ledger seals (`tests/data/experiment_500/ledger_sealed.jsonl`).
+MucOneSpan 0.14.0 was evaluated on the 500-dataset stratified simulation benchmark (250 distinct diploid biological designs × 2 sequencing modes: PacBio HiFi amplicons and genomic Oxford Nanopore). The cohort was partitioned under strict pre-registration discipline into Development (300 datasets), Validation (100 datasets), and held-out Test (100 datasets), governed by cryptographic ledger seals (`tests/data/experiment_500/ledger_sealed.jsonl`).
 
 ### Multi-Split Benchmark Summary
 
