@@ -7,7 +7,10 @@ import re
 from pathlib import Path
 from typing import TypedDict
 
-from muc_one_span.length_candidates import _length_selection_evidence
+from muc_one_span.length_candidates import (
+    _length_selection_evidence,
+    split_cluster_by_read_length,
+)
 from muc_one_span.read_dominance import (
     evaluate_candidate_pair_dominance,
     extract_read_scores_for_contigs,
@@ -15,10 +18,6 @@ from muc_one_span.read_dominance import (
 from muc_one_span.run_status import InsufficientEvidenceError
 from muc_one_span.settings import DEFAULT_SETTINGS, AlleleSelectionSettings, ReferenceLayoutSettings
 from muc_one_span.tools import run_tool_iter
-
-# TypedDicts below document the expected structure of return values.
-# Functions return plain dicts for mypy compatibility; these types are
-# available for callers who want to annotate their own code.
 
 
 class AlleleInfo(TypedDict):
@@ -325,27 +324,36 @@ def _split_cluster_by_indel(
     best_two = sorted(valleys[:2], key=lambda x: x[0])
     v1, v2 = best_two[0][0], best_two[1][0]
 
-    # The split point is the midpoint between the two valleys
-    split = (v1 + v2) // 2
-
     # Verify the valleys are meaningfully separated (at least 3 contigs apart)
     if abs(v2 - v1) < settings.valley_min_separation:
         return None
 
-    # Split cluster contigs into two sub-clusters
+    # Split cluster contigs into two sub-clusters by nearest valley
     contigs_dict = dict(cluster["contigs"])
-    sub1 = [(c, contigs_dict[c]) for c in sorted(contigs_dict) if c <= split]
-    sub2 = [(c, contigs_dict[c]) for c in sorted(contigs_dict) if c > split]
+    sub1 = [(c, contigs_dict[c]) for c in sorted(contigs_dict) if abs(c - v1) < abs(c - v2)]
+    sub2 = [(c, contigs_dict[c]) for c in sorted(contigs_dict) if abs(c - v2) < abs(c - v1)]
 
-    if not sub1 or not sub2:
-        return None
+    if not any(c == v1 for c, _ in sub1):
+        sub1.append((v1, 1))
+        sub1.sort(key=lambda x: x[0])
+    if not any(c == v2 for c, _ in sub2):
+        sub2.append((v2, 1))
+        sub2.sort(key=lambda x: x[0])
 
-    def _make_sub_cluster(contigs: list[tuple[int, int]]) -> dict:
+    def _make_sub_cluster(contigs: list[tuple[int, int]], peak_c: int) -> dict:
         total = sum(r for _, r in contigs)
-        center = sum(c * r for c, r in contigs) / total
-        return {"center": round(center), "total_reads": total, "contigs": contigs}
+        return {
+            "center": peak_c,
+            "total_reads": total,
+            "contigs": contigs,
+            "split_diagnostics": {
+                "splitter": "indel_valley",
+                "valleys": [v1, v2],
+                "target_c": peak_c,
+            },
+        }
 
-    return [_make_sub_cluster(sub1), _make_sub_cluster(sub2)]
+    return [_make_sub_cluster(sub1, v1), _make_sub_cluster(sub2, v2)]
 
 
 def _build_allele_info(
@@ -430,20 +438,8 @@ def detect_alleles(
             When provided, enables alignment-quality-based peak refinement.
 
     Returns:
-        Dictionary with keys ``allele_1``, ``allele_2``, and ``homozygous``.
-        Each allele has:
-
-        - ``length`` (int): total repeat units including pre/after
-        - ``reads`` (int): legacy count of alignment records across the cluster
-        - ``alignment_records`` (int): explicit name for that same fit count
-        - ``molecule_count``: unavailable without validated molecular identity
-        - ``reference_length`` (int): total repeats in the selected reference
-        - ``fixed_repeat_count`` (int): selected fixed pre/after repeat count
-        - ``canonical_repeats`` (int): number of canonical X repeats
-        - ``contig_name`` (str): best-matching contig (e.g. ``"contig_51"``)
-        - ``cluster_contigs`` (list[str]): all contig names in the cluster
-        - ``length_selection_evidence``: diagnostic accounting for sub-threshold
-          contigs and passing clusters not selected among the first two
+        Dictionary with keys ``allele_1``, ``allele_2``, and ``homozygous``, containing
+        allele lengths, alignment counts, contig names, and selection evidence.
 
     Raises:
         ValueError: If no contig meets the minimum coverage threshold.
@@ -488,15 +484,22 @@ def detect_alleles(
     # If only one cluster found but BAM is available, try indel-valley splitting
     if len(clusters) == 1 and bam_path is not None:
         primary_peak_contig = _get_best_contig(clusters[0]) or f"contig_{clusters[0]['center']}"
-        sub_clusters = _split_cluster_by_indel(bam_path, clusters[0], settings=settings)
-        if sub_clusters is not None:
-            c_center = int(primary_peak_contig.split("_")[-1])
-            sub_clusters.sort(key=lambda sc: abs(sc["center"] - c_center))
-            c1_name = primary_peak_contig
-            c2_name = _get_best_contig(sub_clusters[1]) or f"contig_{sub_clusters[1]['center']}"
+        split_attempts = [
+            split_cluster_by_read_length(
+                bam_path, clusters[0], platform=platform, run_tool_iter_func=run_tool_iter
+            ),
+            _split_cluster_by_indel(bam_path, clusters[0], settings=settings),
+        ]
+        for sub_clusters in split_attempts:
+            if sub_clusters is None:
+                continue
+            sub_clusters.sort(key=lambda sc: sc["total_reads"], reverse=True)
+            sc1, sc2 = sub_clusters[0], sub_clusters[1]
+            c1_name = _get_best_contig(sc1) or f"contig_{sc1['center']}"
+            c2_name = _get_best_contig(sc2) or f"contig_{sc2['center']}"
             c2_primary = sum(
                 fit_metrics.get(f"contig_{c}", {}).get("primary_alignment_records", 0)
-                for c, _ in sub_clusters[1]["contigs"]
+                for c, _ in sc2["contigs"]
             )
             if c1_name != c2_name and c2_primary >= min_reads_val:
                 sub_scores = extract_read_scores_for_contigs(
@@ -515,14 +518,13 @@ def detect_alleles(
                     )
                     if dom.is_valid_second_allele:
                         clusters = sub_clusters
-                        clusters.sort(key=lambda x: x["total_reads"], reverse=True)
-                    else:
-                        logger.info(
-                            "Spurious indel split rejected by read dominance: %s vs %s (%s)",
-                            c1_name,
-                            c2_name,
-                            dom.rejection_reason,
-                        )
+                        break
+                    logger.info(
+                        "Split candidate rejected by read dominance: %s vs %s (%s)",
+                        c1_name,
+                        c2_name,
+                        dom.rejection_reason,
+                    )
 
         if len(clusters) == 1:
             c1_center = clusters[0]["center"]
@@ -601,29 +603,20 @@ def detect_alleles(
 
     allele_1 = _with_support(clusters[0])
 
-    if len(clusters) < 2:
-        return {
-            "allele_1": allele_1,
-            "allele_2": {**allele_1, "candidate_duplicate_of": "allele_1"},
-            "observed_length_candidates": 1,
-            "allele_multiplicity_status": "unresolved",
-            "homozygous": False,
-            "same_length": True,
-        }
+    allele_2 = _with_support(clusters[1]) if len(clusters) >= 2 else None
 
-    allele_2 = _with_support(clusters[1])
-
-    if allele_1["length"] == allele_2["length"]:
-        allele_1["reads"] += allele_2["reads"]
-        allele_1["alignment_records"] = allele_1["reads"]
-        allele_1["cluster_contigs"] = sorted(
-            set(allele_1["cluster_contigs"] + allele_2["cluster_contigs"])
-        )
-        allele_1["fit_metrics"].update(allele_2["fit_metrics"])
-        if bam_path is not None:
-            allele_1["primary_alignment_records"] = sum(
-                m.get("primary_alignment_records", 0) for m in allele_1["fit_metrics"].values()
+    if allele_2 is None or allele_1["length"] == allele_2["length"]:
+        if allele_2 is not None:
+            allele_1["reads"] += allele_2["reads"]
+            allele_1["alignment_records"] = allele_1["reads"]
+            allele_1["cluster_contigs"] = sorted(
+                set(allele_1["cluster_contigs"] + allele_2["cluster_contigs"])
             )
+            allele_1["fit_metrics"].update(allele_2["fit_metrics"])
+            if bam_path is not None:
+                allele_1["primary_alignment_records"] = sum(
+                    m.get("primary_alignment_records", 0) for m in allele_1["fit_metrics"].values()
+                )
         return {
             "allele_1": allele_1,
             "allele_2": {**allele_1, "candidate_duplicate_of": "allele_1"},

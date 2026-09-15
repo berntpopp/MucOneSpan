@@ -2,13 +2,14 @@
 
 from __future__ import annotations
 
+import copy
 import logging
 from concurrent.futures import ThreadPoolExecutor
 from pathlib import Path
 
 from muc_one_span.mapping import DEFAULT_MINIMAP2_PRESET
 from muc_one_span.phasing import annotate_consensus_candidate, phase_evidence
-from muc_one_span.read_phasing import phase_same_length_reads
+from muc_one_span.read_phasing import haplotag_and_split_reads, phase_same_length_reads
 from muc_one_span.settings import DEFAULT_SETTINGS, CallingSettings, ReadPhasingSettings
 from muc_one_span.tools import run_tool
 from muc_one_span.vcf import filter_vcf, parse_vcf_genotypes, parse_vcf_variants
@@ -273,6 +274,89 @@ def disambiguate_same_length_alleles(
             merged_dir / "read_phasing",
             settings=read_phasing_settings,
         )
+
+    if read_phasing.get("output_phase_status") == "phased":
+        split_result = haplotag_and_split_reads(
+            filtered_vcf,
+            merged_bam,
+            contig_ref,
+            merged_dir / "haplotag",
+            min_reads=min_dp,
+        )
+        if split_result is not None:
+            hp1_bam, hp2_bam, hp1_count, hp2_count = split_result
+            per_allele_threads = max(1, threads // 2)
+
+            def _call_hp(hp_key: str, hp_bam: Path) -> tuple[str, Path]:
+                hp_dir = merged_dir / hp_key
+                vcf_raw = run_clair3(
+                    hp_bam,
+                    contig_ref,
+                    hp_dir / "clair3",
+                    model_path=clair3_model,
+                    platform=platform,
+                    threads=per_allele_threads,
+                    settings=settings,
+                )
+                vcf_filtered = filter_vcf(
+                    vcf_raw,
+                    contig_ref,
+                    hp_dir,
+                    min_qual=min_qual,
+                    min_dp=min_dp,
+                    haploid_majority=True,
+                )
+                return hp_key, vcf_filtered
+
+            with ThreadPoolExecutor(max_workers=2) as executor:
+                hp_futures = [
+                    executor.submit(_call_hp, "allele_1", hp1_bam),
+                    executor.submit(_call_hp, "allele_2", hp2_bam),
+                ]
+                hp_results = dict(f.result() for f in hp_futures)
+
+            v_1 = parse_vcf_genotypes(hp_results["allele_1"])
+            v_2 = parse_vcf_genotypes(hp_results["allele_2"])
+
+            calls_1 = {(v["chrom"], v["pos"], v["ref"], v["alt"]): v["genotype"] for v in v_1}
+            calls_2 = {(v["chrom"], v["pos"], v["ref"], v["alt"]): v["genotype"] for v in v_2}
+            is_distinct = calls_1 != calls_2
+
+            alleles["homozygous"] = not is_distinct
+            alleles["sequence_identity_status"] = (
+                "resolved_distinct" if is_distinct else "unresolved"
+            )
+            alleles["phase_status"] = "phased"
+
+            ev_1 = phase_evidence(v_1)
+            s_1 = v_1[0].get("sample") if v_1 else None
+            annotate_consensus_candidate(
+                alleles["allele_1"], ev_1, 1, s_1, str(hp_results["allele_1"])
+            )
+            alleles["allele_1"]["read_phasing"] = read_phasing
+            alleles["allele_1"]["reads"] = hp1_count
+            alleles["allele_1"]["independent_haplotype_evidence"] = True
+            alleles["allele_1"]["sequence_identity_status"] = (
+                "resolved_distinct" if is_distinct else "unresolved"
+            )
+
+            if "allele_2" not in alleles:
+                alleles["allele_2"] = copy.deepcopy(allele_info)
+            alleles["allele_2"].pop("candidate_duplicate_of", None)
+            ev_2 = phase_evidence(v_2)
+            s_2 = v_2[0].get("sample") if v_2 else None
+            annotate_consensus_candidate(
+                alleles["allele_2"], ev_2, 1, s_2, str(hp_results["allele_2"])
+            )
+            alleles["allele_2"]["read_phasing"] = read_phasing
+            alleles["allele_2"]["reads"] = hp2_count
+            alleles["allele_2"]["independent_haplotype_evidence"] = True
+            alleles["allele_2"]["sequence_identity_status"] = (
+                "resolved_distinct" if is_distinct else "unresolved"
+            )
+
+            return hp_results
+
     variants = parse_vcf_genotypes(filtered_vcf)
     evidence = phase_evidence(variants)
     # A single observed length is not evidence of sequence identity.
@@ -284,7 +368,7 @@ def disambiguate_same_length_alleles(
     for index, haplotype in enumerate(evidence["haplotypes"], start=1):
         key = f"allele_{index}"
         if key not in alleles:
-            alleles[key] = dict(allele_info)
+            alleles[key] = copy.deepcopy(allele_info)
         if haplotype in (1, 2):
             alleles[key].pop("candidate_duplicate_of", None)
         annotate_consensus_candidate(alleles[key], evidence, haplotype, sample, str(filtered_vcf))

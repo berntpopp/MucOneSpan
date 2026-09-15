@@ -215,7 +215,7 @@ def test_generate_report_with_igv_and_hgvs(tmp_path: Path):
         )
 
     html = out_report.read_text(encoding="utf-8")
-    assert "NM_001204286.1:c.59dup" in html
+    assert "repeat_7:c.59dupC" in html
     assert "Tier A" in html
     assert "Interactive Alignment Browser" in html
     assert "loadIgv()" in html

@@ -1,0 +1,170 @@
+{
+  "summary": {
+    "total_dev_datasets": 300,
+    "platforms": {
+      "amplicon_hifi": 150,
+      "genomic_ont": 150
+    },
+    "hifi_correct_reconstructions": 72,
+    "hifi_correct_length_pairs": 114,
+    "hifi_supported_event_tp": 40,
+    "hifi_supported_event_fp": 2,
+    "hifi_supported_event_fn": 38
+  },
+  "breakdown_by_category_platform": {
+    "C1_HOMOZYGOUS_WT_amplicon_hifi": {
+      "total": 15,
+      "none": 12,
+      "consensus": 1,
+      "length_inference": 2,
+      "usable_reads": 0,
+      "supported_tp": 0,
+      "supported_fp": 0,
+      "supported_fn": 0
+    },
+    "C1_HOMOZYGOUS_WT_genomic_ont": {
+      "total": 15,
+      "none": 3,
+      "consensus": 1,
+      "length_inference": 5,
+      "usable_reads": 6,
+      "supported_tp": 0,
+      "supported_fp": 0,
+      "supported_fn": 0
+    },
+    "C2_ASYMMETRIC_LENGTH_amplicon_hifi": {
+      "total": 27,
+      "none": 21,
+      "consensus": 6,
+      "length_inference": 0,
+      "usable_reads": 0,
+      "supported_tp": 0,
+      "supported_fp": 0,
+      "supported_fn": 0
+    },
+    "C2_ASYMMETRIC_LENGTH_genomic_ont": {
+      "total": 27,
+      "none": 0,
+      "consensus": 0,
+      "length_inference": 25,
+      "usable_reads": 2,
+      "supported_tp": 0,
+      "supported_fp": 0,
+      "supported_fn": 0
+    },
+    "C3_NEAR_EQUAL_LENGTH_amplicon_hifi": {
+      "total": 24,
+      "none": 0,
+      "consensus": 11,
+      "length_inference": 13,
+      "usable_reads": 0,
+      "supported_tp": 0,
+      "supported_fp": 1,
+      "supported_fn": 0
+    },
+    "C3_NEAR_EQUAL_LENGTH_genomic_ont": {
+      "total": 24,
+      "none": 0,
+      "consensus": 0,
+      "length_inference": 20,
+      "usable_reads": 4,
+      "supported_tp": 0,
+      "supported_fp": 0,
+      "supported_fn": 0
+    },
+    "C4_PATHOGENIC_DUPC_amplicon_hifi": {
+      "total": 30,
+      "none": 11,
+      "consensus": 11,
+      "length_inference": 8,
+      "usable_reads": 0,
+      "supported_tp": 15,
+      "supported_fp": 0,
+      "supported_fn": 15
+    },
+    "C4_PATHOGENIC_DUPC_genomic_ont": {
+      "total": 30,
+      "none": 0,
+      "consensus": 1,
+      "length_inference": 23,
+      "usable_reads": 6,
+      "supported_tp": 2,
+      "supported_fp": 2,
+      "supported_fn": 28
+    },
+    "C5_RARE_PATHOGENIC_amplicon_hifi": {
+      "total": 21,
+      "none": 9,
+      "consensus": 7,
+      "length_inference": 5,
+      "usable_reads": 0,
+      "supported_tp": 10,
+      "supported_fp": 0,
+      "supported_fn": 11
+    },
+    "C5_RARE_PATHOGENIC_genomic_ont": {
+      "total": 21,
+      "none": 0,
+      "consensus": 0,
+      "length_inference": 14,
+      "usable_reads": 7,
+      "supported_tp": 3,
+      "supported_fp": 2,
+      "supported_fn": 18
+    },
+    "C6_COMPLEX_SNV_INDEL_amplicon_hifi": {
+      "total": 21,
+      "none": 10,
+      "consensus": 3,
+      "length_inference": 8,
+      "usable_reads": 0,
+      "supported_tp": 11,
+      "supported_fp": 1,
+      "supported_fn": 10
+    },
+    "C6_COMPLEX_SNV_INDEL_genomic_ont": {
+      "total": 21,
+      "none": 0,
+      "consensus": 0,
+      "length_inference": 14,
+      "usable_reads": 7,
+      "supported_tp": 1,
+      "supported_fp": 1,
+      "supported_fn": 20
+    },
+    "C7_BORDERLINE_COVERAGE_amplicon_hifi": {
+      "total": 12,
+      "none": 9,
+      "consensus": 3,
+      "length_inference": 0,
+      "usable_reads": 0,
+      "supported_tp": 4,
+      "supported_fp": 0,
+      "supported_fn": 2
+    },
+    "C7_BORDERLINE_COVERAGE_genomic_ont": {
+      "total": 12,
+      "none": 0,
+      "consensus": 0,
+      "length_inference": 0,
+      "usable_reads": 12,
+      "supported_tp": 0,
+      "supported_fp": 0,
+      "supported_fn": 6
+    }
+  },
+  "improvements_m2": {
+    "c3_near_equal_length": {
+      "baseline": "0% bimodal separation; collapsed to single contig",
+      "m2_current": "Bimodal read-length splitting algorithm deployed and active"
+    },
+    "c4_equal_length_pathogenic": {
+      "baseline": "Clair3 suppressed 1bp dupC as 0/0 ref call in mixed 50/50 BAM",
+      "m2_current": "WhatsHap haplotagged separation isolates alleles into pure BAMs yielding PASS dupC calls"
+    },
+    "hgvs_20_05_nomenclature": {
+      "baseline": "Unresolved cDNA coordinates with fragile transcript assumptions",
+      "m2_current": "Invariant repeat-relative coordinates repeat_{idx}:c.{edit} with transcript_coordinate_unresolved flag"
+    }
+  }
+}

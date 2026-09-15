@@ -28,6 +28,7 @@ KNOWN_VARIANTS: dict[str, str] = {
     "56_59dupCCCC": "Vrbacka et al. 2025 (doi:10.1101/2024.11.14.623419)",
     "58_59insG": "Olinger et al. 2020 (PMID:32647000)",
     "60dupA": "Olinger et al. 2020 (PMID:32647000)",
+    "55delinsAT": "Olinger et al. 2020 (PMID:32647000)",
     "54_56delinsAT": "Olinger et al. 2020 (PMID:32647000)",
     "1_5delGCCCA": "Saei et al. 2023 (PMID:37456840)",
     "30_31insCAGGCCGGCCCCGGGCTCCGGACAC": "Saei et al. 2023 (PMID:37456840)",
@@ -226,21 +227,32 @@ def name_edit(unit: str, start: int, end: int, inserted: str) -> tuple[str, str]
 
 
 def format_hgvs_cdna(
-    canonical_name: str, event_type: str, transcript: str = MUC1_TRANSCRIPT_ID
+    canonical_name: str,
+    event_type: str,
+    transcript: str = MUC1_TRANSCRIPT_ID,
+    *,
+    transcript_offset: int | None = None,
+    allow_unmapped: bool = False,
 ) -> str:
-    """Format official HGVS cDNA representation for the variant."""
-    prefix = f"{transcript}:c."
-    if event_type == "duplication" and "dup" in canonical_name:
-        return f"{prefix}{canonical_name}"
-    if event_type == "insertion" and "ins" in canonical_name:
-        return f"{prefix}{canonical_name}"
-    if event_type == "deletion" and "del" in canonical_name:
-        return f"{prefix}{canonical_name}"
-    if event_type == "delins" and "delins" in canonical_name:
-        return f"{prefix}{canonical_name}"
-    if ">" in canonical_name:
-        return f"{prefix}{canonical_name}"
-    return f"{prefix}{canonical_name}"
+    """Format official HGVS cDNA representation for the variant.
+
+    To adhere to HGVS 20.05 and prevent misleading coordinates (e.g. c.59dupC in
+    the signal peptide), transcript coordinate is emitted only when an authentic
+    transcript offset is provided or allow_unmapped is explicitly enabled.
+    """
+    if not allow_unmapped and transcript_offset is None:
+        return "transcript_coordinate_unresolved"
+    offset_str = f"{transcript_offset}_" if transcript_offset is not None else ""
+    return f"{transcript}:c.{offset_str}{canonical_name}"
+
+
+def format_repeat_relative_coordinate(
+    repeat_index: int | str | None,
+    canonical_name: str,
+) -> str:
+    """Format primary invariant clinical coordinate: repeat_{idx}:c.{edit}."""
+    idx = repeat_index if repeat_index is not None else "?"
+    return f"repeat_{idx}:c.{canonical_name}"
 
 
 @dataclass(frozen=True)
@@ -257,6 +269,8 @@ class NomenclatureRecord:
     confidence_tier: str
     is_known_variant: bool
     literature_citation: str | None
+    repeat_relative_coordinate: str = ""
+    transcript_coordinate: str = "transcript_coordinate_unresolved"
 
     TIER_A: ClassVar[str] = "Tier_A"
     TIER_B: ClassVar[str] = "Tier_B"
@@ -274,6 +288,8 @@ class NomenclatureRecord:
             else None,
             "repeat_form": self.repeat_form,
             "hgvs_cdna": self.hgvs_cdna,
+            "repeat_relative_coordinate": self.repeat_relative_coordinate,
+            "transcript_coordinate": self.transcript_coordinate,
             "confidence_tier": self.confidence_tier,
             "is_known_variant": self.is_known_variant,
             "literature_citation": self.literature_citation,
@@ -288,6 +304,7 @@ def name_variant_call(
     unit_sequence: str = CANONICAL_UNIT,
     support_reads: int = 10,
     independent_sources: int = 1,
+    repeat_index: int | str | None = None,
 ) -> NomenclatureRecord:
     """Generate a validated NomenclatureRecord for a detected variant."""
     canon_name, event_type = name_edit(unit_sequence, start, end, inserted)
@@ -296,6 +313,7 @@ def name_variant_call(
     hgvs = format_hgvs_cdna(canon_name, event_type)
     citation = KNOWN_VARIANTS.get(canon_name)
     is_known = citation is not None
+    repeat_rel = format_repeat_relative_coordinate(repeat_index, canon_name)
 
     if is_known and support_reads >= 5 and independent_sources >= 1:
         tier = NomenclatureRecord.TIER_A
@@ -318,6 +336,8 @@ def name_variant_call(
         confidence_tier=tier,
         is_known_variant=is_known,
         literature_citation=citation,
+        repeat_relative_coordinate=repeat_rel,
+        transcript_coordinate="transcript_coordinate_unresolved",
     )
 
 
@@ -331,6 +351,7 @@ def enrich_mutation_record(
     closest_type = str(enriched.get("closest_type", "X"))
     vcf_support = bool(enriched.get("vcf_support", False))
     support_reads = 10 if vcf_support else (3 if enriched.get("frameshift") else 1)
+    repeat_idx = enriched.get("repeat_index")
 
     start: int | None = None
     end: int | None = None
@@ -359,7 +380,8 @@ def enrich_mutation_record(
                 end = int(ch.get("end", start))
                 inserted = ""
             elif ctype == "delete_insert":
-                end = int(ch.get("end", start))
+                start = start + 1
+                end = int(ch.get("end", start)) - 1
                 inserted = str(ch.get("sequence", ""))
             else:
                 end = start
@@ -376,6 +398,10 @@ def enrich_mutation_record(
             enriched["hgvs_cdna"] = format_hgvs_cdna(
                 canon, "duplication" if "dup" in canon else "insertion"
             )
+            enriched["repeat_relative_coordinate"] = format_repeat_relative_coordinate(
+                repeat_idx, canon
+            )
+            enriched["transcript_coordinate"] = "transcript_coordinate_unresolved"
             enriched["confidence_tier"] = NomenclatureRecord.TIER_A
             return enriched
 
@@ -392,6 +418,10 @@ def enrich_mutation_record(
         enriched["canonical_name"] = mut_name
         enriched["event_type"] = event
         enriched["hgvs_cdna"] = format_hgvs_cdna(mut_name, event)
+        enriched["repeat_relative_coordinate"] = format_repeat_relative_coordinate(
+            repeat_idx, mut_name
+        )
+        enriched["transcript_coordinate"] = "transcript_coordinate_unresolved"
         enriched["confidence_tier"] = (
             NomenclatureRecord.TIER_B if enriched.get("frameshift") else NomenclatureRecord.TIER_C
         )
@@ -410,6 +440,7 @@ def enrich_mutation_record(
         unit_sequence=CANONICAL_UNIT,
         support_reads=support_reads,
         independent_sources=1,
+        repeat_index=repeat_idx,
     )
     rec_dict = rec.to_dict()
     enriched.update(rec_dict)

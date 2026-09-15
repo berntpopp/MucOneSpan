@@ -16,6 +16,8 @@ try:
 except ImportError:
     _HAS_JINJA2 = False
 
+from typing import Any
+
 from muc_one_span.nomenclature import enrich_mutation_record
 from muc_one_span.report_assets import (
     REPORT_IGV_MODES,
@@ -29,6 +31,145 @@ from muc_one_span.version import __version__
 def _enrich_mutation_nomenclature(mutation: dict) -> dict:
     """Enrich a detected mutation dict with HGVS cDNA and repeat form."""
     return enrich_mutation_record(mutation)
+
+
+def compute_clinical_decision(summary: dict[str, Any]) -> dict[str, Any]:
+    """Derive 3-state clinical decision support banner and multiplicity caveats."""
+    classifications = summary.get("classifications", {})
+    alleles = summary.get("alleles", {})
+
+    pathogenic_mutations: list[dict[str, Any]] = []
+    for allele_key, acls in classifications.items():
+        if isinstance(acls, dict):
+            for mut in acls.get("mutations", []):
+                if isinstance(mut, dict):
+                    mut_copy = dict(mut)
+                    mut_copy["allele"] = allele_key
+                    pathogenic_mutations.append(mut_copy)
+
+    a1 = alleles.get("allele_1", {}) if isinstance(alleles, dict) else {}
+    a2 = alleles.get("allele_2", {}) if isinstance(alleles, dict) else {}
+    total_reads = (a1.get("reads", 0) or 0) + (a2.get("reads", 0) or 0)
+    low_coverage = total_reads < 30 and (bool(a1) or bool(a2))
+
+    ambiguous_bases = sum(
+        acls.get("ambiguous_bases", 0)
+        for acls in classifications.values()
+        if isinstance(acls, dict)
+    )
+
+    if pathogenic_mutations:
+        state = "PATHOGENIC"
+        title = "Pathogenic Variant Detected (ADTKD-MUC1)"
+        badge_label = "PATHOGENIC"
+        badge_class = "badge-danger"
+        banner_class = "decision-pathogenic"
+        details: list[str] = []
+        for m in pathogenic_mutations:
+            m_name = m.get("name") or m.get("mutation_name", "Unknown variant")
+            rep_idx = m.get("repeat_index", "N/A")
+            h_form = m.get("hgvs_repeat_form") or m.get("repeat_relative_coordinate", "")
+            c_form = m.get("hgvs_cdna", "")
+            supp = m.get("support_status", "")
+            allele_name = str(m.get("allele", "allele")).replace("_", " ").title()
+            det = f"{allele_name}: {m_name} at repeat unit {rep_idx}"
+            if h_form:
+                det += f" ({h_form})"
+            if c_form and c_form != "transcript_coordinate_unresolved":
+                det += f" [{c_form}]"
+            if supp:
+                det += f" - Evidence: {supp}"
+            details.append(det)
+        summary_text = (
+            "A pathogenic frameshift variant was identified in the MUC1 VNTR region. "
+            "This finding is consistent with autosomal dominant tubulointerstitial "
+            "kidney disease (ADTKD-MUC1)."
+        )
+        recommendations = (
+            "Recommend genetic counseling and nephrology clinical correlation. "
+            "Cascade variant testing is available for at-risk family members."
+        )
+    elif (
+        low_coverage
+        or ambiguous_bases > 10
+        or summary.get("run_status", {}).get("status") == "insufficient_evidence"
+    ):
+        state = "INCONCLUSIVE"
+        title = "Inconclusive / Quality Warning"
+        badge_label = "INCONCLUSIVE"
+        badge_class = "badge-warning"
+        banner_class = "decision-inconclusive"
+        reasons: list[str] = []
+        if low_coverage:
+            reasons.append(
+                f"Total read depth ({total_reads} reads) is below diagnostic threshold (30 reads)."
+            )
+        if ambiguous_bases > 10:
+            reasons.append(
+                f"High number of ambiguous consensus bases ({ambiguous_bases}) detected."
+            )
+        if not reasons:
+            reasons.append("Quality control metrics did not meet validation standards.")
+        summary_text = (
+            "The test result is inconclusive due to quality or coverage limitations. "
+            "No definitive clinical call can be rendered."
+        )
+        details = reasons
+        recommendations = (
+            "Orthogonal diagnostic validation or repeat sequencing with higher target "
+            "depth is recommended prior to clinical decision-making."
+        )
+    else:
+        state = "NO_PATHOGENIC_VARIANT_DETECTED"
+        title = "No Pathogenic Variant Detected"
+        badge_label = "NEGATIVE"
+        badge_class = "badge-success"
+        banner_class = "decision-negative"
+        summary_text = (
+            "No known ADTKD-MUC1 pathogenic variants (dupC, dupA, or related frameshifts) "
+            "were detected across the reconstructed MUC1 VNTR alleles."
+        )
+        details = [
+            f"Allele 1: {a1.get('length', 'N/A')} repeats ({a1.get('canonical_repeats', 'N/A')} canonical units) - {a1.get('reads', 0)} reads",
+            f"Allele 2: {a2.get('length', 'N/A')} repeats ({a2.get('canonical_repeats', 'N/A')} canonical units) - {a2.get('reads', 0)} reads",
+        ]
+        recommendations = (
+            "A negative result significantly reduces the likelihood of ADTKD-MUC1 caused by "
+            "VNTR frameshift mutations. It does not exclude variants outside the VNTR or other "
+            "genetic causes of kidney disease."
+        )
+
+    multiplicity_caveat = None
+    l1 = a1.get("length")
+    l2 = a2.get("length")
+    is_single_length = (
+        (l1 is not None and l2 is not None and l1 == l2)
+        or bool(alleles.get("homozygous"))
+        or (bool(a1) and not bool(a2))
+    )
+    if is_single_length and not pathogenic_mutations:
+        multiplicity_caveat = (
+            "Single allele length observed; second allele not established. "
+            "Preferential PCR amplification or allelic drop-out cannot be excluded; "
+            "apparent homozygosity should be interpreted with clinical caution."
+        )
+    elif is_single_length and pathogenic_mutations:
+        multiplicity_caveat = (
+            "Single allele length observed with pathogenic mutation; second allele not established. "
+            "A second unamplified or co-migrating wild-type or mutated allele cannot be excluded."
+        )
+
+    return {
+        "state": state,
+        "title": title,
+        "badge_label": badge_label,
+        "badge_class": badge_class,
+        "banner_class": banner_class,
+        "summary": summary_text,
+        "details": details,
+        "recommendations": recommendations,
+        "multiplicity_caveat": multiplicity_caveat,
+    }
 
 
 def generate_report(
@@ -133,9 +274,13 @@ def generate_report(
         igv_payload_b64 = igv_payload(report_igv)
         igv_provenance_str = igv_provenance(report_igv)
 
+    decision = compute_clinical_decision(summary_copy)
+
     html = template.render(
         sample_name=sample_name,
         summary=summary_copy,
+        clinical_decision=decision,
+        multiplicity_caveat=decision.get("multiplicity_caveat"),
         detailed_repeats=detailed_repeats,
         tool_versions=versions,
         pipeline_version=summary.get("pipeline_version", __version__),

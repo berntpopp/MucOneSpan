@@ -206,3 +206,100 @@ def _length_selection_evidence(
             for cluster in unselected_clusters
         ],
     }
+
+
+def split_cluster_by_read_length(
+    bam_path: Path,
+    cluster: dict,
+    *,
+    platform: str = "hifi",
+    min_reads: int = 5,
+    min_fraction: float = 0.15,
+    run_tool_iter_func: Any = None,
+) -> list[dict] | None:
+    """Split a single cluster into two alleles if physical read lengths are bimodal.
+
+    In spanning reads (particularly PacBio HiFi amplicons), read length directly
+    reflects VNTR repeat count (1 repeat ≈ 60 bp). Near-equal alleles (e.g. 40/41)
+    merge into one cluster during gap-based contig clustering, but exhibit two
+    distinct modes in physical read lengths.
+
+    Returns two sub-clusters if two valid modes are detected, or None.
+    """
+    runner = run_tool_iter_func or run_tool_iter
+    contig_names = [f"contig_{c}" for c, _ in cluster["contigs"]]
+    if not contig_names or not bam_path.exists():
+        return None
+
+    read_lengths: list[int] = []
+    for line in runner(["samtools", "view", "-F", "2308", str(bam_path), *contig_names]):
+        fields = line.strip().split("\t")
+        if len(fields) >= 10 and fields[9] != "*":
+            read_lengths.append(len(fields[9]))
+
+    total_reads = len(read_lengths)
+    if total_reads < min_reads * 2:
+        return None
+
+    bins: dict[int, int] = {}
+    for length in read_lengths:
+        b = (length // 5) * 5
+        bins[b] = bins.get(b, 0) + 1
+
+    peaks: list[tuple[int, int]] = []
+    threshold = max(min_reads, int(total_reads * min_fraction))
+    for b in sorted(bins):
+        cnt = bins[b]
+        if cnt >= threshold:
+            left = max(bins.get(b - 5, 0), bins.get(b - 10, 0))
+            right = max(bins.get(b + 5, 0), bins.get(b + 10, 0))
+            if cnt >= left and cnt >= right:
+                peaks.append((b, cnt))
+
+    if len(peaks) < 2:
+        return None
+
+    peaks.sort(key=lambda x: x[1], reverse=True)
+    p1, p2 = sorted([peaks[0][0], peaks[1][0]])
+    delta = p2 - p1
+
+    if not (45 <= delta <= 320):
+        return None
+    rem = delta % 60
+    if not (rem <= 15 or rem >= 45):
+        return None
+
+    r1 = round((p1 - 30) / 60)
+    r2 = round((p2 - 30) / 60)
+    c1 = r1 - 9
+    c2 = r2 - 9
+    if c1 >= c2:
+        return None
+
+    contigs_dict = dict(cluster["contigs"])
+    sub1 = [(c, contigs_dict[c]) for c in sorted(contigs_dict) if abs(c - c1) < abs(c - c2)]
+    sub2 = [(c, contigs_dict[c]) for c in sorted(contigs_dict) if abs(c - c2) < abs(c - c1)]
+
+    if not any(c == c1 for c, _ in sub1):
+        sub1.append((c1, max(1, peaks[0][1])))
+        sub1.sort(key=lambda x: x[0])
+    if not any(c == c2 for c, _ in sub2):
+        sub2.append((c2, max(1, peaks[1][1])))
+        sub2.sort(key=lambda x: x[0])
+
+    def _make_sub(contigs: list[tuple[int, int]], peak_c: int) -> dict:
+        t = sum(r for _, r in contigs)
+        return {
+            "center": peak_c,
+            "total_reads": t,
+            "contigs": contigs,
+            "split_diagnostics": {
+                "splitter": "read_length",
+                "peaks": [p1, p2],
+                "delta": delta,
+                "target_c": peak_c,
+                "read_count": total_reads,
+            },
+        }
+
+    return [_make_sub(sub1, c1), _make_sub(sub2, c2)]

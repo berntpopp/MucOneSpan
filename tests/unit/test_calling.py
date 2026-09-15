@@ -571,3 +571,47 @@ def test_read_phase_is_not_promoted_by_default(tmp_path):
         disambiguate_same_length_alleles(tmp_path / "bam", tmp_path / "ref", alleles, tmp_path)
     phase.assert_not_called()
     assert alleles["allele_1"]["read_phasing"]["status"] == "experimental_disabled"
+
+
+def test_disambiguate_same_length_alleles_haplotagged_split(tmp_path):
+    alleles = {
+        "allele_1": {"contig_name": "c", "cluster_contigs": ["c"], "length": 50},
+        "allele_2": {
+            "contig_name": "c",
+            "cluster_contigs": ["c"],
+            "length": 50,
+            "candidate_duplicate_of": "allele_1",
+        },
+    }
+    evidence = {"status": "phased", "output_phase_status": "phased"}
+    vcf1 = tmp_path / "hp1.vcf.gz"
+    vcf2 = tmp_path / "hp2.vcf.gz"
+    with (
+        patch("muc_one_span.calling._extract_and_remap_reads", return_value=tmp_path / "reads.bam"),
+        patch(
+            "muc_one_span.calling.run_clair3",
+            side_effect=[tmp_path / "raw.vcf", tmp_path / "r1.vcf", tmp_path / "r2.vcf"],
+        ),
+        patch(
+            "muc_one_span.calling.filter_vcf",
+            side_effect=[tmp_path / "m_filt.vcf", vcf1, vcf2],
+        ),
+        patch(
+            "muc_one_span.calling.phase_same_length_reads",
+            return_value=(tmp_path / "phased.vcf", evidence),
+        ),
+        patch(
+            "muc_one_span.calling.haplotag_and_split_reads",
+            return_value=(tmp_path / "hp1.bam", tmp_path / "hp2.bam", 25, 20),
+        ),
+        patch("muc_one_span.calling.parse_vcf_genotypes", return_value=[]),
+    ):
+        result = disambiguate_same_length_alleles(
+            tmp_path / "bam", tmp_path / "ref", alleles, tmp_path, read_phase=True
+        )
+    assert result == {"allele_1": vcf1, "allele_2": vcf2}
+    assert alleles["allele_1"]["reads"] == 25
+    assert alleles["allele_2"]["reads"] == 20
+    assert alleles["allele_1"]["independent_haplotype_evidence"] is True
+    assert alleles["allele_2"]["independent_haplotype_evidence"] is True
+    assert "candidate_duplicate_of" not in alleles["allele_2"]

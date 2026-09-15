@@ -7,6 +7,23 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+## [0.14.0] - 2026-09-15
+
+### Added
+
+- Add `DurableLedger` in `src/muc_one_span/durable_ledger.py` with multi-attempt flock locking, broken symlink self-healing, atomic append with fsync, and process-group SIGTERM/SIGKILL cleanup in `src/muc_one_span/tools.py`.
+- Add 3-state clinical decision banner (`PATHOGENIC`, `NO_PATHOGENIC_VARIANT_DETECTED`, `INCONCLUSIVE`) with distinct SVG geometric icons, WCAG 2.1 AA/AAA contrast, and allele multiplicity caveats in `src/muc_one_span/report.py` and templates.
+- Add offline browser test suite (`tests/browser/test_report_browser.py`) with Playwright verifying zero CDN requests, zero console errors, keyboard navigability, and visual layout.
+- Add comprehensive 500-dataset simulation benchmark evaluation across DEV (300), VAL (100), and TEST (100) splits.
+
+### Fixed
+
+- Eliminate bimodal midpoint bias in length candidate clustering (`src/muc_one_span/length_candidates.py` and `src/muc_one_span/alleles.py`) by replacing integer division with nearest-peak assignment and equidistant exclusion, preventing systematic $+1$ repeat shift for $\Delta \ge 2$ alleles.
+- Conform HGVS nomenclature to 20.05 specification (`src/muc_one_span/nomenclature.py`), hiding unanchored transcript coordinates in reports and establishing `repeat_{idx}:c.{edit}` as the invariant clinical coordinate.
+- Align `delinsAT` nomenclature to net +1 bp edit naming (`55delinsAT`) in `KNOWN_VARIANTS`.
+- Support single-heterozygous-site haplotagging in `src/muc_one_span/read_phasing.py`.
+- Derive sequence identity status from VCF concordance in `src/muc_one_span/calling.py` and eliminate shallow-copy aliasing on `allele_2`.
+
 ## [0.13.0] - 2026-09-15
 
 ### Added
@@ -30,7 +47,6 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
   construction (`src/muc_one_span/consensus.py`).
 
 ### Fixed
-
 - Eliminate IUPAC ambiguity code injection (`S`, `M`, `R`, `Y`) by forcing haploid
   consensus replay (`bcftools consensus -H 1`) on single-allele candidate calling
   in `src/muc_one_span/calling.py`, eliminating the primary root cause of sequence

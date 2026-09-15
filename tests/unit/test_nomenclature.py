@@ -88,12 +88,12 @@ def test_60dupa_terminal_duplication() -> None:
     assert event == "duplication"
 
 
-def test_54_56delinsat_anchored() -> None:
-    """Delins variants are anchored and never shifted."""
-    canon_name, event = name_edit(CANONICAL_UNIT, 54, 56, "AT")
-    assert canon_name == "54_56delinsAT"
+def test_55delinsat_anchored() -> None:
+    """Delins variants are anchored and 55delinsAT replaces 55C with AT."""
+    canon_name, event = name_edit(CANONICAL_UNIT, 55, 55, "AT")
+    assert canon_name == "55delinsAT"
     assert event == "delins"
-    assert ambiguity_interval(CANONICAL_UNIT, 54, 56, "AT") is None
+    assert ambiguity_interval(CANONICAL_UNIT, 55, 55, "AT") is None
 
 
 def test_deletion_1_5delgccca() -> None:
@@ -118,7 +118,9 @@ def test_name_variant_call_record() -> None:
     assert rec.event_type == "duplication"
     assert rec.ambiguity_interval == (53, 59)
     assert rec.repeat_form == "53C[7]>53C[8]"
-    assert rec.hgvs_cdna == "NM_001204286.1:c.59dupC"
+    assert rec.hgvs_cdna == "transcript_coordinate_unresolved"
+    assert rec.repeat_relative_coordinate == "repeat_?:c.59dupC"
+    assert rec.transcript_coordinate == "transcript_coordinate_unresolved"
     assert rec.confidence_tier == NomenclatureRecord.TIER_A
     assert rec.is_known_variant is True
     assert "Kirby et al. 2013" in str(rec.literature_citation)
@@ -126,6 +128,8 @@ def test_name_variant_call_record() -> None:
     d = rec.to_dict()
     assert d["canonical_name"] == "59dupC"
     assert d["ambiguity_interval"] == [53, 59]
+    assert d["repeat_relative_coordinate"] == "repeat_?:c.59dupC"
+    assert d["transcript_coordinate"] == "transcript_coordinate_unresolved"
 
 
 def test_low_support_tier_demotion() -> None:
@@ -167,13 +171,25 @@ def test_classify_event_and_formatting() -> None:
     # Delins
     assert classify_event(5, 7, "AA") == "delins"
 
-    # Formatting branches
-    assert format_hgvs_cdna("59dupC", "duplication") == "NM_001204286.1:c.59dupC"
-    assert format_hgvs_cdna("58_59insG", "insertion") == "NM_001204286.1:c.58_59insG"
-    assert format_hgvs_cdna("1_5delGCCCA", "deletion") == "NM_001204286.1:c.1_5delGCCCA"
-    assert format_hgvs_cdna("54_56delinsAT", "delins") == "NM_001204286.1:c.54_56delinsAT"
-    assert format_hgvs_cdna("2C>A", "substitution") == "NM_001204286.1:c.2C>A"
-    assert format_hgvs_cdna("other", "unknown") == "NM_001204286.1:c.other"
+    # Formatting branches: unresolved without transcript offset, formatted when allow_unmapped is True
+    assert format_hgvs_cdna("59dupC", "duplication") == "transcript_coordinate_unresolved"
+    assert (
+        format_hgvs_cdna("59dupC", "duplication", allow_unmapped=True) == "NM_001204286.1:c.59dupC"
+    )
+    assert (
+        format_hgvs_cdna("58_59insG", "insertion", allow_unmapped=True)
+        == "NM_001204286.1:c.58_59insG"
+    )
+    assert (
+        format_hgvs_cdna("1_5delGCCCA", "deletion", allow_unmapped=True)
+        == "NM_001204286.1:c.1_5delGCCCA"
+    )
+    assert (
+        format_hgvs_cdna("55delinsAT", "delins", allow_unmapped=True)
+        == "NM_001204286.1:c.55delinsAT"
+    )
+    assert format_hgvs_cdna("2C>A", "substitution", allow_unmapped=True) == "NM_001204286.1:c.2C>A"
+    assert format_hgvs_cdna("other", "unknown", allow_unmapped=True) == "NM_001204286.1:c.other"
 
     # Duplication check when left < ins_len
     assert is_duplication(CANONICAL_UNIT, 1, "GCCC") is False
@@ -201,6 +217,8 @@ def test_out_of_bounds_handling() -> None:
 
 def test_enrich_mutation_record() -> None:
     """Enriching mutation dict resolves repeats.json definitions to HGVS nomenclature."""
+    from muc_one_span.config import load_repeat_dictionary
+
     # Test known literature mutation dupC
     m_dupc = {
         "repeat_index": 45,
@@ -211,7 +229,9 @@ def test_enrich_mutation_record() -> None:
     }
     enriched = enrich_mutation_record(m_dupc)
     assert enriched["canonical_name"] == "59dupC"
-    assert enriched["hgvs_cdna"] == "NM_001204286.1:c.59dupC"
+    assert enriched["hgvs_cdna"] == "transcript_coordinate_unresolved"
+    assert enriched["repeat_relative_coordinate"] == "repeat_45:c.59dupC"
+    assert enriched["transcript_coordinate"] == "transcript_coordinate_unresolved"
     assert enriched["repeat_form"] == "53C[7]>53C[8]"
     assert enriched["ambiguity_interval"] == [53, 59]
     assert enriched["confidence_tier"] == NomenclatureRecord.TIER_A
@@ -228,9 +248,25 @@ def test_enrich_mutation_record() -> None:
     }
     enriched_insg = enrich_mutation_record(m_insg)
     assert enriched_insg["canonical_name"] == "58_59insG"
-    assert enriched_insg["hgvs_cdna"] == "NM_001204286.1:c.58_59insG"
+    assert enriched_insg["hgvs_cdna"] == "transcript_coordinate_unresolved"
+    assert enriched_insg["repeat_relative_coordinate"] == "repeat_20:c.58_59insG"
+    assert enriched_insg["transcript_coordinate"] == "transcript_coordinate_unresolved"
     assert enriched_insg["confidence_tier"] == NomenclatureRecord.TIER_A
     assert enriched_insg["is_known_variant"] is True
+
+    # Test known delinsAT mutation (net +1 bp at position 55)
+    m_delins = {
+        "repeat_index": 15,
+        "closest_type": "X",
+        "mutation_name": "delinsAT",
+        "frameshift": True,
+        "vcf_support": True,
+    }
+    enriched_delins = enrich_mutation_record(m_delins, repeat_dict=load_repeat_dictionary())
+    assert enriched_delins["canonical_name"] == "55delinsAT"
+    assert enriched_delins["repeat_relative_coordinate"] == "repeat_15:c.55delinsAT"
+    assert enriched_delins["confidence_tier"] == NomenclatureRecord.TIER_A
+    assert enriched_delins["is_known_variant"] is True
 
     # Test novel frameshift variant
     m_novel_fs = {

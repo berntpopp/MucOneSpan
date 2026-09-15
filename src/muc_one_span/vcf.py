@@ -123,8 +123,11 @@ def filter_vcf(
                             if max_af >= 0.5:
                                 alt_idx = af_vals.index(max_af) + 1
                                 target_gt = f"{alt_idx}/{alt_idx}"
-                            else:
+                            elif max_af < 0.2:
                                 target_gt = "0/0"
+                            else:
+                                # Borderline heterozygous / mixed evidence: retain original genotype
+                                target_gt = sample_fields[gt_idx]
                             if sample_fields[gt_idx] != target_gt:
                                 sample_fields[gt_idx] = target_gt
                                 fields[9] = ":".join(sample_fields)

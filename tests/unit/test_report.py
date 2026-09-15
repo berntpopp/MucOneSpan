@@ -108,7 +108,7 @@ class TestGenerateReport:
 
         assert "dupC" in content
         assert "59dupC" in content
-        assert "NM_001204286.1:c.59dupC" in content
+        assert "repeat_8:c.59dupC" in content
         assert "53C[7]&gt;53C[8]" in content or "53C[7]>53C[8]" in content
         assert "(53, 59)" in content
         assert "Tier A" in content
@@ -203,3 +203,76 @@ def test_report_distinguishes_unavailable_from_absent_support(sample_summary, tm
     assert html.count(">Support unavailable<") == 1
     assert html.count(">Support ambiguous<") == 1
     assert html.count(">Unsupported<") == 1
+
+
+def test_report_clinical_decision_pathogenic(sample_summary, tmp_path):
+    """Pathogenic mutations trigger prominent PATHOGENIC decision banner."""
+    out = tmp_path / "report_pathogenic.html"
+    generate_report(sample_summary, out, sample_name="pathogenic_sample")
+    html = out.read_text(encoding="utf-8")
+
+    assert "decision-pathogenic" in html
+    assert "PATHOGENIC" in html
+    assert "Pathogenic Variant Detected (ADTKD-MUC1)" in html
+    assert "Allele 1: dupC at repeat unit 8" in html
+    assert "Recommend genetic counseling" in html
+
+
+def test_report_clinical_decision_negative(sample_summary, tmp_path):
+    """Samples without mutations and adequate coverage produce NEGATIVE decision banner."""
+    sample_summary["classifications"]["allele_1"]["mutations"] = []
+    out = tmp_path / "report_negative.html"
+    generate_report(sample_summary, out, sample_name="negative_sample")
+    html = out.read_text(encoding="utf-8")
+
+    assert "decision-negative" in html
+    assert "NEGATIVE" in html
+    assert "No Pathogenic Variant Detected" in html
+    assert "No known ADTKD-MUC1 pathogenic variants" in html
+
+
+def test_report_clinical_decision_inconclusive(sample_summary, tmp_path):
+    """Low coverage (< 30 reads) produces INCONCLUSIVE decision banner."""
+    sample_summary["classifications"]["allele_1"]["mutations"] = []
+    sample_summary["alleles"]["allele_1"]["reads"] = 10
+    sample_summary["alleles"]["allele_2"]["reads"] = 12
+    out = tmp_path / "report_inconclusive.html"
+    generate_report(sample_summary, out, sample_name="inconclusive_sample")
+    html = out.read_text(encoding="utf-8")
+
+    assert "decision-inconclusive" in html
+    assert "INCONCLUSIVE" in html
+    assert "Inconclusive / Quality Warning" in html
+    assert "below diagnostic threshold (30 reads)" in html
+
+
+def test_report_multiplicity_caveat(sample_summary, tmp_path):
+    """Multiplicity caveat is rendered when single allele length is observed."""
+    # When lengths differ (50 vs 60), no caveat for wild-type
+    sample_summary["classifications"]["allele_1"]["mutations"] = []
+    sample_summary["alleles"]["allele_1"]["length"] = 50
+    sample_summary["alleles"]["allele_2"]["length"] = 60
+    out = tmp_path / "report_diff.html"
+    generate_report(sample_summary, out)
+    assert "Allele Multiplicity Note:" not in out.read_text(encoding="utf-8")
+
+    # When lengths are identical (60 vs 60), caveat must be rendered
+    sample_summary["alleles"]["allele_1"]["length"] = 60
+    sample_summary["alleles"]["allele_2"]["length"] = 60
+    out_same = tmp_path / "report_same.html"
+    generate_report(sample_summary, out_same)
+    html_same = out_same.read_text(encoding="utf-8")
+    assert "Allele Multiplicity Note:" in html_same
+    assert "Single allele length observed; second allele not established." in html_same
+
+
+def test_report_accessibility_attributes(sample_summary, tmp_path):
+    """Verify accessible ARIA roles, focus rings, and tabular numbers in report."""
+    out = tmp_path / "report_a11y.html"
+    generate_report(sample_summary, out)
+    html = out.read_text(encoding="utf-8")
+
+    assert 'role="region"' in html
+    assert 'aria-labelledby="decision-heading"' in html
+    assert ":focus-visible" in html
+    assert "font-variant-numeric: tabular-nums;" in html

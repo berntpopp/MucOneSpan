@@ -162,3 +162,27 @@ def test_run_tool_iter_raises_on_failure(mocker):
 
     with pytest.raises(RuntimeError, match="failed"):
         list(run_tool_iter(["failing_tool"]))
+
+
+def test_run_tool_timeout_raises_and_cleans_up(mocker):
+    """run_tool raises TimeoutError on timeout and kills process group."""
+    import subprocess
+    from unittest.mock import MagicMock
+
+    from muc_one_span.tools import run_tool
+
+    mock_proc = MagicMock()
+    mock_proc.pid = 12345
+    mock_proc.communicate.side_effect = [
+        subprocess.TimeoutExpired(cmd=["sleep", "10"], timeout=0.1),
+        ("out", "err"),
+    ]
+
+    mocker.patch("muc_one_span.tools.subprocess.Popen", return_value=mock_proc)
+    mocker.patch("os.getpgid", return_value=12345)
+    killpg_mock = mocker.patch("os.killpg")
+
+    with pytest.raises(TimeoutError, match="timed out"):
+        run_tool(["sleep", "10"], timeout=0.1)
+
+    assert killpg_mock.called

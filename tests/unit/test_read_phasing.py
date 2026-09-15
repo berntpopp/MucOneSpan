@@ -354,3 +354,82 @@ def test_selected_haplotype_counts_keep_disconnected_phase_sets_separate(
         "1": {"0": 1, "1": 0},
         "2": {"0": 0, "1": 1},
     }
+
+
+def test_haplotag_and_split_reads_success(tmp_path, monkeypatch):
+    monkeypatch.setattr(
+        "muc_one_span.read_phasing.shutil.which",
+        lambda cmd, path=None: "/usr/bin/whatshap" if cmd == "whatshap" else None,
+    )
+
+    def fake_run_tool(cmd, cwd=None, timeout=None):
+        if cmd[0] == "whatshap" and cmd[1] == "haplotag":
+            # create output file
+            out_idx = cmd.index("-o") + 1
+            Path(cmd[out_idx]).touch()
+            return ""
+        if cmd[0] == "samtools" and cmd[1] == "view" and "-c" in cmd:
+            if "allele_1.bam" in cmd[-1]:
+                return "18\n"
+            return "22\n"
+        if cmd[0] == "samtools" and cmd[1] == "view" and "-b" in cmd:
+            out_idx = cmd.index("-o") + 1
+            Path(cmd[out_idx]).touch()
+            return ""
+        if cmd[0] == "samtools" and cmd[1] == "index":
+            Path(cmd[2] + ".bai").touch()
+            return ""
+        return ""
+
+    monkeypatch.setattr("muc_one_span.read_phasing.run_tool", fake_run_tool)
+
+    vcf = tmp_path / "phased.vcf.gz"
+    vcf.touch()
+    bam = tmp_path / "input.bam"
+    bam.touch()
+    ref = tmp_path / "ref.fa"
+    ref.touch()
+    out_dir = tmp_path / "haplotag_out"
+
+    res = read_phasing.haplotag_and_split_reads(vcf, bam, ref, out_dir, min_reads=5)
+    assert res is not None
+    hp1_bam, hp2_bam, c1, c2 = res
+    assert hp1_bam.name == "allele_1.bam"
+    assert hp2_bam.name == "allele_2.bam"
+    assert c1 == 18
+    assert c2 == 22
+    assert not (out_dir / "haplotagged.bam").exists()
+
+
+def test_haplotag_and_split_reads_insufficient_or_unavailable(tmp_path, monkeypatch):
+    # Case 1: whatshap unavailable
+    monkeypatch.setattr("muc_one_span.read_phasing.shutil.which", lambda cmd, path=None: None)
+    res = read_phasing.haplotag_and_split_reads(
+        tmp_path / "vcf", tmp_path / "bam", tmp_path / "ref", tmp_path / "out"
+    )
+    assert res is None
+
+    # Case 2: insufficient reads
+    monkeypatch.setattr(
+        "muc_one_span.read_phasing.shutil.which",
+        lambda cmd, path=None: "/usr/bin/whatshap",
+    )
+
+    def fake_run_tool_low(cmd, cwd=None, timeout=None):
+        if cmd[0] == "whatshap" and cmd[1] == "haplotag":
+            out_idx = cmd.index("-o") + 1
+            Path(cmd[out_idx]).touch()
+            return ""
+        if cmd[0] == "samtools" and cmd[1] == "view" and "-c" in cmd:
+            return "2\n"  # below min_reads=5
+        if cmd[0] == "samtools" and cmd[1] == "view" and "-b" in cmd:
+            out_idx = cmd.index("-o") + 1
+            Path(cmd[out_idx]).touch()
+            return ""
+        return ""
+
+    monkeypatch.setattr("muc_one_span.read_phasing.run_tool", fake_run_tool_low)
+    res_low = read_phasing.haplotag_and_split_reads(
+        tmp_path / "vcf", tmp_path / "bam", tmp_path / "ref", tmp_path / "out", min_reads=5
+    )
+    assert res_low is None

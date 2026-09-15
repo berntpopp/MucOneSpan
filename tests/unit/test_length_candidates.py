@@ -69,3 +69,62 @@ def test_length_selection_evidence_without_bam() -> None:
     assert res["minimum_coverage"] == 10
     assert res["excluded_subthreshold_contigs"][0]["contig_name"] == "contig_71"
     assert res["excluded_subthreshold_primary_alignment_records"] is None
+
+
+def test_split_cluster_by_read_length_delta_2(tmp_path: Path) -> None:
+    """Verify split_cluster_by_read_length correctly splits Delta=2 (e.g. 40/42) without midpoint shift."""
+    from muc_one_span.length_candidates import split_cluster_by_read_length
+
+    # 40 repeats: 40 * 60 + 30 = 2430 bp (c1 = 40 - 9 = 31)
+    # 42 repeats: 42 * 60 + 30 = 2550 bp (c2 = 42 - 9 = 33)
+    # Simulated SAM lines from runner
+    # 20 reads of length 2430 bp, 20 reads of length 2550 bp
+    seq_40 = "A" * 2430
+    seq_42 = "A" * 2550
+    lines = []
+    for i in range(20):
+        lines.append(f"read_40_{i}\t0\tcontig_31\t1\t60\t2430M\t*\t0\t0\t{seq_40}\t*")
+    for i in range(20):
+        lines.append(f"read_42_{i}\t0\tcontig_33\t1\t60\t2550M\t*\t0\t0\t{seq_42}\t*")
+
+    bam = tmp_path / "mock.bam"
+    bam.touch()
+
+    cluster = {
+        "center": 32,
+        "total_reads": 40,
+        "contigs": [(30, 5), (31, 15), (32, 10), (33, 10)],
+    }
+
+    sub_clusters = split_cluster_by_read_length(
+        bam,
+        cluster,
+        platform="hifi",
+        min_reads=5,
+        run_tool_iter_func=lambda cmd: lines,
+    )
+
+    assert sub_clusters is not None
+    assert len(sub_clusters) == 2
+    # Centers must be locked to 31 and 33, intermediate contig 32 excluded from determining centers
+    assert sub_clusters[0]["center"] == 31
+    assert sub_clusters[1]["center"] == 33
+    assert sub_clusters[0]["split_diagnostics"]["splitter"] == "read_length"
+    assert sub_clusters[0]["split_diagnostics"]["delta"] == 120
+
+
+def test_split_cluster_by_read_length_monomodal(tmp_path: Path) -> None:
+    """Monomodal distribution returns None (no split)."""
+    from muc_one_span.length_candidates import split_cluster_by_read_length
+
+    seq_60 = "A" * 3630
+    lines = [f"read_{i}\t0\tcontig_51\t1\t60\t3630M\t*\t0\t0\t{seq_60}\t*" for i in range(30)]
+
+    bam = tmp_path / "mock.bam"
+    bam.touch()
+
+    cluster = {"center": 51, "total_reads": 30, "contigs": [(51, 30)]}
+    res = split_cluster_by_read_length(
+        bam, cluster, platform="hifi", min_reads=5, run_tool_iter_func=lambda cmd: lines
+    )
+    assert res is None
