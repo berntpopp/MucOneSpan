@@ -7,6 +7,29 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+## [0.12.0] - 2026-09-15
+
+### Added
+
+- Add pairwise read-dominance candidate length inference (`read_dominance.py`)
+  with symmetric missing-score handling for candidates >= 6 repeats apart and
+  primary alignment cluster filtering in allele detection (`alleles.py`).
+- Add metric-aware ONT contig refinement (`metric="auto"`) minimizing mean indel
+  length to eliminate systematic +1 repeat shift in long Oxford Nanopore contigs.
+- Support multiallelic comma-separated `AF` fields in VCF parsing (`vcf.py`).
+- Update reference ladder generation to use proximal left-flank sequence for
+  exact anchor consensus trimming (`ladder.py`).
+- Add 200 simulation dataset evaluation suite across PacBio HiFi and ONT amplicons
+  with sealed and public ledgers (`scripts/run_200_experiment.py`, `scripts/evaluate_200_experiment.py`).
+
+### Changed
+
+- Complete diploid sequence reconstruction improved by +28.6 percentage points on
+  PacBio HiFi (+20 net paired reconstructions) and +17.1 percentage points on ONT
+  (+12 net paired reconstructions) across 140 development datasets, with 0 paired
+  regressions on previously correct baselines.
+- Maintained 100% normal control negative specificity (0 false alarms).
+
 ## [0.11.0] - 2026-09-14
 
 ### Added
@@ -222,7 +245,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 - Project scaffolding with uv, ruff, mypy, pytest, CI
 - Initial pipeline implementation
 
-[Unreleased]: https://github.com/berntpopp/MucOneSpan/compare/v0.11.0...HEAD
+[Unreleased]: https://github.com/berntpopp/MucOneSpan/compare/v0.12.0...HEAD
+[0.12.0]: https://github.com/berntpopp/MucOneSpan/compare/v0.11.0...v0.12.0
 [0.11.0]: https://github.com/berntpopp/MucOneSpan/compare/v0.10.0...v0.11.0
 [0.10.0]: https://github.com/berntpopp/MucOneSpan/compare/v0.9.0...v0.10.0
 [0.9.0]: https://github.com/berntpopp/MucOneSpan/compare/v0.8.0...v0.9.0

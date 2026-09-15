@@ -10,7 +10,7 @@ MucOneSpan analyzes the MUC1 VNTR from PacBio HiFi and Oxford Nanopore amplicon 
 ## Install
 
 ```bash
-pip install 'muc_one_span[report] @ git+https://github.com/berntpopp/MucOneSpan.git@v0.11.0'
+pip install 'muc_one_span[report] @ git+https://github.com/berntpopp/MucOneSpan.git@v0.12.0'
 ```
 
 The pipeline also requires minimap2, samtools, bcftools, and Clair3. See the [installation guide](https://berntpopp.github.io/MucOneSpan/getting-started/installation/) for setup and container options.
