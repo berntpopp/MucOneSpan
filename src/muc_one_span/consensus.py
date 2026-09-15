@@ -202,6 +202,12 @@ def trim_flanking(
             right_trim_method=right_method,
         )
     vntr = sequence[left_trim:right_trim]
+    non_canonical = set(vntr.upper()) - set("ACGTN")
+    if non_canonical:
+        logger.warning(
+            "Consensus VNTR sequence contains non-canonical/IUPAC characters: %s",
+            non_canonical,
+        )
 
     output_path.write_text(f"{header}_vntr\n{vntr}\n")
     return output_path
@@ -272,10 +278,9 @@ def build_consensus_per_allele(
         # Index the single-contig reference so bcftools consensus can use it
         run_tool(["samtools", "faidx", str(contig_fa)])
 
-        # Build full consensus (with flanking)
         full_consensus = output_dir / f"consensus_{allele_key}_full.fa"
         sample = select_vcf_sample(vcf_path, allele_info.get("consensus_sample"))
-        haplotype = allele_info.get("consensus_haplotype", "I")
+        haplotype = allele_info.get("consensus_haplotype", 1)
         build_consensus(contig_fa, vcf_path, full_consensus, sample=sample, haplotype=haplotype)
         context = {
             "vcf_path": str(vcf_path.resolve()),

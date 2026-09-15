@@ -34,7 +34,7 @@ Software citation information:
 @software{muconespan2026,
   author = {Popp, Bernt},
   title = {MucOneSpan: Open-Source MUC1 VNTR Analysis Pipeline},
-  version = {0.12.0},
+  version = {0.13.0},
   year = {2026},
   publisher = {GitHub},
   url = {https://github.com/berntpopp/MucOneSpan},

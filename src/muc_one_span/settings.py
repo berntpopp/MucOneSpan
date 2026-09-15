@@ -60,6 +60,7 @@ class RunSettings:
     reference: str | None = None
     minimap2_preset: str | None = None
     report: bool = False
+    report_igv: str = "off"
 
     def __post_init__(self) -> None:
         _integer("run.threads", self.threads, 1)
@@ -71,6 +72,8 @@ class RunSettings:
         _string("run.reference", self.reference, optional=True)
         _string("run.minimap2_preset", self.minimap2_preset, optional=True)
         _boolean("run.report", self.report)
+        if self.report_igv not in ("off", "embedded", "sidecar"):
+            raise ValueError("run.report_igv must be off, embedded, or sidecar")
 
 
 @dataclass(frozen=True)
