@@ -45,6 +45,7 @@ htmlcov/
 
 # Test data (generated)
 tests/data/generated/
+tests/data/experiment_200/
 
 # Git worktrees
 .worktrees/

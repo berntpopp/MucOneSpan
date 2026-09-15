@@ -69,8 +69,11 @@ def _apply_mutation(sequence: str, changes: list[dict]) -> str:
             end = change["end"]  # 1-based inclusive end == 0-based exclusive end
             del result[start:end]
         elif change["type"] == "delete_insert":
-            end = change["end"]  # 1-based inclusive end == 0-based exclusive end
-            result[start:end] = list(change["sequence"])
+            # In MucOneUp/Vrbacka conventions, start and end are 1-based retained boundaries.
+            # Bases strictly between start and end are deleted, and sequence is inserted.
+            end_idx = change["end"] - 1
+            del result[start + 1 : end_idx]
+            result[start + 1 : start + 1] = list(change["sequence"])
     return "".join(result)
 
 

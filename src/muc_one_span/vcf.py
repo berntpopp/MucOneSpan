@@ -15,12 +15,17 @@ def filter_vcf(
     output_dir: Path,
     min_qual: float = 0.0,
     min_dp: int = 0,
+    *,
+    haploid_majority: bool = False,
+    haploid_min_qual: float | None = None,
 ) -> Path:
     """Normalize and filter a VCF file with bcftools.
 
     Runs ``bcftools norm -f <reference>`` followed by
     ``bcftools view -f PASS`` (with optional quality filters) and indexes
-    the result.
+    the result. When ``haploid_majority=True``, resolves borderline heterozygous
+    calls on isolated haploid alignments by setting GT to 1/1 when AF >= 0.5
+    and 0/0 otherwise, avoiding spurious IUPAC ambiguity characters in consensus.
 
     Args:
         vcf_path: Path to input VCF (may be gzipped).
@@ -32,6 +37,7 @@ def filter_vcf(
             INFO/DP.  Filtering on INFO/DP would crash on Clair3 output.
             QUAL-only filtering is used instead since QUAL already
             integrates depth information.
+        haploid_majority: If True, resolve heterozygous GTs on haploid alignments based on AF.
 
     Returns:
         Path to the filtered, indexed VCF (``variants.vcf.gz``).
@@ -74,8 +80,14 @@ def filter_vcf(
     # Only add quality filter if VCF has records.
     # Use QUAL only — Clair3 HiFi uses FORMAT/DP not INFO/DP, and
     # QUAL already integrates depth/quality information.
-    if not is_empty and min_qual > 0:
-        view_cmd.extend(["-i", f"QUAL>={min_qual}"])
+    effective_qual = min_qual
+    if haploid_majority and haploid_min_qual is not None:
+        effective_qual = haploid_min_qual
+    elif haploid_majority and min_qual <= 5.0 and min_qual > 0:
+        effective_qual = min(min_qual, 4.0)
+
+    if not is_empty and effective_qual > 0:
+        view_cmd.extend(["-i", f"QUAL>={effective_qual}"])
 
     view_cmd.extend(
         [
@@ -87,6 +99,46 @@ def filter_vcf(
         ]
     )
     run_tool(view_cmd)
+
+    if haploid_majority and not is_empty and filtered.exists():
+        lines = run_tool(["bcftools", "view", str(filtered)]).splitlines()
+        new_lines: list[str] = []
+        modified = False
+        for line in lines:
+            if line.startswith("#"):
+                new_lines.append(line)
+                continue
+            fields = line.split("\t")
+            if len(fields) >= 10:
+                fmt = fields[8].split(":")
+                sample_fields = fields[9].split(":")
+                if "GT" in fmt and "AF" in fmt:
+                    gt_idx = fmt.index("GT")
+                    af_idx = fmt.index("AF")
+                    af_str = sample_fields[af_idx]
+                    try:
+                        af_vals = [float(x) for x in af_str.split(",") if x != "."]
+                        if af_vals:
+                            max_af = max(af_vals)
+                            if max_af >= 0.5:
+                                alt_idx = af_vals.index(max_af) + 1
+                                target_gt = f"{alt_idx}/{alt_idx}"
+                            else:
+                                target_gt = "0/0"
+                            if sample_fields[gt_idx] != target_gt:
+                                sample_fields[gt_idx] = target_gt
+                                fields[9] = ":".join(sample_fields)
+                                modified = True
+                    except (ValueError, IndexError):
+                        pass
+            new_lines.append("\t".join(fields))
+        if modified:
+            tmp_vcf = output_dir / "mod_haploid.vcf"
+            tmp_vcf.write_text("\n".join(new_lines) + "\n")
+            filtered.unlink(missing_ok=True)
+            run_tool(["bcftools", "view", "-o", str(filtered), "-O", "z", str(tmp_vcf)])
+            tmp_vcf.unlink(missing_ok=True)
+
     run_tool(["bcftools", "index", str(filtered)])
 
     # Remove intermediate normalized VCF

@@ -1,0 +1,2152 @@
+{
+  "schema_version": 2,
+  "description": "100 distinct biological designs for 200-dataset MucOneSpan evaluation",
+  "total_designs": 100,
+  "total_datasets": 200,
+  "split_counts": {
+    "dev": 70,
+    "final": 30
+  },
+  "designs": [
+    {
+      "design_id": 1,
+      "name": "ctrl_ident_30_30",
+      "split": "dev",
+      "category": "control_equal_identical",
+      "lengths": [
+        30,
+        30
+      ],
+      "mutation": null,
+      "targets": [],
+      "requested_templates": 200,
+      "structure_file": "examples/structures/identical_30_30.txt",
+      "bio_seed": 1000010,
+      "hifi_seed": 2000010,
+      "ont_seed": 3000010,
+      "expected_minority": 0.5
+    },
+    {
+      "design_id": 2,
+      "name": "ctrl_ident_40_40",
+      "split": "dev",
+      "category": "control_equal_identical",
+      "lengths": [
+        40,
+        40
+      ],
+      "mutation": null,
+      "targets": [],
+      "requested_templates": 200,
+      "structure_file": "examples/structures/identical_40_40.txt",
+      "bio_seed": 1000020,
+      "hifi_seed": 2000020,
+      "ont_seed": 3000020,
+      "expected_minority": 0.5
+    },
+    {
+      "design_id": 3,
+      "name": "ctrl_ident_50_50",
+      "split": "dev",
+      "category": "control_equal_identical",
+      "lengths": [
+        50,
+        50
+      ],
+      "mutation": null,
+      "targets": [],
+      "requested_templates": 200,
+      "structure_file": "examples/structures/identical_50_50.txt",
+      "bio_seed": 1000030,
+      "hifi_seed": 2000030,
+      "ont_seed": 3000030,
+      "expected_minority": 0.5
+    },
+    {
+      "design_id": 4,
+      "name": "ctrl_ident_60_60",
+      "split": "dev",
+      "category": "control_equal_identical",
+      "lengths": [
+        60,
+        60
+      ],
+      "mutation": null,
+      "targets": [],
+      "requested_templates": 200,
+      "structure_file": "examples/structures/identical_60_60.txt",
+      "bio_seed": 1000040,
+      "hifi_seed": 2000040,
+      "ont_seed": 3000040,
+      "expected_minority": 0.5
+    },
+    {
+      "design_id": 5,
+      "name": "ctrl_ident_70_70",
+      "split": "dev",
+      "category": "control_equal_identical",
+      "lengths": [
+        70,
+        70
+      ],
+      "mutation": null,
+      "targets": [],
+      "requested_templates": 200,
+      "structure_file": "examples/structures/identical_70_70.txt",
+      "bio_seed": 1000050,
+      "hifi_seed": 2000050,
+      "ont_seed": 3000050,
+      "expected_minority": 0.5
+    },
+    {
+      "design_id": 6,
+      "name": "ctrl_ident_80_80",
+      "split": "dev",
+      "category": "control_equal_identical",
+      "lengths": [
+        80,
+        80
+      ],
+      "mutation": null,
+      "targets": [],
+      "requested_templates": 200,
+      "structure_file": "examples/structures/identical_80_80.txt",
+      "bio_seed": 1000060,
+      "hifi_seed": 2000060,
+      "ont_seed": 3000060,
+      "expected_minority": 0.5
+    },
+    {
+      "design_id": 7,
+      "name": "ctrl_ident_100_100",
+      "split": "dev",
+      "category": "control_equal_identical",
+      "lengths": [
+        100,
+        100
+      ],
+      "mutation": null,
+      "targets": [],
+      "requested_templates": 200,
+      "structure_file": "examples/structures/identical_100_100.txt",
+      "bio_seed": 1000070,
+      "hifi_seed": 2000070,
+      "ont_seed": 3000070,
+      "expected_minority": 0.5
+    },
+    {
+      "design_id": 8,
+      "name": "ctrl_eqvar_40_40",
+      "split": "dev",
+      "category": "control_equal_variant",
+      "lengths": [
+        40,
+        40
+      ],
+      "mutation": null,
+      "targets": [],
+      "requested_templates": 200,
+      "structure_file": null,
+      "bio_seed": 1000080,
+      "hifi_seed": 2000080,
+      "ont_seed": 3000080,
+      "expected_minority": 0.5
+    },
+    {
+      "design_id": 9,
+      "name": "ctrl_eqvar_50_50",
+      "split": "dev",
+      "category": "control_equal_variant",
+      "lengths": [
+        50,
+        50
+      ],
+      "mutation": null,
+      "targets": [],
+      "requested_templates": 200,
+      "structure_file": null,
+      "bio_seed": 1000090,
+      "hifi_seed": 2000090,
+      "ont_seed": 3000090,
+      "expected_minority": 0.5
+    },
+    {
+      "design_id": 10,
+      "name": "ctrl_eqvar_60_60",
+      "split": "dev",
+      "category": "control_equal_variant",
+      "lengths": [
+        60,
+        60
+      ],
+      "mutation": null,
+      "targets": [],
+      "requested_templates": 200,
+      "structure_file": null,
+      "bio_seed": 1000100,
+      "hifi_seed": 2000100,
+      "ont_seed": 3000100,
+      "expected_minority": 0.5
+    },
+    {
+      "design_id": 11,
+      "name": "ctrl_eqvar_60_60_lowcov",
+      "split": "dev",
+      "category": "control_equal_variant",
+      "lengths": [
+        60,
+        60
+      ],
+      "mutation": null,
+      "targets": [],
+      "requested_templates": 60,
+      "structure_file": null,
+      "bio_seed": 1000110,
+      "hifi_seed": 2000110,
+      "ont_seed": 3000110,
+      "expected_minority": 0.5
+    },
+    {
+      "design_id": 12,
+      "name": "ctrl_eqvar_80_80",
+      "split": "dev",
+      "category": "control_equal_variant",
+      "lengths": [
+        80,
+        80
+      ],
+      "mutation": null,
+      "targets": [],
+      "requested_templates": 200,
+      "structure_file": null,
+      "bio_seed": 1000120,
+      "hifi_seed": 2000120,
+      "ont_seed": 3000120,
+      "expected_minority": 0.5
+    },
+    {
+      "design_id": 13,
+      "name": "ctrl_gap1_60_61",
+      "split": "dev",
+      "category": "control_heterozygous",
+      "lengths": [
+        60,
+        61
+      ],
+      "mutation": null,
+      "targets": [],
+      "requested_templates": 200,
+      "structure_file": null,
+      "bio_seed": 1000130,
+      "hifi_seed": 2000130,
+      "ont_seed": 3000130,
+      "expected_minority": 0.5
+    },
+    {
+      "design_id": 14,
+      "name": "ctrl_gap1_40_41",
+      "split": "dev",
+      "category": "control_heterozygous",
+      "lengths": [
+        40,
+        41
+      ],
+      "mutation": null,
+      "targets": [],
+      "requested_templates": 200,
+      "structure_file": null,
+      "bio_seed": 1000140,
+      "hifi_seed": 2000140,
+      "ont_seed": 3000140,
+      "expected_minority": 0.5
+    },
+    {
+      "design_id": 15,
+      "name": "ctrl_gap2_60_62",
+      "split": "dev",
+      "category": "control_heterozygous",
+      "lengths": [
+        60,
+        62
+      ],
+      "mutation": null,
+      "targets": [],
+      "requested_templates": 200,
+      "structure_file": null,
+      "bio_seed": 1000150,
+      "hifi_seed": 2000150,
+      "ont_seed": 3000150,
+      "expected_minority": 0.5
+    },
+    {
+      "design_id": 16,
+      "name": "ctrl_gap2_50_52",
+      "split": "dev",
+      "category": "control_heterozygous",
+      "lengths": [
+        50,
+        52
+      ],
+      "mutation": null,
+      "targets": [],
+      "requested_templates": 200,
+      "structure_file": null,
+      "bio_seed": 1000160,
+      "hifi_seed": 2000160,
+      "ont_seed": 3000160,
+      "expected_minority": 0.5
+    },
+    {
+      "design_id": 17,
+      "name": "ctrl_gap3_60_63",
+      "split": "dev",
+      "category": "control_heterozygous",
+      "lengths": [
+        60,
+        63
+      ],
+      "mutation": null,
+      "targets": [],
+      "requested_templates": 200,
+      "structure_file": null,
+      "bio_seed": 1000170,
+      "hifi_seed": 2000170,
+      "ont_seed": 3000170,
+      "expected_minority": 0.5
+    },
+    {
+      "design_id": 18,
+      "name": "ctrl_typ_40_50",
+      "split": "dev",
+      "category": "control_heterozygous",
+      "lengths": [
+        40,
+        50
+      ],
+      "mutation": null,
+      "targets": [],
+      "requested_templates": 200,
+      "structure_file": null,
+      "bio_seed": 1000180,
+      "hifi_seed": 2000180,
+      "ont_seed": 3000180,
+      "expected_minority": 0.5
+    },
+    {
+      "design_id": 19,
+      "name": "ctrl_typ_60_80",
+      "split": "dev",
+      "category": "control_heterozygous",
+      "lengths": [
+        60,
+        80
+      ],
+      "mutation": null,
+      "targets": [],
+      "requested_templates": 200,
+      "structure_file": null,
+      "bio_seed": 1000190,
+      "hifi_seed": 2000190,
+      "ont_seed": 3000190,
+      "expected_minority": 0.5
+    },
+    {
+      "design_id": 20,
+      "name": "ctrl_typ_80_100",
+      "split": "dev",
+      "category": "control_heterozygous",
+      "lengths": [
+        80,
+        100
+      ],
+      "mutation": null,
+      "targets": [],
+      "requested_templates": 200,
+      "structure_file": null,
+      "bio_seed": 1000200,
+      "hifi_seed": 2000200,
+      "ont_seed": 3000200,
+      "expected_minority": 0.5
+    },
+    {
+      "design_id": 21,
+      "name": "ctrl_asym_25_100",
+      "split": "dev",
+      "category": "control_heterozygous",
+      "lengths": [
+        25,
+        100
+      ],
+      "mutation": null,
+      "targets": [],
+      "requested_templates": 200,
+      "structure_file": null,
+      "bio_seed": 1000210,
+      "hifi_seed": 2000210,
+      "ont_seed": 3000210,
+      "expected_minority": 0.5
+    },
+    {
+      "design_id": 22,
+      "name": "ctrl_lowcov_60_80",
+      "split": "dev",
+      "category": "control_heterozygous",
+      "lengths": [
+        60,
+        80
+      ],
+      "mutation": null,
+      "targets": [],
+      "requested_templates": 20,
+      "structure_file": null,
+      "bio_seed": 1000220,
+      "hifi_seed": 2000220,
+      "ont_seed": 3000220,
+      "expected_minority": 0.5
+    },
+    {
+      "design_id": 23,
+      "name": "mut_eq_dupc_60_60_h1",
+      "split": "dev",
+      "category": "equal_length_mutation",
+      "lengths": [
+        60,
+        60
+      ],
+      "mutation": "dupC",
+      "targets": [
+        [
+          1,
+          25
+        ]
+      ],
+      "requested_templates": 200,
+      "structure_file": null,
+      "bio_seed": 1000230,
+      "hifi_seed": 2000230,
+      "ont_seed": 3000230,
+      "expected_minority": 0.5
+    },
+    {
+      "design_id": 24,
+      "name": "mut_eq_dupc_60_60_h2",
+      "split": "dev",
+      "category": "equal_length_mutation",
+      "lengths": [
+        60,
+        60
+      ],
+      "mutation": "dupC",
+      "targets": [
+        [
+          2,
+          25
+        ]
+      ],
+      "requested_templates": 200,
+      "structure_file": null,
+      "bio_seed": 1000240,
+      "hifi_seed": 2000240,
+      "ont_seed": 3000240,
+      "expected_minority": 0.5
+    },
+    {
+      "design_id": 25,
+      "name": "mut_eq_dupa_60_60_h1",
+      "split": "dev",
+      "category": "equal_length_mutation",
+      "lengths": [
+        60,
+        60
+      ],
+      "mutation": "dupA",
+      "targets": [
+        [
+          1,
+          30
+        ]
+      ],
+      "requested_templates": 200,
+      "structure_file": null,
+      "bio_seed": 1000250,
+      "hifi_seed": 2000250,
+      "ont_seed": 3000250,
+      "expected_minority": 0.5
+    },
+    {
+      "design_id": 26,
+      "name": "mut_eq_insg_60_60_h2",
+      "split": "dev",
+      "category": "equal_length_mutation",
+      "lengths": [
+        60,
+        60
+      ],
+      "mutation": "insG",
+      "targets": [
+        [
+          2,
+          20
+        ]
+      ],
+      "requested_templates": 200,
+      "structure_file": null,
+      "bio_seed": 1000260,
+      "hifi_seed": 2000260,
+      "ont_seed": 3000260,
+      "expected_minority": 0.5
+    },
+    {
+      "design_id": 27,
+      "name": "mut_eq_inscccc_60_60_h1",
+      "split": "dev",
+      "category": "equal_length_mutation",
+      "lengths": [
+        60,
+        60
+      ],
+      "mutation": "insCCCC",
+      "targets": [
+        [
+          1,
+          35
+        ]
+      ],
+      "requested_templates": 200,
+      "structure_file": null,
+      "bio_seed": 1000270,
+      "hifi_seed": 2000270,
+      "ont_seed": 3000270,
+      "expected_minority": 0.5
+    },
+    {
+      "design_id": 28,
+      "name": "mut_eq_del18_31_60_60_h2",
+      "split": "dev",
+      "category": "equal_length_mutation",
+      "lengths": [
+        60,
+        60
+      ],
+      "mutation": "del18_31",
+      "targets": [
+        [
+          2,
+          25
+        ]
+      ],
+      "requested_templates": 200,
+      "structure_file": null,
+      "bio_seed": 1000280,
+      "hifi_seed": 2000280,
+      "ont_seed": 3000280,
+      "expected_minority": 0.5
+    },
+    {
+      "design_id": 29,
+      "name": "mut_eq_delinsat_60_60_h1",
+      "split": "dev",
+      "category": "equal_length_mutation",
+      "lengths": [
+        60,
+        60
+      ],
+      "mutation": "delinsAT",
+      "targets": [
+        [
+          1,
+          15
+        ]
+      ],
+      "requested_templates": 200,
+      "structure_file": null,
+      "bio_seed": 1000290,
+      "hifi_seed": 2000290,
+      "ont_seed": 3000290,
+      "expected_minority": 0.5
+    },
+    {
+      "design_id": 30,
+      "name": "mut_gap1_dupc_60_61_h1",
+      "split": "dev",
+      "category": "gap1_mutation",
+      "lengths": [
+        60,
+        61
+      ],
+      "mutation": "dupC",
+      "targets": [
+        [
+          1,
+          25
+        ]
+      ],
+      "requested_templates": 200,
+      "structure_file": null,
+      "bio_seed": 1000300,
+      "hifi_seed": 2000300,
+      "ont_seed": 3000300,
+      "expected_minority": 0.5
+    },
+    {
+      "design_id": 31,
+      "name": "mut_gap1_dupa_60_61_h2",
+      "split": "dev",
+      "category": "gap1_mutation",
+      "lengths": [
+        60,
+        61
+      ],
+      "mutation": "dupA",
+      "targets": [
+        [
+          2,
+          25
+        ]
+      ],
+      "requested_templates": 200,
+      "structure_file": null,
+      "bio_seed": 1000310,
+      "hifi_seed": 2000310,
+      "ont_seed": 3000310,
+      "expected_minority": 0.5
+    },
+    {
+      "design_id": 32,
+      "name": "mut_gap1_insg_50_51_h1",
+      "split": "dev",
+      "category": "gap1_mutation",
+      "lengths": [
+        50,
+        51
+      ],
+      "mutation": "insG",
+      "targets": [
+        [
+          1,
+          20
+        ]
+      ],
+      "requested_templates": 200,
+      "structure_file": null,
+      "bio_seed": 1000320,
+      "hifi_seed": 2000320,
+      "ont_seed": 3000320,
+      "expected_minority": 0.5
+    },
+    {
+      "design_id": 33,
+      "name": "mut_gap1_inscccc_75_76_h2",
+      "split": "dev",
+      "category": "gap1_mutation",
+      "lengths": [
+        75,
+        76
+      ],
+      "mutation": "insCCCC",
+      "targets": [
+        [
+          2,
+          35
+        ]
+      ],
+      "requested_templates": 200,
+      "structure_file": null,
+      "bio_seed": 1000330,
+      "hifi_seed": 2000330,
+      "ont_seed": 3000330,
+      "expected_minority": 0.5
+    },
+    {
+      "design_id": 34,
+      "name": "mut_gap2_dupc_60_62_h1",
+      "split": "dev",
+      "category": "gap2_mutation",
+      "lengths": [
+        60,
+        62
+      ],
+      "mutation": "dupC",
+      "targets": [
+        [
+          1,
+          25
+        ]
+      ],
+      "requested_templates": 200,
+      "structure_file": null,
+      "bio_seed": 1000340,
+      "hifi_seed": 2000340,
+      "ont_seed": 3000340,
+      "expected_minority": 0.5
+    },
+    {
+      "design_id": 35,
+      "name": "mut_gap2_dupa_60_62_h2",
+      "split": "dev",
+      "category": "gap2_mutation",
+      "lengths": [
+        60,
+        62
+      ],
+      "mutation": "dupA",
+      "targets": [
+        [
+          2,
+          25
+        ]
+      ],
+      "requested_templates": 200,
+      "structure_file": null,
+      "bio_seed": 1000350,
+      "hifi_seed": 2000350,
+      "ont_seed": 3000350,
+      "expected_minority": 0.5
+    },
+    {
+      "design_id": 36,
+      "name": "mut_gap2_insg_40_42_h1",
+      "split": "dev",
+      "category": "gap2_mutation",
+      "lengths": [
+        40,
+        42
+      ],
+      "mutation": "insG",
+      "targets": [
+        [
+          1,
+          18
+        ]
+      ],
+      "requested_templates": 200,
+      "structure_file": null,
+      "bio_seed": 1000360,
+      "hifi_seed": 2000360,
+      "ont_seed": 3000360,
+      "expected_minority": 0.5
+    },
+    {
+      "design_id": 37,
+      "name": "mut_gap2_del18_31_80_82_h2",
+      "split": "dev",
+      "category": "gap2_mutation",
+      "lengths": [
+        80,
+        82
+      ],
+      "mutation": "del18_31",
+      "targets": [
+        [
+          2,
+          40
+        ]
+      ],
+      "requested_templates": 200,
+      "structure_file": null,
+      "bio_seed": 1000370,
+      "hifi_seed": 2000370,
+      "ont_seed": 3000370,
+      "expected_minority": 0.5
+    },
+    {
+      "design_id": 38,
+      "name": "mut_gap3_dupc_60_63_h1",
+      "split": "dev",
+      "category": "gap3_mutation",
+      "lengths": [
+        60,
+        63
+      ],
+      "mutation": "dupC",
+      "targets": [
+        [
+          1,
+          25
+        ]
+      ],
+      "requested_templates": 200,
+      "structure_file": null,
+      "bio_seed": 1000380,
+      "hifi_seed": 2000380,
+      "ont_seed": 3000380,
+      "expected_minority": 0.5
+    },
+    {
+      "design_id": 39,
+      "name": "mut_gap3_inscccc_60_63_h2",
+      "split": "dev",
+      "category": "gap3_mutation",
+      "lengths": [
+        60,
+        63
+      ],
+      "mutation": "insCCCC",
+      "targets": [
+        [
+          2,
+          30
+        ]
+      ],
+      "requested_templates": 200,
+      "structure_file": null,
+      "bio_seed": 1000390,
+      "hifi_seed": 2000390,
+      "ont_seed": 3000390,
+      "expected_minority": 0.5
+    },
+    {
+      "design_id": 40,
+      "name": "mut_gap3_ins16bp_45_48_h1",
+      "split": "dev",
+      "category": "gap3_mutation",
+      "lengths": [
+        45,
+        48
+      ],
+      "mutation": "ins16bp",
+      "targets": [
+        [
+          1,
+          20
+        ]
+      ],
+      "requested_templates": 200,
+      "structure_file": null,
+      "bio_seed": 1000400,
+      "hifi_seed": 2000400,
+      "ont_seed": 3000400,
+      "expected_minority": 0.5
+    },
+    {
+      "design_id": 41,
+      "name": "mut_gap3_ins25bp_70_73_h2",
+      "split": "dev",
+      "category": "gap3_mutation",
+      "lengths": [
+        70,
+        73
+      ],
+      "mutation": "ins25bp",
+      "targets": [
+        [
+          2,
+          35
+        ]
+      ],
+      "requested_templates": 200,
+      "structure_file": null,
+      "bio_seed": 1000410,
+      "hifi_seed": 2000410,
+      "ont_seed": 3000410,
+      "expected_minority": 0.5
+    },
+    {
+      "design_id": 42,
+      "name": "mut_bnd_dupc_60_80_h1_r6",
+      "split": "dev",
+      "category": "boundary_mutation",
+      "lengths": [
+        60,
+        80
+      ],
+      "mutation": "dupC",
+      "targets": [
+        [
+          1,
+          6
+        ]
+      ],
+      "requested_templates": 200,
+      "structure_file": null,
+      "bio_seed": 1000420,
+      "hifi_seed": 2000420,
+      "ont_seed": 3000420,
+      "expected_minority": 0.5
+    },
+    {
+      "design_id": 43,
+      "name": "mut_bnd_dupc_60_80_h2_r74",
+      "split": "dev",
+      "category": "boundary_mutation",
+      "lengths": [
+        60,
+        80
+      ],
+      "mutation": "dupC",
+      "targets": [
+        [
+          2,
+          74
+        ]
+      ],
+      "requested_templates": 200,
+      "structure_file": null,
+      "bio_seed": 1000430,
+      "hifi_seed": 2000430,
+      "ont_seed": 3000430,
+      "expected_minority": 0.5
+    },
+    {
+      "design_id": 44,
+      "name": "mut_bnd_dupa_60_80_h1_r7",
+      "split": "dev",
+      "category": "boundary_mutation",
+      "lengths": [
+        60,
+        80
+      ],
+      "mutation": "dupA",
+      "targets": [
+        [
+          1,
+          7
+        ]
+      ],
+      "requested_templates": 200,
+      "structure_file": null,
+      "bio_seed": 1000440,
+      "hifi_seed": 2000440,
+      "ont_seed": 3000440,
+      "expected_minority": 0.5
+    },
+    {
+      "design_id": 45,
+      "name": "mut_bnd_dupa_60_80_h2_r75",
+      "split": "dev",
+      "category": "boundary_mutation",
+      "lengths": [
+        60,
+        80
+      ],
+      "mutation": "dupA",
+      "targets": [
+        [
+          2,
+          75
+        ]
+      ],
+      "requested_templates": 200,
+      "structure_file": null,
+      "bio_seed": 1000450,
+      "hifi_seed": 2000450,
+      "ont_seed": 3000450,
+      "expected_minority": 0.5
+    },
+    {
+      "design_id": 46,
+      "name": "mut_bnd_insg_50_70_h1_r8",
+      "split": "dev",
+      "category": "boundary_mutation",
+      "lengths": [
+        50,
+        70
+      ],
+      "mutation": "insG",
+      "targets": [
+        [
+          1,
+          8
+        ]
+      ],
+      "requested_templates": 200,
+      "structure_file": null,
+      "bio_seed": 1000460,
+      "hifi_seed": 2000460,
+      "ont_seed": 3000460,
+      "expected_minority": 0.5
+    },
+    {
+      "design_id": 47,
+      "name": "mut_bnd_insg_50_70_h2_r65",
+      "split": "dev",
+      "category": "boundary_mutation",
+      "lengths": [
+        50,
+        70
+      ],
+      "mutation": "insG",
+      "targets": [
+        [
+          2,
+          65
+        ]
+      ],
+      "requested_templates": 200,
+      "structure_file": null,
+      "bio_seed": 1000470,
+      "hifi_seed": 2000470,
+      "ont_seed": 3000470,
+      "expected_minority": 0.5
+    },
+    {
+      "design_id": 48,
+      "name": "mut_bnd_inscccc_60_80_h1_r54",
+      "split": "dev",
+      "category": "boundary_mutation",
+      "lengths": [
+        60,
+        80
+      ],
+      "mutation": "insCCCC",
+      "targets": [
+        [
+          1,
+          54
+        ]
+      ],
+      "requested_templates": 200,
+      "structure_file": null,
+      "bio_seed": 1000480,
+      "hifi_seed": 2000480,
+      "ont_seed": 3000480,
+      "expected_minority": 0.5
+    },
+    {
+      "design_id": 49,
+      "name": "mut_bnd_delgccca_60_80_h1_r5",
+      "split": "dev",
+      "category": "boundary_mutation",
+      "lengths": [
+        60,
+        80
+      ],
+      "mutation": "delGCCCA",
+      "targets": [
+        [
+          1,
+          5
+        ]
+      ],
+      "requested_templates": 200,
+      "structure_file": null,
+      "bio_seed": 1000490,
+      "hifi_seed": 2000490,
+      "ont_seed": 3000490,
+      "expected_minority": 0.5
+    },
+    {
+      "design_id": 50,
+      "name": "mut_bnd_delgccca_60_80_h2_r6",
+      "split": "dev",
+      "category": "boundary_mutation",
+      "lengths": [
+        60,
+        80
+      ],
+      "mutation": "delGCCCA",
+      "targets": [
+        [
+          2,
+          6
+        ]
+      ],
+      "requested_templates": 200,
+      "structure_file": null,
+      "bio_seed": 1000500,
+      "hifi_seed": 2000500,
+      "ont_seed": 3000500,
+      "expected_minority": 0.5
+    },
+    {
+      "design_id": 51,
+      "name": "mut_bnd_delgccca_40_60_h1_r5",
+      "split": "dev",
+      "category": "boundary_mutation",
+      "lengths": [
+        40,
+        60
+      ],
+      "mutation": "delGCCCA",
+      "targets": [
+        [
+          1,
+          5
+        ]
+      ],
+      "requested_templates": 200,
+      "structure_file": null,
+      "bio_seed": 1000510,
+      "hifi_seed": 2000510,
+      "ont_seed": 3000510,
+      "expected_minority": 0.5
+    },
+    {
+      "design_id": 52,
+      "name": "mut_bnd_delgccca_50_70_h2_r6",
+      "split": "dev",
+      "category": "boundary_mutation",
+      "lengths": [
+        50,
+        70
+      ],
+      "mutation": "delGCCCA",
+      "targets": [
+        [
+          2,
+          6
+        ]
+      ],
+      "requested_templates": 200,
+      "structure_file": null,
+      "bio_seed": 1000520,
+      "hifi_seed": 2000520,
+      "ont_seed": 3000520,
+      "expected_minority": 0.5
+    },
+    {
+      "design_id": 53,
+      "name": "mut_asym_dupc_25_140_h1",
+      "split": "dev",
+      "category": "extreme_asymmetry_mutation",
+      "lengths": [
+        25,
+        140
+      ],
+      "mutation": "dupC",
+      "targets": [
+        [
+          1,
+          15
+        ]
+      ],
+      "requested_templates": 200,
+      "structure_file": null,
+      "bio_seed": 1000530,
+      "hifi_seed": 2000530,
+      "ont_seed": 3000530,
+      "expected_minority": 0.5
+    },
+    {
+      "design_id": 54,
+      "name": "mut_asym_dupc_25_140_h2",
+      "split": "dev",
+      "category": "extreme_asymmetry_mutation",
+      "lengths": [
+        25,
+        140
+      ],
+      "mutation": "dupC",
+      "targets": [
+        [
+          2,
+          80
+        ]
+      ],
+      "requested_templates": 200,
+      "structure_file": null,
+      "bio_seed": 1000540,
+      "hifi_seed": 2000540,
+      "ont_seed": 3000540,
+      "expected_minority": 0.5
+    },
+    {
+      "design_id": 55,
+      "name": "mut_asym_dupa_25_100_h1",
+      "split": "dev",
+      "category": "extreme_asymmetry_mutation",
+      "lengths": [
+        25,
+        100
+      ],
+      "mutation": "dupA",
+      "targets": [
+        [
+          1,
+          15
+        ]
+      ],
+      "requested_templates": 200,
+      "structure_file": null,
+      "bio_seed": 1000550,
+      "hifi_seed": 2000550,
+      "ont_seed": 3000550,
+      "expected_minority": 0.5
+    },
+    {
+      "design_id": 56,
+      "name": "mut_asym_insg_25_100_h2",
+      "split": "dev",
+      "category": "extreme_asymmetry_mutation",
+      "lengths": [
+        25,
+        100
+      ],
+      "mutation": "insG",
+      "targets": [
+        [
+          2,
+          60
+        ]
+      ],
+      "requested_templates": 200,
+      "structure_file": null,
+      "bio_seed": 1000560,
+      "hifi_seed": 2000560,
+      "ont_seed": 3000560,
+      "expected_minority": 0.5
+    },
+    {
+      "design_id": 57,
+      "name": "mut_asym_inscccc_30_120_h1",
+      "split": "dev",
+      "category": "extreme_asymmetry_mutation",
+      "lengths": [
+        30,
+        120
+      ],
+      "mutation": "insCCCC",
+      "targets": [
+        [
+          1,
+          20
+        ]
+      ],
+      "requested_templates": 200,
+      "structure_file": null,
+      "bio_seed": 1000570,
+      "hifi_seed": 2000570,
+      "ont_seed": 3000570,
+      "expected_minority": 0.5
+    },
+    {
+      "design_id": 58,
+      "name": "mut_asym_del18_31_30_120_h2",
+      "split": "dev",
+      "category": "extreme_asymmetry_mutation",
+      "lengths": [
+        30,
+        120
+      ],
+      "mutation": "del18_31",
+      "targets": [
+        [
+          2,
+          70
+        ]
+      ],
+      "requested_templates": 200,
+      "structure_file": null,
+      "bio_seed": 1000580,
+      "hifi_seed": 2000580,
+      "ont_seed": 3000580,
+      "expected_minority": 0.5
+    },
+    {
+      "design_id": 59,
+      "name": "mut_asym_delinsat_20_90_h1",
+      "split": "dev",
+      "category": "extreme_asymmetry_mutation",
+      "lengths": [
+        20,
+        90
+      ],
+      "mutation": "delinsAT",
+      "targets": [
+        [
+          1,
+          12
+        ]
+      ],
+      "requested_templates": 200,
+      "structure_file": null,
+      "bio_seed": 1000590,
+      "hifi_seed": 2000590,
+      "ont_seed": 3000590,
+      "expected_minority": 0.5
+    },
+    {
+      "design_id": 60,
+      "name": "mut_asym_ins16bp_20_90_h2",
+      "split": "dev",
+      "category": "extreme_asymmetry_mutation",
+      "lengths": [
+        20,
+        90
+      ],
+      "mutation": "ins16bp",
+      "targets": [
+        [
+          2,
+          50
+        ]
+      ],
+      "requested_templates": 200,
+      "structure_file": null,
+      "bio_seed": 1000600,
+      "hifi_seed": 2000600,
+      "ont_seed": 3000600,
+      "expected_minority": 0.5
+    },
+    {
+      "design_id": 61,
+      "name": "mut_asym_tier1_dupc_25_140_low",
+      "split": "dev",
+      "category": "extreme_asymmetry_mutation",
+      "lengths": [
+        25,
+        140
+      ],
+      "mutation": "dupC",
+      "targets": [
+        [
+          2,
+          100
+        ]
+      ],
+      "requested_templates": 60,
+      "structure_file": null,
+      "bio_seed": 1000610,
+      "hifi_seed": 2000610,
+      "ont_seed": 3000610,
+      "expected_minority": 0.5
+    },
+    {
+      "design_id": 62,
+      "name": "mut_asym_tier1_dupa_25_140_low",
+      "split": "dev",
+      "category": "extreme_asymmetry_mutation",
+      "lengths": [
+        25,
+        140
+      ],
+      "mutation": "dupA",
+      "targets": [
+        [
+          2,
+          90
+        ]
+      ],
+      "requested_templates": 60,
+      "structure_file": null,
+      "bio_seed": 1000620,
+      "hifi_seed": 2000620,
+      "ont_seed": 3000620,
+      "expected_minority": 0.5
+    },
+    {
+      "design_id": 63,
+      "name": "mut_typ_insc_pos23_60_80_h1",
+      "split": "dev",
+      "category": "typical_named_mutation",
+      "lengths": [
+        60,
+        80
+      ],
+      "mutation": "insC_pos23",
+      "targets": [
+        [
+          1,
+          25
+        ]
+      ],
+      "requested_templates": 200,
+      "structure_file": null,
+      "bio_seed": 1000630,
+      "hifi_seed": 2000630,
+      "ont_seed": 3000630,
+      "expected_minority": 0.5
+    },
+    {
+      "design_id": 64,
+      "name": "mut_typ_insc_pos23_60_80_h2",
+      "split": "dev",
+      "category": "typical_named_mutation",
+      "lengths": [
+        60,
+        80
+      ],
+      "mutation": "insC_pos23",
+      "targets": [
+        [
+          2,
+          35
+        ]
+      ],
+      "requested_templates": 200,
+      "structure_file": null,
+      "bio_seed": 1000640,
+      "hifi_seed": 2000640,
+      "ont_seed": 3000640,
+      "expected_minority": 0.5
+    },
+    {
+      "design_id": 65,
+      "name": "mut_typ_insg_pos58_50_70_h1",
+      "split": "dev",
+      "category": "typical_named_mutation",
+      "lengths": [
+        50,
+        70
+      ],
+      "mutation": "insG_pos58",
+      "targets": [
+        [
+          1,
+          20
+        ]
+      ],
+      "requested_templates": 200,
+      "structure_file": null,
+      "bio_seed": 1000650,
+      "hifi_seed": 2000650,
+      "ont_seed": 3000650,
+      "expected_minority": 0.5
+    },
+    {
+      "design_id": 66,
+      "name": "mut_typ_insg_pos58_50_70_h2",
+      "split": "dev",
+      "category": "typical_named_mutation",
+      "lengths": [
+        50,
+        70
+      ],
+      "mutation": "insG_pos58",
+      "targets": [
+        [
+          2,
+          30
+        ]
+      ],
+      "requested_templates": 200,
+      "structure_file": null,
+      "bio_seed": 1000660,
+      "hifi_seed": 2000660,
+      "ont_seed": 3000660,
+      "expected_minority": 0.5
+    },
+    {
+      "design_id": 67,
+      "name": "mut_typ_insg_pos54_60_80_h1",
+      "split": "dev",
+      "category": "typical_named_mutation",
+      "lengths": [
+        60,
+        80
+      ],
+      "mutation": "insG_pos54",
+      "targets": [
+        [
+          1,
+          25
+        ]
+      ],
+      "requested_templates": 200,
+      "structure_file": null,
+      "bio_seed": 1000670,
+      "hifi_seed": 2000670,
+      "ont_seed": 3000670,
+      "expected_minority": 0.5
+    },
+    {
+      "design_id": 68,
+      "name": "mut_typ_insg_pos54_60_80_h2",
+      "split": "dev",
+      "category": "typical_named_mutation",
+      "lengths": [
+        60,
+        80
+      ],
+      "mutation": "insG_pos54",
+      "targets": [
+        [
+          2,
+          40
+        ]
+      ],
+      "requested_templates": 200,
+      "structure_file": null,
+      "bio_seed": 1000680,
+      "hifi_seed": 2000680,
+      "ont_seed": 3000680,
+      "expected_minority": 0.5
+    },
+    {
+      "design_id": 69,
+      "name": "mut_typ_insa_pos54_40_60_h1",
+      "split": "dev",
+      "category": "typical_named_mutation",
+      "lengths": [
+        40,
+        60
+      ],
+      "mutation": "insA_pos54",
+      "targets": [
+        [
+          1,
+          15
+        ]
+      ],
+      "requested_templates": 200,
+      "structure_file": null,
+      "bio_seed": 1000690,
+      "hifi_seed": 2000690,
+      "ont_seed": 3000690,
+      "expected_minority": 0.5
+    },
+    {
+      "design_id": 70,
+      "name": "mut_typ_insa_pos54_40_60_h2",
+      "split": "dev",
+      "category": "typical_named_mutation",
+      "lengths": [
+        40,
+        60
+      ],
+      "mutation": "insA_pos54",
+      "targets": [
+        [
+          2,
+          25
+        ]
+      ],
+      "requested_templates": 200,
+      "structure_file": null,
+      "bio_seed": 1000700,
+      "hifi_seed": 2000700,
+      "ont_seed": 3000700,
+      "expected_minority": 0.5
+    },
+    {
+      "design_id": 71,
+      "name": "val_ctrl_ident_40_40",
+      "split": "final",
+      "category": "control_equal_identical",
+      "lengths": [
+        40,
+        40
+      ],
+      "mutation": null,
+      "targets": [],
+      "requested_templates": 200,
+      "structure_file": "examples/structures/identical_40_40.txt",
+      "bio_seed": 1000710,
+      "hifi_seed": 2000710,
+      "ont_seed": 3000710,
+      "expected_minority": 0.5
+    },
+    {
+      "design_id": 72,
+      "name": "val_ctrl_ident_60_60",
+      "split": "final",
+      "category": "control_equal_identical",
+      "lengths": [
+        60,
+        60
+      ],
+      "mutation": null,
+      "targets": [],
+      "requested_templates": 200,
+      "structure_file": "examples/structures/identical_60_60.txt",
+      "bio_seed": 1000720,
+      "hifi_seed": 2000720,
+      "ont_seed": 3000720,
+      "expected_minority": 0.5
+    },
+    {
+      "design_id": 73,
+      "name": "val_ctrl_ident_80_80",
+      "split": "final",
+      "category": "control_equal_identical",
+      "lengths": [
+        80,
+        80
+      ],
+      "mutation": null,
+      "targets": [],
+      "requested_templates": 200,
+      "structure_file": "examples/structures/identical_80_80.txt",
+      "bio_seed": 1000730,
+      "hifi_seed": 2000730,
+      "ont_seed": 3000730,
+      "expected_minority": 0.5
+    },
+    {
+      "design_id": 74,
+      "name": "val_ctrl_eqvar_50_50",
+      "split": "final",
+      "category": "control_equal_variant",
+      "lengths": [
+        50,
+        50
+      ],
+      "mutation": null,
+      "targets": [],
+      "requested_templates": 200,
+      "structure_file": null,
+      "bio_seed": 1000740,
+      "hifi_seed": 2000740,
+      "ont_seed": 3000740,
+      "expected_minority": 0.5
+    },
+    {
+      "design_id": 75,
+      "name": "val_ctrl_eqvar_70_70",
+      "split": "final",
+      "category": "control_equal_variant",
+      "lengths": [
+        70,
+        70
+      ],
+      "mutation": null,
+      "targets": [],
+      "requested_templates": 200,
+      "structure_file": null,
+      "bio_seed": 1000750,
+      "hifi_seed": 2000750,
+      "ont_seed": 3000750,
+      "expected_minority": 0.5
+    },
+    {
+      "design_id": 76,
+      "name": "val_ctrl_gap1_50_51",
+      "split": "final",
+      "category": "control_heterozygous",
+      "lengths": [
+        50,
+        51
+      ],
+      "mutation": null,
+      "targets": [],
+      "requested_templates": 200,
+      "structure_file": null,
+      "bio_seed": 1000760,
+      "hifi_seed": 2000760,
+      "ont_seed": 3000760,
+      "expected_minority": 0.5
+    },
+    {
+      "design_id": 77,
+      "name": "val_ctrl_gap2_60_62",
+      "split": "final",
+      "category": "control_heterozygous",
+      "lengths": [
+        60,
+        62
+      ],
+      "mutation": null,
+      "targets": [],
+      "requested_templates": 200,
+      "structure_file": null,
+      "bio_seed": 1000770,
+      "hifi_seed": 2000770,
+      "ont_seed": 3000770,
+      "expected_minority": 0.5
+    },
+    {
+      "design_id": 78,
+      "name": "val_ctrl_gap3_70_73",
+      "split": "final",
+      "category": "control_heterozygous",
+      "lengths": [
+        70,
+        73
+      ],
+      "mutation": null,
+      "targets": [],
+      "requested_templates": 200,
+      "structure_file": null,
+      "bio_seed": 1000780,
+      "hifi_seed": 2000780,
+      "ont_seed": 3000780,
+      "expected_minority": 0.5
+    },
+    {
+      "design_id": 79,
+      "name": "val_ctrl_typ_60_80",
+      "split": "final",
+      "category": "control_heterozygous",
+      "lengths": [
+        60,
+        80
+      ],
+      "mutation": null,
+      "targets": [],
+      "requested_templates": 200,
+      "structure_file": null,
+      "bio_seed": 1000790,
+      "hifi_seed": 2000790,
+      "ont_seed": 3000790,
+      "expected_minority": 0.5
+    },
+    {
+      "design_id": 80,
+      "name": "val_ctrl_asym_25_100",
+      "split": "final",
+      "category": "control_heterozygous",
+      "lengths": [
+        25,
+        100
+      ],
+      "mutation": null,
+      "targets": [],
+      "requested_templates": 200,
+      "structure_file": null,
+      "bio_seed": 1000800,
+      "hifi_seed": 2000800,
+      "ont_seed": 3000800,
+      "expected_minority": 0.5
+    },
+    {
+      "design_id": 81,
+      "name": "val_mut_eq_dupc_60_60_h1",
+      "split": "final",
+      "category": "equal_length_mutation",
+      "lengths": [
+        60,
+        60
+      ],
+      "mutation": "dupC",
+      "targets": [
+        [
+          1,
+          25
+        ]
+      ],
+      "requested_templates": 200,
+      "structure_file": null,
+      "bio_seed": 1000810,
+      "hifi_seed": 2000810,
+      "ont_seed": 3000810,
+      "expected_minority": 0.5
+    },
+    {
+      "design_id": 82,
+      "name": "val_mut_eq_dupa_60_60_h2",
+      "split": "final",
+      "category": "equal_length_mutation",
+      "lengths": [
+        60,
+        60
+      ],
+      "mutation": "dupA",
+      "targets": [
+        [
+          2,
+          25
+        ]
+      ],
+      "requested_templates": 200,
+      "structure_file": null,
+      "bio_seed": 1000820,
+      "hifi_seed": 2000820,
+      "ont_seed": 3000820,
+      "expected_minority": 0.5
+    },
+    {
+      "design_id": 83,
+      "name": "val_mut_eq_insg_60_60_h1",
+      "split": "final",
+      "category": "equal_length_mutation",
+      "lengths": [
+        60,
+        60
+      ],
+      "mutation": "insG",
+      "targets": [
+        [
+          1,
+          30
+        ]
+      ],
+      "requested_templates": 200,
+      "structure_file": null,
+      "bio_seed": 1000830,
+      "hifi_seed": 2000830,
+      "ont_seed": 3000830,
+      "expected_minority": 0.5
+    },
+    {
+      "design_id": 84,
+      "name": "val_mut_bnd_dupc_60_80_h1_r6",
+      "split": "final",
+      "category": "boundary_mutation",
+      "lengths": [
+        60,
+        80
+      ],
+      "mutation": "dupC",
+      "targets": [
+        [
+          1,
+          6
+        ]
+      ],
+      "requested_templates": 200,
+      "structure_file": null,
+      "bio_seed": 1000840,
+      "hifi_seed": 2000840,
+      "ont_seed": 3000840,
+      "expected_minority": 0.5
+    },
+    {
+      "design_id": 85,
+      "name": "val_mut_bnd_dupa_60_80_h2_r74",
+      "split": "final",
+      "category": "boundary_mutation",
+      "lengths": [
+        60,
+        80
+      ],
+      "mutation": "dupA",
+      "targets": [
+        [
+          2,
+          74
+        ]
+      ],
+      "requested_templates": 200,
+      "structure_file": null,
+      "bio_seed": 1000850,
+      "hifi_seed": 2000850,
+      "ont_seed": 3000850,
+      "expected_minority": 0.5
+    },
+    {
+      "design_id": 86,
+      "name": "val_mut_bnd_inscccc_50_70_h1_r7",
+      "split": "final",
+      "category": "boundary_mutation",
+      "lengths": [
+        50,
+        70
+      ],
+      "mutation": "insCCCC",
+      "targets": [
+        [
+          1,
+          7
+        ]
+      ],
+      "requested_templates": 200,
+      "structure_file": null,
+      "bio_seed": 1000860,
+      "hifi_seed": 2000860,
+      "ont_seed": 3000860,
+      "expected_minority": 0.5
+    },
+    {
+      "design_id": 87,
+      "name": "val_mut_bnd_delgccca_60_80_h1_r5",
+      "split": "final",
+      "category": "boundary_mutation",
+      "lengths": [
+        60,
+        80
+      ],
+      "mutation": "delGCCCA",
+      "targets": [
+        [
+          1,
+          5
+        ]
+      ],
+      "requested_templates": 200,
+      "structure_file": null,
+      "bio_seed": 1000870,
+      "hifi_seed": 2000870,
+      "ont_seed": 3000870,
+      "expected_minority": 0.5
+    },
+    {
+      "design_id": 88,
+      "name": "val_mut_bnd_delgccca_60_80_h2_r6",
+      "split": "final",
+      "category": "boundary_mutation",
+      "lengths": [
+        60,
+        80
+      ],
+      "mutation": "delGCCCA",
+      "targets": [
+        [
+          2,
+          6
+        ]
+      ],
+      "requested_templates": 200,
+      "structure_file": null,
+      "bio_seed": 1000880,
+      "hifi_seed": 2000880,
+      "ont_seed": 3000880,
+      "expected_minority": 0.5
+    },
+    {
+      "design_id": 89,
+      "name": "val_mut_gap1_insg_60_61_h1",
+      "split": "final",
+      "category": "gaps_mutation",
+      "lengths": [
+        60,
+        61
+      ],
+      "mutation": "insG",
+      "targets": [
+        [
+          1,
+          25
+        ]
+      ],
+      "requested_templates": 200,
+      "structure_file": null,
+      "bio_seed": 1000890,
+      "hifi_seed": 2000890,
+      "ont_seed": 3000890,
+      "expected_minority": 0.5
+    },
+    {
+      "design_id": 90,
+      "name": "val_mut_gap1_del18_31_60_61_h2",
+      "split": "final",
+      "category": "gaps_mutation",
+      "lengths": [
+        60,
+        61
+      ],
+      "mutation": "del18_31",
+      "targets": [
+        [
+          2,
+          25
+        ]
+      ],
+      "requested_templates": 200,
+      "structure_file": null,
+      "bio_seed": 1000900,
+      "hifi_seed": 2000900,
+      "ont_seed": 3000900,
+      "expected_minority": 0.5
+    },
+    {
+      "design_id": 91,
+      "name": "val_mut_gap2_dupc_50_52_h1",
+      "split": "final",
+      "category": "gaps_mutation",
+      "lengths": [
+        50,
+        52
+      ],
+      "mutation": "dupC",
+      "targets": [
+        [
+          1,
+          20
+        ]
+      ],
+      "requested_templates": 200,
+      "structure_file": null,
+      "bio_seed": 1000910,
+      "hifi_seed": 2000910,
+      "ont_seed": 3000910,
+      "expected_minority": 0.5
+    },
+    {
+      "design_id": 92,
+      "name": "val_mut_gap2_inscccc_60_62_h2",
+      "split": "final",
+      "category": "gaps_mutation",
+      "lengths": [
+        60,
+        62
+      ],
+      "mutation": "insCCCC",
+      "targets": [
+        [
+          2,
+          30
+        ]
+      ],
+      "requested_templates": 200,
+      "structure_file": null,
+      "bio_seed": 1000920,
+      "hifi_seed": 2000920,
+      "ont_seed": 3000920,
+      "expected_minority": 0.5
+    },
+    {
+      "design_id": 93,
+      "name": "val_mut_gap3_delinsat_60_63_h1",
+      "split": "final",
+      "category": "gaps_mutation",
+      "lengths": [
+        60,
+        63
+      ],
+      "mutation": "delinsAT",
+      "targets": [
+        [
+          1,
+          25
+        ]
+      ],
+      "requested_templates": 200,
+      "structure_file": null,
+      "bio_seed": 1000930,
+      "hifi_seed": 2000930,
+      "ont_seed": 3000930,
+      "expected_minority": 0.5
+    },
+    {
+      "design_id": 94,
+      "name": "val_mut_gap3_ins16bp_60_63_h2",
+      "split": "final",
+      "category": "gaps_mutation",
+      "lengths": [
+        60,
+        63
+      ],
+      "mutation": "ins16bp",
+      "targets": [
+        [
+          2,
+          30
+        ]
+      ],
+      "requested_templates": 200,
+      "structure_file": null,
+      "bio_seed": 1000940,
+      "hifi_seed": 2000940,
+      "ont_seed": 3000940,
+      "expected_minority": 0.5
+    },
+    {
+      "design_id": 95,
+      "name": "val_mut_asym_dupc_25_140_h2",
+      "split": "final",
+      "category": "extreme_asymmetry_mutation",
+      "lengths": [
+        25,
+        140
+      ],
+      "mutation": "dupC",
+      "targets": [
+        [
+          2,
+          80
+        ]
+      ],
+      "requested_templates": 200,
+      "structure_file": null,
+      "bio_seed": 1000950,
+      "hifi_seed": 2000950,
+      "ont_seed": 3000950,
+      "expected_minority": 0.5
+    },
+    {
+      "design_id": 96,
+      "name": "val_mut_asym_dupa_25_100_h1",
+      "split": "final",
+      "category": "extreme_asymmetry_mutation",
+      "lengths": [
+        25,
+        100
+      ],
+      "mutation": "dupA",
+      "targets": [
+        [
+          1,
+          15
+        ]
+      ],
+      "requested_templates": 200,
+      "structure_file": null,
+      "bio_seed": 1000960,
+      "hifi_seed": 2000960,
+      "ont_seed": 3000960,
+      "expected_minority": 0.5
+    },
+    {
+      "design_id": 97,
+      "name": "val_mut_asym_insg_30_120_h2",
+      "split": "final",
+      "category": "extreme_asymmetry_mutation",
+      "lengths": [
+        30,
+        120
+      ],
+      "mutation": "insG",
+      "targets": [
+        [
+          2,
+          70
+        ]
+      ],
+      "requested_templates": 200,
+      "structure_file": null,
+      "bio_seed": 1000970,
+      "hifi_seed": 2000970,
+      "ont_seed": 3000970,
+      "expected_minority": 0.5
+    },
+    {
+      "design_id": 98,
+      "name": "val_mut_asym_ins25bp_25_100_h1",
+      "split": "final",
+      "category": "extreme_asymmetry_mutation",
+      "lengths": [
+        25,
+        100
+      ],
+      "mutation": "ins25bp",
+      "targets": [
+        [
+          1,
+          15
+        ]
+      ],
+      "requested_templates": 200,
+      "structure_file": null,
+      "bio_seed": 1000980,
+      "hifi_seed": 2000980,
+      "ont_seed": 3000980,
+      "expected_minority": 0.5
+    },
+    {
+      "design_id": 99,
+      "name": "val_mut_asym_tier1_dupc_25_140_low",
+      "split": "final",
+      "category": "extreme_asymmetry_mutation",
+      "lengths": [
+        25,
+        140
+      ],
+      "mutation": "dupC",
+      "targets": [
+        [
+          2,
+          100
+        ]
+      ],
+      "requested_templates": 60,
+      "structure_file": null,
+      "bio_seed": 1000990,
+      "hifi_seed": 2000990,
+      "ont_seed": 3000990,
+      "expected_minority": 0.5
+    },
+    {
+      "design_id": 100,
+      "name": "val_mut_ext_dupc_120_140_h1",
+      "split": "final",
+      "category": "length_extreme",
+      "lengths": [
+        120,
+        140
+      ],
+      "mutation": "dupC",
+      "targets": [
+        [
+          1,
+          50
+        ]
+      ],
+      "requested_templates": 200,
+      "structure_file": null,
+      "bio_seed": 1001000,
+      "hifi_seed": 2001000,
+      "ont_seed": 3001000,
+      "expected_minority": 0.5
+    }
+  ]
+}

@@ -90,7 +90,7 @@ def test_sdist_rejects_symlink_and_parent_traversal(tmp_path: Path) -> None:
 def test_wheel_rejects_generated_reads_and_symlinks(tmp_path: Path) -> None:
     wheel = tmp_path / "package.whl"
     with zipfile.ZipFile(wheel, "w") as archive:
-        archive.writestr("muc_one_span/version.py", '__version__ = "0.11.0"\n')
+        archive.writestr("muc_one_span/version.py", '__version__ = "0.12.0"\n')
         archive.writestr("muc_one_span/tests/data/generated/reads.fastq", "@r\nA\n+\nI\n")
     with pytest.raises(ValueError, match=r"reads\.fastq"):
         validate_wheel(wheel)

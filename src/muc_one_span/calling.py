@@ -428,7 +428,16 @@ def call_variants_per_allele(
         )
 
         # Filter VCF
-        filtered = filter_vcf(vcf, contig_ref, allele_dir, min_qual=min_qual, min_dp=min_dp)
+        hap_min_qual = getattr(settings, "haploid_min_qual", 4.0)
+        filtered = filter_vcf(
+            vcf,
+            contig_ref,
+            allele_dir,
+            min_qual=min_qual,
+            min_dp=min_dp,
+            haploid_majority=True,
+            haploid_min_qual=hap_min_qual,
+        )
         variants = parse_vcf_genotypes(filtered)
         evidence = phase_evidence(variants)
         sample = variants[0].get("sample") if variants else None

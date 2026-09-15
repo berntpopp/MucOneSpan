@@ -45,7 +45,10 @@ def build_contig(
 
     # Left flanking
     if flank_length > 0 and repeat_dict.flanking_left:
-        left = repeat_dict.flanking_left[:flank_length]
+        if settings.proximal_flank:
+            left = repeat_dict.flanking_left[-flank_length:]
+        else:
+            left = repeat_dict.flanking_left[:flank_length]
         parts.append(left)
 
     # Selected fixed repeats before the variable region.

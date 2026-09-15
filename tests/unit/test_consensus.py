@@ -336,7 +336,7 @@ def test_trim_records_actual_anchor_interval(tmp_path):
     from muc_one_span.config import load_repeat_dictionary
 
     rd = load_repeat_dictionary()
-    left = rd.flanking_left[:500]
+    left = rd.flanking_left[-500:]
     vntr = rd.repeats["1"] + rd.repeats["X"] + rd.repeats["9"]
     sequence = left[:250] + "A" + left[250:] + vntr + rd.flanking_right[:500]
     full = tmp_path / "full.fa"

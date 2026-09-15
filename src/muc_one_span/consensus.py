@@ -166,9 +166,12 @@ def trim_flanking(
     if repeat_dict is not None and flank_length > 0:
         left_method = right_method = "fixed_anchor_not_found"
         anchor_bases = settings.anchor_bases
-        # Use the same flank prefixes as ladder.build_contig. Each anchor may
-        # be shorter than twice anchor_bases for short flanks or repeat units.
-        left_flank_part = repeat_dict.flanking_left[:flank_length][-anchor_bases:]
+        # Use the same flank sequence as ladder.build_contig.
+        if settings.proximal_flank:
+            left_flank_seq = repeat_dict.flanking_left[-flank_length:]
+        else:
+            left_flank_seq = repeat_dict.flanking_left[:flank_length]
+        left_flank_part = left_flank_seq[-anchor_bases:]
         first_repeat_part = repeat_dict.repeats[layout.left_anchor_id][:anchor_bases]
         left_anchor = left_flank_part + first_repeat_part
         anchor_pos = _find_anchor(
