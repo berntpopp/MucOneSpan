@@ -3,9 +3,11 @@
 
 from __future__ import annotations
 
+import contextlib
 import logging
 import os
 import shutil
+import signal
 import subprocess
 from collections.abc import Generator
 from pathlib import Path
@@ -48,7 +50,11 @@ def _clean_path_for_externals(path_str: str) -> str:
     return os.pathsep.join(cleaned)
 
 
-def run_tool(cmd: list[str], cwd: str | None = None) -> str:
+def run_tool(
+    cmd: list[str],
+    cwd: str | None = None,
+    timeout: float | None = None,
+) -> str:
     """Run an external tool and return its stdout.
 
     Strips virtualenv ``bin`` directories from PATH so that external
@@ -58,12 +64,14 @@ def run_tool(cmd: list[str], cwd: str | None = None) -> str:
     Args:
         cmd: Command and arguments as a list.
         cwd: Optional working directory.
+        timeout: Optional maximum seconds before terminating process group.
 
     Returns:
         Captured stdout as a string.
 
     Raises:
         FileNotFoundError: If the command is not found.
+        TimeoutError: If execution exceeds timeout seconds.
         RuntimeError: If the command exits with non-zero status.
     """
     env = os.environ.copy()
@@ -71,25 +79,39 @@ def run_tool(cmd: list[str], cwd: str | None = None) -> str:
 
     logger.debug("Running: %s", " ".join(str(c) for c in cmd))
 
+    proc: subprocess.Popen[str] | None = None
     try:
-        result = subprocess.run(
+        proc = subprocess.Popen(
             cmd,
-            capture_output=True,
+            stdout=subprocess.PIPE,
+            stderr=subprocess.PIPE,
             text=True,
-            check=False,
             cwd=cwd,
             env=env,
+            start_new_session=True,
         )
+        stdout, stderr = proc.communicate(timeout=timeout)
     except FileNotFoundError as exc:
         raise FileNotFoundError(f"Tool not found: {cmd[0]}") from exc
+    except subprocess.TimeoutExpired as exc:
+        if proc is not None:
+            with contextlib.suppress(OSError):
+                os.killpg(os.getpgid(proc.pid), signal.SIGKILL)
+            proc.communicate()
+        raise TimeoutError(f"Command {' '.join(cmd)} timed out after {timeout}s") from exc
+    except BaseException:
+        if proc is not None and proc.poll() is None:
+            with contextlib.suppress(OSError):
+                os.killpg(os.getpgid(proc.pid), signal.SIGKILL)
+            proc.communicate()
+        raise
 
-    if result.returncode != 0:
+    if proc.returncode != 0:
         raise RuntimeError(
-            f"Command {' '.join(cmd)} failed with exit code {result.returncode}.\n"
-            f"stderr: {result.stderr}"
+            f"Command {' '.join(cmd)} failed with exit code {proc.returncode}.\nstderr: {stderr}"
         )
 
-    return result.stdout
+    return stdout
 
 
 def run_tool_iter(
@@ -124,6 +146,7 @@ def run_tool_iter(
         text=True,
         env=env,
         cwd=cwd,
+        start_new_session=True,
     )
 
     # Drain stderr in a background thread to prevent blocking if the
@@ -143,7 +166,19 @@ def run_tool_iter(
         if proc.stdout is not None:
             yield from proc.stdout
     finally:
-        stderr_thread.join()
+        if proc.stdout is not None and hasattr(proc.stdout, "close"):
+            proc.stdout.close()
+        if hasattr(proc, "poll"):
+            with contextlib.suppress(subprocess.TimeoutExpired, AttributeError):
+                proc.wait(timeout=0.2)
+            if proc.poll() is None:
+                try:
+                    os.killpg(os.getpgid(proc.pid), signal.SIGTERM)
+                    proc.wait(timeout=1.0)
+                except (OSError, subprocess.TimeoutExpired):
+                    with contextlib.suppress(OSError):
+                        os.killpg(os.getpgid(proc.pid), signal.SIGKILL)
+        stderr_thread.join(timeout=1.0)
         proc.wait()
 
     if proc.returncode != 0:

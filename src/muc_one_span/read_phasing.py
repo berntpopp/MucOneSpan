@@ -8,6 +8,7 @@ installed version may leave multiallelic sites unresolved.
 from __future__ import annotations
 
 import json
+import logging
 import os
 import re
 import shutil
@@ -18,6 +19,8 @@ from muc_one_span.phasing import phase_evidence
 from muc_one_span.settings import DEFAULT_SETTINGS, ReadPhasingSettings
 from muc_one_span.tools import _clean_path_for_externals, run_tool, run_tool_iter
 from muc_one_span.vcf import parse_vcf_genotypes, select_vcf_sample
+
+logger = logging.getLogger(__name__)
 
 
 def _primary_records(bam_path: Path, sam_path: Path, source_map: Path) -> dict:
@@ -255,3 +258,80 @@ def phase_same_length_reads(
     run_tool(["bcftools", "index", str(phased_vcf)])
     metadata.update(status="phased", output_phase_status="phased", selected_vcf=str(phased_vcf))
     return phased_vcf, metadata
+
+
+def haplotag_and_split_reads(
+    phased_vcf: Path,
+    bam_path: Path,
+    reference_path: Path,
+    output_dir: Path,
+    *,
+    min_reads: int = 5,
+) -> tuple[Path, Path, int, int] | None:
+    """Haplotag an alignment BAM using phased variants and split into two haplotype BAMs.
+
+    Args:
+        phased_vcf: VCF with phased heterozygous variants and phase set.
+        bam_path: Input BAM file (e.g. remapped cluster reads).
+        reference_path: Contig reference FASTA.
+        output_dir: Destination directory.
+        min_reads: Minimum reads required per haplotype to proceed with separation.
+
+    Returns:
+        (hp1_bam, hp2_bam, hp1_count, hp2_count) if both haplotypes have >= min_reads,
+        or None if haplotagging was unresolvable or had insufficient reads.
+    """
+    external_path = _clean_path_for_externals(os.environ.get("PATH", ""))
+    if shutil.which("whatshap", path=external_path) is None:
+        logger.info("WhatsHap unavailable for haplotagging; skipping BAM split")
+        return None
+
+    output_dir.mkdir(parents=True, exist_ok=True)
+    haplotagged_bam = output_dir / "haplotagged.bam"
+    try:
+        run_tool(
+            [
+                "whatshap",
+                "haplotag",
+                "--ignore-read-groups",
+                "--reference",
+                str(reference_path),
+                "-o",
+                str(haplotagged_bam),
+                str(phased_vcf),
+                str(bam_path),
+            ]
+        )
+    except Exception as exc:
+        logger.warning("WhatsHap haplotagging failed: %s", exc)
+        return None
+
+    hp1_bam = output_dir / "allele_1.bam"
+    hp2_bam = output_dir / "allele_2.bam"
+    try:
+        run_tool(["samtools", "view", "-b", "-d", "HP:1", "-o", str(hp1_bam), str(haplotagged_bam)])
+        run_tool(["samtools", "index", str(hp1_bam)])
+        run_tool(["samtools", "view", "-b", "-d", "HP:2", "-o", str(hp2_bam), str(haplotagged_bam)])
+        run_tool(["samtools", "index", str(hp2_bam)])
+
+        c1_str = run_tool(["samtools", "view", "-c", str(hp1_bam)]).strip()
+        c2_str = run_tool(["samtools", "view", "-c", str(hp2_bam)]).strip()
+        c1 = int(c1_str) if c1_str.isdigit() else 0
+        c2 = int(c2_str) if c2_str.isdigit() else 0
+    except Exception as exc:
+        logger.warning("Failed to extract haplotype BAMs: %s", exc)
+        return None
+    finally:
+        haplotagged_bam.unlink(missing_ok=True)
+
+    if c1 < min_reads or c2 < min_reads:
+        logger.info(
+            "Insufficient reads in haplotagged partitions: hp1=%d, hp2=%d (min %d)",
+            c1,
+            c2,
+            min_reads,
+        )
+        return None
+
+    logger.info("Successfully haplotagged and split reads: hp1=%d, hp2=%d", c1, c2)
+    return hp1_bam, hp2_bam, c1, c2

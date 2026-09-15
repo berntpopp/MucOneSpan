@@ -174,7 +174,13 @@ def load_observation(result_dir: Path, run_record: dict[str, Any] | None = None)
                 not isinstance(sidecar, dict)
                 or sidecar.get("schema_version") != 1
                 or sidecar.get("status")
-                not in ("running", "completed", "execution_failed", "insufficient_evidence")
+                not in (
+                    "running",
+                    "completed",
+                    "execution_failed",
+                    "insufficient_evidence",
+                    "interrupted",
+                )
             ):
                 raise ValueError("invalid run_status.json schema/status")
             record["run_status"] = sidecar
@@ -184,7 +190,7 @@ def load_observation(result_dir: Path, run_record: dict[str, Any] | None = None)
                 return RunObservation(
                     "execution_failed", run_record=record, error=record.get("error")
                 )
-            if sidecar["status"] in ("execution_failed", "insufficient_evidence"):
+            if sidecar["status"] in ("execution_failed", "insufficient_evidence", "interrupted"):
                 return RunObservation(
                     sidecar["status"], run_record=record, error=sidecar.get("error")
                 )

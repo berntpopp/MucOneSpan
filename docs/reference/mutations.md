@@ -15,7 +15,7 @@ MucOneSpan includes a catalog of **13 known MUC1 frameshift mutations** with pre
 | **18_31del** | X | -14bp (deletion) | Vrbacka et al. 2025 |
 | **42_57dupGGGCTCCACCGCCCCC** | C | +16bp (16bp duplication) | Vrbacka et al. 2025 |
 | **31ins25bp** | A, B, J, K, N, S, X | +25bp (25bp insertion) | Saei et al. 2023 |
-| **delinsAT** | X | net -1bp (delete 2, insert 2) | Olinger et al. 2020 |
+| **delinsAT** | X | net +1bp (retained boundaries 54..56, delete 55, insert AT) | Olinger et al. 2020 |
 | **delGCCCA** | multiple | -5bp (5bp deletion at start) | Saei et al. 2023 |
 | **insC_pos23** | A, E | +1bp (C insertion at position 23) | Vrbacka et al. 2025 |
 | **insG_pos58** | B, X | +1bp (G insertion at position 58) | Vrbacka et al. 2025 |

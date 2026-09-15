@@ -39,6 +39,9 @@ def record_run_status(function: Callable[P, R]) -> Callable[P, R]:
         except InsufficientEvidenceError as error:
             write("insufficient_evidence", error)
             raise
+        except KeyboardInterrupt as error:
+            write("interrupted", error)
+            raise
         except BaseException as error:
             write("execution_failed", error)
             raise

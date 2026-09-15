@@ -60,3 +60,18 @@ def test_missing_input_overwrites_stale_completed_status(tmp_path):
     status = json.loads((tmp_path / "run_status.json").read_text())
     assert status["status"] == "execution_failed"
     assert status["error_type"] == "BadParameter"
+
+
+def test_keyboard_interrupt_writes_interrupted_status(tmp_path: Path) -> None:
+    from muc_one_span.run_status import record_run_status
+
+    @record_run_status
+    def run(output_dir: str) -> None:
+        raise KeyboardInterrupt("Simulated user interrupt")
+
+    with pytest.raises(KeyboardInterrupt):
+        run(str(tmp_path))
+
+    status = json.loads((tmp_path / "run_status.json").read_text())
+    assert status["status"] == "interrupted"
+    assert status["error_type"] == "KeyboardInterrupt"

@@ -37,7 +37,10 @@ def phase_evidence(variants: list[dict]) -> dict:
         return state
     state["genotype_status"] = "heterozygosity_observed"
     if len(hets) == 1:
-        state.update(phase_status="single_heterozygous_unordered", haplotypes=[1, 2])
+        if "|" in hets[0]["genotype"] and hets[0].get("phase_set") not in (None, ".", ""):
+            state.update(phase_status="phased", haplotypes=[1, 2])
+        else:
+            state.update(phase_status="single_heterozygous_unordered", haplotypes=[1, 2])
     elif any("|" not in v["genotype"] for v in hets):
         state["phase_status"] = "unphased"
     elif any(v.get("phase_set") in (None, ".", "") for v in hets):

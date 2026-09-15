@@ -254,7 +254,8 @@ def test_filter_vcf_haploid_majority(tmp_path):
         "##fileformat=VCFv4.2\n"
         "#CHROM\tPOS\tID\tREF\tALT\tQUAL\tFILTER\tINFO\tFORMAT\tSAMPLE\n"
         "contig_1\t10\t.\tC\tG\t15.0\tPASS\t.\tGT:AF\t0/1:0.8\n"
-        "contig_1\t20\t.\tA\tT\t12.0\tPASS\t.\tGT:AF\t0/1:0.2\n"
+        "contig_1\t20\t.\tA\tT\t12.0\tPASS\t.\tGT:AF\t0/1:0.1\n"
+        "contig_1\t30\t.\tG\tC\t14.0\tPASS\t.\tGT:AF\t0/1:0.35\n"
     )
 
     written_lines: list[str] = []
@@ -279,4 +280,5 @@ def test_filter_vcf_haploid_majority(tmp_path):
         filter_vcf(vcf, ref, out_dir, min_qual=5.0, haploid_majority=True)
 
     assert any("0/1:0.8" not in line and "1/1:0.8" in line for line in written_lines)
-    assert any("0/1:0.2" not in line and "0/0:0.2" in line for line in written_lines)
+    assert any("0/1:0.1" not in line and "0/0:0.1" in line for line in written_lines)
+    assert any("0/1:0.35" in line for line in written_lines)

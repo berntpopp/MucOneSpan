@@ -23,6 +23,40 @@
 </header>
 
 <!-- ════════════════════════════════════════════════════════
+     1.5 CLINICAL DECISION BANNER (3-State)
+     ════════════════════════════════════════════════════════ -->
+{% if clinical_decision %}
+<section class="decision-banner {{ clinical_decision.banner_class }}" aria-labelledby="decision-heading" role="region">
+  <div class="decision-header">
+    <span class="badge {{ clinical_decision.badge_class }}" aria-label="Status: {{ clinical_decision.badge_label }}">{{ clinical_decision.badge_label }}</span>
+    <h2 id="decision-heading" class="decision-title">{{ clinical_decision.title }}</h2>
+  </div>
+  <p class="decision-summary">{{ clinical_decision.summary }}</p>
+  {% if clinical_decision.details %}
+  <ul class="decision-details">
+    {% for item in clinical_decision.details %}
+    <li>{{ item }}</li>
+    {% endfor %}
+  </ul>
+  {% endif %}
+  {% if clinical_decision.recommendations %}
+  <div class="decision-recs">
+    <strong>Clinical Guidance:</strong> {{ clinical_decision.recommendations }}
+  </div>
+  {% endif %}
+</section>
+{% endif %}
+
+{% if multiplicity_caveat %}
+<div class="alert alert-warning multiplicity-caveat" role="note" aria-label="Allele multiplicity caveat">
+  <span class="alert-icon" aria-hidden="true">&#x26A0;</span>
+  <div class="alert-content">
+    <strong>Allele Multiplicity Note:</strong> {{ multiplicity_caveat }}
+  </div>
+</div>
+{% endif %}
+
+<!-- ════════════════════════════════════════════════════════
      2. ALLELE SUMMARY
      ════════════════════════════════════════════════════════ -->
 <section aria-label="Allele summary">
