@@ -3,11 +3,13 @@
 from __future__ import annotations
 
 import logging
-import subprocess
+import subprocess as subprocess  # Retain the existing subprocess patch/import target.
+import time
 from pathlib import Path
 
 from muc_one_span.settings import DEFAULT_SETTINGS
-from muc_one_span.tools import run_tool
+from muc_one_span.tool_pipeline import validate_timeout
+from muc_one_span.tools import run_tool, run_tool_pipeline
 
 PLATFORM_PRESETS: dict[str, str] = {"hifi": "map-hifi", "ont": "lr:hq"}
 DEFAULT_MINIMAP2_PRESET = (
@@ -43,6 +45,8 @@ def map_reads(
     output_dir: Path,
     threads: int = DEFAULT_SETTINGS.run.threads,
     preset: str = DEFAULT_MINIMAP2_PRESET,
+    *,
+    timeout: float = DEFAULT_SETTINGS.run.mapping_timeout,
 ) -> Path:
     """Map reads to reference using minimap2 and sort/index with samtools.
 
@@ -57,28 +61,53 @@ def map_reads(
         threads: Number of threads for minimap2/samtools (default 4).
         preset: minimap2 preset passed via ``-x`` (default ``map-hifi``).
             Use ``lr:hq`` for Oxford Nanopore Q20+ reads.
+        timeout: Finite positive seconds for conversion, mapping and indexing,
+            including bounded process-group cleanup and diagnostic draining.
 
     Returns:
         Path to the sorted, indexed BAM file (``mapping.bam``).
     """
+    validate_timeout(timeout)
+    deadline = time.monotonic() + timeout
     output_dir.mkdir(parents=True, exist_ok=True)
 
     logger.info("Mapping reads from %s to %s", input_path.name, reference_path.name)
 
-    # If input is BAM, convert to FASTQ first
-    actual_input = input_path
-    if input_path.suffix.lower() == ".bam":
-        actual_input = bam_to_fastq(input_path, output_dir)
-
     bam_path = output_dir / "mapping.bam"
-
-    # Pipe minimap2 SAM output directly to samtools sort to avoid
-    # holding the full SAM in memory. The pipeline implementation uses
-    # subprocesses with argument lists (no shell invocation).
-    _run_mapping_pipeline(actual_input, reference_path, bam_path, threads, preset=preset)
-
-    # samtools index
-    run_tool(["samtools", "index", str(bam_path)])
+    artifacts = [
+        bam_path,
+        Path(str(bam_path) + ".bai"),
+        Path(str(bam_path) + ".csi"),
+        bam_path.with_suffix(".bai"),
+        bam_path.with_suffix(".csi"),
+    ]
+    if input_path.resolve() in {artifact.resolve() for artifact in artifacts}:
+        raise ValueError("Mapping input must differ from output BAM/index paths")
+    try:
+        for artifact in artifacts:
+            artifact.unlink(missing_ok=True)
+        actual_input = input_path
+        if input_path.suffix.lower() == ".bam":
+            actual_input = output_dir / "extracted_reads.fq"
+            with actual_input.open("wb") as output:
+                run_tool_pipeline(
+                    [["samtools", "fastq", str(input_path)]],
+                    timeout=_remaining(deadline),
+                    stdout=output,
+                )
+        _run_mapping_pipeline(
+            actual_input,
+            reference_path,
+            bam_path,
+            threads,
+            preset=preset,
+            timeout=_remaining(deadline),
+        )
+        run_tool_pipeline([["samtools", "index", str(bam_path)]], timeout=_remaining(deadline))
+    except BaseException:
+        for artifact in artifacts:
+            artifact.unlink(missing_ok=True)
+        raise
 
     return bam_path
 
@@ -89,6 +118,8 @@ def _run_mapping_pipeline(
     bam_path: Path,
     threads: int,
     preset: str = DEFAULT_MINIMAP2_PRESET,
+    *,
+    timeout: float = DEFAULT_SETTINGS.run.mapping_timeout,
 ) -> None:
     """Run minimap2 | samtools sort as a streaming pipeline.
 
@@ -126,61 +157,14 @@ def _run_mapping_pipeline(
         str(bam_path),
     ]
 
-    try:
-        p1 = subprocess.Popen(
-            minimap2_cmd,
-            stdout=subprocess.PIPE,
-            stderr=subprocess.PIPE,
-        )
-    except FileNotFoundError as exc:
-        raise FileNotFoundError("Tool not found: minimap2") from exc
+    run_tool_pipeline([minimap2_cmd, samtools_cmd], timeout=timeout)
 
-    # Verify stdout was captured before piping into samtools
-    if p1.stdout is None:
-        p1.kill()
-        p1.wait()
-        raise RuntimeError("minimap2 process stdout was not captured")
 
-    try:
-        p2 = subprocess.Popen(
-            samtools_cmd,
-            stdin=p1.stdout,
-            stdout=subprocess.PIPE,
-            stderr=subprocess.PIPE,
-        )
-    except FileNotFoundError as exc:
-        p1.kill()
-        p1.wait()
-        raise FileNotFoundError("Tool not found: samtools") from exc
-
-    # Allow p1 to receive SIGPIPE if p2 exits early
-    p1.stdout.close()
-
-    # Drain p1.stderr concurrently with p2.communicate() to avoid deadlock.
-    # If we read p1.stderr first, p2 could fill its stderr buffer and block;
-    # if we call p2.communicate() first, p1 could fill its stderr buffer.
-    import threading
-
-    p1_stderr_chunks: list[bytes] = []
-
-    def _drain_p1_stderr() -> None:
-        if p1.stderr:
-            p1_stderr_chunks.append(p1.stderr.read())
-
-    stderr_thread = threading.Thread(target=_drain_p1_stderr)
-    stderr_thread.start()
-    _, p2_stderr = p2.communicate()
-    stderr_thread.join()
-    p1.wait()
-
-    p1_stderr = p1_stderr_chunks[0].decode() if p1_stderr_chunks else ""
-
-    if p1.returncode != 0:
-        raise RuntimeError(f"minimap2 failed with exit code {p1.returncode}.\nstderr: {p1_stderr}")
-    if p2.returncode != 0:
-        raise RuntimeError(
-            f"samtools sort failed with exit code {p2.returncode}.\nstderr: {p2_stderr.decode()}"
-        )
+def _remaining(deadline: float) -> float:
+    remaining = deadline - time.monotonic()
+    if remaining <= 0:
+        raise TimeoutError("Mapping timed out before the next stage")
+    return remaining
 
 
 def get_idxstats(bam_path: Path) -> str:

@@ -59,6 +59,7 @@ class RunSettings:
     clair3_model: str = ""
     reference: str | None = None
     minimap2_preset: str | None = None
+    mapping_timeout: float = 3600.0
     report: bool = False
     report_igv: str = "off"
 
@@ -66,6 +67,9 @@ class RunSettings:
         _integer("run.threads", self.threads, 1)
         _integer("run.min_coverage", self.min_coverage, 1)
         _number("run.min_qual", self.min_qual)
+        _number("run.mapping_timeout", self.mapping_timeout)
+        if self.mapping_timeout == 0:
+            raise ValueError("run.mapping_timeout must be > 0")
         if self.platform not in ("hifi", "ont"):
             raise ValueError("run.platform must be hifi or ont")
         _string("run.clair3_model", self.clair3_model, empty=True)

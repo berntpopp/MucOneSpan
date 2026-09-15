@@ -291,7 +291,7 @@ class TestMapSubcommand:
         with (
             patch("muc_one_span.tools.check_tools", return_value=True),
             patch("muc_one_span.mapping._run_mapping_pipeline"),
-            patch("muc_one_span.mapping.run_tool", return_value=""),
+            patch("muc_one_span.mapping.run_tool_pipeline"),
         ):
             fastq = tmp_path / "reads.fq"
             fastq.touch()
@@ -322,7 +322,7 @@ class TestMapSubcommand:
         with (
             patch("muc_one_span.tools.check_tools", return_value=True),
             patch("muc_one_span.mapping._run_mapping_pipeline"),
-            patch("muc_one_span.mapping.run_tool", return_value=""),
+            patch("muc_one_span.mapping.run_tool_pipeline"),
         ):
             fastq = tmp_path / "reads.fq"
             fastq.touch()

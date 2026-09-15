@@ -167,7 +167,7 @@ class TestGenerateReport:
                 ],
                 "mutations_detected": [],
                 "confidence": 0.95,
-                "exact_match_pct": 0.92,
+                "exact_match_pct": 92.0,
             },
         }
         out = tmp_path / "report.html"

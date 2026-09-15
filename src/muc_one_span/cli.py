@@ -138,6 +138,12 @@ def ladder(
     help="Sequencing platform (default: hifi).",
 )
 @click.option(
+    "--mapping-timeout",
+    type=float,
+    default=DEFAULT_SETTINGS.run.mapping_timeout,
+    help="Total mapping timeout in seconds (finite and positive; default 3600).",
+)
+@click.option(
     "--minimap2-preset",
     type=str,
     default=None,
@@ -150,6 +156,7 @@ def map_cmd(
     threads: int,
     platform: str,
     minimap2_preset: str | None,
+    mapping_timeout: float = DEFAULT_SETTINGS.run.mapping_timeout,
 ) -> None:
     """Map reads to the ladder reference with minimap2."""
     from muc_one_span.mapping import map_reads
@@ -160,7 +167,9 @@ def map_cmd(
 
     preset = minimap2_preset or PLATFORM_PRESETS[platform]
     ref = Path(reference) if reference else _bundled_reference()
-    bam = map_reads(Path(input_path), ref, Path(output_dir), threads, preset=preset)
+    bam = map_reads(
+        Path(input_path), ref, Path(output_dir), threads, preset=preset, timeout=mapping_timeout
+    )
     click.echo(f"Mapping written to {bam}")
 
 
@@ -487,6 +496,12 @@ def classify(
     help="Sequencing platform (default: hifi).",
 )
 @click.option(
+    "--mapping-timeout",
+    type=float,
+    default=DEFAULT_SETTINGS.run.mapping_timeout,
+    help="Total mapping timeout in seconds (finite and positive; default 3600).",
+)
+@click.option(
     "--minimap2-preset",
     type=str,
     default=None,
@@ -505,6 +520,7 @@ def run(
     report_igv: str,
     platform: str,
     minimap2_preset: str | None,
+    mapping_timeout: float = DEFAULT_SETTINGS.run.mapping_timeout,
 ) -> None:
     """Run the full MucOneSpan pipeline."""
     from muc_one_span.pipeline import execute_pipeline
@@ -521,6 +537,7 @@ def run(
         platform,
         minimap2_preset,
         report_igv=report_igv,
+        mapping_timeout=mapping_timeout,
         settings=current_settings(),
         configuration=current_configuration_path(),
     )
@@ -554,6 +571,18 @@ def run(
 )
 @click.option("--bam", type=click.Path(exists=True), default=None, help="BAM file for IGV.")
 @click.option("--vcf", type=click.Path(exists=True), default=None, help="VCF file for IGV.")
+@click.option(
+    "--allele-vcf",
+    type=(str, click.Path(exists=True)),
+    multiple=True,
+    help="Labeled VCF track: LABEL PATH; repeat for each allele. Overrides --vcf.",
+)
+@click.option(
+    "--run-status",
+    type=click.Path(exists=True),
+    default=None,
+    help="Execution status JSON (default: summary sibling run_status.json).",
+)
 def report(
     input_path: str,
     output: str,
@@ -563,43 +592,24 @@ def report(
     fasta: str | None = None,
     bam: str | None = None,
     vcf: str | None = None,
+    allele_vcf: tuple[tuple[str, str], ...] = (),
+    run_status: str | None = None,
 ) -> None:
     """Generate an HTML report from pipeline results."""
-    import json
+    from muc_one_span.cli_report import execute_report
 
-    try:
-        from muc_one_span.report import generate_report
-    except ImportError as e:
-        click.echo(f"Error: {e}", err=True)
-        raise SystemExit(1) from e
-
-    try:
-        summary = json.loads(Path(input_path).read_text())
-    except (json.JSONDecodeError, ValueError) as e:
-        click.echo(f"Error: Failed to parse JSON from {input_path}: {e}", err=True)
-        raise SystemExit(1) from e
-
-    name = sample_name or Path(input_path).parent.name
-
-    detailed = None
-    if repeats:
-        try:
-            detailed = json.loads(Path(repeats).read_text())
-        except (json.JSONDecodeError, ValueError) as e:
-            click.echo(f"Error: Failed to parse JSON from {repeats}: {e}", err=True)
-            raise SystemExit(1) from e
-
-    out_path = generate_report(
-        summary,
-        Path(output),
-        sample_name=name,
-        detailed_repeats=detailed,
-        report_igv=report_igv,
-        fasta_path=Path(fasta) if fasta else None,
-        bam_path=Path(bam) if bam else None,
-        vcf_path=Path(vcf) if vcf else None,
+    execute_report(
+        input_path,
+        output,
+        sample_name,
+        repeats,
+        report_igv,
+        fasta,
+        bam,
+        vcf,
+        allele_vcf,
+        run_status,
     )
-    click.echo(f"Report written to {out_path}")
 
 
 def _bundled_reference() -> Path:

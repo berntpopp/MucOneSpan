@@ -107,10 +107,10 @@ class TestRunSubcommand:
 
 
 class TestRunReportFallback:
-    """Test --report flag graceful fallback when Jinja2 is missing."""
+    """Requested report failures must remain execution failures."""
 
-    def test_report_flag_warns_when_jinja2_missing(self, tmp_path):
-        """--report warns and continues when Jinja2 is not installed."""
+    def test_report_flag_fails_when_jinja2_missing(self, tmp_path):
+        """--report cannot mark execution completed without its requested artifact."""
         (tmp_path / "ref.fa").write_text(">c51\nACGT\n")
         input_file = tmp_path / "reads.fastq"
         input_file.touch()
@@ -171,5 +171,11 @@ class TestRunReportFallback:
                 ["run", "--input", str(input_file), "--output-dir", str(output_dir), "--report"],
             )
 
-        assert result.exit_code == 0, result.output
-        assert "Pipeline complete" in result.output
+        import json
+
+        assert result.exit_code != 0
+        assert isinstance(result.exception, ImportError)
+        assert "Pipeline complete" not in result.output
+        assert (
+            json.loads((output_dir / "run_status.json").read_text())["status"] == "execution_failed"
+        )

@@ -11,6 +11,7 @@ import signal
 import subprocess
 from collections.abc import Generator
 from pathlib import Path
+from typing import BinaryIO
 
 logger = logging.getLogger(__name__)
 
@@ -246,3 +247,24 @@ def get_tool_versions(tools: list[str]) -> dict[str, str]:
         except (subprocess.TimeoutExpired, FileNotFoundError, IndexError):
             versions[tool] = "unknown"
     return versions
+
+
+def run_tool_pipeline(
+    commands: list[list[str]],
+    *,
+    timeout: float,
+    stdout: BinaryIO | None = None,
+) -> None:
+    """Run a streaming pipeline under one finite process-group lifecycle budget.
+
+    Clean PATH just as :func:`run_tool` does. The timeout includes shutdown and
+    stderr draining; up to 0.5 seconds (10% for short budgets) is reserved for
+    cleanup. Output streams directly between commands, optionally ending in a
+    supplied binary file; diagnostic tails are limited to one MiB per tool.
+    """
+    from muc_one_span.tool_supervisor import run_supervised_pipeline
+
+    env = os.environ.copy()
+    env["PATH"] = _clean_path_for_externals(env.get("PATH", ""))
+    logger.debug("Running pipeline: %s", " | ".join(" ".join(cmd) for cmd in commands))
+    run_supervised_pipeline(commands, timeout=timeout, env=env, stdout=stdout)
