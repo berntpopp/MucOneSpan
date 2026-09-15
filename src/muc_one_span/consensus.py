@@ -280,8 +280,7 @@ def build_consensus_per_allele(
 
         full_consensus = output_dir / f"consensus_{allele_key}_full.fa"
         sample = select_vcf_sample(vcf_path, allele_info.get("consensus_sample"))
-        raw_hap = allele_info.get("consensus_haplotype", 1)
-        haplotype = 1 if raw_hap == "I" else raw_hap
+        haplotype = allele_info.get("consensus_haplotype", 1)
         build_consensus(contig_fa, vcf_path, full_consensus, sample=sample, haplotype=haplotype)
         context = {
             "vcf_path": str(vcf_path.resolve()),
