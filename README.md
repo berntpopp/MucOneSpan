@@ -37,5 +37,6 @@ MucOneSpan draws on some ideas from [Vrbacka et al. (2025)](https://doi.org/10.1
 
 Design reproducible HiFi and ONT simulation panels with the
 [experiment guide](docs/guides/simulation-experiments.md). Read the
-[0.11.0 validation results](docs/guides/validation-results.md) for measured
-improvements, rejected experiments and remaining reconstruction limitations.
+[0.11.0 validation results](docs/guides/validation-results.md) and the
+[clinical validation results](docs/guides/clinical-validation-results.md) for measured
+real-world performance on PRJEB92208 data and comparator evaluation.

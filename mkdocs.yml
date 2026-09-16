@@ -166,7 +166,7 @@ nav:
     - Runtime Configuration: guides/configuration.md
     - Simulation Experiments: guides/simulation-experiments.md
     - Validation Results: guides/validation-results.md
-    - Clinical Data Baseline: guides/clinical-validation-results.md
+    - Clinical Validation & Benchmark: guides/clinical-validation-results.md
     - Benchmarking with MucOneUp: guides/benchmarking.md
 
   - Reference:
