@@ -525,8 +525,17 @@ def call_variants_per_allele(
         variants = parse_vcf_genotypes(filtered)
         evidence = phase_evidence(variants)
         sample = variants[0].get("sample") if variants else None
-        annotate_consensus_candidate(allele_info, evidence, 1, sample, str(filtered))
-        if len(allele_keys) > 1:
+        is_unphased = evidence["phase_status"] in (
+            "unphased",
+            "missing_phase_set",
+            "disconnected_phase_sets",
+            "conflicting_variant_records",
+            "missing_genotype",
+            "non_diploid",
+        )
+        haplotype: int | str = "I" if is_unphased else 1
+        annotate_consensus_candidate(allele_info, evidence, haplotype, sample, str(filtered))
+        if len(allele_keys) > 1 and not is_unphased:
             allele_info["independent_haplotype_evidence"] = True
         return allele_key, filtered
 

@@ -1,0 +1,768 @@
+{
+  "schema_version": 1,
+  "study_accession": "PRJEB92208",
+  "retrieved_at": "2026-09-15T21:17:57.211763Z",
+  "source_url": "https://www.ebi.ac.uk/ena/portal/api/filereport?accession=PRJEB92208&result=read_run&fields=run_accession,sample_accession,experiment_accession,sample_alias,scientific_name,instrument_platform,instrument_model,library_strategy,library_source,library_selection,library_layout,fastq_ftp,fastq_bytes,fastq_md5,submitted_ftp,submitted_bytes,submitted_md5&format=tsv&download=false",
+  "runs": [
+    {
+      "run_accession": "ERR15277554",
+      "sample_accession": "SAMEA118706446",
+      "experiment_accession": "ERX14683250",
+      "alias": "HG001_PCR1_ACAN",
+      "biological_sample": "HG001_PCR1_ACAN",
+      "biological_sample_basis": "provisional alias prefix; confirm in truth ledger",
+      "identity_resolution": "alias_only",
+      "arm": "excluded",
+      "inclusion_reason": "off-target or unsupported library (ACAN, AMPLICON)",
+      "platform": "OXFORD_NANOPORE",
+      "files": [
+        {
+          "url": "https://ftp.sra.ebi.ac.uk/vol1/fastq/ERR152/054/ERR15277554/ERR15277554.fastq.gz",
+          "bytes": 324133923,
+          "md5": "e2b055c17f6c358af9ca7fd4f763b039"
+        }
+      ],
+      "ena": {
+        "run_accession": "ERR15277554",
+        "sample_accession": "SAMEA118706446",
+        "experiment_accession": "ERX14683250",
+        "sample_alias": "HG001_PCR1_ACAN",
+        "scientific_name": "Homo sapiens",
+        "instrument_platform": "OXFORD_NANOPORE",
+        "instrument_model": "MinION",
+        "library_strategy": "AMPLICON",
+        "library_source": "GENOMIC",
+        "library_selection": "PCR",
+        "library_layout": "SINGLE",
+        "fastq_ftp": "ftp.sra.ebi.ac.uk/vol1/fastq/ERR152/054/ERR15277554/ERR15277554.fastq.gz",
+        "fastq_bytes": "324133923",
+        "fastq_md5": "e2b055c17f6c358af9ca7fd4f763b039",
+        "submitted_ftp": "ftp.sra.ebi.ac.uk/vol1/run/ERR152/ERR15277554/HG001_PCR1_ACAN.fastq.gz",
+        "submitted_bytes": "321642795",
+        "submitted_md5": "18bcb2674bfc47052853bf5aba4612f3"
+      }
+    },
+    {
+      "run_accession": "ERR15277555",
+      "sample_accession": "SAMEA118706447",
+      "experiment_accession": "ERX14683251",
+      "alias": "HG001_PCR2_ACAN",
+      "biological_sample": "HG001_PCR2_ACAN",
+      "biological_sample_basis": "provisional alias prefix; confirm in truth ledger",
+      "identity_resolution": "alias_only",
+      "arm": "excluded",
+      "inclusion_reason": "off-target or unsupported library (ACAN, AMPLICON)",
+      "platform": "OXFORD_NANOPORE",
+      "files": [
+        {
+          "url": "https://ftp.sra.ebi.ac.uk/vol1/fastq/ERR152/055/ERR15277555/ERR15277555.fastq.gz",
+          "bytes": 71454067,
+          "md5": "46269a3faeb1ffe52f08ec9038d10fc2"
+        }
+      ],
+      "ena": {
+        "run_accession": "ERR15277555",
+        "sample_accession": "SAMEA118706447",
+        "experiment_accession": "ERX14683251",
+        "sample_alias": "HG001_PCR2_ACAN",
+        "scientific_name": "Homo sapiens",
+        "instrument_platform": "OXFORD_NANOPORE",
+        "instrument_model": "MinION",
+        "library_strategy": "AMPLICON",
+        "library_source": "GENOMIC",
+        "library_selection": "PCR",
+        "library_layout": "SINGLE",
+        "fastq_ftp": "ftp.sra.ebi.ac.uk/vol1/fastq/ERR152/055/ERR15277555/ERR15277555.fastq.gz",
+        "fastq_bytes": "71454067",
+        "fastq_md5": "46269a3faeb1ffe52f08ec9038d10fc2",
+        "submitted_ftp": "ftp.sra.ebi.ac.uk/vol1/run/ERR152/ERR15277555/HG001_PCR2_ACAN.fastq.gz",
+        "submitted_bytes": "70755642",
+        "submitted_md5": "a8546526026ffa4b894b13b7465e2258"
+      }
+    },
+    {
+      "run_accession": "ERR15277557",
+      "sample_accession": "SAMEA118706449",
+      "experiment_accession": "ERX14683253",
+      "alias": "HG002_PCR2_ACAN",
+      "biological_sample": "HG002_PCR2_ACAN",
+      "biological_sample_basis": "provisional alias prefix; confirm in truth ledger",
+      "identity_resolution": "alias_only",
+      "arm": "excluded",
+      "inclusion_reason": "off-target or unsupported library (ACAN, AMPLICON)",
+      "platform": "OXFORD_NANOPORE",
+      "files": [
+        {
+          "url": "https://ftp.sra.ebi.ac.uk/vol1/fastq/ERR152/057/ERR15277557/ERR15277557.fastq.gz",
+          "bytes": 76477877,
+          "md5": "3004e13de610ae4fe340a14759fe1bf9"
+        }
+      ],
+      "ena": {
+        "run_accession": "ERR15277557",
+        "sample_accession": "SAMEA118706449",
+        "experiment_accession": "ERX14683253",
+        "sample_alias": "HG002_PCR2_ACAN",
+        "scientific_name": "Homo sapiens",
+        "instrument_platform": "OXFORD_NANOPORE",
+        "instrument_model": "MinION",
+        "library_strategy": "AMPLICON",
+        "library_source": "GENOMIC",
+        "library_selection": "PCR",
+        "library_layout": "SINGLE",
+        "fastq_ftp": "ftp.sra.ebi.ac.uk/vol1/fastq/ERR152/057/ERR15277557/ERR15277557.fastq.gz",
+        "fastq_bytes": "76477877",
+        "fastq_md5": "3004e13de610ae4fe340a14759fe1bf9",
+        "submitted_ftp": "ftp.sra.ebi.ac.uk/vol1/run/ERR152/ERR15277557/HG002_PCR2_ACAN.fastq.gz",
+        "submitted_bytes": "75888956",
+        "submitted_md5": "f17b2875692d8fa86cbba08613287a2d"
+      }
+    },
+    {
+      "run_accession": "ERR15277559",
+      "sample_accession": "SAMEA118706451",
+      "experiment_accession": "ERX14683255",
+      "alias": "HG003_PCR2_ACAN",
+      "biological_sample": "HG003_PCR2_ACAN",
+      "biological_sample_basis": "provisional alias prefix; confirm in truth ledger",
+      "identity_resolution": "alias_only",
+      "arm": "excluded",
+      "inclusion_reason": "off-target or unsupported library (ACAN, AMPLICON)",
+      "platform": "OXFORD_NANOPORE",
+      "files": [
+        {
+          "url": "https://ftp.sra.ebi.ac.uk/vol1/fastq/ERR152/059/ERR15277559/ERR15277559.fastq.gz",
+          "bytes": 81380350,
+          "md5": "acb049bc7305725c13a007014a5c8d09"
+        }
+      ],
+      "ena": {
+        "run_accession": "ERR15277559",
+        "sample_accession": "SAMEA118706451",
+        "experiment_accession": "ERX14683255",
+        "sample_alias": "HG003_PCR2_ACAN",
+        "scientific_name": "Homo sapiens",
+        "instrument_platform": "OXFORD_NANOPORE",
+        "instrument_model": "MinION",
+        "library_strategy": "AMPLICON",
+        "library_source": "GENOMIC",
+        "library_selection": "PCR",
+        "library_layout": "SINGLE",
+        "fastq_ftp": "ftp.sra.ebi.ac.uk/vol1/fastq/ERR152/059/ERR15277559/ERR15277559.fastq.gz",
+        "fastq_bytes": "81380350",
+        "fastq_md5": "acb049bc7305725c13a007014a5c8d09",
+        "submitted_ftp": "ftp.sra.ebi.ac.uk/vol1/run/ERR152/ERR15277559/HG003_PCR2_ACAN.fastq.gz",
+        "submitted_bytes": "80681637",
+        "submitted_md5": "4f756ea32a4c7097f45adb8212e2707b"
+      }
+    },
+    {
+      "run_accession": "ERR15277561",
+      "sample_accession": "SAMEA118706453",
+      "experiment_accession": "ERX14683257",
+      "alias": "HG004_PCR2_ACAN",
+      "biological_sample": "HG004_PCR2_ACAN",
+      "biological_sample_basis": "provisional alias prefix; confirm in truth ledger",
+      "identity_resolution": "alias_only",
+      "arm": "excluded",
+      "inclusion_reason": "off-target or unsupported library (ACAN, AMPLICON)",
+      "platform": "OXFORD_NANOPORE",
+      "files": [
+        {
+          "url": "https://ftp.sra.ebi.ac.uk/vol1/fastq/ERR152/061/ERR15277561/ERR15277561.fastq.gz",
+          "bytes": 73747169,
+          "md5": "c0f18961af0595f06d672868e9c624dc"
+        }
+      ],
+      "ena": {
+        "run_accession": "ERR15277561",
+        "sample_accession": "SAMEA118706453",
+        "experiment_accession": "ERX14683257",
+        "sample_alias": "HG004_PCR2_ACAN",
+        "scientific_name": "Homo sapiens",
+        "instrument_platform": "OXFORD_NANOPORE",
+        "instrument_model": "MinION",
+        "library_strategy": "AMPLICON",
+        "library_source": "GENOMIC",
+        "library_selection": "PCR",
+        "library_layout": "SINGLE",
+        "fastq_ftp": "ftp.sra.ebi.ac.uk/vol1/fastq/ERR152/061/ERR15277561/ERR15277561.fastq.gz",
+        "fastq_bytes": "73747169",
+        "fastq_md5": "c0f18961af0595f06d672868e9c624dc",
+        "submitted_ftp": "ftp.sra.ebi.ac.uk/vol1/run/ERR152/ERR15277561/HG004_PCR2_ACAN.fastq.gz",
+        "submitted_bytes": "73219495",
+        "submitted_md5": "26281295dfa67203302c3dd1f271094f"
+      }
+    },
+    {
+      "run_accession": "ERR15277564",
+      "sample_accession": "SAMEA118706456",
+      "experiment_accession": "ERX14683260",
+      "alias": "HG003_PCR_MUC1",
+      "biological_sample": "HG003",
+      "biological_sample_basis": "provisional alias prefix; confirm in truth ledger",
+      "identity_resolution": "alias_only",
+      "arm": "primary_amplicon",
+      "inclusion_reason": "MUC1-targeted PCR amplicon",
+      "platform": "OXFORD_NANOPORE",
+      "files": [
+        {
+          "url": "https://ftp.sra.ebi.ac.uk/vol1/fastq/ERR152/064/ERR15277564/ERR15277564.fastq.gz",
+          "bytes": 22498050,
+          "md5": "67ed7b0ad9c79f2e09d6b2d5066af857"
+        }
+      ],
+      "ena": {
+        "run_accession": "ERR15277564",
+        "sample_accession": "SAMEA118706456",
+        "experiment_accession": "ERX14683260",
+        "sample_alias": "HG003_PCR_MUC1",
+        "scientific_name": "Homo sapiens",
+        "instrument_platform": "OXFORD_NANOPORE",
+        "instrument_model": "MinION",
+        "library_strategy": "AMPLICON",
+        "library_source": "GENOMIC",
+        "library_selection": "PCR",
+        "library_layout": "SINGLE",
+        "fastq_ftp": "ftp.sra.ebi.ac.uk/vol1/fastq/ERR152/064/ERR15277564/ERR15277564.fastq.gz",
+        "fastq_bytes": "22498050",
+        "fastq_md5": "67ed7b0ad9c79f2e09d6b2d5066af857",
+        "submitted_ftp": "ftp.sra.ebi.ac.uk/vol1/run/ERR152/ERR15277564/HG003_PCR_MUC1.fastq.gz",
+        "submitted_bytes": "22535128",
+        "submitted_md5": "f3bb97f8e681536f882c0fdc1d52afb3"
+      }
+    },
+    {
+      "run_accession": "ERR15277565",
+      "sample_accession": "SAMEA118706457",
+      "experiment_accession": "ERX14683261",
+      "alias": "HG004_PCR_MUC1",
+      "biological_sample": "HG004",
+      "biological_sample_basis": "provisional alias prefix; confirm in truth ledger",
+      "identity_resolution": "alias_only",
+      "arm": "primary_amplicon",
+      "inclusion_reason": "MUC1-targeted PCR amplicon",
+      "platform": "OXFORD_NANOPORE",
+      "files": [
+        {
+          "url": "https://ftp.sra.ebi.ac.uk/vol1/fastq/ERR152/065/ERR15277565/ERR15277565.fastq.gz",
+          "bytes": 37519733,
+          "md5": "8287c3ab9a9d228c95695505110c7d8f"
+        }
+      ],
+      "ena": {
+        "run_accession": "ERR15277565",
+        "sample_accession": "SAMEA118706457",
+        "experiment_accession": "ERX14683261",
+        "sample_alias": "HG004_PCR_MUC1",
+        "scientific_name": "Homo sapiens",
+        "instrument_platform": "OXFORD_NANOPORE",
+        "instrument_model": "MinION",
+        "library_strategy": "AMPLICON",
+        "library_source": "GENOMIC",
+        "library_selection": "PCR",
+        "library_layout": "SINGLE",
+        "fastq_ftp": "ftp.sra.ebi.ac.uk/vol1/fastq/ERR152/065/ERR15277565/ERR15277565.fastq.gz",
+        "fastq_bytes": "37519733",
+        "fastq_md5": "8287c3ab9a9d228c95695505110c7d8f",
+        "submitted_ftp": "ftp.sra.ebi.ac.uk/vol1/run/ERR152/ERR15277565/HG004_PCR_MUC1.fastq.gz",
+        "submitted_bytes": "37370850",
+        "submitted_md5": "b9edda3a8b72e7fb264f15811b097f2c"
+      }
+    },
+    {
+      "run_accession": "ERR15277569",
+      "sample_accession": "SAMEA118706461",
+      "experiment_accession": "ERX14683265",
+      "alias": "MP4_PCR_MUC1",
+      "biological_sample": "MP4",
+      "biological_sample_basis": "provisional alias prefix; confirm in truth ledger",
+      "identity_resolution": "alias_only",
+      "arm": "primary_amplicon",
+      "inclusion_reason": "MUC1-targeted PCR amplicon",
+      "platform": "OXFORD_NANOPORE",
+      "files": [
+        {
+          "url": "https://ftp.sra.ebi.ac.uk/vol1/fastq/ERR152/069/ERR15277569/ERR15277569.fastq.gz",
+          "bytes": 22543918,
+          "md5": "f2b61e916c433b5fd3b8ff07eb41b589"
+        }
+      ],
+      "ena": {
+        "run_accession": "ERR15277569",
+        "sample_accession": "SAMEA118706461",
+        "experiment_accession": "ERX14683265",
+        "sample_alias": "MP4_PCR_MUC1",
+        "scientific_name": "Homo sapiens",
+        "instrument_platform": "OXFORD_NANOPORE",
+        "instrument_model": "MinION",
+        "library_strategy": "AMPLICON",
+        "library_source": "GENOMIC",
+        "library_selection": "PCR",
+        "library_layout": "SINGLE",
+        "fastq_ftp": "ftp.sra.ebi.ac.uk/vol1/fastq/ERR152/069/ERR15277569/ERR15277569.fastq.gz",
+        "fastq_bytes": "22543918",
+        "fastq_md5": "f2b61e916c433b5fd3b8ff07eb41b589",
+        "submitted_ftp": "ftp.sra.ebi.ac.uk/vol1/run/ERR152/ERR15277569/MP4_PCR_MUC1.fastq.gz",
+        "submitted_bytes": "22490502",
+        "submitted_md5": "7fec66e1ca1b3afc11a8c375a685bcf6"
+      }
+    },
+    {
+      "run_accession": "ERR15277551",
+      "sample_accession": "SAMEA118706443",
+      "experiment_accession": "ERX14683247",
+      "alias": "HG002_WGS_ACAN",
+      "biological_sample": "HG002",
+      "biological_sample_basis": "provisional alias prefix; confirm in truth ledger",
+      "identity_resolution": "alias_only",
+      "arm": "excluded",
+      "inclusion_reason": "off-target or unsupported library (ACAN, WGS)",
+      "platform": "OXFORD_NANOPORE",
+      "files": [
+        {
+          "url": "https://ftp.sra.ebi.ac.uk/vol1/fastq/ERR152/051/ERR15277551/ERR15277551.fastq.gz",
+          "bytes": 1714479,
+          "md5": "184c196c9c58053c948b5ad411e370ba"
+        }
+      ],
+      "ena": {
+        "run_accession": "ERR15277551",
+        "sample_accession": "SAMEA118706443",
+        "experiment_accession": "ERX14683247",
+        "sample_alias": "HG002_WGS_ACAN",
+        "scientific_name": "Homo sapiens",
+        "instrument_platform": "OXFORD_NANOPORE",
+        "instrument_model": "PromethION",
+        "library_strategy": "WGS",
+        "library_source": "GENOMIC",
+        "library_selection": "RANDOM",
+        "library_layout": "SINGLE",
+        "fastq_ftp": "ftp.sra.ebi.ac.uk/vol1/fastq/ERR152/051/ERR15277551/ERR15277551.fastq.gz",
+        "fastq_bytes": "1714479",
+        "fastq_md5": "184c196c9c58053c948b5ad411e370ba",
+        "submitted_ftp": "ftp.sra.ebi.ac.uk/vol1/run/ERR152/ERR15277551/HG002_WGS_ACAN.fastq.gz",
+        "submitted_bytes": "1718981",
+        "submitted_md5": "20437bba29f7f2b8343a0a5bd087fc7b"
+      }
+    },
+    {
+      "run_accession": "ERR15277556",
+      "sample_accession": "SAMEA118706448",
+      "experiment_accession": "ERX14683252",
+      "alias": "HG002_PCR1_ACAN",
+      "biological_sample": "HG002_PCR1_ACAN",
+      "biological_sample_basis": "provisional alias prefix; confirm in truth ledger",
+      "identity_resolution": "alias_only",
+      "arm": "excluded",
+      "inclusion_reason": "off-target or unsupported library (ACAN, AMPLICON)",
+      "platform": "OXFORD_NANOPORE",
+      "files": [
+        {
+          "url": "https://ftp.sra.ebi.ac.uk/vol1/fastq/ERR152/056/ERR15277556/ERR15277556.fastq.gz",
+          "bytes": 341300436,
+          "md5": "ad371fb48cd6fe758d080db563bb4059"
+        }
+      ],
+      "ena": {
+        "run_accession": "ERR15277556",
+        "sample_accession": "SAMEA118706448",
+        "experiment_accession": "ERX14683252",
+        "sample_alias": "HG002_PCR1_ACAN",
+        "scientific_name": "Homo sapiens",
+        "instrument_platform": "OXFORD_NANOPORE",
+        "instrument_model": "MinION",
+        "library_strategy": "AMPLICON",
+        "library_source": "GENOMIC",
+        "library_selection": "PCR",
+        "library_layout": "SINGLE",
+        "fastq_ftp": "ftp.sra.ebi.ac.uk/vol1/fastq/ERR152/056/ERR15277556/ERR15277556.fastq.gz",
+        "fastq_bytes": "341300436",
+        "fastq_md5": "ad371fb48cd6fe758d080db563bb4059",
+        "submitted_ftp": "ftp.sra.ebi.ac.uk/vol1/run/ERR152/ERR15277556/HG002_PCR1_ACAN.fastq.gz",
+        "submitted_bytes": "338593624",
+        "submitted_md5": "a0875348df94ca01cd541bc9188e6fb9"
+      }
+    },
+    {
+      "run_accession": "ERR15277562",
+      "sample_accession": "SAMEA118706454",
+      "experiment_accession": "ERX14683258",
+      "alias": "HG001_PCR_MUC1",
+      "biological_sample": "HG001",
+      "biological_sample_basis": "provisional alias prefix; confirm in truth ledger",
+      "identity_resolution": "alias_only",
+      "arm": "primary_amplicon",
+      "inclusion_reason": "MUC1-targeted PCR amplicon",
+      "platform": "OXFORD_NANOPORE",
+      "files": [
+        {
+          "url": "https://ftp.sra.ebi.ac.uk/vol1/fastq/ERR152/062/ERR15277562/ERR15277562.fastq.gz",
+          "bytes": 19070882,
+          "md5": "135d004cb32c2848e3ea7cbd00ef5ebc"
+        }
+      ],
+      "ena": {
+        "run_accession": "ERR15277562",
+        "sample_accession": "SAMEA118706454",
+        "experiment_accession": "ERX14683258",
+        "sample_alias": "HG001_PCR_MUC1",
+        "scientific_name": "Homo sapiens",
+        "instrument_platform": "OXFORD_NANOPORE",
+        "instrument_model": "MinION",
+        "library_strategy": "AMPLICON",
+        "library_source": "GENOMIC",
+        "library_selection": "PCR",
+        "library_layout": "SINGLE",
+        "fastq_ftp": "ftp.sra.ebi.ac.uk/vol1/fastq/ERR152/062/ERR15277562/ERR15277562.fastq.gz",
+        "fastq_bytes": "19070882",
+        "fastq_md5": "135d004cb32c2848e3ea7cbd00ef5ebc",
+        "submitted_ftp": "ftp.sra.ebi.ac.uk/vol1/run/ERR152/ERR15277562/HG001_PCR_MUC1.fastq.gz",
+        "submitted_bytes": "19109733",
+        "submitted_md5": "d31500de27381ef363b5e54df307dd8f"
+      }
+    },
+    {
+      "run_accession": "ERR15277570",
+      "sample_accession": "SAMEA118706462",
+      "experiment_accession": "ERX14683266",
+      "alias": "MP5_PCR_MUC1",
+      "biological_sample": "MP5",
+      "biological_sample_basis": "provisional alias prefix; confirm in truth ledger",
+      "identity_resolution": "alias_only",
+      "arm": "primary_amplicon",
+      "inclusion_reason": "MUC1-targeted PCR amplicon",
+      "platform": "OXFORD_NANOPORE",
+      "files": [
+        {
+          "url": "https://ftp.sra.ebi.ac.uk/vol1/fastq/ERR152/070/ERR15277570/ERR15277570.fastq.gz",
+          "bytes": 9317492,
+          "md5": "25c2b9f724ffac12ba446449fd9edc32"
+        }
+      ],
+      "ena": {
+        "run_accession": "ERR15277570",
+        "sample_accession": "SAMEA118706462",
+        "experiment_accession": "ERX14683266",
+        "sample_alias": "MP5_PCR_MUC1",
+        "scientific_name": "Homo sapiens",
+        "instrument_platform": "OXFORD_NANOPORE",
+        "instrument_model": "MinION",
+        "library_strategy": "AMPLICON",
+        "library_source": "GENOMIC",
+        "library_selection": "PCR",
+        "library_layout": "SINGLE",
+        "fastq_ftp": "ftp.sra.ebi.ac.uk/vol1/fastq/ERR152/070/ERR15277570/ERR15277570.fastq.gz",
+        "fastq_bytes": "9317492",
+        "fastq_md5": "25c2b9f724ffac12ba446449fd9edc32",
+        "submitted_ftp": "ftp.sra.ebi.ac.uk/vol1/run/ERR152/ERR15277570/MP5_PCR_MUC1.fastq.gz",
+        "submitted_bytes": "9295402",
+        "submitted_md5": "a12fd46f380e7590caed7e5d067b4468"
+      }
+    },
+    {
+      "run_accession": "ERR15277558",
+      "sample_accession": "SAMEA118706450",
+      "experiment_accession": "ERX14683254",
+      "alias": "HG003_PCR1_ACAN",
+      "biological_sample": "HG003_PCR1_ACAN",
+      "biological_sample_basis": "provisional alias prefix; confirm in truth ledger",
+      "identity_resolution": "alias_only",
+      "arm": "excluded",
+      "inclusion_reason": "off-target or unsupported library (ACAN, AMPLICON)",
+      "platform": "OXFORD_NANOPORE",
+      "files": [
+        {
+          "url": "https://ftp.sra.ebi.ac.uk/vol1/fastq/ERR152/058/ERR15277558/ERR15277558.fastq.gz",
+          "bytes": 336832814,
+          "md5": "d01b32ad04f6cf25c975126077e69311"
+        }
+      ],
+      "ena": {
+        "run_accession": "ERR15277558",
+        "sample_accession": "SAMEA118706450",
+        "experiment_accession": "ERX14683254",
+        "sample_alias": "HG003_PCR1_ACAN",
+        "scientific_name": "Homo sapiens",
+        "instrument_platform": "OXFORD_NANOPORE",
+        "instrument_model": "MinION",
+        "library_strategy": "AMPLICON",
+        "library_source": "GENOMIC",
+        "library_selection": "PCR",
+        "library_layout": "SINGLE",
+        "fastq_ftp": "ftp.sra.ebi.ac.uk/vol1/fastq/ERR152/058/ERR15277558/ERR15277558.fastq.gz",
+        "fastq_bytes": "336832814",
+        "fastq_md5": "d01b32ad04f6cf25c975126077e69311",
+        "submitted_ftp": "ftp.sra.ebi.ac.uk/vol1/run/ERR152/ERR15277558/HG003_PCR1_ACAN.fastq.gz",
+        "submitted_bytes": "334068376",
+        "submitted_md5": "44ef62396cbabc516aafdd9850f343e0"
+      }
+    },
+    {
+      "run_accession": "ERR15277563",
+      "sample_accession": "SAMEA118706455",
+      "experiment_accession": "ERX14683259",
+      "alias": "HG002_PCR_MUC1",
+      "biological_sample": "HG002",
+      "biological_sample_basis": "provisional alias prefix; confirm in truth ledger",
+      "identity_resolution": "alias_only",
+      "arm": "primary_amplicon",
+      "inclusion_reason": "MUC1-targeted PCR amplicon",
+      "platform": "OXFORD_NANOPORE",
+      "files": [
+        {
+          "url": "https://ftp.sra.ebi.ac.uk/vol1/fastq/ERR152/063/ERR15277563/ERR15277563.fastq.gz",
+          "bytes": 22562270,
+          "md5": "48f574aa536ab3443756f69b4dd749ba"
+        }
+      ],
+      "ena": {
+        "run_accession": "ERR15277563",
+        "sample_accession": "SAMEA118706455",
+        "experiment_accession": "ERX14683259",
+        "sample_alias": "HG002_PCR_MUC1",
+        "scientific_name": "Homo sapiens",
+        "instrument_platform": "OXFORD_NANOPORE",
+        "instrument_model": "MinION",
+        "library_strategy": "AMPLICON",
+        "library_source": "GENOMIC",
+        "library_selection": "PCR",
+        "library_layout": "SINGLE",
+        "fastq_ftp": "ftp.sra.ebi.ac.uk/vol1/fastq/ERR152/063/ERR15277563/ERR15277563.fastq.gz",
+        "fastq_bytes": "22562270",
+        "fastq_md5": "48f574aa536ab3443756f69b4dd749ba",
+        "submitted_ftp": "ftp.sra.ebi.ac.uk/vol1/run/ERR152/ERR15277563/HG002_PCR_MUC1.fastq.gz",
+        "submitted_bytes": "22564548",
+        "submitted_md5": "0fded7fe6a3b11a55b7b0d6141b655e1"
+      }
+    },
+    {
+      "run_accession": "ERR15277552",
+      "sample_accession": "SAMEA118706444",
+      "experiment_accession": "ERX14683248",
+      "alias": "HG002_WGS_MUC1",
+      "biological_sample": "HG002",
+      "biological_sample_basis": "provisional alias prefix; confirm in truth ledger",
+      "identity_resolution": "alias_only",
+      "arm": "secondary_wgs",
+      "inclusion_reason": "MUC1-locus reads submitted from WGS",
+      "platform": "OXFORD_NANOPORE",
+      "files": [
+        {
+          "url": "https://ftp.sra.ebi.ac.uk/vol1/fastq/ERR152/052/ERR15277552/ERR15277552.fastq.gz",
+          "bytes": 5059452,
+          "md5": "329601d3fc20795c3acbea65d8ef2229"
+        }
+      ],
+      "ena": {
+        "run_accession": "ERR15277552",
+        "sample_accession": "SAMEA118706444",
+        "experiment_accession": "ERX14683248",
+        "sample_alias": "HG002_WGS_MUC1",
+        "scientific_name": "Homo sapiens",
+        "instrument_platform": "OXFORD_NANOPORE",
+        "instrument_model": "PromethION",
+        "library_strategy": "WGS",
+        "library_source": "GENOMIC",
+        "library_selection": "RANDOM",
+        "library_layout": "SINGLE",
+        "fastq_ftp": "ftp.sra.ebi.ac.uk/vol1/fastq/ERR152/052/ERR15277552/ERR15277552.fastq.gz",
+        "fastq_bytes": "5059452",
+        "fastq_md5": "329601d3fc20795c3acbea65d8ef2229",
+        "submitted_ftp": "ftp.sra.ebi.ac.uk/vol1/run/ERR152/ERR15277552/HG002_WGS_MUC1.fastq.gz",
+        "submitted_bytes": "4802427",
+        "submitted_md5": "6fc0a6be8c3c62f34455dbdb47f82203"
+      }
+    },
+    {
+      "run_accession": "ERR15277553",
+      "sample_accession": "SAMEA118706445",
+      "experiment_accession": "ERX14683249",
+      "alias": "MP1_WGS_MUC1",
+      "biological_sample": "MP1",
+      "biological_sample_basis": "provisional alias prefix; confirm in truth ledger",
+      "identity_resolution": "alias_only",
+      "arm": "secondary_wgs",
+      "inclusion_reason": "MUC1-locus reads submitted from WGS",
+      "platform": "OXFORD_NANOPORE",
+      "files": [
+        {
+          "url": "https://ftp.sra.ebi.ac.uk/vol1/fastq/ERR152/053/ERR15277553/ERR15277553.fastq.gz",
+          "bytes": 2908009,
+          "md5": "98541084aea37efbff9cd1c6b222ac30"
+        }
+      ],
+      "ena": {
+        "run_accession": "ERR15277553",
+        "sample_accession": "SAMEA118706445",
+        "experiment_accession": "ERX14683249",
+        "sample_alias": "MP1_WGS_MUC1",
+        "scientific_name": "Homo sapiens",
+        "instrument_platform": "OXFORD_NANOPORE",
+        "instrument_model": "PromethION",
+        "library_strategy": "WGS",
+        "library_source": "GENOMIC",
+        "library_selection": "RANDOM",
+        "library_layout": "SINGLE",
+        "fastq_ftp": "ftp.sra.ebi.ac.uk/vol1/fastq/ERR152/053/ERR15277553/ERR15277553.fastq.gz",
+        "fastq_bytes": "2908009",
+        "fastq_md5": "98541084aea37efbff9cd1c6b222ac30",
+        "submitted_ftp": "ftp.sra.ebi.ac.uk/vol1/run/ERR152/ERR15277553/MP1_WGS_MUC1.fastq.gz",
+        "submitted_bytes": "2929881",
+        "submitted_md5": "f33a75ee15e444e3cb3a1bac9d0ccd4e"
+      }
+    },
+    {
+      "run_accession": "ERR15277568",
+      "sample_accession": "SAMEA118706460",
+      "experiment_accession": "ERX14683264",
+      "alias": "MP3_PCR_MUC1",
+      "biological_sample": "MP3",
+      "biological_sample_basis": "provisional alias prefix; confirm in truth ledger",
+      "identity_resolution": "alias_only",
+      "arm": "primary_amplicon",
+      "inclusion_reason": "MUC1-targeted PCR amplicon",
+      "platform": "OXFORD_NANOPORE",
+      "files": [
+        {
+          "url": "https://ftp.sra.ebi.ac.uk/vol1/fastq/ERR152/068/ERR15277568/ERR15277568.fastq.gz",
+          "bytes": 36105797,
+          "md5": "4d4df2bb70d0f332a696f713e06137cc"
+        }
+      ],
+      "ena": {
+        "run_accession": "ERR15277568",
+        "sample_accession": "SAMEA118706460",
+        "experiment_accession": "ERX14683264",
+        "sample_alias": "MP3_PCR_MUC1",
+        "scientific_name": "Homo sapiens",
+        "instrument_platform": "OXFORD_NANOPORE",
+        "instrument_model": "MinION",
+        "library_strategy": "AMPLICON",
+        "library_source": "GENOMIC",
+        "library_selection": "PCR",
+        "library_layout": "SINGLE",
+        "fastq_ftp": "ftp.sra.ebi.ac.uk/vol1/fastq/ERR152/068/ERR15277568/ERR15277568.fastq.gz",
+        "fastq_bytes": "36105797",
+        "fastq_md5": "4d4df2bb70d0f332a696f713e06137cc",
+        "submitted_ftp": "ftp.sra.ebi.ac.uk/vol1/run/ERR152/ERR15277568/MP3_PCR_MUC1.fastq.gz",
+        "submitted_bytes": "36106746",
+        "submitted_md5": "5b380032954bdf24b4b784efac68482e"
+      }
+    },
+    {
+      "run_accession": "ERR15277560",
+      "sample_accession": "SAMEA118706452",
+      "experiment_accession": "ERX14683256",
+      "alias": "HG004_PCR1_ACAN",
+      "biological_sample": "HG004_PCR1_ACAN",
+      "biological_sample_basis": "provisional alias prefix; confirm in truth ledger",
+      "identity_resolution": "alias_only",
+      "arm": "excluded",
+      "inclusion_reason": "off-target or unsupported library (ACAN, AMPLICON)",
+      "platform": "OXFORD_NANOPORE",
+      "files": [
+        {
+          "url": "https://ftp.sra.ebi.ac.uk/vol1/fastq/ERR152/060/ERR15277560/ERR15277560.fastq.gz",
+          "bytes": 391600329,
+          "md5": "b7eb027fa506052f140803b41a12c0d6"
+        }
+      ],
+      "ena": {
+        "run_accession": "ERR15277560",
+        "sample_accession": "SAMEA118706452",
+        "experiment_accession": "ERX14683256",
+        "sample_alias": "HG004_PCR1_ACAN",
+        "scientific_name": "Homo sapiens",
+        "instrument_platform": "OXFORD_NANOPORE",
+        "instrument_model": "MinION",
+        "library_strategy": "AMPLICON",
+        "library_source": "GENOMIC",
+        "library_selection": "PCR",
+        "library_layout": "SINGLE",
+        "fastq_ftp": "ftp.sra.ebi.ac.uk/vol1/fastq/ERR152/060/ERR15277560/ERR15277560.fastq.gz",
+        "fastq_bytes": "391600329",
+        "fastq_md5": "b7eb027fa506052f140803b41a12c0d6",
+        "submitted_ftp": "ftp.sra.ebi.ac.uk/vol1/run/ERR152/ERR15277560/HG004_PCR1_ACAN.fastq.gz",
+        "submitted_bytes": "388298040",
+        "submitted_md5": "5b240256b5e8d823ced9766fefc4edbf"
+      }
+    },
+    {
+      "run_accession": "ERR15277566",
+      "sample_accession": "SAMEA118706458",
+      "experiment_accession": "ERX14683262",
+      "alias": "MP1_PCR_MUC1",
+      "biological_sample": "MP1",
+      "biological_sample_basis": "provisional alias prefix; confirm in truth ledger",
+      "identity_resolution": "alias_only",
+      "arm": "primary_amplicon",
+      "inclusion_reason": "MUC1-targeted PCR amplicon",
+      "platform": "OXFORD_NANOPORE",
+      "files": [
+        {
+          "url": "https://ftp.sra.ebi.ac.uk/vol1/fastq/ERR152/066/ERR15277566/ERR15277566.fastq.gz",
+          "bytes": 9734222,
+          "md5": "ced7fdacafbc26110d0ce759b3c49ee3"
+        }
+      ],
+      "ena": {
+        "run_accession": "ERR15277566",
+        "sample_accession": "SAMEA118706458",
+        "experiment_accession": "ERX14683262",
+        "sample_alias": "MP1_PCR_MUC1",
+        "scientific_name": "Homo sapiens",
+        "instrument_platform": "OXFORD_NANOPORE",
+        "instrument_model": "MinION",
+        "library_strategy": "AMPLICON",
+        "library_source": "GENOMIC",
+        "library_selection": "PCR",
+        "library_layout": "SINGLE",
+        "fastq_ftp": "ftp.sra.ebi.ac.uk/vol1/fastq/ERR152/066/ERR15277566/ERR15277566.fastq.gz",
+        "fastq_bytes": "9734222",
+        "fastq_md5": "ced7fdacafbc26110d0ce759b3c49ee3",
+        "submitted_ftp": "ftp.sra.ebi.ac.uk/vol1/run/ERR152/ERR15277566/MP1_PCR_MUC1.fastq.gz",
+        "submitted_bytes": "9739047",
+        "submitted_md5": "3d449b9870d74dd726708f62c0cd763e"
+      }
+    },
+    {
+      "run_accession": "ERR15277567",
+      "sample_accession": "SAMEA118706459",
+      "experiment_accession": "ERX14683263",
+      "alias": "MP2_PCR_MUC1",
+      "biological_sample": "MP2",
+      "biological_sample_basis": "provisional alias prefix; confirm in truth ledger",
+      "identity_resolution": "alias_only",
+      "arm": "primary_amplicon",
+      "inclusion_reason": "MUC1-targeted PCR amplicon",
+      "platform": "OXFORD_NANOPORE",
+      "files": [
+        {
+          "url": "https://ftp.sra.ebi.ac.uk/vol1/fastq/ERR152/067/ERR15277567/ERR15277567.fastq.gz",
+          "bytes": 10836624,
+          "md5": "aebc73ded9cdefdea70b1fae0645abe2"
+        }
+      ],
+      "ena": {
+        "run_accession": "ERR15277567",
+        "sample_accession": "SAMEA118706459",
+        "experiment_accession": "ERX14683263",
+        "sample_alias": "MP2_PCR_MUC1",
+        "scientific_name": "Homo sapiens",
+        "instrument_platform": "OXFORD_NANOPORE",
+        "instrument_model": "MinION",
+        "library_strategy": "AMPLICON",
+        "library_source": "GENOMIC",
+        "library_selection": "PCR",
+        "library_layout": "SINGLE",
+        "fastq_ftp": "ftp.sra.ebi.ac.uk/vol1/fastq/ERR152/067/ERR15277567/ERR15277567.fastq.gz",
+        "fastq_bytes": "10836624",
+        "fastq_md5": "aebc73ded9cdefdea70b1fae0645abe2",
+        "submitted_ftp": "ftp.sra.ebi.ac.uk/vol1/run/ERR152/ERR15277567/MP2_PCR_MUC1.fastq.gz",
+        "submitted_bytes": "10849934",
+        "submitted_md5": "8091b8779c9677654ce76358c26b13d8"
+      }
+    }
+  ]
+}

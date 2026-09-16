@@ -7,6 +7,34 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+## [0.15.0] - 2026-09-16
+
+### Added
+
+- Reproducible ENA clinical-data benchmark with validated downloads, separate clinical
+  truth scoring, bounded execution, provenance-checked replay and resource records (#44).
+- PRJEB92208 ONT cohort baseline and independently sourced HG002 Q100 sequence
+  comparison; reported positive controls, unknown negatives and unresolved sample
+  identity remain explicit. No PacBio validation or general clinical-performance claim.
+- Containerized VNTRPipeline v1.0 diagnostic comparator evaluation on PRJEB92208
+  clinical inputs under pinned dependencies and offline BiocManager runtime (#56).
+
+### Fixed
+
+- Recognize exact seven-C-tract duplications across compatible MUC1 repeat
+  backgrounds, preserving the parent repeat and 61-base boundary. This corrects
+  B-repeat dupC being misreported as an A insertion in the following repeat (#52).
+- Guard consensus genotype selection when phase status is unphased, disconnected,
+  or conflicting, selecting IUPAC candidate consensus ("I") and clearing independent
+  haplotype evidence instead of forcing alternate GT1 (#53).
+- Normalize allele candidate valley splitting by contig reference length and filter
+  out sub-biological degradation contigs (< 10 units), preventing long full-span
+  alleles from being lost to short fragment clusters (#54).
+- Calibrate clinical decision calling to require frameshift, unambiguous localization,
+  and confirmed VCF support for PATHOGENIC calls, appropriately classifying in-frame
+  insertions, unresolved duplicate candidates, and unphased heterozygous reconstructions
+  as INCONCLUSIVE (#55).
+
 ## [0.14.1] - 2026-09-15
 
 ### Fixed
@@ -310,7 +338,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 - Project scaffolding with uv, ruff, mypy, pytest, CI
 - Initial pipeline implementation
 
-[Unreleased]: https://github.com/berntpopp/MucOneSpan/compare/v0.14.1...HEAD
+[Unreleased]: https://github.com/berntpopp/MucOneSpan/compare/v0.15.0...HEAD
+[0.15.0]: https://github.com/berntpopp/MucOneSpan/compare/v0.14.1...v0.15.0
 [0.14.1]: https://github.com/berntpopp/MucOneSpan/compare/v0.14.0...v0.14.1
 [0.14.0]: https://github.com/berntpopp/MucOneSpan/compare/v0.13.0...v0.14.0
 [0.13.0]: https://github.com/berntpopp/MucOneSpan/compare/v0.12.0...v0.13.0

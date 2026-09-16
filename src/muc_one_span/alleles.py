@@ -319,9 +319,14 @@ def _split_cluster_by_indel(
     if len(valleys) < 2:
         return None
 
-    # Take the two deepest valleys (lowest mean indel)
-    valleys.sort(key=lambda x: x[1])
-    best_two = sorted(valleys[:2], key=lambda x: x[0])
+    # Filter valleys: prefer biological candidates (c >= 10) if at least two exist
+    candidate_valleys = [v for v in valleys if v[0] >= 10]
+    if len(candidate_valleys) < 2:
+        candidate_valleys = valleys
+
+    # Take the two lowest valleys normalized by contig reference length
+    candidate_valleys.sort(key=lambda x: x[1] / ((x[0] + 9) * 60))
+    best_two = sorted(candidate_valleys[:2], key=lambda x: x[0])
     v1, v2 = best_two[0][0], best_two[1][0]
 
     # Verify the valleys are meaningfully separated (at least 3 contigs apart)
@@ -330,7 +335,7 @@ def _split_cluster_by_indel(
 
     # Split cluster contigs into two sub-clusters by nearest valley
     contigs_dict = dict(cluster["contigs"])
-    sub1 = [(c, contigs_dict[c]) for c in sorted(contigs_dict) if abs(c - v1) < abs(c - v2)]
+    sub1 = [(c, contigs_dict[c]) for c in sorted(contigs_dict) if abs(c - v1) <= abs(c - v2)]
     sub2 = [(c, contigs_dict[c]) for c in sorted(contigs_dict) if abs(c - v2) < abs(c - v1)]
 
     if not any(c == v1 for c, _ in sub1):

@@ -62,7 +62,18 @@
   "mutations": {
     "dupC": {
       "allowed_repeats": [
-        "X"
+        "5",
+        "X",
+        "B",
+        "D",
+        "K",
+        "W",
+        "M",
+        "N",
+        "O",
+        "P",
+        "Q",
+        "R"
       ],
       "changes": [
         {
@@ -71,7 +82,7 @@
           "sequence": "C"
         }
       ],
-      "citation": "Kirby et al. 2013, PMID:23396133"
+      "citation": "Kirby et al. 2013, PMID:23396133; Madritsch et al. 2025, doi:10.1038/s41598-025-30441-3 (7C-to-8C duplication within a 60bp unit)"
     },
     "dupA": {
       "allowed_repeats": [

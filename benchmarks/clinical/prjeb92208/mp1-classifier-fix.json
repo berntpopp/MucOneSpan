@@ -1,0 +1,36 @@
+{
+  "dictionary_sha256": "1eba98dced6a391721005a80a8ad533ca0ed4501c66483bd12e3e8b4cfe23e97",
+  "caller_base_commit": "c08000a0b97e9ee00e560a369ef320b4d06d3004",
+  "source_change": "only exact-context dupC dictionary applicability; see fix/dupc-repeat-context",
+  "status": "completed",
+  "analysis_state": "completed",
+  "events": [
+    {
+      "allele": "allele_2",
+      "name": "dupC",
+      "repeat_index": 17,
+      "parent": "B",
+      "supported": true,
+      "support_status": "exact_sequence_concordance"
+    }
+  ],
+  "wall_seconds": 53.203543226001784,
+  "run_accession": "ERR15277566",
+  "input_sha256": "271bfb2107136e9b292de9ef9f91af02844af45a0a229e155cd7d10d7da814fd",
+  "validation_scope": "One full MP1 pipeline rerun; isolated mutation-annotation replay on all22 original allele consensuses; not a complete post-fix cohort measurement",
+  "issue": "https://github.com/berntpopp/MucOneSpan/issues/52",
+  "selected_output_sha256": {
+    "summary.json": "20484b94092b5df19a9e1f361cd0c2927dc27df66b4f6af917720fafcfc221cd",
+    "run_status.json": "6f922fc99c101e4c69006c9a81b8f211c38fedce064967782f32f652793c716a",
+    "report.html": "9d2d5ad16b37af6c1aae1e64d050228531bc0122aa7579fa75f9f2b7f726b87f",
+    "run_configuration.json": "6d4a42050f8ec87f14ad30a276e1b09dd3fd234efd1b5ab30decdda0389cfe2b",
+    "repeats.json": "d789da8485cc046d5413fbbe14b6b777bb77dac997de1403d7d83954f565b93f",
+    "alleles.json": "ad415b791ec619ccaae84162377ee49b53c002c144045088710f45de2c23d994"
+  },
+  "mutation_replay": {
+    "alleles": 22,
+    "changed_mutation_annotation_lists": 1,
+    "changed_allele": "ERR15277566/allele_2",
+    "unchanged_mutation_annotation_lists": 21
+  }
+}

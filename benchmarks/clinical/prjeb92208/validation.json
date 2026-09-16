@@ -1,0 +1,40 @@
+{
+  "schema_version": 1,
+  "checks": [
+    {
+      "command": "make ci-check",
+      "result": "993 passed;89.62%branch-aware coverage;quality gates passed",
+      "log_sha256": "1029b6f19c8ed341d3b4b6de61d14ad48fabe6a23430ebea1dcc98cb2f27ca8d"
+    },
+    {
+      "command": "make test-int",
+      "result": "70 passed;8 deselected by integration marker;external igv-reports1.13.0",
+      "log_sha256": "156efec66d4f7d48e9d19dc6c141ce3fe79ae796a67a1fb37f1f19b061ddf3a8"
+    },
+    {
+      "command": "make docs-check",
+      "result": "strict build passed",
+      "log_sha256": "20fd31d0cb810d2a2aaa444d75affa6dc83f8c00c5c823c82d73e26e7af51d79"
+    },
+    {
+      "command": "make build-check",
+      "result": "wheel/sdist contents,isolated installation,CLI,bundled resources passed",
+      "log_sha256": "6370f45c01fbca5cbf2e2b20a6cbe9e37ec966b7940d69a14f5da637b8156c59"
+    }
+  ],
+  "preservation_panel": {
+    "scope": "original frozen caller before dictionary correction;normalHiFi,dupCHiFi,dupCONT",
+    "before_artifacts": 84,
+    "after_artifacts": 84,
+    "differences": 0
+  },
+  "final_cohort_repeat": {
+    "before_artifacts": 306,
+    "after_artifacts": 306,
+    "differences": [],
+    "normalization": "checkout/output paths; volatile VCF command/date headers; canonical JSON key ordering",
+    "results_json_equal": true
+  },
+  "mp1_fix": "See mp1-classifier-fix.json;one full corrected pipeline invocation,not a new completecohort",
+  "remaining": "GitHub Actions pending draft creation;comparator incomplete;release and full post-fixcohort not performed"
+}
