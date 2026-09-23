@@ -81,10 +81,12 @@ def reads_args(
 ) -> list[str]:
     """`muconeup reads …` for one benchmark profile; always FASTQ (`--no-align`)."""
     ref = str(profile_path) if profile_path else BUILTIN_PROFILE[profile]
-    head = [executable, str(config), "--out-dir", str(out_dir)]
+    head = [executable, "--config", str(config), "reads"]
     tail = [
         "--read-profile",
         ref,
+        "--out-dir",
+        str(out_dir),
         "--out-base",
         base,
         "--seed",
@@ -93,12 +95,12 @@ def reads_args(
         str(truth_fa),
     ]
     if profile == "ont_genomic_targeted":
-        args = [*head, "reads", "ont", "--simulator", "pbsim3-fragments", "--n-reads", str(amount)]
+        args = [*head, "ont", "--simulator", "pbsim3-fragments", "--n-reads", str(amount)]
         if flank_fasta is not None:
             args.extend(["--flank-fasta", str(flank_fasta)])
         return [*args, *tail]
     platform = "ont" if profile == "ont_amplicon_r10" else "pacbio"
-    args = [*head, "reads", "amplicon", "--platform", platform, "--coverage", str(amount)]
+    args = [*head, "amplicon", "--platform", platform, "--coverage", str(amount)]
     if pcr_preset:
         args.extend(["--pcr-preset", pcr_preset])
     return [*args, *tail]
