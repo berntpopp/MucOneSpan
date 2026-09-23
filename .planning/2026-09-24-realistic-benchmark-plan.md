@@ -135,13 +135,13 @@ def test_reads_args_per_profile(tmp_path: Path) -> None:
     fa = tmp_path / "t.fa"
     amp = reads_args("mu", tmp_path / "c.json", "ont_amplicon_r10", fa, tmp_path, "b", 3,
                      amount=900, profile_path=None, flank_fasta=None, pcr_preset=None)
-    assert amp[4:6] == ["reads", "amplicon"] and "--no-align" in amp
+    assert amp[3:5] == ["reads", "amplicon"] and "--no-align" in amp
     assert amp[amp.index("--read-profile") + 1] == "ont_r10_sup_amplicon_v1"
     assert amp[amp.index("--coverage") + 1] == "900"
     gen = reads_args("mu", tmp_path / "c.json", "ont_genomic_targeted", fa, tmp_path, "b", 3,
                      amount=250, profile_path=tmp_path / "p.json", flank_fasta=tmp_path / "f.fa",
                      pcr_preset=None)
-    assert gen[4:6] == ["reads", "ont"]
+    assert gen[3:5] == ["reads", "ont"]
     assert gen[gen.index("--simulator") + 1] == "pbsim3-fragments"
     assert gen[gen.index("--read-profile") + 1] == str(tmp_path / "p.json")
     assert gen[gen.index("--n-reads") + 1] == "250"
