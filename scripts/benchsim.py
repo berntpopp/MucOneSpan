@@ -2,9 +2,9 @@
 """MucSim-Bench: design and generate simulated MUC1 benchmark cases with MucOneUp.
 
 Examples:
-    python scripts/benchsim.py design --split dev --n 30
+    python scripts/benchsim.py design --split dev --n 30 --set standard
     python scripts/benchsim.py design --split test --salt-file ~/secrets/mucsim_salt.txt
-    python scripts/benchsim.py generate --designs ../MucOneSpan-bench-data/designs_dev.jsonl \\
+    python scripts/benchsim.py generate --designs ../MucOneSpan-bench-data/designs_dev_standard.jsonl \\
         --muconeup-config "$MUCONEUP_CONFIG" --muconeup-profiles <MucOneUp>/muc_one_up/data/read_profiles
 
 Generated designs, truth and reads go to ``--out-root`` (default
@@ -41,8 +41,8 @@ from muc_one_span.benchsim.muconeup import BUILTIN_PROFILE, require_muconeup
 from muc_one_span.benchsim.profiles import builtin_profile_dir, write_variant
 from muc_one_span.benchsim.realism import aggregate as realism_aggregate
 from muc_one_span.benchsim.realism import case_metrics
+from muc_one_span.benchsim.realism_targets import INDICATIVE_NOTE, load_targets, target_note
 from muc_one_span.benchsim.realism_targets import compare as realism_compare
-from muc_one_span.benchsim.realism_targets import load_targets
 from muc_one_span.benchsim.report import (
     decide,
     first_evaluation,
@@ -128,7 +128,7 @@ def read_salt(args: argparse.Namespace) -> str:
 
 
 def cmd_design(args: argparse.Namespace) -> int:
-    """Write ``designs_<split>.jsonl``."""
+    """Write ``designs_<split>_<set>.jsonl``."""
     salt = read_salt(args)
     mutations = (
         args.mutations.split(",") if args.mutations else sorted(load_repeat_dictionary().mutations)
@@ -136,15 +136,19 @@ def cmd_design(args: argparse.Namespace) -> int:
     sizes = args.bench.design.split_sizes
     if args.split not in sizes:
         raise SystemExit(f"no size configured for split {args.split!r}")
+    bench_set = args.set or args.bench.sets.default
+    if bench_set not in args.bench.sets.definitions:
+        known = ", ".join(args.bench.sets.definitions)
+        raise SystemExit(f"unknown set {bench_set!r} (configured: {known})")
     n = args.n if args.n is not None else sizes[args.split]
     try:
-        designs = build_split(args.split, n, salt, mutations, args.bench)
+        designs = build_split(args.split, n, salt, mutations, args.bench, bench_set)
     except ValueError as exc:
         raise SystemExit(str(exc)) from exc
     if args.output is not None:
         out = ensure_outside(args.output, "--output")
     else:
-        out = out_root(args) / f"designs_{args.split}.jsonl"
+        out = out_root(args) / f"designs_{args.split}_{bench_set}.jsonl"
     out.parent.mkdir(parents=True, exist_ok=True)
     out.write_text("".join(json.dumps(d.to_dict(), sort_keys=True) + "\n" for d in designs))
     print(f"wrote {len(designs)} designs to {out}")
@@ -231,6 +235,11 @@ def cmd_run(args: argparse.Namespace) -> int:
     return 0
 
 
+def _rule(args: argparse.Namespace) -> str:
+    """The decision rule under the effective settings (headline set included)."""
+    return rule_text(args.bench.report, args.bench.sets.headline)
+
+
 def _prereg_path(root: Path) -> Path:
     return root / "test" / "preregistration.jsonl"
 
@@ -267,7 +276,7 @@ def cmd_preregister(args: argparse.Namespace) -> int:
     """Append the decision rule to ``<out-root>/test/preregistration.jsonl``."""
     path = _prereg_path(out_root(args))
     try:
-        digest = preregister(rule_text(args.bench.report), path)
+        digest = preregister(_rule(args), path)
     except PermissionError as exc:
         raise SystemExit(str(exc)) from exc
     print(f"pre-registered rule sha256 {digest} in {path}")
@@ -277,7 +286,7 @@ def cmd_preregister(args: argparse.Namespace) -> int:
 def cmd_evaluate(args: argparse.Namespace) -> int:
     """Score each engine's results with ``scripts/evaluate.py`` into ``evaluation.json``."""
     root = out_root(args)
-    audit = _guard_sealed(args.split, root, rule_text(args.bench.report))  # before truth is read
+    audit = _guard_sealed(args.split, root, _rule(args))  # before truth is read
     if audit is not None:  # marked before scoring starts (conservative: a failed run counts)
         audit["test_first_evaluated_at"] = mark_first_evaluation(_prereg_path(root))
     results, split_dir = _results_root(args, root), root / args.split
@@ -307,10 +316,32 @@ def _cases(split_dir: Path) -> dict[str, dict[str, Any]]:
     return {row["design_id"]: row for row in rows}
 
 
+def _set_sections(
+    args: argparse.Namespace, rows: dict[str, list[dict[str, Any]]]
+) -> dict[str, dict[str, Any]]:
+    """Tables and reason atlas per benchmark set, headline set first."""
+    sets = args.bench.sets
+    present = {r["bench_set"] for engine_rows in rows.values() for r in engine_rows}
+    out: dict[str, dict[str, Any]] = {}
+    for name in sets.order(present):
+        sub = {
+            e: [r for r in engine_rows if r["bench_set"] == name] for e, engine_rows in rows.items()
+        }
+        definition = sets.definitions.get(name)
+        out[name] = {
+            "headline": name == sets.headline,
+            "description": definition.description if definition else None,
+            "n_cases": len(sub[args.baseline]),
+            "tables": {e: build_tables(r, args.bench.report) for e, r in sub.items()},
+            "atlas": {e: build_atlas(r, args.split, args.bench.atlas) for e, r in sub.items()},
+        }
+    return out
+
+
 def cmd_report(args: argparse.Namespace) -> int:
-    """Stratified tables per engine and the decision rule: ``report.json`` + ``report.md``."""
+    """Tables and atlas per set and engine, rule on the headline set: report.json + report.md."""
     root = out_root(args)
-    audit = _guard_sealed(args.split, root, rule_text(args.bench.report))
+    audit = _guard_sealed(args.split, root, _rule(args))
     if audit is not None:
         audit["test_first_evaluated_at"] = first_evaluation(_prereg_path(root))
     results, cases = _results_root(args, root), _cases(root / args.split)
@@ -321,28 +352,43 @@ def cmd_report(args: argparse.Namespace) -> int:
         if not path.is_file():
             raise SystemExit(f"missing {path}; run `benchsim evaluate` first")
         try:
-            rows[engine] = normalize_rows(json.loads(path.read_text()), cases)
+            rows[engine] = normalize_rows(
+                json.loads(path.read_text()), cases, args.bench.sets.legacy
+            )
         except (KeyError, ValueError) as exc:
             raise SystemExit(f"cannot normalize {path}: {exc}") from exc
-    decision = decide(rows, args.baseline, args.candidate, args.bench) if args.candidate else None
-    tables = {engine: build_tables(r, args.bench.report) for engine, r in rows.items()}
-    atlases = {engine: build_atlas(r, args.split, args.bench.atlas) for engine, r in rows.items()}
+    headline = args.bench.sets.headline
+    decision, header = None, {}
+    if args.candidate and any(r["bench_set"] == headline for r in rows[args.baseline]):
+        decision = decide(rows, args.baseline, args.candidate, args.bench)
+        header = decision
+    elif args.candidate:
+        header = {
+            "note": f"Decision: not evaluated (no `{headline}` cases; the rule applies "
+            f"to the `{headline}` set only)."
+        }
+    sets = _set_sections(args, rows)
     report = {
         "split": args.split,
         "preregistration": audit,
         "bench_config_sha256": args.bench.sha256(),
         "decision": decision,
-        "tables": tables,
-        "atlas": atlases,
+        "headline_set": headline,
+        "set_order": list(sets),
+        "sets": sets,
         "engines": {engine: {"rows": r} for engine, r in rows.items()},
     }
     _write(results / "report.json", report)
-    parts = [render_markdown(decision or {})]
-    parts += [
-        f"## Engine `{e}`\n\n{render_atlas(atlases[e], args.bench.atlas)}"
-        f"{render_engine_tables(t, args.bench.report)}"
-        for e, t in tables.items()
-    ]
+    parts = [render_markdown(header)]
+    for name, section in sets.items():
+        label = f"Set `{name}`" + (" (headline)" if section["headline"] else "")
+        about = f"{section['description']}\n\n" if section["description"] else ""
+        parts += [
+            f"## {label}: engine `{e}` ({section['n_cases']} cases)\n\n{about}"
+            f"{render_atlas(section['atlas'][e], args.bench.atlas)}"
+            f"{render_engine_tables(t, args.bench.report)}"
+            for e, t in section["tables"].items()
+        ]
     (results / "report.md").write_text("\n".join(parts))
     print(f"report: {results / 'report.json'}")
     return 0
@@ -351,10 +397,10 @@ def cmd_report(args: argparse.Namespace) -> int:
 def cmd_realism(args: argparse.Namespace) -> int:
     """Task 9 realism metrics over a split, aggregated and compared per profile."""
     root = out_root(args)
-    if _guard_sealed(args.split, root, rule_text(args.bench.report)) is not None:
+    if _guard_sealed(args.split, root, _rule(args)) is not None:
         mark_first_evaluation(_prereg_path(root))  # realism reads test truth: unseals
     split_dir = root / args.split
-    per_profile: dict[str, list[dict[str, Any]]] = {}
+    per_set: dict[str, dict[str, list[dict[str, Any]]]] = {}
     failures = []
     for design_id, case in sorted(_cases(split_dir).items()):
         if case.get("status") != "ok":
@@ -367,35 +413,48 @@ def cmd_realism(args: argparse.Namespace) -> int:
         except (OSError, ValueError, KeyError) as exc:
             failures.append({"design_id": design_id, "error": f"{type(exc).__name__}: {exc}"})
             continue
-        per_profile.setdefault(case["profile"], []).append(metrics)
+        name = (case.get("design") or {}).get("bench_set") or args.bench.sets.legacy
+        per_set.setdefault(name, {}).setdefault(case["profile"], []).append(metrics)
     targets = load_targets()
-    profiles: dict[str, Any] = {}
-    for profile, cases in sorted(per_profile.items()):
-        agg = realism_aggregate(cases, args.bench.realism)
-        try:
-            checks = realism_compare(agg, targets, profile, args.bench.realism)
-        except KeyError:
-            checks = None  # no public target section for this profile
-        except ValueError as exc:
-            raise SystemExit(f"realism settings do not match the targets: {exc}") from exc
-        profiles[profile] = {"n_cases": len(cases), "aggregate": agg, "compare": checks}
+    sets: dict[str, Any] = {}
+    for name in args.bench.sets.order(per_set):
+        profiles: dict[str, Any] = {}
+        for profile, cases in sorted(per_set[name].items()):
+            agg = realism_aggregate(cases, args.bench.realism)
+            try:
+                checks = realism_compare(agg, targets, profile, args.bench.realism)
+            except KeyError:
+                checks = None  # no public target section for this profile
+            except ValueError as exc:
+                raise SystemExit(f"realism settings do not match the targets: {exc}") from exc
+            note = target_note(targets, profile)
+            profiles[profile] = {
+                "n_cases": len(cases),
+                "note": note,
+                "aggregate": agg,
+                "compare": checks,
+            }
+        sets[name] = {"profiles": profiles}
     _write(
         split_dir / "realism.json",
         {
             "split": args.split,
             "bench_config_sha256": args.bench.sha256(),
-            "profiles": profiles,
+            "indicative": INDICATIVE_NOTE,
+            "sets": sets,
             "failures": failures,
         },
     )
-    lines = [f"# Realism: {args.split}", ""]
-    for profile, res in profiles.items():
-        lines += [f"## {profile} ({res['n_cases']} cases)", ""]
-        if res["compare"] is None:
-            lines += ["No public target section.", ""]
-            continue
-        lines += ["| check | pass |", "|---|---|"]
-        lines += [f"| {k} | {v['pass']} |" for k, v in res["compare"].items()] + [""]
+    lines = [f"# Realism: {args.split}", "", INDICATIVE_NOTE, ""]
+    for name, section in sets.items():
+        lines += [f"## Set `{name}`", ""]
+        for profile, res in section["profiles"].items():
+            lines += [f"### {profile} ({res['n_cases']} cases)", "", f"Scope: {res['note']}.", ""]
+            if res["compare"] is None:
+                lines += ["No public target section.", ""]
+                continue
+            lines += ["| check | pass |", "|---|---|"]
+            lines += [f"| {k} | {v['pass']} |" for k, v in res["compare"].items()] + [""]
     lines += [f"Failures: {len(failures)}"]
     (split_dir / "realism.md").write_text("\n".join(lines) + "\n")
     print(f"realism: {split_dir / 'realism.json'} ({len(failures)} failures)")
@@ -414,11 +473,14 @@ def parser() -> argparse.ArgumentParser:
     design = commands.add_parser("design", help="write designs_<split>.jsonl")
     design.add_argument("--split", choices=SPLITS, required=True)
     design.add_argument("--n", type=int, help="cases per profile (default: split size)")
+    design.add_argument("--set", help="benchmark set (default: bench config sets.default)")
     design.add_argument("--salt", default=DEFAULT_SALT, help="public salt for non-test splits")
     design.add_argument("--salt-file", type=Path, help="secret salt file (required for test)")
     design.add_argument("--mutations", help="comma-separated event names (default: dictionary)")
     design.add_argument("--out-root", type=Path, help=f"default: <repo parent>/{DATA_DIR_NAME}")
-    design.add_argument("--output", type=Path, help="default: <out-root>/designs_<split>.jsonl")
+    design.add_argument(
+        "--output", type=Path, help="default: <out-root>/designs_<split>_<set>.jsonl"
+    )
     design.set_defaults(func=cmd_design)
     gen = commands.add_parser("generate", help="simulate truth and reads for designs")
     gen.add_argument("--designs", type=Path, required=True)

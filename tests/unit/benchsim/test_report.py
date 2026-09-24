@@ -33,6 +33,7 @@ def _rows(
         {
             "sample": f"s{i}",
             "profile": profile,
+            "bench_set": HEADLINE,
             "alleles": [{"allele": "h1", "allele_exact": e}],
             "normal": True,
             "false_positive": f,
@@ -40,6 +41,9 @@ def _rows(
         }
         for i, (e, f) in enumerate(zip(exact, fp, strict=True))
     ]
+
+
+HEADLINE = DEFAULT_BENCH_CONFIG.sets.headline
 
 
 def test_paired_counts_discordant() -> None:
@@ -332,9 +336,9 @@ def test_rule_text_names_the_per_allele_endpoint() -> None:
 
 
 def test_default_rule_text_is_unchanged_by_the_config_refactor() -> None:
-    # SHA-256 of the v2 rule text before its numbers moved to ReportConfig; a
+    # SHA-256 of the v3 rule text (v2 plus the headline-set scope, Task 12c); a
     # changed default would silently invalidate existing pre-registrations.
-    pinned = "65c66399a6a91f6297b2363d0f3037a839430f4fc849653966813463ceef2b74"
+    pinned = "790ee0d253dabdc95b1a08007ed57a1fddcd1becaf00114e697d5cf07f4cfbfe"
     assert rule_text(DEFAULT_BENCH_CONFIG.report) == RULE_TEXT
     assert rule_sha256(RULE_TEXT) == pinned
 
@@ -397,3 +401,32 @@ def test_normalize_rows_keeps_reasons_position_and_minimum_depth() -> None:
     )
     assert old["reasons_recorded"] is False and old["clinical_reasons"] == []
     assert old["realized_min_allele_depth"] is None
+
+
+def test_rule_applies_to_the_headline_set_only() -> None:
+    assert f"`{HEADLINE}` benchmark set only" in RULE_TEXT
+    other = rule_text(DEFAULT_BENCH_CONFIG.report, "clean")
+    assert "`clean` benchmark set only" in other and rule_sha256(other) != rule_sha256(RULE_TEXT)
+
+
+def test_decide_uses_only_headline_rows() -> None:
+    n = 3000
+    base, cand = _rows([0] * n, [0] * n), _rows([1] * n, [0] * n)
+    stress = [r | {"sample": f"x{i}", "bench_set": "stress"} for i, r in enumerate(base)]
+    worse = [r | {"false_positive": 1} for r in stress]
+    result = decide({"ladder": base + stress, "hybrid": cand + worse}, "ladder", "hybrid")
+    assert result["adopt"] is True and result["bench_set"] == HEADLINE
+    assert result["profiles"]["ont_amplicon_r10"]["n"] == n
+
+
+def test_normalize_rows_records_the_set() -> None:
+    report = {"samples": [_sample("p", "pathogenic", "PATHOGENIC")]}
+    case = _case("p", "dupC")
+    (legacy,) = normalize_rows(report, {"p": case})
+    assert legacy["bench_set"] == DEFAULT_BENCH_CONFIG.sets.legacy
+    (named,) = normalize_rows(
+        report, {"p": case | {"design": case["design"] | {"bench_set": "clean"}}}
+    )
+    assert named["bench_set"] == "clean"
+    (other,) = normalize_rows(report, {"p": case}, legacy_set="standard")
+    assert other["bench_set"] == "standard"

@@ -92,7 +92,7 @@ STRATA = (
 ALLELE_UNIT = ("sample", "allele")
 
 _RULE_TEMPLATE = (
-    "MucSim-Bench decision rule v2 (spec section 6). Adopt the candidate engine over the "
+    "MucSim-Bench decision rule v3 (spec section 6). Adopt the candidate engine over the "
     "baseline only if, for every profile: (1) it is superior on per-allele exact sequence "
     "(unit: each truth allele of each case, exact under the least favourable optimal "
     "assignment with independent haplotype evidence), by exact two-sided McNemar on "
@@ -105,13 +105,21 @@ _RULE_TEMPLATE = (
     "or NO_CALL does not exceed the baseline's. Pooled per-allele and case-exact rates are "
     "reported with {level:g}% cluster-bootstrap intervals over design_id ({replicates} "
     "replicates, seed {seed}). Failed or unattempted runs count as NO_CALL with every truth "
-    "allele not exact; no case or allele is dropped."
+    "allele not exact; no case or allele is dropped. The rule applies to the `{headline}` "
+    "benchmark set only; other sets are reported descriptively and never decide adoption."
 )
 
 
-def rule_text(report: ReportConfig = DEFAULT_BENCH_CONFIG.report) -> str:
-    """The decision rule with its numbers from ``report`` (its SHA-256 is pre-registered)."""
+def rule_text(
+    report: ReportConfig = DEFAULT_BENCH_CONFIG.report,
+    headline_set: str = DEFAULT_BENCH_CONFIG.sets.headline,
+) -> str:
+    """The decision rule with its numbers from ``report`` (its SHA-256 is pre-registered).
+
+    ``headline_set`` is the only benchmark set the rule is applied to.
+    """
     return _RULE_TEMPLATE.format(
+        headline=headline_set,
         alpha=report.alpha,
         level=float((1 - Fraction(str(report.alpha))) * PERCENT),
         margin=report.ni_margin,
@@ -150,9 +158,14 @@ def _alleles(sample: dict[str, Any], failed: bool) -> list[dict[str, Any]]:
 
 
 def normalize_rows(
-    report: dict[str, Any], cases: dict[str, dict[str, Any]]
+    report: dict[str, Any],
+    cases: dict[str, dict[str, Any]],
+    legacy_set: str = DEFAULT_BENCH_CONFIG.sets.legacy,
 ) -> list[dict[str, Any]]:
     """One case row per evaluated sample (with per-allele entries), joined to its design.
+
+    ``bench_set`` is the design's benchmark set, or ``legacy_set`` for designs
+    written before sets existed.
 
     Raises:
         KeyError: If a sample has no case (strata would silently be lost).
@@ -176,6 +189,7 @@ def normalize_rows(
         case_exact = 0 if failed else int(metrics["all_sequences_exact"]["min"])
         row: dict[str, Any] = {
             "sample": name,
+            "bench_set": design.get("bench_set") or legacy_set,
             "status": sample["status"],
             "failed": failed,
             "truth": truth,
@@ -365,14 +379,19 @@ def decide(
     candidate: str,
     config: BenchConfig = DEFAULT_BENCH_CONFIG,
 ) -> dict[str, Any]:
-    """Apply `rule_text` (``config.report``) per profile; adopt only if every profile passes."""
-    cfg = config.report
-    base, cand = reports[baseline], reports[candidate]
+    """Apply `rule_text` per profile to the headline set; adopt only if every profile passes.
+
+    Rows of other benchmark sets (``bench_set``) are ignored.
+    """
+    cfg, headline = config.report, config.sets.headline
+    base = [r for r in reports[baseline] if r.get("bench_set") == headline]
+    cand = [r for r in reports[candidate] if r.get("bench_set") == headline]
     profiles = sorted({_key(r.get("profile")) for r in (*base, *cand)})
     result: dict[str, Any] = {
         "baseline": baseline,
         "candidate": candidate,
-        "rule_sha256": rule_sha256(rule_text(cfg)),
+        "bench_set": headline,
+        "rule_sha256": rule_sha256(rule_text(cfg, headline)),
         "holm_family": list(HOLM_FAMILY),
         "alpha": cfg.alpha,
         "margin": cfg.ni_margin,
@@ -429,9 +448,11 @@ def render_markdown(result: dict[str, Any]) -> str:
             "",
             f"Rule sha256: `{result.get('rule_sha256')}`",
             "",
+            f"Decided on benchmark set `{result.get('bench_set')}` only.",
+            "",
         ]
     else:
-        lines += ["Decision: not evaluated (no candidate; tables only).", ""]
+        lines += [result.get("note") or "Decision: not evaluated (no candidate; tables only).", ""]
     if result.get("profiles"):
         lines += [
             "## Decision rule per profile",

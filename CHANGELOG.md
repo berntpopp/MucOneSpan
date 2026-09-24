@@ -36,6 +36,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 - `generate` reuse is checked against `bench_generation_sha256` (design,
   amount, profiles and structures settings only), so report-, realism-, run- or
   atlas-only changes no longer invalidate generated cases.
+- MucSim-Bench benchmark sets (`sets` bench-config section, `design --set`):
+  the realistic `standard` headline set (depths 500-2000 ONT amplicon, 200-1000
+  HiFi, 30-100 genomic; calibrated error; no or calibrated PCR bias; typical
+  smear and chimera), a `clean` control and a `stress` set with the former
+  harsh mix. Design IDs carry the set name, sets of a split share their
+  haplotypes, `report` and `realism` write one section per set (headline
+  first), and the decision rule (now v3) applies to the headline set only.
+  Realism results are labelled indicative. The per-split smear levels and the
+  `design` depth, PCR, error and chimera levels moved into the sets.
   `bench_config_sha256` stays the full provenance hash.
 
 ## [0.16.0] - 2026-09-24

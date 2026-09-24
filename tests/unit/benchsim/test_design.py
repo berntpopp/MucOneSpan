@@ -16,6 +16,7 @@ from muc_one_span.benchsim.design import (
 from muc_one_span.settings import DEFAULT_LAYOUT
 
 CFG = DEFAULT_BENCH_CONFIG.design
+SETS = DEFAULT_BENCH_CONFIG.sets
 
 MUTS = ["dupC", "dupA", "insG", "delGCCCA", "insCCC_benign"]
 
@@ -33,7 +34,9 @@ def test_split_sizes_normal_floor_and_profiles() -> None:
     for profile in PROFILES:
         rows = [d for d in designs if d.profile == profile]
         assert sum(d.event is None for d in rows) / len(rows) >= CFG.normal_fraction
-        assert all(d.depth in CFG.depths[profile] for d in rows)
+        levels = SETS.definitions[SETS.default].profiles[profile]
+        assert all(d.depth in levels.depths for d in rows)
+        assert all(d.bench_set == SETS.default for d in rows)
 
 
 def test_targets_match_event_allele_and_position() -> None:
@@ -90,20 +93,52 @@ def test_clamped_targets_are_recorded() -> None:
     assert Design.from_dict(legacy).target_clamped is False
 
 
-def test_smear_levels_follow_the_split_and_cap() -> None:
-    for split in ("dev", "stress"):
-        designs = build_split(split, CFG.split_sizes[split], "salt", MUTS)
-        assert {d.smear for d in designs} == set(CFG.smear_levels[split])
-    chimera = max(CFG.chimera_levels)
-    assert max(CFG.smear_levels["dev"]) + chimera <= CFG.offpeak_share_cap
-    assert max(CFG.smear_levels["stress"]) + chimera > CFG.offpeak_share_cap
+def test_factor_levels_follow_the_set() -> None:
+    for name, bench_set in SETS.definitions.items():
+        designs = build_split("dev", 30, "salt", MUTS, bench_set=name)
+        for profile in PROFILES:
+            rows = [d for d in designs if d.profile == profile]
+            levels = bench_set.profiles[profile]
+            assert {d.depth for d in rows} == set(levels.depths)
+            assert {d.pcr for d in rows} == set(levels.pcr_levels)
+            assert {d.error for d in rows} == set(levels.error_levels)
+            assert {d.smear for d in rows} == set(levels.smear_levels)
+            assert {d.chimera for d in rows} == set(levels.chimera_levels)
+            assert all(d.bench_set == name for d in rows)
+            assert all(d.design_id.startswith(f"dev-{name}-{profile}-") for d in rows)
+
+
+def test_sets_share_the_biology_of_a_split() -> None:
+    bio = ("profile", "lengths", "delta_class", "composition", "event", "event_allele")
+    bio += ("event_position", "targets", "bio_seed", "target_clamped")
+    runs = {name: build_split("dev", 30, "salt", MUTS, bench_set=name) for name in SETS.definitions}
+    standard = runs.pop(SETS.default)
+    for designs in runs.values():
+        for a, b in zip(standard, designs, strict=True):
+            assert [getattr(a, k) for k in bio] == [getattr(b, k) for k in bio]
+            assert a.read_seed != b.read_seed and a.design_id != b.design_id
+
+
+def test_unknown_set_is_rejected() -> None:
+    with pytest.raises(ValueError, match="set"):
+        build_split("dev", 3, "salt", MUTS, bench_set="nope")
+
+
+def test_legacy_design_without_set_round_trips() -> None:
+    design = build_split("dev", 1, "salt", MUTS)[0]
+    legacy = {k: v for k, v in design.to_dict().items() if k != "bench_set"}
+    assert Design.from_dict(legacy).bench_set is None
 
 
 def test_design_factors_come_from_the_config() -> None:
-    design = replace(
-        CFG, normal_fraction=0.5, chimera_levels=(0.02,), pcr_levels=("none",), length_min=40
-    )
-    cfg = BenchConfig(design=design)
+    standard = SETS.definitions["standard"]
+    profiles = {
+        p: replace(levels, chimera_levels=(0.02,), pcr_levels=("none",))
+        for p, levels in standard.profiles.items()
+    }
+    only = {"standard": replace(standard, profiles=profiles)}
+    sets = replace(SETS, definitions=only, legacy="standard")
+    cfg = BenchConfig(design=replace(CFG, normal_fraction=0.5, length_min=40), sets=sets)
     designs = build_split("val", 20, "salt", MUTS, cfg)
     assert {d.chimera for d in designs} == {0.02} and {d.pcr for d in designs} == {"none"}
     assert min(min(d.lengths) for d in designs) >= 40
@@ -112,9 +147,12 @@ def test_design_factors_come_from_the_config() -> None:
         assert sum(d.event is None for d in rows) == 10
 
 
-def test_unknown_split_or_profile_depths_are_rejected() -> None:
+def test_unknown_split_or_profile_levels_are_rejected() -> None:
     with pytest.raises(ValueError, match="split"):
         build_split("nope", 3, "salt", MUTS)
-    depths = {k: v for k, v in CFG.depths.items() if k != "hifi_amplicon"}
+    standard = SETS.definitions["standard"]
+    profiles = {k: v for k, v in standard.profiles.items() if k != "hifi_amplicon"}
+    definitions = {**SETS.definitions, "standard": replace(standard, profiles=profiles)}
+    cfg = BenchConfig(sets=replace(SETS, definitions=definitions))
     with pytest.raises(ValueError, match="hifi_amplicon"):
-        build_split("dev", 3, "salt", MUTS, BenchConfig(design=replace(CFG, depths=depths)))
+        build_split("dev", 3, "salt", MUTS, cfg)

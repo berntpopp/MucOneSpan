@@ -15,17 +15,22 @@ from __future__ import annotations
 
 import hashlib
 import json
-import math
-from dataclasses import asdict, dataclass, field, fields
+from dataclasses import asdict, dataclass, field, fields, is_dataclass
 from pathlib import Path
 from typing import Any
 
 from muc_one_span.settings import DEFAULT_SETTINGS
 
+from .bench_checks import ERROR_LEVEL_NAMES, PCR_LEVEL_NAMES
+from .bench_checks import check_int as _int
+from .bench_checks import check_names as _names
+from .bench_checks import check_num as _num
+from .bench_sets import SetsConfig
+
+__all__ = ["ERROR_LEVEL_NAMES", "PCR_LEVEL_NAMES", "SetsConfig"]
+
 SCHEMA_VERSION = 1
 PERCENT = 100  # probability -> percent (unit conversion)
-PCR_LEVEL_NAMES = ("calibrated", "strong", "none")  # semantics implemented in `profiles`
-ERROR_LEVEL_NAMES = ("calibrated", "poor")
 # Names with semantics implemented elsewhere (`structures`, `generate`, `design`).
 COMPOSITION_NAMES = ("markov", "real_derived", "rare_units")
 DELTA_CLASS_NAMES = ("0_identical", "0_different", "1", "2", "3-5", "6-20", ">20")
@@ -49,50 +54,20 @@ ATLAS_STRATUM_NAMES = (
 # Depth compared with the atlas depth gate: the design target, or the lowest
 # realized spanning depth over the case's alleles (``case.json`` realized_depth).
 DEPTH_BASIS_NAMES = ("design", "realized_min_allele")
-# Sections that shape generated cases (designs, amounts, read profiles, structures).
-# Their hash decides whether `generate` may reuse a case; report, realism, run and
-# atlas settings only change how finished cases are scored or run.
-GENERATION_SECTIONS = ("design", "amount", "profiles", "structures")
+# Sections that shape generated cases (designs, set factor levels, amounts, read
+# profiles, structures). Their hash decides whether `generate` may reuse a case;
+# report, realism, run and atlas settings only change how finished cases are scored or run.
+GENERATION_SECTIONS = ("design", "sets", "amount", "profiles", "structures")
 _WEIGHT_SUM_TOL = 1e-9  # float round-off allowed when composition weights sum to 1
-
-
-def _num(
-    name: str, value: object, lo: float, hi: float | None = None, *, open_lo: bool = False
-) -> None:
-    ok = False
-    if isinstance(value, (int, float)) and not isinstance(value, bool) and math.isfinite(value):
-        ok = (value > lo if open_lo else value >= lo) and (hi is None or value <= hi)
-    if not ok:
-        bound = f"{'(' if open_lo else '['}{lo}, {hi if hi is not None else 'inf'}]"
-        raise ValueError(f"{name} must be a finite number in {bound}")
-
-
-def _int(name: str, value: object, lo: int) -> None:
-    if type(value) is not int or value < lo:
-        raise ValueError(f"{name} must be an integer >= {lo}")
-
-
-def _levels(name: str, values: object, lo: float, hi: float) -> None:
-    if not isinstance(values, tuple) or not values:
-        raise ValueError(f"{name} must be a nonempty list of distinct values")
-    for value in values:
-        _num(name, value, lo, hi)
-    if len(set(values)) != len(values):
-        raise ValueError(f"{name} must be a nonempty list of distinct values")
-
-
-def _names(name: str, values: object, allowed: tuple[str, ...]) -> None:
-    if not isinstance(values, tuple) or not values or not all(isinstance(v, str) for v in values):
-        raise ValueError(f"{name} must be a nonempty list of distinct names")
-    if len(set(values)) != len(values):
-        raise ValueError(f"{name} must be a nonempty list of distinct names")
-    if not set(values) <= set(allowed):
-        raise ValueError(f"{name} must use only {allowed!r}")
 
 
 @dataclass(frozen=True)
 class DesignConfig:
-    """Split sizes and the stratified design factors (spec section 5)."""
+    """Split sizes and the biological design factors (spec section 5).
+
+    Technical factor levels (depth, PCR, error, smear, chimera) are per benchmark
+    set and profile (`bench_sets.SetsConfig`).
+    """
 
     split_sizes: dict[str, int] = field(
         default_factory=lambda: {"dev": 300, "val": 300, "test": 800, "stress": 100}
@@ -100,13 +75,6 @@ class DesignConfig:
     normal_fraction: float = 0.35
     length_min: int = 20
     length_max: int = 130
-    depths: dict[str, tuple[int, ...]] = field(
-        default_factory=lambda: {
-            "ont_amplicon_r10": (5, 10, 20, 30, 60, 150, 500, 2000),
-            "hifi_amplicon": (5, 10, 20, 30, 60, 150, 500, 2000),
-            "ont_genomic_targeted": (3, 6, 10, 20, 40, 80),
-        }
-    )
     delta_ranges: dict[str, tuple[int, int]] = field(
         default_factory=lambda: {
             "0_identical": (0, 0),
@@ -123,24 +91,6 @@ class DesignConfig:
     )
     # "first10"/"last10": the event lies in this leading/trailing fraction of the allele.
     position_fraction: float = 0.1
-    pcr_levels: tuple[str, ...] = PCR_LEVEL_NAMES
-    # Molecule smear rate per split. Smear and chimera products are both off-peak,
-    # so in regular splits the highest smear level plus the highest chimera level
-    # (the expected off-by->1-unit product share) stays at or below
-    # offpeak_share_cap, the real maximum of the public PRJEB92208 amplicon
-    # libraries (span_off_gt1unit_frac.max). Higher levels belong to exempt splits.
-    smear_levels: dict[str, tuple[float, ...]] = field(
-        default_factory=lambda: {
-            "dev": (0.05, 0.25),
-            "val": (0.05, 0.25),
-            "test": (0.05, 0.25),
-            "stress": (0.5,),
-        }
-    )
-    offpeak_share_cap: float = 0.5369
-    offpeak_cap_exempt: tuple[str, ...] = ("stress",)
-    chimera_levels: tuple[float, ...] = (0.01, 0.05)
-    error_levels: tuple[str, ...] = ERROR_LEVEL_NAMES
 
     def __post_init__(self) -> None:
         if not self.split_sizes:
@@ -150,26 +100,9 @@ class DesignConfig:
         _num("design.normal_fraction", self.normal_fraction, 0, 1)
         _int("design.length_min", self.length_min, 1)
         _int("design.length_max", self.length_max, self.length_min)
-        for profile, depths in self.depths.items():
-            if not depths or any(type(d) is not int or d < 1 for d in depths):
-                raise ValueError(f"design.depths.{profile} must be positive integers")
         self._check_delta_ranges()
         self._check_compositions()
         _num("design.position_fraction", self.position_fraction, 0, 0.5, open_lo=True)
-        _names("design.pcr_levels", self.pcr_levels, PCR_LEVEL_NAMES)
-        _names("design.error_levels", self.error_levels, ERROR_LEVEL_NAMES)
-        _levels("design.chimera_levels", self.chimera_levels, 0, 1)
-        _num("design.offpeak_share_cap", self.offpeak_share_cap, 0, 1)
-        if set(self.smear_levels) != set(self.split_sizes):
-            raise ValueError("design.smear_levels must list every split in split_sizes")
-        for split, levels in self.smear_levels.items():
-            _levels(f"design.smear_levels.{split}", levels, 0, 1)
-            offpeak = max(levels) + max(self.chimera_levels)
-            if split not in self.offpeak_cap_exempt and offpeak > self.offpeak_share_cap:
-                raise ValueError(
-                    f"design.smear_levels.{split}: max smear + max chimera = {offpeak:g} exceeds "
-                    f"offpeak_share_cap {self.offpeak_share_cap} (only offpeak_cap_exempt splits may)"
-                )
 
     def _check_delta_ranges(self) -> None:
         if not self.delta_ranges:
@@ -388,6 +321,7 @@ class BenchConfig:
     report: ReportConfig = field(default_factory=ReportConfig)
     run: RunConfig = field(default_factory=RunConfig)
     atlas: AtlasConfig = field(default_factory=AtlasConfig)
+    sets: SetsConfig = field(default_factory=SetsConfig)
 
     def __post_init__(self) -> None:
         if self.schema_version != SCHEMA_VERSION:
@@ -433,7 +367,21 @@ def _unique(pairs: list[tuple[str, Any]]) -> dict[str, Any]:
 
 
 def _coerce(default: Any, value: Any, name: str) -> Any:
-    """JSON value shaped like the default: lists -> tuples, dict values likewise."""
+    """JSON value shaped like the default: lists -> tuples, dict values likewise.
+
+    A dataclass default (a benchmark set, its per-profile levels) needs a JSON
+    object with every field and no others.
+    """
+    if is_dataclass(default) and not isinstance(default, type):
+        if not isinstance(value, dict):
+            raise ValueError(f"{name} must be a JSON object")
+        known = {f.name for f in fields(default)}
+        if value.keys() - known:
+            raise ValueError(f"unknown {name} fields: {', '.join(sorted(value.keys() - known))}")
+        if known - value.keys():
+            raise ValueError(f"{name}: missing fields: {', '.join(sorted(known - value.keys()))}")
+        coerced = {k: _coerce(getattr(default, k), value[k], f"{name}.{k}") for k in known}
+        return type(default)(**coerced)
     if isinstance(default, tuple):
         if not isinstance(value, list):
             raise ValueError(f"{name} must be a JSON array")

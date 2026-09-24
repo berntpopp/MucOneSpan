@@ -133,6 +133,32 @@ def target_section(targets: dict[str, Any], profile: str) -> dict[str, Any]:
     return _section(targets, profile)
 
 
+INDICATIVE_NOTE = (
+    "Indicative check against public PRJEB92208 aggregates: a sanity check of the "
+    "simulator, not a specification. Benchmark settings are not tuned to these numbers."
+)
+# Per-profile caveats; `target_note` adds the library count from the target file.
+_NOTES = {
+    "ont_amplicon_r10": "target: {n} public ONT R10.4.1 MUC1 amplicon libraries",
+    "ont_genomic_targeted": (
+        "target: {n} HG002 WGS libraries (ONT R10.4.1, tens of VNTR-spanning reads); "
+        "it does not represent targeted enrichment"
+    ),
+}
+_NO_TARGET_NOTE = "no public real data: uncalibrated, no realism target"
+
+
+def target_note(targets: dict[str, Any], profile: str) -> str:
+    """Human-readable scope of a profile's realism target (for realism.md)."""
+    template = _NOTES.get(profile)
+    try:
+        section = _section(targets, profile)
+    except KeyError:
+        return _NO_TARGET_NOTE
+    n = section.get("n_libraries", "?")
+    return template.format(n=n) if template else f"target section {profile}: {n} libraries"
+
+
 def compare(
     metrics: dict[str, Any],
     targets: dict[str, Any],

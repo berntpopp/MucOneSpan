@@ -100,11 +100,21 @@ def _write_json(path: Path, data: dict[str, Any]) -> None:
 
 
 def write_manifest(split_dir: Path, cases: list[dict[str, Any]]) -> Path:
-    """Write ``manifest.jsonl`` with one case per line, sorted by ``design_id``."""
+    """Write ``manifest.jsonl`` with one case per line, sorted by ``design_id``.
+
+    Rows already in the manifest are kept when their benchmark set
+    (``bench_set``; ``None`` before sets existed) is not among the sets of
+    ``cases``, so generating one set replaces only that set's rows.
+    """
     split_dir.mkdir(parents=True, exist_ok=True)
     path = split_dir / "manifest.jsonl"
     tmp = path.with_suffix(".tmp")
-    rows = sorted(cases, key=lambda c: str(c["design_id"]))
+    sets = {c.get("bench_set") for c in cases}
+    kept = []
+    if path.is_file():
+        old = [json.loads(line) for line in path.read_text().splitlines() if line.strip()]
+        kept = [c for c in old if c.get("bench_set") not in sets]
+    rows = sorted([*kept, *cases], key=lambda c: str(c["design_id"]))
     tmp.write_text("".join(json.dumps(c, sort_keys=True) + "\n" for c in rows))
     tmp.replace(path)
     return path
@@ -402,6 +412,7 @@ def generate_case(design: Design, ctx: GenerateContext) -> dict[str, Any]:
     case: dict[str, Any] = {
         "design_id": design.design_id,
         "split": design.split,
+        "bench_set": design.bench_set,
         "profile": design.profile,
         "design": design.to_dict(),
         "muconeup_version": ctx.muconeup_version,

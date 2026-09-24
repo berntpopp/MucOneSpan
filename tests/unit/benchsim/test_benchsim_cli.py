@@ -1,12 +1,15 @@
 """scripts/benchsim.py `design`, `generate` and `run` subcommands (Git mocked)."""
 
 import json
+from dataclasses import asdict
 from importlib.util import module_from_spec, spec_from_file_location
 from pathlib import Path
 from types import ModuleType
 from typing import Any
 
 import pytest
+
+from muc_one_span.benchsim.bench_config import DEFAULT_BENCH_CONFIG
 
 SCRIPT = Path(__file__).resolve().parents[3] / "scripts" / "benchsim.py"
 
@@ -41,21 +44,38 @@ def test_design_writes_jsonl(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) ->
     rc = _cli(tmp_path, monkeypatch).main(
         ["design", "--split", "dev", "--n", "4", "--mutations", "dupC", "--out-root", str(out)]
     )
-    rows = [json.loads(x) for x in (out / "designs_dev.jsonl").read_text().splitlines()]
+    rows = [json.loads(x) for x in (out / "designs_dev_standard.jsonl").read_text().splitlines()]
     assert rc == 0 and len(rows) == 12 and {r["split"] for r in rows} == {"dev"}
+
+
+def test_design_takes_a_set(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    out = tmp_path / "data"
+    cli = _cli(tmp_path, monkeypatch)
+    base = ["design", "--split", "dev", "--n", "2", "--mutations", "dupC", "--out-root", str(out)]
+    assert cli.main([*base, "--set", "clean"]) == 0
+    rows = [json.loads(x) for x in (out / "designs_dev_clean.jsonl").read_text().splitlines()]
+    assert {r["bench_set"] for r in rows} == {"clean"}
+    assert all(r["design_id"].startswith("dev-clean-") for r in rows)
+    with pytest.raises(SystemExit, match="unknown set"):
+        cli.main([*base, "--set", "nope"])
 
 
 def test_bench_config_drives_design(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     out = tmp_path / "data"
     config = tmp_path / "bench.json"
     sizes = {"dev": 2, "val": 2, "test": 2, "stress": 2}
+    clean = DEFAULT_BENCH_CONFIG.sets.definitions["clean"]
+    profiles = {p: asdict(v) | {"chimera_levels": [0.2]} for p, v in clean.profiles.items()}
+    only = {"description": "x", "offpeak_share_cap": None, "profiles": profiles}
+    sets = {"definitions": {"only": only}, "default": "only", "headline": "only", "legacy": "only"}
     config.write_text(
-        json.dumps({"schema_version": 1, "design": {"split_sizes": sizes, "chimera_levels": [0.2]}})
+        json.dumps({"schema_version": 1, "design": {"split_sizes": sizes}, "sets": sets})
     )
     args = ["--bench-config", str(config), "design", "--split", "dev", "--mutations", "dupC"]
     rc = _cli(tmp_path, monkeypatch).main([*args, "--out-root", str(out)])
-    rows = [json.loads(x) for x in (out / "designs_dev.jsonl").read_text().splitlines()]
+    rows = [json.loads(x) for x in (out / "designs_dev_only.jsonl").read_text().splitlines()]
     assert rc == 0 and len(rows) == 6 and {r["chimera"] for r in rows} == {0.2}
+    assert {r["bench_set"] for r in rows} == {"only"}
 
 
 def test_invalid_bench_config_exits(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
@@ -69,8 +89,8 @@ def test_bench_config_type_errors_exit_cleanly(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
     config = tmp_path / "bench.json"
-    config.write_text(json.dumps({"schema_version": 1, "design": {"chimera_levels": [[1]]}}))
-    with pytest.raises(SystemExit, match="chimera_levels"):
+    config.write_text(json.dumps({"schema_version": 1, "design": {"length_min": [1]}}))
+    with pytest.raises(SystemExit, match="length_min"):
         _cli(tmp_path, monkeypatch).main(["--bench-config", str(config), "preregister"])
 
 
@@ -80,7 +100,7 @@ def test_default_out_root_is_beside_the_repository(
     cli = _cli(tmp_path, monkeypatch)
     monkeypatch.chdir(tmp_path / "wt")
     assert cli.main(["design", "--split", "dev", "--n", "1", "--mutations", "dupC"]) == 0
-    assert (tmp_path / "MucOneSpan-bench-data" / "designs_dev.jsonl").is_file()
+    assert (tmp_path / "MucOneSpan-bench-data" / "designs_dev_standard.jsonl").is_file()
 
 
 @pytest.mark.parametrize("where", ["wt", "main", "wt/sub"])
@@ -116,10 +136,10 @@ def test_test_split_needs_salt_file_outside_repo(
     salt = tmp_path / "salt.txt"
     salt.write_text("secret\n")
     assert cli.main([*base, "--salt-file", str(salt), "--mutations", "dupC"]) == 0
-    first = (out / "designs_test.jsonl").read_text()
+    first = (out / "designs_test_standard.jsonl").read_text()
     salt.write_text("other\n")
     cli.main([*base, "--salt-file", str(salt), "--mutations", "dupC"])
-    assert (out / "designs_test.jsonl").read_text() != first
+    assert (out / "designs_test_standard.jsonl").read_text() != first
     salt.write_text("\n")
     with pytest.raises(SystemExit, match="empty"):
         cli.main([*base, "--salt-file", str(salt)])
@@ -149,7 +169,7 @@ def test_generate_writes_manifest_and_fails_on_generation_failure(
         [
             "generate",
             "--designs",
-            str(out / "designs_dev.jsonl"),
+            str(out / "designs_dev_standard.jsonl"),
             "--muconeup-config",
             str(tmp_path / "c.json"),
             "--muconeup-profiles",
@@ -180,7 +200,7 @@ def test_generate_stale_case_exits_without_writing(
     monkeypatch.setattr(cli, "write_variant", lambda *a: (Path("x"), "0" * 64))
     profiles = tmp_path / "profiles_in"
     profiles.mkdir()
-    args = ["generate", "--designs", str(out / "designs_dev.jsonl")]
+    args = ["generate", "--designs", str(out / "designs_dev_standard.jsonl")]
     args += ["--muconeup-config", str(tmp_path / "c.json"), "--muconeup-profiles", str(profiles)]
     with pytest.raises(SystemExit, match="fresh --out-root"):
         cli.main([*args, "--out-root", str(out)])

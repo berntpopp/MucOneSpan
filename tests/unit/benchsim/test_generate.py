@@ -346,6 +346,37 @@ def test_write_manifest_sorted(tmp_path: Path) -> None:
     assert path.name == "manifest.jsonl" and [x["design_id"] for x in lines] == ["a", "b"]
 
 
+def test_write_manifest_replaces_only_the_generated_sets(tmp_path: Path) -> None:
+    write_manifest(
+        tmp_path,
+        [
+            {"design_id": "s1", "bench_set": "standard"},
+            {"design_id": "s2", "bench_set": "standard"},
+            {"design_id": "c1", "bench_set": "clean"},
+            {"design_id": "old"},
+        ],
+    )
+    path = write_manifest(tmp_path, [{"design_id": "s3", "bench_set": "standard"}])
+    ids = [json.loads(x)["design_id"] for x in path.read_text().splitlines()]
+    assert ids == ["c1", "old", "s3"]
+    path = write_manifest(tmp_path, [{"design_id": "new"}])
+    assert [json.loads(x)["design_id"] for x in path.read_text().splitlines()] == [
+        "c1",
+        "new",
+        "s3",
+    ]
+
+
+def test_case_records_its_set(tmp_path: Path) -> None:
+    design = _plain(DEV, event=False)
+    with (
+        patch(f"{MOD}.run_tool", side_effect=FakeMucOneUp()),
+        patch(f"{MOD}.load_repeat_dictionary", return_value=_rd()),
+    ):
+        case = generate_case(design, _ctx(tmp_path))
+    assert case["bench_set"] == design.bench_set == DEFAULT_BENCH_CONFIG.sets.default
+
+
 @pytest.mark.parametrize("composition", ["real_derived"])
 def test_real_derived_without_pool_falls_back_to_markov(tmp_path: Path, composition: str) -> None:
     design = replace(_plain(DEV, event=False), composition=composition)
@@ -412,7 +443,7 @@ def test_resume_refuses_a_case_made_under_other_settings(tmp_path: Path) -> None
 
 
 def test_resume_hashes_only_generation_settings(tmp_path: Path) -> None:
-    from muc_one_span.benchsim.bench_config import AtlasConfig, DesignConfig, ReportConfig
+    from muc_one_span.benchsim.bench_config import AtlasConfig, ReportConfig
     from muc_one_span.benchsim.generate import StaleCaseError
 
     design = _plain(DEV, event=False)
@@ -430,8 +461,9 @@ def test_resume_hashes_only_generation_settings(tmp_path: Path) -> None:
             report=ReportConfig(bootstrap_seed=base.report.bootstrap_seed + 1),
         )
         assert generate_case(design, _ctx(tmp_path, bench=atlas_only)) == first
-        levels = base.design.chimera_levels[:1]
-        design_cfg = replace(base, design=DesignConfig(chimera_levels=levels))
+        stress = base.sets.definitions["stress"]
+        definitions = {**base.sets.definitions, "stress": replace(stress, description="other")}
+        design_cfg = replace(base, sets=replace(base.sets, definitions=definitions))
         with pytest.raises(StaleCaseError, match="generation settings"):
             generate_case(design, _ctx(tmp_path, bench=design_cfg))
 

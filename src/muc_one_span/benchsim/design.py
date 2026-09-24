@@ -1,4 +1,12 @@
-"""Benchmark designs: factors from spec §5, stratified sampling, splits, seeds."""
+"""Benchmark designs: factors from spec §5, stratified sampling, splits, sets, seeds.
+
+A design belongs to a split (seed stream, size) and a benchmark set (technical
+factor levels per profile, `bench_sets`). Its ID is
+``<split>-<set>-<profile>-<NNNN>``. The biological draws (events, length classes,
+alleles, positions, compositions, lengths, targets) and the MucOneUp structure
+seed depend on the split and profile only, so every set of a split simulates the
+same haplotypes; the technical draws and the read seed depend on the set.
+"""
 
 from __future__ import annotations
 
@@ -45,6 +53,7 @@ class Design:
     bio_seed: int
     read_seed: int
     target_clamped: bool = False  # a drawn event target was moved inside `event_bounds`
+    bench_set: str | None = None  # None: written before benchmark sets existed
 
     def to_dict(self) -> dict[str, Any]:
         return asdict(self)
@@ -124,46 +133,55 @@ def build_split(
     salt: str,
     mutations: Sequence[str],
     config: BenchConfig = DEFAULT_BENCH_CONFIG,
+    bench_set: str | None = None,
 ) -> list[Design]:
-    """Designs for one split; every profile gets ``n_per_profile`` cases.
+    """Designs for one split and benchmark set; every profile gets ``n_per_profile`` cases.
 
-    Factor levels, the normal fraction and length ranges come from
-    ``config.design``; smear levels are per split.
+    Biological factor levels, the normal fraction and length ranges come from
+    ``config.design``; technical levels from the set (default
+    ``config.sets.default``) in ``config.sets.definitions``.
 
     Raises:
-        ValueError: If there are no mutations, the split has no smear levels, or
-            a profile has no depths.
+        ValueError: If there are no mutations, the split or set is unknown, or
+            the set has no levels for a profile.
     """
     cfg = config.design
+    name = config.sets.default if bench_set is None else bench_set
     if not mutations:
         raise ValueError("at least one mutation name is required")
-    if split not in cfg.smear_levels:
-        raise ValueError(f"no smear levels configured for split {split!r}")
-    missing = [p for p in PROFILES if p not in cfg.depths]
+    if split not in cfg.split_sizes:
+        raise ValueError(f"unknown split {split!r}")
+    if name not in config.sets.definitions:
+        raise ValueError(f"unknown set {name!r}")
+    levels = config.sets.definitions[name].profiles
+    missing = [p for p in PROFILES if p not in levels]
     if missing:
-        raise ValueError(f"no depths configured for {', '.join(missing)}")
+        raise ValueError(f"set {name!r} has no levels for {', '.join(missing)}")
     designs: list[Design] = []
     for profile in PROFILES:
         rng = random.Random(derive_seed(salt, f"{split}:{profile}", "design"))
+        tech = random.Random(derive_seed(salt, f"{split}:{name}:{profile}", "technical"))
         n_normal = math.ceil(Fraction(str(cfg.normal_fraction)) * n_per_profile)
         events: list[str | None] = [None] * n_normal + _stratum(
             list(mutations), n_per_profile - n_normal, rng
         )
         rng.shuffle(events)
         deltas = _stratum(tuple(cfg.delta_ranges), n_per_profile, rng)
-        depths = _stratum(cfg.depths[profile], n_per_profile, rng)
         alleles = _stratum(ALLELE_CHOICES, n_per_profile, rng)
         positions = _stratum(POSITION_CHOICES, n_per_profile, rng)
-        pcrs = _stratum(cfg.pcr_levels, n_per_profile, rng)
-        smears = _stratum(cfg.smear_levels[split], n_per_profile, rng)
-        chimeras = _stratum(cfg.chimera_levels, n_per_profile, rng)
-        errors = _stratum(cfg.error_levels, n_per_profile, rng)
         default_comp = next(iter(cfg.compositions))
         comps = [c for c, w in cfg.compositions.items() for _ in range(round(w * n_per_profile))]
         comps = (comps + [default_comp] * n_per_profile)[:n_per_profile]
         rng.shuffle(comps)
+        factor = levels[profile]
+        depths = _stratum(factor.depths, n_per_profile, tech)
+        pcrs = _stratum(factor.pcr_levels, n_per_profile, tech)
+        smears = _stratum(factor.smear_levels, n_per_profile, tech)
+        chimeras = _stratum(factor.chimera_levels, n_per_profile, tech)
+        errors = _stratum(factor.error_levels, n_per_profile, tech)
         for i in range(n_per_profile):
-            design_id = f"{split}-{profile}-{i + 1:04d}"
+            bio_id = f"{split}-{profile}-{i + 1:04d}"
+            design_id = f"{split}-{name}-{profile}-{i + 1:04d}"
             lengths = _lengths(deltas[i], rng, cfg)
             event = events[i]
             clamped = False
@@ -193,9 +211,10 @@ def build_split(
                     smears[i],
                     chimeras[i],
                     errors[i],
-                    derive_seed(salt, design_id, "bio"),
+                    derive_seed(salt, bio_id, "bio"),
                     derive_seed(salt, design_id, "reads"),
                     clamped,
+                    name,
                 )
             )
     return designs

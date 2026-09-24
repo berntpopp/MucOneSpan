@@ -127,3 +127,17 @@ def test_size_split_must_exist_in_the_target_file() -> None:
         compare(metrics, TARGETS, "ont_amplicon_r10", other)
     genomic = {"ont_wgs_PRJEB92208": {"category_frac": {}}}
     assert compare(metrics, genomic, "ont_genomic_targeted", other) == {}
+
+
+def test_target_notes_label_the_check_indicative() -> None:
+    from muc_one_span.benchsim.realism_targets import INDICATIVE_NOTE, target_note, target_section
+
+    targets = load_targets()
+    assert "indicative" in INDICATIVE_NOTE.lower() and "not tuned" in INDICATIVE_NOTE
+    wgs = target_section(targets, "ont_genomic_targeted")
+    note = target_note(targets, "ont_genomic_targeted")
+    assert f"{wgs['n_libraries']} HG002 WGS libraries" in note
+    assert "does not represent targeted enrichment" in note
+    amplicon = target_section(targets, "ont_amplicon_r10")
+    assert f"{amplicon['n_libraries']} " in target_note(targets, "ont_amplicon_r10")
+    assert "uncalibrated" in target_note(targets, "hifi_amplicon")
