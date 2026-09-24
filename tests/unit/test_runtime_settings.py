@@ -1,6 +1,7 @@
 """Strict runtime settings preserve defaults and reject invalid scientific inputs."""
 
 import json
+import warnings
 from dataclasses import FrozenInstanceError
 from pathlib import Path
 from typing import Any
@@ -293,3 +294,23 @@ def test_selection_gate_settings_are_validated() -> None:
         AlleleSelectionSettings(secondary_mode_min_fraction=0)
     with pytest.raises(ValueError, match="min_allele_primary_records"):
         AlleleSelectionSettings(min_allele_primary_records=0)
+
+
+def test_null_haploid_min_qual_roundtrips(tmp_path: Path) -> None:
+    path = tmp_path / "settings.json"
+    path.write_text('{"schema_version": 1, "calling": {"haploid_min_qual": null}}')
+    settings = load_settings(path)
+    assert settings.calling.haploid_min_qual is None
+    path.write_text(json.dumps(settings_as_dict(settings)))
+    assert load_settings(path) == settings
+
+
+def test_deprecated_consensus_haploid_settings_warn_only_when_changed(tmp_path: Path) -> None:
+    path = tmp_path / "settings.json"
+    path.write_text('{"schema_version": 1, "consensus": {"haploid_min_qual": 3.0}}')
+    with pytest.warns(DeprecationWarning, match="consensus.haploid"):
+        load_settings(path)
+    path.write_text(json.dumps(settings_as_dict(DEFAULT_SETTINGS)))
+    with warnings.catch_warnings():
+        warnings.simplefilter("error", DeprecationWarning)
+        load_settings(path)

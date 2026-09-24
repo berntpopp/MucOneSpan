@@ -97,6 +97,10 @@ scientific defaults, not recommendations to tune against a validation sample.
 | `consensus.anchor_bases` | `20` | Up to this many available bases from each side of an exact boundary anchor; integer >=1. |
 | `consensus.anchor_tolerance` | `50` | Inclusive displacement from the expected VNTR boundary in bases; integer >=0. |
 
+`consensus.haploid_majority` and `consensus.haploid_min_qual` are deprecated and
+have no effect. Configurations that set non-default values load with a
+`DeprecationWarning`; use the `calling.*` fields.
+
 ### Confidence weights
 
 Confidence values describe heuristic dictionary fit and VCF concordance. They
@@ -127,6 +131,8 @@ rule can still apply `boundary_penalty` to a terminal repeat.
 | --- | --- | --- |
 | `calling.sample_name` | `"sample"` | VCF sample name; nonempty, without whitespace or control characters. |
 | `calling.read_phase` | `false` | Explicit opt-in to experimental same-length read phasing. |
+| `calling.haploid_majority` | `true` | Apply the allele-fraction genotype rule to length-partitioned (and haplotagged) calls. With `false`, diploid genotypes are kept, and any heterozygous record then leaves the allele unresolved. |
+| `calling.haploid_min_qual` | `4.0` | QUAL threshold for length-partitioned calls; number >=0 or `null`. `null` applies `run.min_qual`/`--min-qual`. A non-default `--min-qual` that this value overrides is logged. The applied value is recorded in `alleles.json` as `variant_filter`. |
 | `calling.haploid_alt_fraction` | `0.5` | Length-partitioned calls: the ALT fraction of allele-specific reads (`FORMAT/AD`) at or above which the genotype becomes ALT. Number in [0,1]. |
 | `calling.haploid_ref_fraction` | `0.2` | ALT fraction below which the genotype becomes REF (`0/0`). Values in between keep the heterozygous call, which stays unresolved. Must be below `haploid_alt_fraction`. |
 | `read_phasing.internal_downsampling` | `null` | Optional WhatsHap internal downsampling override; integer >=1. |

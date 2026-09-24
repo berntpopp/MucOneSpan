@@ -41,6 +41,7 @@ def filter_vcf(
             QUAL-only filtering is used instead since QUAL already
             integrates depth information.
         haploid_majority: If True, resolve genotypes on haploid alignments from AD fractions.
+        haploid_min_qual: QUAL threshold for length-partitioned calls; None uses min_qual.
         haploid_alt_fraction: Allele-specific ALT fraction at or above which GT becomes ALT.
         haploid_ref_fraction: ALT fraction below which GT becomes 0/0.
 
@@ -85,11 +86,7 @@ def filter_vcf(
     # Only add quality filter if VCF has records.
     # Use QUAL only — Clair3 HiFi uses FORMAT/DP not INFO/DP, and
     # QUAL already integrates depth/quality information.
-    effective_qual = min_qual
-    if haploid_majority and haploid_min_qual is not None:
-        effective_qual = haploid_min_qual
-    elif haploid_majority and min_qual <= 5.0 and min_qual > 0:
-        effective_qual = min(min_qual, 4.0)
+    effective_qual = min_qual if haploid_min_qual is None else haploid_min_qual
 
     if not is_empty and effective_qual > 0:
         view_cmd.extend(["-i", f"QUAL>={effective_qual}"])

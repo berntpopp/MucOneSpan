@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from pathlib import Path
+from typing import Any
 from unittest.mock import patch
 
 import pytest
@@ -358,3 +359,26 @@ def test_haploid_fraction_cutoffs_are_configurable(tmp_path: Path) -> None:
         tmp_path, [MP3_DUPC], haploid_alt_fraction=0.35, haploid_ref_fraction=0.1
     )
     assert [_genotype(line) for line in lines] == ["1/1"]
+
+
+def _qual_filter(tmp_path: Path, **kwargs: Any) -> str:
+    """Return the -i expression of the bcftools view call for a non-empty VCF."""
+
+    def side_effect(cmd: list[str]) -> str:
+        if cmd[:2] == ["bcftools", "norm"]:
+            (tmp_path / "normalized.vcf.gz").write_bytes(b"\x00" * 100)
+        return ""
+
+    with patch("muc_one_span.vcf.run_tool", side_effect=side_effect) as run:
+        filter_vcf(tmp_path / "input.vcf.gz", tmp_path / "ref.fa", tmp_path, **kwargs)
+    view = next(c.args[0] for c in run.call_args_list if c.args[0][:2] == ["bcftools", "view"])
+    return view[view.index("-i") + 1]
+
+
+def test_haploid_rewrite_does_not_silently_lower_min_qual(tmp_path: Path) -> None:
+    assert _qual_filter(tmp_path, min_qual=5.0, haploid_majority=True) == "QUAL>=5.0"
+
+
+def test_haploid_min_qual_applies_without_genotype_rewrite(tmp_path: Path) -> None:
+    kwargs = {"min_qual": 5.0, "haploid_majority": False, "haploid_min_qual": 4.0}
+    assert _qual_filter(tmp_path, **kwargs) == "QUAL>=4.0"

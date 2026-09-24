@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import json
 import math
+import warnings
 from collections.abc import Mapping
 from dataclasses import asdict, dataclass, field, fields
 from pathlib import Path
@@ -148,7 +149,11 @@ class ClassificationSettings:
 
 @dataclass(frozen=True)
 class ConsensusSettings:
-    """Flanking reference extent and exact boundary-anchor search parameters."""
+    """Flanking reference extent and exact boundary-anchor search parameters.
+
+    ``haploid_majority`` and ``haploid_min_qual`` are deprecated no-ops kept for
+    configuration compatibility; ``calling.haploid_*`` controls haploid calling.
+    """
 
     flank_length: int = 500
     anchor_bases: int = 20
@@ -216,7 +221,7 @@ class CallingSettings:
     sample_name: str = "sample"
     read_phase: bool = False
     haploid_majority: bool = True
-    haploid_min_qual: float = 4.0
+    haploid_min_qual: float | None = 4.0
     haploid_alt_fraction: float = 0.5
     haploid_ref_fraction: float = 0.2
 
@@ -228,7 +233,8 @@ class CallingSettings:
             )
         _boolean("calling.read_phase", self.read_phase)
         _boolean("calling.haploid_majority", self.haploid_majority)
-        _number("calling.haploid_min_qual", self.haploid_min_qual, 0.0)
+        if self.haploid_min_qual is not None:
+            _number("calling.haploid_min_qual", self.haploid_min_qual, 0.0)
         _number("calling.haploid_alt_fraction", self.haploid_alt_fraction, 0.0, 1.0)
         _number("calling.haploid_ref_fraction", self.haploid_ref_fraction, 0.0, 1.0)
         if self.haploid_ref_fraction >= self.haploid_alt_fraction:
@@ -393,6 +399,13 @@ def load_settings(path: Path | None) -> RuntimeSettings:
                 values[key] = tuple(value)
         data[name] = constructor(**values)
     settings = RuntimeSettings(**data)
+    if (settings.consensus.haploid_majority, settings.consensus.haploid_min_qual) != (True, 4.0):
+        warnings.warn(
+            "consensus.haploid_majority and consensus.haploid_min_qual have no effect; "
+            "use calling.haploid_majority and calling.haploid_min_qual.",
+            DeprecationWarning,
+            stacklevel=2,
+        )
     # Validate raw string types before converting paths, so coercion never hides errors.
     run = asdict(settings.run)
     run["reference"] = _resolve_path(settings.run.reference, path.resolve().parent)

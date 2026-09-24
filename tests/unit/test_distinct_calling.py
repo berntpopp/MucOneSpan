@@ -218,3 +218,34 @@ def test_distinct_path_forwards_allele_fraction_settings(tmp_path: Path) -> None
     assert len(filter_calls) == 2
     for kwargs in filter_calls:
         assert (kwargs["haploid_alt_fraction"], kwargs["haploid_ref_fraction"]) == (0.6, 0.1)
+
+
+def test_default_haploid_filter_is_recorded(tmp_path: Path) -> None:
+    alleles, filter_calls = _run_distinct(tmp_path, [])
+    assert {call["haploid_min_qual"] for call in filter_calls} == {4.0}
+    assert {call["haploid_majority"] for call in filter_calls} == {True}
+    assert alleles["allele_2"]["variant_filter"] == {
+        "min_qual": 4.0,
+        "min_qual_source": "calling.haploid_min_qual",
+        "haploid_majority": True,
+    }
+
+
+def test_null_haploid_min_qual_follows_min_qual(tmp_path: Path) -> None:
+    settings = CallingSettings(haploid_min_qual=None, haploid_majority=False)
+    alleles, filter_calls = _run_distinct(tmp_path, [], min_qual=12.0, settings=settings)
+    assert {call["haploid_min_qual"] for call in filter_calls} == {12.0}
+    assert {call["haploid_majority"] for call in filter_calls} == {False}
+    assert alleles["allele_1"]["variant_filter"] == {
+        "min_qual": 12.0,
+        "min_qual_source": "run.min_qual",
+        "haploid_majority": False,
+    }
+
+
+def test_overridden_explicit_min_qual_is_logged(
+    tmp_path: Path, caplog: pytest.LogCaptureFixture
+) -> None:
+    _, filter_calls = _run_distinct(tmp_path, [], min_qual=12.0)
+    assert {call["haploid_min_qual"] for call in filter_calls} == {4.0}
+    assert "not applied to length-partitioned calls" in caplog.text

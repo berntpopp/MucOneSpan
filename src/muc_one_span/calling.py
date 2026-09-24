@@ -6,6 +6,7 @@ import copy
 import logging
 from concurrent.futures import ThreadPoolExecutor
 from pathlib import Path
+from typing import Any
 
 from muc_one_span.mapping import DEFAULT_MINIMAP2_PRESET
 from muc_one_span.phasing import (
@@ -29,6 +30,40 @@ __all__ = [
 ]
 
 logger = logging.getLogger(__name__)
+
+
+def _haploid_filter(
+    min_qual: float, settings: CallingSettings
+) -> tuple[dict[str, Any], dict[str, Any]]:
+    """Return length-partitioned VCF filter options and their explicit provenance.
+
+    ``calling.haploid_min_qual`` (default 4.0) applies to haploid, length-partitioned
+    calls; ``null`` makes them follow ``run.min_qual``/``--min-qual``. An explicit
+    non-default ``--min-qual`` that is overridden is logged, never silently dropped.
+    """
+    if settings.haploid_min_qual is None:
+        qual, source = float(min_qual), "run.min_qual"
+    else:
+        qual, source = float(settings.haploid_min_qual), "calling.haploid_min_qual"
+        if min_qual != DEFAULT_SETTINGS.run.min_qual:
+            logger.warning(
+                "--min-qual %s is not applied to length-partitioned calls; "
+                "calling.haploid_min_qual=%s is used. Set it to null to follow --min-qual.",
+                min_qual,
+                qual,
+            )
+    options = {
+        "haploid_majority": settings.haploid_majority,
+        "haploid_min_qual": qual,
+        "haploid_alt_fraction": settings.haploid_alt_fraction,
+        "haploid_ref_fraction": settings.haploid_ref_fraction,
+    }
+    provenance = {
+        "min_qual": qual,
+        "min_qual_source": source,
+        "haploid_majority": settings.haploid_majority,
+    }
+    return options, provenance
 
 
 def extract_allele_reads(
@@ -290,6 +325,7 @@ def disambiguate_same_length_alleles(
         if split_result is not None:
             hp1_bam, hp2_bam, hp1_count, hp2_count = split_result
             per_allele_threads = max(1, threads // 2)
+            hp_filter, _ = _haploid_filter(min_qual, settings)
 
             def _call_hp(hp_key: str, hp_bam: Path) -> tuple[str, Path]:
                 hp_dir = merged_dir / hp_key
@@ -308,9 +344,7 @@ def disambiguate_same_length_alleles(
                     hp_dir,
                     min_qual=min_qual,
                     min_dp=min_dp,
-                    haploid_majority=True,
-                    haploid_alt_fraction=settings.haploid_alt_fraction,
-                    haploid_ref_fraction=settings.haploid_ref_fraction,
+                    **hp_filter,
                 )
                 return hp_key, vcf_filtered
 
@@ -477,6 +511,8 @@ def call_variants_per_allele(
         if k in alleles and not (alleles.get("homozygous") and k == "allele_2")
     ]
 
+    filter_options, filter_provenance = _haploid_filter(min_qual, settings)
+
     def _process_allele(allele_key: str) -> tuple[str, Path]:
         allele_info = alleles[allele_key]
         # Use the peak contig name from allele detection (contig_N where N is
@@ -517,18 +553,8 @@ def call_variants_per_allele(
             settings=settings,
         )
 
-        # Filter VCF
-        hap_min_qual = getattr(settings, "haploid_min_qual", 4.0)
         filtered = filter_vcf(
-            vcf,
-            contig_ref,
-            allele_dir,
-            min_qual=min_qual,
-            min_dp=min_dp,
-            haploid_majority=True,
-            haploid_min_qual=hap_min_qual,
-            haploid_alt_fraction=settings.haploid_alt_fraction,
-            haploid_ref_fraction=settings.haploid_ref_fraction,
+            vcf, contig_ref, allele_dir, min_qual=min_qual, min_dp=min_dp, **filter_options
         )
         variants = parse_vcf_genotypes(filtered)
         evidence = phase_evidence(variants)
@@ -538,6 +564,7 @@ def call_variants_per_allele(
         allele_info["allele_genotype_status"] = genotype_status
         allele_info["heterozygous_sites"] = heterozygous
         allele_info["independent_haplotype_evidence"] = len(allele_keys) > 1 and haplotype == 1
+        allele_info["variant_filter"] = filter_provenance
         return allele_key, filtered
 
     # Process both alleles in parallel when they are independent
