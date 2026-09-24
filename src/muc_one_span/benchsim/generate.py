@@ -37,7 +37,7 @@ from muc_one_span.evaluation.models import TruthSample
 from muc_one_span.evaluation.truth import fasta_records, load_truth
 from muc_one_span.tools import run_tool
 
-from .depth import amplicon_templates, genomic_reads, pcr_minor_share
+from .depth import amplicon_templates, capped_minor_share, genomic_reads, pcr_minor_share
 from .design import Design
 from .geometry import case_geometry, haplotype_sequences, primer_pair, vntr_bounds
 from .muconeup import BUILTIN_PROFILE, reads_args, simulate_args
@@ -159,7 +159,8 @@ def _amount(
     truth: TruthSample,
     span: dict[int, tuple[int, int]],
     source: dict[int, int],
-) -> int:
+) -> tuple[int, bool]:
+    """Requested reads (genomic) or templates (amplicon), and whether the amount was capped."""
     if design.profile == "ont_genomic_targeted":
         frag = base_profile.get("fragments") or {}
         median = float(frag.get("length_median", FRAGMENT_DEFAULT[0]))
@@ -168,11 +169,12 @@ def _amount(
         return max(
             genomic_reads(design.depth, source[h], lo, hi, median, sigma, seed=seed)
             for h, (lo, hi) in span.items()
-        )
+        ), False
     concatemer = float((base_profile.get("molecules") or {}).get("concatemer_rate", 0.0))
     counts = [len(h.structure) for h in truth.haplotypes]
-    share = pcr_minor_share((counts[0], counts[-1]), design.pcr)
-    return amplicon_templates(design.depth, design.smear + design.chimera + concatemer, share)
+    share, capped = capped_minor_share(pcr_minor_share((counts[0], counts[-1]), design.pcr))
+    rate = design.smear + design.chimera + concatemer
+    return amplicon_templates(design.depth, rate, share), capped
 
 
 def _fastq_records(path: Path) -> int:
@@ -253,8 +255,9 @@ def _reads(
     case.update(profile_variant=variant_name(design), profile_sha256=sha)
     span, source = _span(truth, rd, ctx.flank_fasta)
     genomic = design.profile == "ont_genomic_targeted"
-    amount = _amount(design, base_profile, truth, span, source)
+    amount, capped = _amount(design, base_profile, truth, span, source)
     case["requested_amount"] = amount
+    case["amount_capped"] = capped
     case["amount_unit"] = "reads" if genomic else "templates"
     truth_fa = _one(truth_dir, "*.simulated.fa")
     if truth_fa is None:  # _one(required=True) raises first; explicit for type narrowing

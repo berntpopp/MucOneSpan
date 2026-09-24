@@ -39,3 +39,11 @@ def test_genomic_reads_hits_expected_spanning() -> None:
 def test_genomic_reads_rejects_impossible_span() -> None:
     with pytest.raises(ValueError, match="cannot span"):
         genomic_reads(10, 30000, 0, 30000, 500, 0.1, seed=1)
+
+
+def test_capped_minor_share_floor() -> None:
+    from muc_one_span.benchsim.depth import MIN_MINOR_SHARE, capped_minor_share
+
+    assert MIN_MINOR_SHARE == 0.05
+    assert capped_minor_share(1e-4) == (0.05, True)
+    assert capped_minor_share(0.3) == (0.3, False)

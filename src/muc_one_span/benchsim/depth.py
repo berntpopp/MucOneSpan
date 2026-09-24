@@ -16,6 +16,11 @@ import math
 import random
 
 SLOPE = {"calibrated": 0.056, "strong": 0.112, "none": 0.0}
+# Floor on the minor-allele share used to size amplicon template counts. Below it
+# (strong PCR bias with a large length difference) the uncapped count reaches
+# 10^5-10^6 templates and simulation does not finish in bounded time/memory; the
+# minor allele then gets below-target depth, as in real allelic dropout.
+MIN_MINOR_SHARE = 0.05
 
 
 def pcr_minor_share(lengths: tuple[int, int], pcr: str) -> float:
@@ -30,6 +35,11 @@ def pcr_minor_share(lengths: tuple[int, int], pcr: str) -> float:
     """
     delta = abs(lengths[0] - lengths[1])
     return 1.0 / (1.0 + math.exp(SLOPE[pcr] * delta))
+
+
+def capped_minor_share(share: float) -> tuple[float, bool]:
+    """Return ``(max(share, MIN_MINOR_SHARE), capped)`` for sizing template counts."""
+    return (MIN_MINOR_SHARE, True) if share < MIN_MINOR_SHARE else (share, False)
 
 
 def amplicon_templates(

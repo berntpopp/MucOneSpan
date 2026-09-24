@@ -272,9 +272,25 @@ def test_amplicon_amount_uses_artefacts_and_pcr_share(tmp_path: Path) -> None:
     ):
         case = generate_case(design, ctx)
     # 10 / (0.5 * (1 - 0.5)) = 40 templates
-    assert case["requested_amount"] == 40
+    assert case["requested_amount"] == 40 and case["amount_capped"] is False
     reads = next(c for c in fake.calls if "reads" in c)
     assert _opt(reads, "--coverage") == "40"
+
+
+def test_amplicon_amount_is_capped_at_the_minor_share_floor(tmp_path: Path) -> None:
+    # Strong PCR bias and a large length difference give a minor share ~1e-4; the
+    # uncapped template count (~10^5-10^6) never finishes. The floor bounds it and the
+    # minor allele is left below its target depth (recorded, like allelic dropout).
+    design = replace(_plain(DEV, event=False), smear=0.25, chimera=0.25, depth=10, pcr="strong")
+    fake = FakeMucOneUp()
+    with (
+        patch(f"{MOD}.run_tool", side_effect=fake),
+        patch(f"{MOD}.load_repeat_dictionary", return_value=_rd()),
+        patch(f"{MOD}.pcr_minor_share", return_value=1e-4),
+    ):
+        case = generate_case(design, _ctx(tmp_path))
+    # 10 / (MIN_MINOR_SHARE 0.05 * (1 - 0.5)) = 400 templates
+    assert case["requested_amount"] == 400 and case["amount_capped"] is True
 
 
 def test_rerun_after_failure_clears_stale_outputs(tmp_path: Path) -> None:
