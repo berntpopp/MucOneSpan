@@ -94,6 +94,8 @@ class AlleleSelectionSettings:
     min_dominant_reads_hifi: int = 3
     min_dominant_reads_ont: int = 4
     min_dominance_ratio: float = 0.01
+    secondary_mode_min_fraction: float = 0.2
+    min_allele_primary_records: int = 30
 
     def __post_init__(self) -> None:
         _integer("allele_selection.min_gap", self.min_gap, 1)
@@ -108,6 +110,15 @@ class AlleleSelectionSettings:
         _integer("allele_selection.min_dominant_reads_hifi", self.min_dominant_reads_hifi, 1)
         _integer("allele_selection.min_dominant_reads_ont", self.min_dominant_reads_ont, 1)
         _number("allele_selection.min_dominance_ratio", self.min_dominance_ratio, 0.0, 1.0)
+        _number(
+            "allele_selection.secondary_mode_min_fraction",
+            self.secondary_mode_min_fraction,
+            0.0,
+            1.0,
+        )
+        if self.secondary_mode_min_fraction == 0:
+            raise ValueError("allele_selection.secondary_mode_min_fraction must be > 0")
+        _integer("allele_selection.min_allele_primary_records", self.min_allele_primary_records, 1)
 
 
 @dataclass(frozen=True)

@@ -80,6 +80,8 @@ scientific defaults, not recommendations to tune against a validation sample.
 | `allele_selection.valley_min_points` | `3` | Minimum points for valley consideration; integer >=3. |
 | `allele_selection.valley_min_separation` | `3` | Minimum peak separation; integer >=1. |
 | `allele_selection.refinement_max_shift` | `1` | Maximum refinement shift in repeat counts; integer >=0. |
+| `allele_selection.secondary_mode_min_fraction` | `0.2` | Clinical gate. Allele selection is unresolved when a cluster's primary-alignment count at least `min_gap` units from its peak reaches this fraction of the peak. Number in (0,1]. Blocks a negative result; never creates a call. |
+| `allele_selection.min_allele_primary_records` | `30` | Clinical gate. Minimum primary alignment records (a molecule proxy) per selected allele. Below it, `depth_status` is `low`, which blocks NEGATIVE and PATHOGENIC. Integer >=1. |
 
 ### Classification and consensus
 

@@ -181,6 +181,7 @@ def test_generate_report_with_igv_and_hgvs(tmp_path: Path):
                         "repeat_index": 7,
                         "mutation_name": "59dupC",
                         "frameshift": True,
+                        "template_match": True,
                         "vcf_support": True,
                     }
                 ],

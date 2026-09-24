@@ -25,3 +25,61 @@ def mutation_supported(mutation: dict[str, Any]) -> bool:
         status = mutation.get("vcf_support_status")
         return status is None or status in SUPPORTED_VCF_STATUSES
     return False
+
+
+LEGACY_MIN_TOTAL_READS = 30
+
+_GENOTYPE_REASONS = {
+    "heterozygous_within_length_partition": (
+        "heterozygous call left within the length-partitioned allele; "
+        "consensus uses unresolved (IUPAC) selection"
+    ),
+    "unresolved_genotype_records": "conflicting or incomplete genotype records",
+}
+
+
+def mutation_blockers(mutation: dict[str, Any]) -> list[str]:
+    """List every reason an observed mutation cannot support a PATHOGENIC banner."""
+    blockers: list[str] = []
+    if mutation.get("frameshift") is not True:
+        blockers.append("frameshift not established")
+    if mutation.get("template_match") is not True or not mutation.get("mutation_name"):
+        blockers.append("event identity not established (no exact dictionary template)")
+    if mutation.get("localization_status") == "ambiguous":
+        blockers.append("localization ambiguous")
+    if not mutation_supported(mutation):
+        status = mutation.get("vcf_support_status")
+        blockers.append(
+            "heterozygous genotype unresolved within its allele"
+            if status == "heterozygous_genotype_unresolved"
+            else f"no explicit sequence-level support ({status or 'status unavailable'})"
+        )
+    return blockers
+
+
+def allele_gate_reasons(info: Any, label: str) -> list[str]:
+    """Reasons an allele's selection, genotype, length or depth prevents a negative call."""
+    if not isinstance(info, dict) or not info:
+        return []
+    reasons: list[str] = []
+    selection = info.get("selection_status")
+    if isinstance(selection, str) and selection.startswith("unresolved"):
+        reasons.append(
+            f"{label}: allele selection unresolved ({selection}; secondary mode fraction "
+            f"{info.get('secondary_mode_fraction')})."
+        )
+    length, reference_length = info.get("length"), info.get("reference_length")
+    if isinstance(length, int) and isinstance(reference_length, int) and length != reference_length:
+        reasons.append(
+            f"{label}: reported length {length} differs from the consensus contig length "
+            f"{reference_length}."
+        )
+    if info.get("depth_status") == "low":
+        reasons.append(
+            f"{label}: {info.get('primary_alignment_records')} primary alignments, below the "
+            f"per-allele depth gate ({info.get('depth_threshold')})."
+        )
+    genotype = info.get("allele_genotype_status")
+    if genotype in _GENOTYPE_REASONS:
+        reasons.append(f"{label}: {_GENOTYPE_REASONS[genotype]}.")
+    return reasons

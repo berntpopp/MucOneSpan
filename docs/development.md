@@ -330,6 +330,25 @@ decision behavior with an unavailable-status label. Failed, interrupted,
 insufficient and running execution cannot produce a reassuring negative banner.
 Recorded mutation evidence is retained with execution warnings.
 
+Clinical gates run before the banner is chosen (`clinical_gates.py`). A mutation
+supports PATHOGENIC only when all of these hold:
+
+- it is a frameshift;
+- it is an exact dictionary template (`template_match` and `mutation_name`);
+- its localization is not ambiguous;
+- it has explicit support (exact VCF concordance or `read_support.status=supported`);
+- its allele's `depth_status` is not `low`.
+
+NEGATIVE additionally requires:
+
+- resolved allele selection (`selection_status`);
+- reported length equal to the consensus contig length (`length`/`reference_length`);
+- no unresolved length-partition genotype (`allele_genotype_status`);
+- adequate per-allele depth.
+
+Summaries without per-allele depth fall back to the 30-read total. The gates can
+only lower certainty; PATHOGENIC lists remaining problems as quality caveats.
+
 The full pipeline passes an `analysis_completed` rendering context after all
 analysis stages succeed. This means analysis completed and the report is being
 generated; it is not terminal execution success. The sidecar remains `running`

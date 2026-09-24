@@ -281,3 +281,15 @@ def test_haploid_fraction_settings_are_validated() -> None:
         CallingSettings(haploid_alt_fraction=0.3, haploid_ref_fraction=0.3)
     with pytest.raises(ValueError, match="finite number"):
         CallingSettings(haploid_alt_fraction=1.5)
+
+
+def test_selection_gate_settings_are_validated() -> None:
+    selection = AlleleSelectionSettings()
+    assert (selection.secondary_mode_min_fraction, selection.min_allele_primary_records) == (
+        0.2,
+        30,
+    )
+    with pytest.raises(ValueError, match="secondary_mode_min_fraction must be > 0"):
+        AlleleSelectionSettings(secondary_mode_min_fraction=0)
+    with pytest.raises(ValueError, match="min_allele_primary_records"):
+        AlleleSelectionSettings(min_allele_primary_records=0)

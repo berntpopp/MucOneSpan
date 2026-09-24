@@ -37,6 +37,7 @@ def execute_pipeline(
     from muc_one_span.config import load_repeat_dictionary
     from muc_one_span.consensus import build_consensus_per_allele
     from muc_one_span.mapping import get_idxstats, map_reads
+    from muc_one_span.selection_qc import annotate_selection_qc
     from muc_one_span.tools import check_tools, get_tool_versions
     from muc_one_span.vcf import parse_vcf_variants
 
@@ -108,6 +109,7 @@ def execute_pipeline(
         reference_layout=settings.reference_layout,
         platform=settings.run.platform,
     )
+    annotate_selection_qc(alleles_result, settings.allele_selection)
     (out / "alleles.json").write_text(json.dumps(alleles_result, indent=2) + "\n")
     click.echo(f"  Alleles: {alleles_result}")
 
