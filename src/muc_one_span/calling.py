@@ -309,6 +309,8 @@ def disambiguate_same_length_alleles(
                     min_qual=min_qual,
                     min_dp=min_dp,
                     haploid_majority=True,
+                    haploid_alt_fraction=settings.haploid_alt_fraction,
+                    haploid_ref_fraction=settings.haploid_ref_fraction,
                 )
                 return hp_key, vcf_filtered
 
@@ -525,6 +527,8 @@ def call_variants_per_allele(
             min_dp=min_dp,
             haploid_majority=True,
             haploid_min_qual=hap_min_qual,
+            haploid_alt_fraction=settings.haploid_alt_fraction,
+            haploid_ref_fraction=settings.haploid_ref_fraction,
         )
         variants = parse_vcf_genotypes(filtered)
         evidence = phase_evidence(variants)

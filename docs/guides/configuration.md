@@ -125,6 +125,8 @@ rule can still apply `boundary_penalty` to a terminal repeat.
 | --- | --- | --- |
 | `calling.sample_name` | `"sample"` | VCF sample name; nonempty, without whitespace or control characters. |
 | `calling.read_phase` | `false` | Explicit opt-in to experimental same-length read phasing. |
+| `calling.haploid_alt_fraction` | `0.5` | Length-partitioned calls: the ALT fraction of allele-specific reads (`FORMAT/AD`) at or above which the genotype becomes ALT. Number in [0,1]. |
+| `calling.haploid_ref_fraction` | `0.2` | ALT fraction below which the genotype becomes REF (`0/0`). Values in between keep the heterozygous call, which stays unresolved. Must be below `haploid_alt_fraction`. |
 | `read_phasing.internal_downsampling` | `null` | Optional WhatsHap internal downsampling override; integer >=1. |
 | `read_phasing.mapping_quality` | `null` | Optional WhatsHap mapping-quality override; integer >=0. |
 

@@ -272,3 +272,12 @@ def test_reference_layout_range_roundtrip_and_validation(tmp_path: Path) -> None
     ):
         with pytest.raises(ValueError):
             ReferenceLayoutSettings(**values)
+
+
+def test_haploid_fraction_settings_are_validated() -> None:
+    calling = CallingSettings()
+    assert (calling.haploid_alt_fraction, calling.haploid_ref_fraction) == (0.5, 0.2)
+    with pytest.raises(ValueError, match="haploid_ref_fraction must be below"):
+        CallingSettings(haploid_alt_fraction=0.3, haploid_ref_fraction=0.3)
+    with pytest.raises(ValueError, match="finite number"):
+        CallingSettings(haploid_alt_fraction=1.5)

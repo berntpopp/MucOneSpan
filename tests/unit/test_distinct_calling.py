@@ -9,6 +9,7 @@ from unittest.mock import patch
 import pytest
 
 from muc_one_span.calling import call_variants_per_allele
+from muc_one_span.settings import CallingSettings
 
 
 def _make_alleles():
@@ -209,3 +210,11 @@ def test_length_partition_selector_follows_allele_specific_genotypes(
     assert a2["consensus_haplotype"] == selector
     assert a2["allele_genotype_status"] == status
     assert a2["independent_haplotype_evidence"] is independent
+
+
+def test_distinct_path_forwards_allele_fraction_settings(tmp_path: Path) -> None:
+    settings = CallingSettings(haploid_alt_fraction=0.6, haploid_ref_fraction=0.1)
+    _, filter_calls = _run_distinct(tmp_path, [], settings=settings)
+    assert len(filter_calls) == 2
+    for kwargs in filter_calls:
+        assert (kwargs["haploid_alt_fraction"], kwargs["haploid_ref_fraction"]) == (0.6, 0.1)

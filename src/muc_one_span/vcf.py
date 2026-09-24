@@ -18,14 +18,17 @@ def filter_vcf(
     *,
     haploid_majority: bool = False,
     haploid_min_qual: float | None = None,
+    haploid_alt_fraction: float = 0.5,
+    haploid_ref_fraction: float = 0.2,
 ) -> Path:
     """Normalize and filter a VCF file with bcftools.
 
     Runs ``bcftools norm -f <reference>`` followed by
     ``bcftools view -f PASS`` (with optional quality filters) and indexes
-    the result. When ``haploid_majority=True``, resolves borderline heterozygous
-    calls on isolated haploid alignments by setting GT to 1/1 when AF >= 0.5
-    and 0/0 otherwise, avoiding spurious IUPAC ambiguity characters in consensus.
+    the result. When ``haploid_majority=True``, genotypes on length-partitioned
+    (haploid) alignments follow :func:`haploid_genotype`: ALT when the
+    allele-specific AD fraction is >= ``haploid_alt_fraction``, REF when it is
+    below ``haploid_ref_fraction``, otherwise the original genotype is kept.
 
     Args:
         vcf_path: Path to input VCF (may be gzipped).
@@ -37,7 +40,9 @@ def filter_vcf(
             INFO/DP.  Filtering on INFO/DP would crash on Clair3 output.
             QUAL-only filtering is used instead since QUAL already
             integrates depth information.
-        haploid_majority: If True, resolve heterozygous GTs on haploid alignments based on AF.
+        haploid_majority: If True, resolve genotypes on haploid alignments from AD fractions.
+        haploid_alt_fraction: Allele-specific ALT fraction at or above which GT becomes ALT.
+        haploid_ref_fraction: ALT fraction below which GT becomes 0/0.
 
     Returns:
         Path to the filtered, indexed VCF (``variants.vcf.gz``).
@@ -105,35 +110,22 @@ def filter_vcf(
         new_lines: list[str] = []
         modified = False
         for line in lines:
-            if line.startswith("#"):
-                new_lines.append(line)
-                continue
             fields = line.split("\t")
-            if len(fields) >= 10:
+            if not line.startswith("#") and len(fields) >= 10:
                 fmt = fields[8].split(":")
                 sample_fields = fields[9].split(":")
-                if "GT" in fmt and "AF" in fmt:
+                target_gt = haploid_genotype(
+                    fmt,
+                    sample_fields,
+                    alt_fraction=haploid_alt_fraction,
+                    ref_fraction=haploid_ref_fraction,
+                )
+                if "GT" in fmt and target_gt is not None:
                     gt_idx = fmt.index("GT")
-                    af_idx = fmt.index("AF")
-                    af_str = sample_fields[af_idx]
-                    try:
-                        af_vals = [float(x) for x in af_str.split(",") if x != "."]
-                        if af_vals:
-                            max_af = max(af_vals)
-                            if max_af >= 0.5:
-                                alt_idx = af_vals.index(max_af) + 1
-                                target_gt = f"{alt_idx}/{alt_idx}"
-                            elif max_af < 0.2:
-                                target_gt = "0/0"
-                            else:
-                                # Borderline heterozygous / mixed evidence: retain original genotype
-                                target_gt = sample_fields[gt_idx]
-                            if sample_fields[gt_idx] != target_gt:
-                                sample_fields[gt_idx] = target_gt
-                                fields[9] = ":".join(sample_fields)
-                                modified = True
-                    except (ValueError, IndexError):
-                        pass
+                    if sample_fields[gt_idx] != target_gt:
+                        sample_fields[gt_idx] = target_gt
+                        fields[9] = ":".join(sample_fields)
+                        modified = True
             new_lines.append("\t".join(fields))
         if modified:
             tmp_vcf = output_dir / "mod_haploid.vcf"
@@ -148,6 +140,45 @@ def filter_vcf(
     norm_vcf.unlink(missing_ok=True)
 
     return filtered
+
+
+def haploid_genotype(
+    fmt: list[str],
+    sample_fields: list[str],
+    *,
+    alt_fraction: float = 0.5,
+    ref_fraction: float = 0.2,
+) -> str | None:
+    """Return the haploid genotype implied by allele-specific read support.
+
+    Reads were partitioned by allele length, so each site asks REF versus ALT among
+    reads supporting either allele: ``ALT_i / sum(AD)``. Reads supporting neither
+    (for example other homopolymer lengths) count in DP but not in AD, so FORMAT/AF
+    (ALT/DP) undercounts and is used only when AD is absent, malformed or zero.
+    Returns None for the ambiguous band [ref_fraction, alt_fraction) or no evidence.
+    """
+    fractions: list[float] = []
+    if "AD" in fmt:
+        try:
+            depths = [int(value) for value in sample_fields[fmt.index("AD")].split(",")]
+        except (ValueError, IndexError):
+            depths = []
+        if len(depths) > 1 and sum(depths) > 0:
+            fractions = [depth / sum(depths) for depth in depths[1:]]
+    if not fractions and "AF" in fmt:
+        try:
+            fractions = [
+                float(value) for value in sample_fields[fmt.index("AF")].split(",") if value != "."
+            ]
+        except (ValueError, IndexError):
+            fractions = []
+    if not fractions:
+        return None
+    best = max(fractions)
+    if best >= alt_fraction:
+        index = fractions.index(best) + 1
+        return f"{index}/{index}"
+    return "0/0" if best < ref_fraction else None
 
 
 def select_vcf_sample(vcf_path: Path, sample: str | None = None) -> str:

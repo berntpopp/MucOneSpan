@@ -206,6 +206,8 @@ class CallingSettings:
     read_phase: bool = False
     haploid_majority: bool = True
     haploid_min_qual: float = 4.0
+    haploid_alt_fraction: float = 0.5
+    haploid_ref_fraction: float = 0.2
 
     def __post_init__(self) -> None:
         _string("calling.sample_name", self.sample_name)
@@ -216,6 +218,12 @@ class CallingSettings:
         _boolean("calling.read_phase", self.read_phase)
         _boolean("calling.haploid_majority", self.haploid_majority)
         _number("calling.haploid_min_qual", self.haploid_min_qual, 0.0)
+        _number("calling.haploid_alt_fraction", self.haploid_alt_fraction, 0.0, 1.0)
+        _number("calling.haploid_ref_fraction", self.haploid_ref_fraction, 0.0, 1.0)
+        if self.haploid_ref_fraction >= self.haploid_alt_fraction:
+            raise ValueError(
+                "calling.haploid_ref_fraction must be below calling.haploid_alt_fraction"
+            )
 
 
 @dataclass(frozen=True)
