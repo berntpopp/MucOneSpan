@@ -1123,7 +1123,7 @@ def test_noninferiority() -> None:
 
 
 def test_cluster_bootstrap_groups() -> None:
-    rows = [{"g": i // 2, "ok": i % 2} for i in range(40)]
+    rows = [{"g": g, "ok": 1 if g % 2 else 0} for g in range(20) for _ in range(2)]
     mean, lo, hi = cluster_bootstrap(rows, "g", lambda r: r["ok"], n=500, seed=1)
     assert mean == 0.5 and lo < 0.5 < hi
 ```
