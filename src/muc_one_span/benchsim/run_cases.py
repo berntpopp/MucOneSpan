@@ -77,6 +77,7 @@ def _run_one(
     results_root: Path,
     model_for: Callable[[str], str],
     threads: int,
+    config: Path | None = None,
 ) -> dict[str, Any]:
     """Run one manifest row on one engine, or record why it was not attempted."""
     design_id = row["design_id"]
@@ -116,7 +117,14 @@ def _run_one(
         )
     try:
         model = model_for(platform)
-        record = run_pipeline(design_id, fastq, output_dir, platform, model, threads, engine=engine)
+        if config is None:  # keep the call unchanged for runs without a config
+            record = run_pipeline(
+                design_id, fastq, output_dir, platform, model, threads, engine=engine
+            )
+        else:
+            record = run_pipeline(
+                design_id, fastq, output_dir, platform, model, threads, engine=engine, config=config
+            )
     except (OSError, ValueError, RuntimeError, KeyError) as exc:
         return _not_attempted(
             design_id, engine, output_dir, str(exc), platform=platform, profile=profile
@@ -162,11 +170,13 @@ def run_split(
     model_for: Callable[[str], str],
     threads: int,
     jobs: int,
+    config: Path | None = None,
 ) -> list[dict[str, Any]]:
     """Run every engine over every manifest row without dropping the denominator.
 
     Each (row, engine) pair is independent; ``jobs`` selects a process pool
-    when greater than 1. Non-``ok`` rows never reach the caller.
+    when greater than 1. Non-``ok`` rows never reach the caller. ``config`` is
+    a runtime settings JSON forwarded to every run (``muconespan --config``).
     """
     manifest = Path(manifest).resolve()
     split_dir = manifest.parent
@@ -177,7 +187,7 @@ def run_split(
     pairs = [(row, engine) for engine in engines for row in rows]
     if jobs <= 1:
         records = [
-            _run_one(row, split_dir, engine, results_root, model_for, threads)
+            _run_one(row, split_dir, engine, results_root, model_for, threads, config)
             for row, engine in pairs
         ]
     else:
@@ -191,6 +201,7 @@ def run_split(
                     [results_root] * len(pairs),
                     [model_for] * len(pairs),
                     [threads] * len(pairs),
+                    [config] * len(pairs),
                 )
             )
     _write_engine_outputs(records, engines, rows, split_dir, split, results_root)

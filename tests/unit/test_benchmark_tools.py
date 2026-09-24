@@ -275,3 +275,28 @@ def test_mixed_platform_inventory_rejects_one_shared_model(tmp_path):
     assert len(records) == 2
     assert all(r["status"] == "not_attempted" for r in records)
     assert all("per-sample models" in r["error"] for r in records)
+
+
+def test_config_is_forwarded_as_the_global_option(tmp_path: Path) -> None:
+    from muc_one_span.benchmarking import run_pipeline
+
+    class Result:
+        exit_code = 0
+        output = "ok"
+        exception = None
+
+    class Runner:
+        def invoke(self, command, args):
+            return Result()
+
+    reads = tmp_path / "reads.fastq"
+    reads.touch()
+    config = tmp_path / "overlay.json"
+    config.write_text("{}")
+    plain = run_pipeline("sample", reads, tmp_path / "plain", "ont", "model", 1, runner=Runner())
+    assert "--config" not in plain["cli_args"]
+    record = run_pipeline(
+        "sample", reads, tmp_path / "cfg", "ont", "model", 1, runner=Runner(), config=config
+    )
+    assert record["cli_args"][:3] == ["--config", str(config.resolve()), "run"]
+    assert record["config"] == str(config.resolve())

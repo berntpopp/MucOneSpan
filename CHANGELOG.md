@@ -9,6 +9,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ### Added
 
+- `benchsim calibrate` and `benchsim calibrate-report`: run a grid of runtime
+  settings overlays through `run` and `evaluate` on `dev` (resumable,
+  content-addressed, validated by the strict settings loader, `test` refused).
+  Rank the points under a selection rule declared in `objective.json`, with
+  cluster-bootstrap CIs. Write a `recommended-config.json` loadable by
+  `--config`, with a provenance sidecar. Confirm on `val` with the dev → val
+  shift. `benchsim run --config` forwards a settings file to every run.
 - `--engine hybrid` (experimental) and `--assay {amplicon,genomic}` for
   `muconespan run`: a read-centric allele reconstruction path (motif
   anchoring, a length model, partial-order-alignment consensus, linked-site

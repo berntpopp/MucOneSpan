@@ -446,6 +446,11 @@ naming the file, and exits non-zero:
 muconespan settings validate settings.json
 ```
 
+To choose values for these settings from benchmark data rather than by hand,
+see [Calibration](../benchmark.md#calibration). `benchsim calibrate` validates
+every grid point with this same loader, and `calibrate-report` writes a
+`recommended-config.json` that `--config` loads.
+
 ## Effective configuration and provenance
 
 A `run` attempt records `run_configuration.json` in its output directory before

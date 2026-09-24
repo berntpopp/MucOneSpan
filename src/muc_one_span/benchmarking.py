@@ -109,17 +109,23 @@ def run_pipeline(
     *,
     runner: Runner | None = None,
     engine: str = "ladder",
+    config: Path | None = None,
 ) -> dict[str, Any]:
     """Run the real full CLI while timing its five scientific stages.
 
     ``engine`` is appended to ``cli_args`` as ``--engine <engine>`` only when it
     is not the default ``"ladder"``, and is always recorded in the returned
-    record and ``measurement.json``.
+    record and ``measurement.json``. ``config`` (a runtime settings JSON) is
+    passed as the global ``muconespan --config`` option and recorded; explicit
+    run options (``--threads``, ``--platform``, ``--clair3-model``, ``--engine``)
+    still override its values.
     """
     from muc_one_span.cli import main
 
     output_dir.mkdir(parents=True, exist_ok=True)
+    prefix = ["--config", str(config.resolve())] if config is not None else []
     cli_args = [
+        *prefix,
         "run",
         "--input",
         str(input_path.resolve()),
@@ -162,6 +168,8 @@ def run_pipeline(
         "timings": timings,
         "engine": engine,
     }
+    if config is not None:
+        record["config"] = str(config.resolve())
     if error:
         record["error"] = error
     (output_dir / "measurement.json").write_text(json.dumps(record, indent=2) + "\n")

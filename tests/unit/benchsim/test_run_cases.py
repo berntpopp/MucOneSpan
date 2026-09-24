@@ -224,3 +224,22 @@ def test_jobs_parallel_matches_sequential(tmp_path: Path) -> None:
 
     statuses = {r["sample"]: r["status"] for r in records}
     assert statuses == {"dev-a": "completed", "dev-b": "completed"}
+
+
+def test_config_is_forwarded_only_when_given(tmp_path: Path) -> None:
+    split_dir = tmp_path / "dev"
+    _write_reads(split_dir, "dev-a", "ont_amplicon_r10")
+    _write_truth(split_dir, "dev-a")
+    manifest = _manifest(split_dir, [_row("dev-a", "ont_amplicon_r10", "ok")])
+    seen: list[dict[str, object]] = []
+
+    def fake(sample, input_path, output_dir, platform, model, threads, **kwargs):
+        seen.append(kwargs)
+        return {"sample": sample, "status": "completed", "result_dir": str(output_dir)}
+
+    config = tmp_path / "overlay.json"
+    with patch("muc_one_span.benchsim.run_cases.run_pipeline", side_effect=fake):
+        run_split(manifest, ["ladder"], tmp_path / "a", lambda p: "m", 1, 1)
+        run_split(manifest, ["ladder"], tmp_path / "b", lambda p: "m", 1, 1, config=config)
+    assert "config" not in seen[0]
+    assert seen[1]["config"] == config
