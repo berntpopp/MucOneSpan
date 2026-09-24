@@ -246,7 +246,13 @@ after failing the development false-positive gate; there is no dedicated CLI fla
 actual reference, full consensus, selected sample/haplotype and half-open trim
 interval. VCF support verifies replay, then exact event reversion in sequence
 context. It describes concordance with the same VCF used to make consensus,
-not independent experimental support. Unprojectable indels remain unresolved.
+not independent experimental support.
+Under `-H I`, bcftools writes IUPAC codes for heterozygous SNVs but applies the
+ALT allele of a heterozygous REF/ALT indel. Replay mirrors this, and such an
+event gets `vcf_support_status=heterozygous_genotype_unresolved` (not
+supported). Other events on the allele keep their own status, and
+`vcf_projection.unresolved_genotype_edits` counts these edits. Multi-ALT
+heterozygous indels remain unprojectable (`ambiguous_genotype_selection`).
 
 Classifier `allele_confidence` and `exact_match_pct` describe dictionary fit among
 candidate windows; neither is a calibrated probability. Use reconstruction status,

@@ -48,6 +48,12 @@ def _selected_alt(variant: dict, haplotype: str | int) -> str | None:
     # SNP IUPAC has a precise coordinate map; indel ambiguity does not.
     if len(variant["ref"]) == 1 and all(len(a) == 1 and a in "ACGT" for a in selected):
         return _IUPAC.get(frozenset(selected))
+    # bcftools consensus -H I applies the ALT of a heterozygous REF/ALT indel
+    # (verified with bcftools 1.17; tests/integration guards the installed tool).
+    # Multi-ALT heterozygous indels and MNPs have no verified mapping.
+    alts = [a for a in selected if a != variant["ref"]]
+    if len(alts) == 1 and len(alts[0]) != len(variant["ref"]):
+        return alts[0]
     return None
 
 
@@ -78,7 +84,16 @@ def _replay(variants: list[dict], context: dict) -> tuple[str, list[dict]] | str
         unchanged = reference[ref_pos:start]
         pieces.extend((unchanged, alt))
         query_pos += len(unchanged)
-        applied.append({**variant, "selected_alt": alt, "query_start": query_pos})
+        genotype = set(variant["genotype"].replace("|", "/").split("/"))
+        unresolved = context.get("haplotype", "I") == "I" and len(genotype) > 1
+        applied.append(
+            {
+                **variant,
+                "selected_alt": alt,
+                "query_start": query_pos,
+                "unresolved_genotype": unresolved,
+            }
+        )
         query_pos += len(alt)
         ref_pos = start + len(ref)
     pieces.append(reference[ref_pos:])
@@ -120,7 +135,11 @@ def mutation_concordance(
     if not 0 <= trim_start <= trim_end <= len(full) or full[trim_start:trim_end] != sequence:
         projection["reason"] = "trim_mismatch"
         return result
-    projection.update(status="available", reason="exact_full_consensus_replay")
+    projection.update(
+        status="available",
+        reason="exact_full_consensus_replay",
+        unresolved_genotype_edits=sum(edit["unresolved_genotype"] for edit in edits),
+    )
     used: dict[int, list[int]] = {}
     for mutation in mutations:
         index = mutation["repeat_index"]
@@ -142,7 +161,13 @@ def mutation_concordance(
             if reverted_event == reverted_repeat:
                 supporting.append(edit)
                 used.setdefault(edit_index, []).append(index)
-        result[index] = ("exact_sequence_concordance" if supporting else "absent", supporting)
+        resolved = [edit for edit in supporting if not edit["unresolved_genotype"]]
+        if resolved:
+            result[index] = ("exact_sequence_concordance", resolved)
+        elif supporting:
+            result[index] = ("heterozygous_genotype_unresolved", [])
+        else:
+            result[index] = ("absent", [])
     for indices in used.values():
         if len(set(indices)) > 1:
             for index in indices:
