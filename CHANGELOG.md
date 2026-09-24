@@ -7,6 +7,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+### Added
+
+- MucSim-Bench, a realistic simulated benchmark (`scripts/benchsim.py`,
+  `muc_one_span.benchsim`): stratified designs for three profiles (HiFi
+  uncalibrated), generation with MucOneUp >= 0.45.0 kept outside Git, engine runs
+  that keep failed cases in the denominator, cluster-bootstrap stratified reports,
+  a failure atlas and a pre-registered decision rule for a sealed `test` split.
+- Realism report against public PRJEB92208 aggregate targets; the optional
+  `bench` extra provides edlib for it.
+- MucSim-Bench guide (`docs/benchmark.md`).
+
 ## [0.15.1] - 2026-09-23
 
 ### Changed
