@@ -112,11 +112,11 @@ def _number(value: Any) -> bool:
     return isinstance(value, (int, float)) and not isinstance(value, bool)
 
 
-def _reasons(data: Any) -> dict[str, str]:
+def _reasons(data: Any, known_metrics: dict[str, str]) -> dict[str, str]:
     if not isinstance(data, dict):
         raise ValueError("reason_metrics must be a JSON object")
     for name, token in data.items():
-        if name in METRICS:
+        if name in known_metrics:
             raise ValueError(f"reason metric {name!r} shadows a built-in metric")
         if not isinstance(token, str) or not token:
             raise ValueError(f"reason metric {name!r} needs a non-empty reason token")
@@ -175,7 +175,7 @@ def load_objective(path: Path, known_metrics: dict[str, str] = METRICS) -> Objec
     unknown = data.keys() - OBJECTIVE_FIELDS
     if unknown:
         raise ValueError(f"unknown objective fields: {', '.join(sorted(unknown))}")
-    reasons = _reasons(data.get("reason_metrics", {}))
+    reasons = _reasons(data.get("reason_metrics", {}), known_metrics)
     kinds = {**known_metrics, **dict.fromkeys(reasons, RATE)}
     constraints_data = data.get("constraints", {})
     if not isinstance(constraints_data, dict):

@@ -1,7 +1,10 @@
 """Calibration grids: expansion, strict validation and content-addressed overlays."""
 
+import ast
+import inspect
 import json
 from pathlib import Path
+from types import ModuleType
 
 import pytest
 
@@ -18,7 +21,13 @@ from muc_one_span.benchsim.calibration_grid import (
     grid_points,
     load_grid,
 )
+from muc_one_span.hybrid import lengths as hybrid_lengths
+from muc_one_span.hybrid import smear as hybrid_smear
+from muc_one_span.hybrid import spans as hybrid_spans
 from muc_one_span.settings import DEFAULT_SETTINGS, load_settings, settings_as_dict
+
+# Parameter names the length-model modules use for their ``HybridSettings`` argument.
+SETTINGS_PARAM_NAMES = ("settings", "h")
 
 WINDOW = DEFAULT_SETTINGS.hybrid.smear_test_window_frac
 HET = DEFAULT_SETTINGS.hybrid.het_af_min
@@ -169,6 +178,33 @@ def test_stages_and_length_stage_keys_are_all_hybrid_fields() -> None:
     for key in LENGTH_STAGE_KEYS:
         section, name = key.split(".")
         assert section == "hybrid" and name in hybrid_fields
+
+
+def _settings_attributes_read(module: ModuleType) -> set[str]:
+    """Every ``<name>.<attr>`` read in ``module`` where ``<name>`` is a settings
+    parameter (`SETTINGS_PARAM_NAMES`): the `HybridSettings` fields that module's
+    source actually accesses, found by walking its AST (not by import/introspection,
+    since the fields are read as plain attribute access, not enumerated anywhere)."""
+    tree = ast.parse(Path(inspect.getfile(module)).read_text())
+    return {
+        node.attr
+        for node in ast.walk(tree)
+        if isinstance(node, ast.Attribute)
+        and isinstance(node.value, ast.Name)
+        and node.value.id in SETTINGS_PARAM_NAMES
+    }
+
+
+def test_length_stage_keys_matches_every_setting_spans_lengths_and_smear_read() -> None:
+    """`LENGTH_STAGE_KEYS` must track `hybrid.spans`/`hybrid.lengths`/`hybrid.smear`'s
+    own settings usage exactly: neither a stale entry (a key that no longer affects the
+    length model) nor a missing one (a key that does, silently refused for calibration)
+    should be able to drift in without this test failing."""
+    read = set().union(
+        *(_settings_attributes_read(m) for m in (hybrid_spans, hybrid_lengths, hybrid_smear))
+    )
+    declared = {key.removeprefix("hybrid.") for key in LENGTH_STAGE_KEYS}
+    assert read == declared
 
 
 def test_check_stage_keys_is_a_noop_for_the_full_stage() -> None:

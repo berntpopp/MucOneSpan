@@ -276,14 +276,38 @@ def test_evaluate_requires_existing_result_and_truth_roots(tmp_path: Path) -> No
 
 def test_match_alleles_skips_a_peak_already_claimed_by_a_closer_truth_length() -> None:
     h = HybridSettings()
-    # A single accepted peak sits within both truth lengths' windows; the closer truth
-    # length claims it first, and the second (line 153's "already used" branch) is left
-    # unmatched rather than double-assigned.
+    # A single accepted peak sits within both truth lengths' windows: only one truth
+    # length can match it (single peak, 1:1 matching), and the exact assignment's
+    # minimum-total-distance tie-break (both are already max-cardinality solutions of
+    # size 1) picks the closer truth length, leaving the other unmatched.
     peaks = [{"center_bp": 1000.0, "support": 50}]
     matched, false_alleles, missed_alleles = _match_alleles([995, 1015], peaks, h, UNIT)
     assert matched == [{"truth_bp": 995, "matched": 1}, {"truth_bp": 1015, "matched": 0}]
     assert false_alleles == 0
     assert missed_alleles == 1
+
+
+def test_match_alleles_maximizes_matched_pairs_not_greedy_nearest_first() -> None:
+    # Counterexample to a greedy nearest-first match: t1=950 is compatible only with
+    # p1=1000 (distance 50); t2=1010 is compatible with both p1 (distance 10, nearer)
+    # and p2=1050 (distance 40). Greedy nearest-first claims p1 for t2 first (the
+    # globally closest pair) and stranding t1, matching only 1 of 2 truth lengths. The
+    # correct maximum-cardinality assignment uses t1-p1 and t2-p2: both are matched.
+    h = HybridSettings(peak_window_base_bp=55, peak_window_per_unit_bp=0)
+    peaks = [{"center_bp": 1000.0, "support": 10}, {"center_bp": 1050.0, "support": 10}]
+    matched, false_alleles, missed_alleles = _match_alleles([950, 1010], peaks, h, UNIT)
+    assert matched == [{"truth_bp": 950, "matched": 1}, {"truth_bp": 1010, "matched": 1}]
+    assert false_alleles == 0
+    assert missed_alleles == 0
+
+
+def test_match_alleles_matches_a_homozygous_truths_single_peak() -> None:
+    h = HybridSettings()
+    matched, false_alleles, missed_alleles = _match_alleles(
+        [1000], [{"center_bp": 1000.0, "support": 100}], h, UNIT
+    )
+    assert matched == [{"truth_bp": 1000, "matched": 1}]
+    assert false_alleles == 0 and missed_alleles == 0
 
 
 def test_evaluate_scores_a_homozygous_case_as_a_single_exact_peak(tmp_path: Path) -> None:
@@ -453,3 +477,23 @@ def test_lengths_registries_feed_point_metrics_and_reason_metrics(tmp_path: Path
     assert metrics["allele_length_exact"]["value"] == 1.0
     assert metrics["smear_ambiguous_rate"]["value"] == 1.0
     assert metrics["missed_alleles"]["value"] == 0
+
+
+def test_reason_metric_cannot_shadow_a_real_lengths_built_in_metric(tmp_path: Path) -> None:
+    # "allele_count_exact" is a lengths-stage built-in (LENGTHS_METRICS), not a
+    # full-pipeline one (calibration_objective.METRICS): loading this objective for
+    # --stage lengths must fail, or point_metrics would silently overwrite the real
+    # built-in rate with the reason-derived one (reproduced before the fix: a case
+    # where allele_count_exact is really 1 reported as 0.0).
+    objective_path = tmp_path / "objective.json"
+    objective_path.write_text(
+        json.dumps(
+            {
+                "schema_version": 1,
+                "rank": ["allele_count_exact"],
+                "reason_metrics": {"allele_count_exact": "smear_ambiguous"},
+            }
+        )
+    )
+    with pytest.raises(ValueError, match="shadows a built-in"):
+        load_objective(objective_path, known_metrics=LENGTHS_METRICS)

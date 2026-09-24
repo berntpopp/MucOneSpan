@@ -19,8 +19,9 @@ unchanged; only the metrics a lengths-stage objective may reference differ).
 from __future__ import annotations
 
 import argparse
+import itertools
 import json
-from collections.abc import Callable, Sequence
+from collections.abc import Callable, Iterator, Sequence
 from pathlib import Path
 from typing import Any
 
@@ -131,32 +132,63 @@ def _failed_row(name: str, error: str) -> Row:
     }
 
 
+Assignment = tuple[int | None, ...]  # per truth index, its peak index or None (unmatched)
+
+
+def _candidate_assignments(n_truth: int, n_peaks: int) -> Iterator[Assignment]:
+    """Every truth-index -> peak-index-or-None assignment that uses each peak once.
+
+    Exhaustive: sizes are tiny (at most `PLOIDY` truth lengths and accepted peaks), and
+    the search space (``(n_peaks + 1) ** n_truth``, both counts taken from the inputs)
+    is not bounded by any literal here.
+    """
+    for assignment in itertools.product((None, *range(n_peaks)), repeat=n_truth):
+        used = [p for p in assignment if p is not None]
+        if len(used) == len(set(used)):
+            yield assignment
+
+
+def _assignment_score(
+    assignment: Assignment, distance: list[list[float]]
+) -> tuple[int, float, tuple[int, ...]]:
+    """Sort key picking, in order: fewest unmatched, then least total distance, then a
+    fixed deterministic tie-break (the assignment itself, ``None`` sorting first)."""
+    unmatched = sum(p is None for p in assignment)
+    total_distance = sum(distance[ti][p] for ti, p in enumerate(assignment) if p is not None)
+    tie_break = tuple(-1 if p is None else p for p in assignment)
+    return unmatched, total_distance, tie_break
+
+
 def _match_alleles(
     truth_lengths: list[int], peaks: list[dict[str, Any]], h: HybridSettings, unit_bp: int
 ) -> tuple[list[dict[str, Any]], int, int]:
-    """Greedy nearest-first 1:1 match of truth lengths to peaks within `window_bp`.
+    """Exact 1:1 match of truth lengths to peaks within `window_bp`: maximum matched
+    pairs first, minimum total distance among those, a fixed deterministic tie-break.
 
-    Every (truth, peak) pair whose distance is inside the truth length's own
-    assignment window (`hybrid.lengths.window_bp`, the same tolerance the engine
-    itself uses to assign a read to a peak) is a candidate; candidates are matched
-    closest distance first, each truth length and each peak used at most once.
+    A (truth, peak) pair is a candidate only when their distance is inside the truth
+    length's own assignment window (`hybrid.lengths.window_bp`, the same tolerance the
+    engine itself uses to assign a read to a peak). A greedy nearest-first match is not
+    maximum-cardinality (a truth length reachable through only one peak can be
+    stranded by a closer truth length competing for the same peak, when routing it
+    through a different peak would have matched both); this instead searches every
+    candidate assignment exhaustively (`_candidate_assignments`) and keeps the best by
+    `_assignment_score`.
     """
-    candidates = sorted(
-        (abs(peak["center_bp"] - t), ti, pi)
-        for ti, t in enumerate(truth_lengths)
-        for pi, peak in enumerate(peaks)
-        if abs(peak["center_bp"] - t) <= window_bp(t, h, unit_bp)
+    distance = [[abs(peak["center_bp"] - t) for peak in peaks] for t in truth_lengths]
+    windows = [window_bp(t, h, unit_bp) for t in truth_lengths]
+
+    def valid(assignment: Assignment) -> bool:
+        return all(p is None or distance[ti][p] <= windows[ti] for ti, p in enumerate(assignment))
+
+    best = min(
+        (a for a in _candidate_assignments(len(truth_lengths), len(peaks)) if valid(a)),
+        key=lambda a: _assignment_score(a, distance),
     )
-    used_truth: set[int] = set()
-    used_peaks: set[int] = set()
-    for _dist, ti, pi in candidates:
-        if ti not in used_truth and pi not in used_peaks:
-            used_truth.add(ti)
-            used_peaks.add(pi)
     matched_alleles = [
-        {"truth_bp": t, "matched": int(i in used_truth)} for i, t in enumerate(truth_lengths)
+        {"truth_bp": t, "matched": int(best[i] is not None)} for i, t in enumerate(truth_lengths)
     ]
-    return matched_alleles, len(peaks) - len(used_peaks), len(truth_lengths) - len(used_truth)
+    used_peaks = {p for p in best if p is not None}
+    return matched_alleles, len(peaks) - len(used_peaks), len(truth_lengths) - len(used_peaks)
 
 
 def _score(

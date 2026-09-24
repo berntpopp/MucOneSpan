@@ -215,6 +215,34 @@ def test_load_objective_accepts_an_injected_metric_registry(tmp_path: Path) -> N
         )
 
 
+def test_reason_metric_collision_is_checked_against_the_injected_registry(
+    tmp_path: Path,
+) -> None:
+    # "allele_count_exact" is not a full-pipeline metric (METRICS), but it IS a
+    # lengths-stage built-in (LENGTHS_METRICS): a reason_metrics entry reusing that
+    # name must be rejected for the lengths registry, or it silently overwrites the
+    # built-in rate in point_metrics.
+    data = {
+        "schema_version": 1,
+        "rank": ["allele_count_exact"],
+        "reason_metrics": {"allele_count_exact": "smear_ambiguous"},
+    }
+    with pytest.raises(ValueError, match="shadows a built-in"):
+        load_objective(_write(tmp_path, data), known_metrics=LENGTHS_METRICS)
+    # Not a full-pipeline built-in, so it is fine under the default (full) registry.
+    load_objective(_write(tmp_path, {**data, "rank": ["cases"]}))
+
+
+def test_reason_metric_collision_is_still_checked_for_the_full_stage(tmp_path: Path) -> None:
+    data = {
+        "schema_version": 1,
+        "rank": ["case_exact"],
+        "reason_metrics": {"case_exact": "smear_ambiguous"},
+    }
+    with pytest.raises(ValueError, match="shadows a built-in"):
+        load_objective(_write(tmp_path, data))
+
+
 def test_point_metrics_accepts_injected_rates_and_counts(tmp_path: Path) -> None:
     data = {"schema_version": 1, "rank": ["allele_count_exact"]}
     objective = load_objective(_write(tmp_path, data), known_metrics=LENGTHS_METRICS)
