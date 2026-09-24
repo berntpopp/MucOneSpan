@@ -67,6 +67,14 @@ def test_hybrid_assign_flank_bp_default_unchanged() -> None:
     assert DEFAULT_SETTINGS.hybrid.assign_flank_bp == 500
 
 
+def test_hybrid_event_evidence_defaults() -> None:
+    # Task 9 (S8/S10): replace the brief's run >= 4, MAXLEN = 16, 0.5 pseudo-count and
+    # residual run >= 3 literals with validated fields; defaults keep the brief's values.
+    h = DEFAULT_SETTINGS.hybrid
+    assert (h.hp_event_min_run, h.hp_max_run_len) == (4, 16)
+    assert (h.hp_background_pseudocount, h.qc_residual_min_run) == (0.5, 3)
+
+
 def test_hybrid_smear_significance_defaults() -> None:
     # Fix round 4 (C4.2): the smear decision is a one-sided significance test of the
     # candidate's core count against its local below-top background; these defaults
@@ -149,6 +157,11 @@ def test_hybrid_phase_tunables_default_unchanged() -> None:
         ("hp_vote_min_run", -1),
         ("assign_flank_bp", 0),
         ("assign_flank_bp", -1),
+        ("hp_event_min_run", 1),
+        ("hp_max_run_len", 4),
+        ("hp_background_pseudocount", 0.0),
+        ("hp_background_pseudocount", -0.5),
+        ("qc_residual_min_run", 1),
     ],
 )
 def test_hybrid_rejects_invalid(field: str, value: object) -> None:

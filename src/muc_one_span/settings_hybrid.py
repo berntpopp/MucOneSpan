@@ -67,6 +67,16 @@ class HybridSettings:
     hp_min_reads: int = 20
     hp_min_alt_frac: float = 0.30
     hp_min_strand_reads: int = 5
+    # S8/S10 (Task 9) read-level event evidence. A dictionary template that is a
+    # single-base indel inside a consensus run >= hp_event_min_run is typed a
+    # homopolymer event; runs are modelled up to hp_max_run_len (an event whose run
+    # would reach that cap falls back to parent-vs-template competition), and the
+    # per-strand background length profile adds hp_background_pseudocount per length.
+    # Residual QC skips consensus runs >= qc_residual_min_run (column-ambiguous indels).
+    hp_event_min_run: int = 4
+    hp_max_run_len: int = 16
+    hp_background_pseudocount: float = 0.5
+    qc_residual_min_run: int = 3
     seed: int = 1
     # S1 anchor-search tunables (flank-anchor fallback when a motif is mutated).
     flank_anchor_bp: int = 30
@@ -131,6 +141,12 @@ class HybridSettings:
             _integer(f"hybrid.{name}", getattr(self, name))
         _integer("hybrid.n_poa", self.n_poa, 1)
         _integer("hybrid.hp_vote_min_run", self.hp_vote_min_run, 2)
+        _integer("hybrid.hp_event_min_run", self.hp_event_min_run, 2)
+        _integer("hybrid.hp_max_run_len", self.hp_max_run_len, self.hp_event_min_run + 1)
+        _number("hybrid.hp_background_pseudocount", self.hp_background_pseudocount, 0)
+        if self.hp_background_pseudocount == 0:
+            raise ValueError("hybrid.hp_background_pseudocount must be > 0")
+        _integer("hybrid.qc_residual_min_run", self.qc_residual_min_run, 2)
         _integer("hybrid.min_span_units", self.min_span_units, 1)
         _integer("hybrid.max_span_units", self.max_span_units, self.min_span_units + 1)
         _integer(
