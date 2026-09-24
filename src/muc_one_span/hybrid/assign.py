@@ -2,9 +2,8 @@
 
 ``assign_flank_bp``/``assign_margin``/``assign_max_error_rate``/``min_fragment_bp`` are
 validated ``HybridSettings`` fields (``muc_one_span.settings``); nothing here hardcodes a
-threshold, so a function's default (when it has one) is sourced from that field, matching
-the convention already used across the package (``hybrid.polish``'s ``sample_window_*``,
-``alleles.py``'s ``min_gap``).
+threshold and no parameter has a default, so callers always pass the values of the
+settings they run with.
 """
 
 from __future__ import annotations
@@ -14,7 +13,7 @@ from dataclasses import dataclass
 from muc_one_span.config import RepeatDictionary
 from muc_one_span.hybrid.align import edit_distance_infix, project, rc
 from muc_one_span.hybrid.spans import ReadRecord
-from muc_one_span.settings import DEFAULT_SETTINGS, HybridSettings
+from muc_one_span.settings import HybridSettings
 
 OFF_TARGET = "off_target"
 UNDECIDED = "undecided"
@@ -23,12 +22,11 @@ UNDECIDED = "undecided"
 def hybrid_references(
     drafts: dict[str, str],
     rd: RepeatDictionary,
-    flank_bp: int = DEFAULT_SETTINGS.hybrid.assign_flank_bp,
+    flank_bp: int,
 ) -> dict[str, str]:
     """Wrap each motif1..motif9 draft in the ladder's hg38 flanks.
 
-    ``flank_bp`` defaults from ``HybridSettings.assign_flank_bp``; a caller running with
-    a non-default configuration passes that instance's value explicitly.
+    ``flank_bp`` has no default: callers pass ``HybridSettings.assign_flank_bp``.
     """
     left, right = rd.flanking_left[-flank_bp:], rd.flanking_right[:flank_bp]
     return {name: left + seq + right for name, seq in drafts.items()}

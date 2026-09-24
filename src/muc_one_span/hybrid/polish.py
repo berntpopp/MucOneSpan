@@ -1,10 +1,10 @@
 """S3/S7: POA draft, majority pileup polishing and homopolymer median vote.
 
-Every tunable here (the POA sampling window, the insertion-vote majority fraction and
-the homopolymer minimum run length) is a validated ``HybridSettings`` field
-(``muc_one_span.settings``); a function's default is sourced from that field, never a
-bare literal, matching the convention already used across the package (for example
-``alleles.py``'s ``min_gap`` or ``consensus.py``'s ``anchor_tolerance``).
+Every tunable here (the POA sampling window, the insertion-vote majority fraction, the
+homopolymer minimum run length, the number of rounds and the homopolymer-vote switch) is
+a validated ``HybridSettings`` field (``muc_one_span.settings``). The parameters have no
+defaults: callers pass the values of the ``RuntimeSettings`` they run with, so a user's
+configuration can never be silently replaced by the package defaults.
 """
 
 from __future__ import annotations
@@ -17,7 +17,6 @@ from typing import Any
 from muc_one_span.hybrid.align import Columns, project
 from muc_one_span.hybrid.poa import PoaBackend
 from muc_one_span.hybrid.spans import SpanRead
-from muc_one_span.settings import DEFAULT_SETTINGS
 
 
 def draft_consensus(
@@ -26,8 +25,8 @@ def draft_consensus(
     rng: random.Random,
     backend: PoaBackend,
     *,
-    sample_window_floor_bp: float = DEFAULT_SETTINGS.hybrid.poa_sample_window_floor_bp,
-    sample_window_frac: float = DEFAULT_SETTINGS.hybrid.poa_sample_window_frac,
+    sample_window_floor_bp: float,
+    sample_window_frac: float,
 ) -> str:
     """POA over a random sample of near-modal members (random, not quality-ranked).
 
@@ -55,7 +54,7 @@ def pileup_polish(
     full: list[str],
     partial: list[str] | None = None,
     *,
-    insertion_majority_frac: float = DEFAULT_SETTINGS.hybrid.polish_insertion_majority_frac,
+    insertion_majority_frac: float,
 ) -> tuple[str, int]:
     """One majority-vote round; each column/insertion slot is voted only by covering reads.
 
@@ -117,7 +116,8 @@ def homopolymer_vote(
     cons: str,
     full: list[str],
     partial: list[str] | None = None,
-    min_len: int = DEFAULT_SETTINGS.hybrid.hp_vote_min_run,
+    *,
+    min_len: int,
 ) -> tuple[str, int]:
     """Set each run (>= min_len) to the median run length of the reads covering it."""
     runs = _runs(cons, min_len)
@@ -146,16 +146,21 @@ def homopolymer_vote(
 def polish(
     cons: str,
     full: list[str],
-    rounds: int = DEFAULT_SETTINGS.hybrid.polish_rounds,
-    hp_vote: bool = DEFAULT_SETTINGS.hybrid.hp_vote,
     partial: list[str] | None = None,
+    *,
+    rounds: int,
+    hp_vote: bool,
+    insertion_majority_frac: float,
+    hp_min_run: int,
 ) -> tuple[str, dict[str, Any]]:
     """Run ``rounds`` pileup rounds, each followed by an optional homopolymer vote."""
     info: dict[str, Any] = {"rounds": []}
     for _ in range(rounds):
-        cons, changes = pileup_polish(cons, full, partial)
+        cons, changes = pileup_polish(
+            cons, full, partial, insertion_majority_frac=insertion_majority_frac
+        )
         hp = 0
         if hp_vote:
-            cons, hp = homopolymer_vote(cons, full, partial)
+            cons, hp = homopolymer_vote(cons, full, partial, min_len=hp_min_run)
         info["rounds"].append({"changes": changes, "hp_changes": hp})
     return cons, info

@@ -67,6 +67,14 @@ def test_hybrid_assign_flank_bp_default_unchanged() -> None:
     assert DEFAULT_SETTINGS.hybrid.assign_flank_bp == 500
 
 
+def test_hybrid_engine_orchestration_defaults() -> None:
+    # Task 11: replace the brief's n_poa * 3 polishing cap, MAX_QC_READS = 200 and the
+    # one-unit partial-fragment floor with validated fields; defaults keep those values.
+    h = DEFAULT_SETTINGS.hybrid
+    assert (h.polish_max_reads, h.qc_residual_max_reads) == (3 * h.n_poa, 200)
+    assert h.polish_partial_min_units == 1.0
+
+
 def test_hybrid_event_evidence_defaults() -> None:
     # Task 9 (S8/S10): replace the brief's run >= 4, MAXLEN = 16, 0.5 pseudo-count and
     # residual run >= 3 literals with validated fields; defaults keep the brief's values.
@@ -165,6 +173,9 @@ def test_hybrid_phase_tunables_default_unchanged() -> None:
         ("hp_min_reads", 0),
         ("hp_llr_min", 0.0),
         ("hp_llr_min", -1.0),
+        ("polish_max_reads", 0),
+        ("qc_residual_max_reads", 0),
+        ("polish_partial_min_units", -1.0),
     ],
 )
 def test_hybrid_rejects_invalid(field: str, value: object) -> None:

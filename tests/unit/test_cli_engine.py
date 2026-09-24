@@ -46,12 +46,3 @@ def test_run_is_still_importable_from_cli() -> None:
     from muc_one_span.cli_run import run as moved
 
     assert run is moved and main.commands["run"] is moved
-
-
-def test_hybrid_engine_is_rejected_until_available(tmp_path: Path) -> None:
-    """Temporary (removed in Task 11): never silently run the ladder as 'hybrid'."""
-    res = CliRunner().invoke(
-        main, ["run", "-i", str(_fastq(tmp_path)), "-o", str(tmp_path / "o"), "--engine", "hybrid"]
-    )
-    assert res.exit_code == 2, res.output
-    assert "hybrid engine is not available" in res.output

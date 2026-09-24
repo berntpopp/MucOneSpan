@@ -123,6 +123,14 @@ class HybridSettings:
     phase_gap_af_factor: float = 1.5
     phase_min_pair_reads: int = 10
     phase_strand_bias_alpha: float = 0.001
+    # Engine orchestration (Task 11). Polishing and residual QC use at most
+    # polish_max_reads / qc_residual_max_reads spanning members per allele (sampled with
+    # the seeded RNG when a group is larger); an assigned non-spanning fragment joins the
+    # polishing pileup only when its trimmed length reaches polish_partial_min_units
+    # repeat units (unit length from the repeat dictionary).
+    polish_max_reads: int = 120
+    polish_partial_min_units: float = 1.0
+    qc_residual_max_reads: int = 200
 
     def __post_init__(self) -> None:
         for name in (
@@ -207,3 +215,6 @@ class HybridSettings:
         _number("hybrid.phase_run_bg_multiplier", self.phase_run_bg_multiplier, 0)
         _number("hybrid.phase_gap_af_factor", self.phase_gap_af_factor, 1)
         _open_unit_interval("hybrid.phase_strand_bias_alpha", self.phase_strand_bias_alpha)
+        _integer("hybrid.polish_max_reads", self.polish_max_reads, 1)
+        _integer("hybrid.qc_residual_max_reads", self.qc_residual_max_reads, 1)
+        _number("hybrid.polish_partial_min_units", self.polish_partial_min_units, 0)

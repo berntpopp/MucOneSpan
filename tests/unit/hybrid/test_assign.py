@@ -19,7 +19,9 @@ S = HybridSettings()
 UNIT = synth.RD.repeat_length_bp  # the bundled dictionary's repeat-unit length (60 bp)
 A = ["X"] * 10 + ["A", "A", "B"] + ["X"] * 20 + ["G", "A", "B"] + ["X"] * 10
 B = ["X"] * 10 + ["A", "A", "B"] + ["X"] * 21 + ["G", "A", "B"] + ["X"] * 10  # one unit longer
-REFS = hybrid_references({"allele_1": synth.allele(A), "allele_2": synth.allele(B)}, synth.RD)
+REFS = hybrid_references(
+    {"allele_1": synth.allele(A), "allele_2": synth.allele(B)}, synth.RD, S.assign_flank_bp
+)
 TRACT_START = (5 + 13) * UNIT  # pre-repeats 5, then 10 X, then A A B
 TRACT_END_B = (5 + 13 + 21) * UNIT  # the 21-X tract in B
 
