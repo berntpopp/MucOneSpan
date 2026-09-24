@@ -33,6 +33,11 @@ dependencies = [
 report = [
     "jinja2>=3.1.0",
 ]
+hybrid = [
+    "edlib>=1.3.9",
+    "pyabpoa>=1.5.7",
+    "pyspoa>=0.3.2",
+]
 docs = [
     "mkdocs-material>=9.7.7",
     "mkdocstrings[python]>=0.24.0",

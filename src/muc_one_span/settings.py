@@ -65,6 +65,8 @@ class RunSettings:
     mapping_timeout: float = 3600.0
     report: bool = False
     report_igv: str = "off"
+    engine: str = "ladder"
+    assay: str = "amplicon"
 
     def __post_init__(self) -> None:
         _integer("run.threads", self.threads, 1)
@@ -81,6 +83,8 @@ class RunSettings:
         _boolean("run.report", self.report)
         if self.report_igv not in ("off", "embedded", "sidecar"):
             raise ValueError("run.report_igv must be off, embedded, or sidecar")
+        _choice("run.engine", self.engine, ("ladder", "hybrid"))
+        _choice("run.assay", self.assay, ("amplicon", "genomic"))
 
 
 @dataclass(frozen=True)
@@ -306,6 +310,86 @@ class ReferenceLayoutSettings:
 
 
 @dataclass(frozen=True)
+class HybridSettings:
+    """Read-centric engine thresholds (spec 2026-09-23 §5).
+
+    Every default is provisional (prototype-derived) and is tuned on the benchmark
+    dev/validation splits only; the sealed test split never informs a default.
+    """
+
+    anchor_max_edits: int = 12
+    min_span_units: int = 15
+    max_span_units: int = 160
+    peak_window_base_bp: float = 30.0
+    peak_window_per_unit_bp: float = 0.6
+    min_peak_reads: int = 8
+    far_peak_min_frac: float = 0.03
+    near_peak_min_frac: float = 0.20
+    smear_min_prominence: float = 3.0
+    rejected_peak_noise_reads: int = 2
+    n_poa: int = 40
+    poa_backend: str = "pyabpoa"
+    polish_rounds: int = 2
+    hp_vote: bool = True
+    het_af_min: float = 0.2
+    het_min_group: float = 0.15
+    link_phi_min: float = 0.5
+    min_linked_sites: int = 2
+    min_fragment_bp: int = 1000
+    assign_margin: int = 3
+    assign_max_error_rate: float = 0.15
+    qc_residual_af: float = 0.25
+    max_unassigned_spanning_fraction: float = 0.2
+    depth_adequate_spanning: int = 30
+    depth_low_spanning: int = 10
+    hp_llr_min: float = 10.0
+    hp_min_reads: int = 20
+    hp_min_alt_frac: float = 0.30
+    hp_min_strand_reads: int = 5
+    seed: int = 1
+
+    def __post_init__(self) -> None:
+        for name in (
+            "anchor_max_edits",
+            "min_peak_reads",
+            "rejected_peak_noise_reads",
+            "polish_rounds",
+            "min_linked_sites",
+            "min_fragment_bp",
+            "assign_margin",
+            "depth_low_spanning",
+            "hp_min_reads",
+            "hp_min_strand_reads",
+            "seed",
+        ):
+            _integer(f"hybrid.{name}", getattr(self, name))
+        _integer("hybrid.n_poa", self.n_poa, 1)
+        _integer("hybrid.min_span_units", self.min_span_units, 1)
+        _integer("hybrid.max_span_units", self.max_span_units, self.min_span_units + 1)
+        _integer(
+            "hybrid.depth_adequate_spanning", self.depth_adequate_spanning, self.depth_low_spanning
+        )
+        _number("hybrid.peak_window_base_bp", self.peak_window_base_bp, 1)
+        _number("hybrid.peak_window_per_unit_bp", self.peak_window_per_unit_bp)
+        _number("hybrid.smear_min_prominence", self.smear_min_prominence, 1)
+        for name in (
+            "far_peak_min_frac",
+            "near_peak_min_frac",
+            "het_min_group",
+            "qc_residual_af",
+            "hp_min_alt_frac",
+            "link_phi_min",
+            "assign_max_error_rate",
+            "max_unassigned_spanning_fraction",
+        ):
+            _number(f"hybrid.{name}", getattr(self, name), 0, 1)
+        _number("hybrid.het_af_min", self.het_af_min, 0.01, 0.5)
+        _number("hybrid.hp_llr_min", self.hp_llr_min)
+        _boolean("hybrid.hp_vote", self.hp_vote)
+        _choice("hybrid.poa_backend", self.poa_backend, ("pyabpoa", "pyspoa"))
+
+
+@dataclass(frozen=True)
 class RuntimeSettings:
     """Complete schema-one settings; sections remain immutable when passed to workers."""
 
@@ -318,6 +402,7 @@ class RuntimeSettings:
     calling: CallingSettings = field(default_factory=CallingSettings)
     read_phasing: ReadPhasingSettings = field(default_factory=ReadPhasingSettings)
     reference_layout: ReferenceLayoutSettings = field(default_factory=ReferenceLayoutSettings)
+    hybrid: HybridSettings = field(default_factory=HybridSettings)
     repeat_dictionary: str | None = None
 
     def __post_init__(self) -> None:
@@ -338,6 +423,7 @@ _SECTIONS = {
     "calling": CallingSettings,
     "read_phasing": ReadPhasingSettings,
     "reference_layout": ReferenceLayoutSettings,
+    "hybrid": HybridSettings,
 }
 DEFAULT_SETTINGS = RuntimeSettings()
 DEFAULT_LAYOUT = DEFAULT_SETTINGS.reference_layout
