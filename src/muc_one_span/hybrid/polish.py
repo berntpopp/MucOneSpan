@@ -164,10 +164,13 @@ def consensus_concordance(cons: str, full: list[str], partial: list[str] | None)
     (confirmed on real reconstructed alleles). A per-position mean does not have that
     problem: it stays informative at any depth. A position with no covering read
     contributes 0 (fail-closed), matching the rest of this project's evidence handling.
+    An empty consensus is that same "no evidence" case in the limit -- there is no
+    reconstruction for any read to support -- so it also fails closed to 0.0 rather
+    than a misleadingly perfect 1.0.
     """
     n = len(cons)
     if n == 0:
-        return 1.0
+        return 0.0
     match = [0] * n
     cover = [0] * n
     for _read, proj, _is_partial in _projections(cons, full, partial or []):

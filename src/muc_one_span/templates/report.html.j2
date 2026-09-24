@@ -298,10 +298,38 @@
     {% set dr = detailed_repeats.get(allele_key, {}) %}
     {% set conf = dr.get("confidence", dr.get("allele_confidence", 0)) %}
     {% set exact = dr.get("exact_match_pct") | exact_match_percentage %}
+    {# Hybrid alleles carry consensus_concordance_fraction / classification_confidence_status
+       (see hybrid/allele_fields.py::allele_info, commit 3080dc9): the ladder's classify.py
+       "confidence" above is a dictionary-fit heuristic fed identically for both engines and
+       carries no hybrid reconstruction evidence, so hybrid alleles show their own read-support
+       evidence here instead of that value. Detected via the fields the hybrid engine adds, not
+       a hardcoded engine name. #}
+    {% set hybrid_status = alleles.get(allele_key, {}).get("classification_confidence_status") %}
     <div class="card">
       <h3>{{ allele_key | replace("_", " ") | title }}</h3>
 
       <div style="margin-bottom:0.75rem;">
+        {% if hybrid_status %}
+        {% set concordance = alleles.get(allele_key, {}).get("consensus_concordance_fraction") %}
+        <div class="metric-row">
+          <span class="metric-label tip" data-tip="Mean per-base agreement between the final polished consensus and every read that built/polished it (hybrid/polish.py::consensus_concordance)">Read support (consensus concordance)</span>
+          <span class="metric-value">{{ "%.1f"|format(concordance * 100) if concordance is not none else "N/A" }}%</span>
+        </div>
+        {% if concordance is not none %}
+        {% set concordance_pct = concordance * 100 %}
+        <div class="progress-track" role="progressbar"
+             aria-valuenow="{{ concordance_pct|round(1) }}"
+             aria-valuemin="0" aria-valuemax="100"
+             aria-label="{{ allele_key }} consensus concordance">
+          <div class="progress-fill {{ 'good' if concordance_pct >= 80 else ('ok' if concordance_pct >= 50 else 'poor') }}"
+               style="width:{{ concordance_pct|round(1) }}%"></div>
+        </div>
+        {% endif %}
+        <div class="metric-row" style="margin-top:0.5rem;">
+          <span class="metric-label tip" data-tip="The ladder's dictionary-fit classification confidence does not apply to hybrid reconstruction quality; see read support above">Classification confidence</span>
+          <span class="metric-value">{{ hybrid_status }}</span>
+        </div>
+        {% else %}
         <div class="metric-row">
           <span class="metric-label tip" data-tip="Average classification confidence across all repeat units">Allele confidence</span>
           <span class="metric-value">{{ "%.1f"|format(conf * 100) if conf <= 1 else "%.1f"|format(conf) }}%</span>
@@ -314,6 +342,7 @@
           <div class="progress-fill {{ 'good' if conf_pct >= 80 else ('ok' if conf_pct >= 50 else 'poor') }}"
                style="width:{{ conf_pct|round(1) }}%"></div>
         </div>
+        {% endif %}
       </div>
 
       <div>

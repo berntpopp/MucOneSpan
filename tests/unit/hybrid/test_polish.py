@@ -231,6 +231,16 @@ def test_consensus_concordance_is_zero_with_no_covering_reads() -> None:
     assert consensus_concordance(cons, [], None) == 0.0
 
 
+def test_consensus_concordance_fails_closed_for_an_empty_consensus() -> None:
+    """An empty consensus has nothing for reads to support; the function's own
+    docstring says a position with no covering read fails closed to 0, and an empty
+    consensus is that same "no evidence" case in the limit, so it must not instead
+    report a misleadingly perfect 1.0.
+    """
+    assert consensus_concordance("", ["ACGT"], None) == 0.0
+    assert consensus_concordance("", [], None) == 0.0
+
+
 def test_polish_rounds_come_from_the_caller() -> None:
     members = _members(DUPC_ALLELE, 20, 21)
     _cons, info = polish(DUPC_ALLELE, [m.seq for m in members], **POLISH)
