@@ -54,6 +54,51 @@ def test_fragments_and_offtarget_are_not_spanning() -> None:
     }
 
 
+def test_left_anchored_fragment_ending_at_motif_boundary_does_not_crash() -> None:
+    """A genomic fragment read that ends exactly where motif 1 ends collapses the
+    remaining search window (for motif 9 / the right flank) to an empty string --
+    the real-world trigger for edlib's ``locations`` None-start quirk (see
+    ``hybrid/align.py::infix_hit``, reproduced directly in ``test_align.py``). It
+    must be categorised as left-anchored, not crash.
+    """
+    read_seq = synth.RD.flanking_left[-40:] + synth.RD.repeats["1"]
+    cats = categorize_reads([ReadRecord("frag_left", read_seq, "5" * len(read_seq))], ANCH, S)
+    assert cats.counts() == {
+        "spanning": 0,
+        "left_anchored": 1,
+        "right_anchored": 0,
+        "internal_or_offtarget": 0,
+    }
+
+
+def test_right_anchored_fragment_does_not_crash() -> None:
+    """A fragment carrying only motif 9 (and its downstream flank), with no motif 1
+    or left-flank content, must be categorised as right-anchored, not crash.
+    """
+    read_seq = synth.RD.repeats["9"] + synth.RD.flanking_right[:40]
+    cats = categorize_reads([ReadRecord("frag_right", read_seq, "5" * len(read_seq))], ANCH, S)
+    assert cats.counts() == {
+        "spanning": 0,
+        "left_anchored": 0,
+        "right_anchored": 1,
+        "internal_or_offtarget": 0,
+    }
+
+
+def test_internal_fragment_with_neither_anchor_does_not_crash() -> None:
+    """A fragment drawn purely from mid-array repeat content, with neither motif 1
+    nor motif 9 nor either flank, must fall to internal/off-target, not crash.
+    """
+    read_seq = synth.RD.repeats["X"] * 5
+    cats = categorize_reads([ReadRecord("frag_internal", read_seq, "5" * len(read_seq))], ANCH, S)
+    assert cats.counts() == {
+        "spanning": 0,
+        "left_anchored": 0,
+        "right_anchored": 0,
+        "internal_or_offtarget": 1,
+    }
+
+
 def test_mutated_motif1_falls_back_to_flank_anchor() -> None:
     seq = synth.allele(["X"] * 30)
     broken = seq[:5] + "T" * 40 + seq[45:]  # destroy most of motif 1

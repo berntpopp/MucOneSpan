@@ -39,13 +39,38 @@ def cigar_ops(cigar: str) -> list[tuple[int, str]]:
     return ops
 
 
-def infix_hit(query: str, target: str, k: int) -> tuple[int, int, int] | None:
-    """Best infix location of query in target with at most k edits (start, end_excl, edits)."""
-    res = _edlib().align(query, target, mode="HW", task="locations", k=k)
-    if res["editDistance"] < 0:
+def _locate(query: str, target: str, k: int, *, task: str) -> tuple[int, int, int] | None:
+    """Run one edlib infix search; return a resolved (start, end, edits), or None.
+
+    edlib can report a non-negative ``editDistance`` with an unresolved (``None``)
+    start location, most often when the search window collapses to an empty target
+    substring (for example a fragment read whose sequence ends exactly at an anchor).
+    That is not a valid hit, so it is rejected here rather than propagated.
+    """
+    res = _edlib().align(query, target, mode="HW", task=task, k=k)
+    if res["editDistance"] < 0 or not res["locations"]:
         return None
     start, end = res["locations"][0]
-    return int(start), int(end) + 1, int(res["editDistance"])
+    if start is None or end is None:
+        return None
+    return int(start), int(end), int(res["editDistance"])
+
+
+def infix_hit(query: str, target: str, k: int) -> tuple[int, int, int] | None:
+    """Best infix location of query in target with at most k edits (start, end_excl, edits).
+
+    Retries with ``task="path"`` (a full traceback, which recomputes the location from
+    scratch) when the faster ``task="locations"`` pass leaves the start unresolved; if
+    the location is still unresolved after that, there is no valid hit and ``None`` is
+    returned rather than a partial or invalid one.
+    """
+    hit = _locate(query, target, k, task="locations")
+    if hit is None:
+        hit = _locate(query, target, k, task="path")
+    if hit is None:
+        return None
+    start, end, edits = hit
+    return start, end + 1, edits
 
 
 def edit_distance_infix(query: str, target: str) -> int:
