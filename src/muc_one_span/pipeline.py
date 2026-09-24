@@ -37,6 +37,7 @@ def execute_pipeline(
     from muc_one_span.config import load_repeat_dictionary
     from muc_one_span.consensus import build_consensus_per_allele
     from muc_one_span.mapping import get_idxstats, map_reads
+    from muc_one_span.selection_qc import annotate_selection_qc
     from muc_one_span.tools import check_tools, get_tool_versions
     from muc_one_span.vcf import parse_vcf_variants
 
@@ -87,7 +88,15 @@ def execute_pipeline(
     configuration_record = write_run_configuration(
         settings, configuration, Path(input_path), ref, out
     )
-    check_tools(["minimap2", "samtools", "bcftools", "run_clair3.sh"])
+    igv_requested = settings.run.report_igv != "off"
+    check_tools(
+        ["minimap2", "samtools", "bcftools", "run_clair3.sh"]
+        + (["create_report"] if igv_requested else [])
+    )
+    if igv_requested:
+        from muc_one_span.report_igv import preflight_igv_report
+
+        preflight_igv_report(settings.run.report_igv, out)
     tool_versions = get_tool_versions(["minimap2", "samtools", "bcftools", "run_clair3.sh"])
 
     # Step 1: Map reads
@@ -108,6 +117,7 @@ def execute_pipeline(
         reference_layout=settings.reference_layout,
         platform=settings.run.platform,
     )
+    annotate_selection_qc(alleles_result, settings.allele_selection)
     (out / "alleles.json").write_text(json.dumps(alleles_result, indent=2) + "\n")
     click.echo(f"  Alleles: {alleles_result}")
 

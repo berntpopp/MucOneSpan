@@ -196,13 +196,20 @@ def test_report_distinguishes_unavailable_from_absent_support(sample_summary, tm
     mutation.update(vcf_support=False, vcf_support_status="projection_unavailable", vcf_qual=0.0)
     absent = {**mutation, "repeat_index": 9, "vcf_support_status": "absent"}
     ambiguous = {**mutation, "repeat_index": 10, "vcf_support_status": "localization_ambiguous"}
+    unresolved = {
+        **mutation,
+        "repeat_index": 11,
+        "vcf_support_status": "heterozygous_genotype_unresolved",
+    }
     sample_summary["classifications"]["allele_1"]["mutations"].append(absent)
     sample_summary["classifications"]["allele_1"]["mutations"].append(ambiguous)
+    sample_summary["classifications"]["allele_1"]["mutations"].append(unresolved)
 
     html = generate_report(sample_summary, tmp_path / "report.html").read_text()
     assert html.count(">Support unavailable<") == 1
     assert html.count(">Support ambiguous<") == 1
     assert html.count(">Unsupported<") == 1
+    assert html.count(">Genotype unresolved<") == 1
 
 
 def test_report_clinical_decision_pathogenic(sample_summary, tmp_path):

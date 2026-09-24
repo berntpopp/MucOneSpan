@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from pathlib import Path
+from typing import Any
 from unittest.mock import patch
 
 import pytest
@@ -282,3 +283,102 @@ def test_filter_vcf_haploid_majority(tmp_path):
     assert any("0/1:0.8" not in line and "1/1:0.8" in line for line in written_lines)
     assert any("0/1:0.1" not in line and "0/0:0.1" in line for line in written_lines)
     assert any("0/1:0.35" in line for line in written_lines)
+
+
+# Public PRJEB92208 record shapes (cohort-v3 Clair3 output, ladder coordinates).
+MP4_DUPC = "contig_71\t3432\t.\tG\tGC\t29.93\tPASS\tF\tGT:GQ:DP:AD:AF\t0/1:29:614:192,275:0.4479"
+MP3_DUPC = "contig_35\t912\t.\tG\tGC\t21.05\tPASS\tF\tGT:GQ:DP:AD:AF\t0/1:21:18273:8780,5105:0.2794"
+
+
+def _haploid_rewrite(tmp_path: Path, records: list[str], **kwargs: float) -> list[str]:
+    """Run filter_vcf's haploid rewrite on literal records and return the data lines."""
+    vcf = tmp_path / "input.vcf.gz"
+    vcf.touch()
+    ref = tmp_path / "ref.fa"
+    ref.touch()
+    out_dir = tmp_path / "out"
+    content = (
+        "##fileformat=VCFv4.2\n"
+        "#CHROM\tPOS\tID\tREF\tALT\tQUAL\tFILTER\tINFO\tFORMAT\tSAMPLE\n"
+        + "".join(record + "\n" for record in records)
+    )
+    written: list[str] = []
+
+    def side_effect(cmd: list[str]) -> str:
+        if cmd[1] == "norm":
+            (out_dir / "normalized.vcf.gz").write_bytes(b"data")
+        elif cmd[1] == "view" and str(cmd[-1]).endswith("normalized.vcf.gz"):
+            (out_dir / "variants.vcf.gz").write_bytes(b"data")
+        elif cmd[1] == "view" and str(cmd[-1]).endswith("variants.vcf.gz"):
+            return content
+        elif cmd[1] == "view" and str(cmd[-1]).endswith("mod_haploid.vcf"):
+            written.extend(Path(cmd[-1]).read_text().splitlines())
+            (out_dir / "variants.vcf.gz").touch()
+        return ""
+
+    with patch("muc_one_span.vcf.run_tool", side_effect=side_effect):
+        filter_vcf(vcf, ref, out_dir, min_qual=5.0, haploid_majority=True, **kwargs)
+    data = [line for line in written if not line.startswith("#")]
+    return data or list(records)
+
+
+def _genotype(line: str) -> str:
+    return line.split("\t")[9].split(":")[0]
+
+
+def test_haploid_rule_uses_allele_specific_depth_fraction(tmp_path: Path) -> None:
+    """MP4 dupC: AF is 0.448 (ALT/DP) but AD gives 275/467 = 0.589, so ALT."""
+    assert [_genotype(line) for line in _haploid_rewrite(tmp_path, [MP4_DUPC])] == ["1/1"]
+
+
+def test_ambiguous_ad_fraction_keeps_heterozygous_genotype(tmp_path: Path) -> None:
+    """MP3 dupC: 5105/13885 = 0.368 lies in the ambiguous band and stays 0/1."""
+    assert [_genotype(line) for line in _haploid_rewrite(tmp_path, [MP3_DUPC])] == ["0/1"]
+
+
+def test_low_ad_fraction_becomes_reference(tmp_path: Path) -> None:
+    record = "contig_1\t10\t.\tC\tCC\t12.0\tPASS\t.\tGT:AD:AF\t0/1:90,10:0.1"
+    assert [_genotype(line) for line in _haploid_rewrite(tmp_path, [record])] == ["0/0"]
+
+
+def test_multiallelic_ad_selects_supported_alt(tmp_path: Path) -> None:
+    record = "contig_1\t10\t.\tC\tCC,CCC\t20.0\tPASS\t.\tGT:AD:AF\t1/2:10,20,70:0.2,0.7"
+    assert [_genotype(line) for line in _haploid_rewrite(tmp_path, [record])] == ["2/2"]
+
+
+def test_af_is_fallback_when_ad_is_missing_or_zero(tmp_path: Path) -> None:
+    records = [
+        "contig_1\t10\t.\tC\tG\t15.0\tPASS\t.\tGT:AD:AF\t0/1:0,0:0.8",
+        "contig_1\t20\t.\tA\tT\t15.0\tPASS\t.\tGT:AD:AF\t0/1:.:0.1",
+    ]
+    assert [_genotype(line) for line in _haploid_rewrite(tmp_path, records)] == ["1/1", "0/0"]
+
+
+def test_haploid_fraction_cutoffs_are_configurable(tmp_path: Path) -> None:
+    lines = _haploid_rewrite(
+        tmp_path, [MP3_DUPC], haploid_alt_fraction=0.35, haploid_ref_fraction=0.1
+    )
+    assert [_genotype(line) for line in lines] == ["1/1"]
+
+
+def _qual_filter(tmp_path: Path, **kwargs: Any) -> str:
+    """Return the -i expression of the bcftools view call for a non-empty VCF."""
+
+    def side_effect(cmd: list[str]) -> str:
+        if cmd[:2] == ["bcftools", "norm"]:
+            (tmp_path / "normalized.vcf.gz").write_bytes(b"\x00" * 100)
+        return ""
+
+    with patch("muc_one_span.vcf.run_tool", side_effect=side_effect) as run:
+        filter_vcf(tmp_path / "input.vcf.gz", tmp_path / "ref.fa", tmp_path, **kwargs)
+    view = next(c.args[0] for c in run.call_args_list if c.args[0][:2] == ["bcftools", "view"])
+    return view[view.index("-i") + 1]
+
+
+def test_haploid_rewrite_does_not_silently_lower_min_qual(tmp_path: Path) -> None:
+    assert _qual_filter(tmp_path, min_qual=5.0, haploid_majority=True) == "QUAL>=5.0"
+
+
+def test_haploid_min_qual_applies_without_genotype_rewrite(tmp_path: Path) -> None:
+    kwargs = {"min_qual": 5.0, "haploid_majority": False, "haploid_min_qual": 4.0}
+    assert _qual_filter(tmp_path, **kwargs) == "QUAL>=4.0"

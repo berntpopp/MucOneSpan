@@ -615,3 +615,35 @@ def test_disambiguate_same_length_alleles_haplotagged_split(tmp_path):
     assert alleles["allele_1"]["independent_haplotype_evidence"] is True
     assert alleles["allele_2"]["independent_haplotype_evidence"] is True
     assert "candidate_duplicate_of" not in alleles["allele_2"]
+
+
+def test_cluster_and_remapped_bams_use_distinct_paths(tmp_path: Path) -> None:
+    """The ladder-cluster subset never occupies allele_reads.bam and is removed."""
+    out_dir = tmp_path / "out"
+
+    def fake_run_tool(cmd: list[str]) -> str:
+        if cmd[:2] in (["samtools", "view"], ["samtools", "sort"]):
+            Path(cmd[cmd.index("-o") + 1]).write_bytes(b"bam")
+        if cmd[:2] == ["samtools", "index"]:
+            Path(cmd[2] + ".bai").write_bytes(b"bai")
+        return ""
+
+    with patch("muc_one_span.calling.run_tool", side_effect=fake_run_tool) as run:
+        result = _extract_and_remap_reads(
+            tmp_path / "mapping.bam",
+            ["contig_50", "contig_51"],
+            "contig_51",
+            tmp_path / "ref.fa",
+            out_dir,
+            threads=1,
+        )
+    calls = [c.args[0] for c in run.call_args_list]
+    view = next(c for c in calls if c[:2] == ["samtools", "view"])
+    fastq = next(c for c in calls if c[:2] == ["samtools", "fastq"])
+    sort = next(c for c in calls if c[:2] == ["samtools", "sort"])
+    assert view[view.index("-o") + 1] == str(out_dir / "cluster_reads.bam")
+    assert fastq[-1] == str(out_dir / "cluster_reads.bam")
+    assert sort[sort.index("-o") + 1] == str(out_dir / "allele_reads.bam") == str(result)
+    assert not (out_dir / "cluster_reads.bam").exists()
+    assert not (out_dir / "cluster_reads.bam.bai").exists()
+    assert (out_dir / "allele_reads.bam.bai").exists()

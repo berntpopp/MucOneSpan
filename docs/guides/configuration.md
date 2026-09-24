@@ -80,6 +80,8 @@ scientific defaults, not recommendations to tune against a validation sample.
 | `allele_selection.valley_min_points` | `3` | Minimum points for valley consideration; integer >=3. |
 | `allele_selection.valley_min_separation` | `3` | Minimum peak separation; integer >=1. |
 | `allele_selection.refinement_max_shift` | `1` | Maximum refinement shift in repeat counts; integer >=0. |
+| `allele_selection.secondary_mode_min_fraction` | `0.2` | Clinical gate. Allele selection is unresolved when a cluster's primary-alignment count at least `min_gap` units from its peak reaches this fraction of the peak. Number in (0,1]. Blocks a negative result; never creates a call. |
+| `allele_selection.min_allele_primary_records` | `30` | Clinical gate. Minimum primary alignment records (a molecule proxy) per selected allele. Below it, `depth_status` is `low`, which blocks NEGATIVE and PATHOGENIC. Integer >=1. |
 
 ### Classification and consensus
 
@@ -94,6 +96,10 @@ scientific defaults, not recommendations to tune against a validation sample.
 | `consensus.flank_length` | `500` | Reference flank extent per side, in bases; integer >=0. |
 | `consensus.anchor_bases` | `20` | Up to this many available bases from each side of an exact boundary anchor; integer >=1. |
 | `consensus.anchor_tolerance` | `50` | Inclusive displacement from the expected VNTR boundary in bases; integer >=0. |
+
+`consensus.haploid_majority` and `consensus.haploid_min_qual` are deprecated and
+have no effect. Configurations that set non-default values load with a logged
+deprecation warning, which the CLI shows; use the `calling.*` fields.
 
 ### Confidence weights
 
@@ -115,8 +121,9 @@ variant support. Sequence-concordance requirements remain unchanged.
 All weights and the boundary multiplier must be finite numbers in [0,1]. Between
 the QUAL breakpoints, the weight is linearly interpolated. `absent_weight` applies
 only when projection succeeds and no matching VCF event is present. A
-`projection_unavailable` or `localization_ambiguous` support status does not apply
-that absence penalty and does not claim variant support. The independent boundary
+`projection_unavailable`, `localization_ambiguous` or
+`heterozygous_genotype_unresolved` support status does not apply that absence
+penalty and does not claim variant support. The independent boundary
 rule can still apply `boundary_penalty` to a terminal repeat.
 
 ### Calling and optional read phasing
@@ -125,6 +132,10 @@ rule can still apply `boundary_penalty` to a terminal repeat.
 | --- | --- | --- |
 | `calling.sample_name` | `"sample"` | VCF sample name; nonempty, without whitespace or control characters. |
 | `calling.read_phase` | `false` | Explicit opt-in to experimental same-length read phasing. |
+| `calling.haploid_majority` | `true` | Apply the allele-fraction genotype rule to length-partitioned calls and to read-phased (haplotagged) haplotype calls. With `false`, diploid genotypes are kept on both paths, and any heterozygous record then leaves that allele unresolved (IUPAC candidate, no independent haplotype credit). |
+| `calling.haploid_min_qual` | `4.0` | QUAL threshold for length-partitioned and read-phased haplotype calls; number >=0 or `null`. `null` applies `run.min_qual`/`--min-qual`. A non-default `--min-qual` that this value overrides is logged. The applied value is recorded in `alleles.json` as `variant_filter`. |
+| `calling.haploid_alt_fraction` | `0.5` | Length-partitioned and read-phased haploid calls: the ALT fraction of allele-specific reads (`FORMAT/AD`) at or above which the genotype becomes ALT. Number in [0,1]. |
+| `calling.haploid_ref_fraction` | `0.2` | Length-partitioned and read-phased haploid calls: ALT fraction below which the genotype becomes REF (`0/0`). Values in between keep the heterozygous call, which leaves that allele unresolved on both paths. Must be below `haploid_alt_fraction`. |
 | `read_phasing.internal_downsampling` | `null` | Optional WhatsHap internal downsampling override; integer >=1. |
 | `read_phasing.mapping_quality` | `null` | Optional WhatsHap mapping-quality override; integer >=0. |
 

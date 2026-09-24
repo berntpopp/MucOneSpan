@@ -71,3 +71,35 @@ def annotate_consensus_candidate(
         ),
         reconstruction_status="candidate_reference_confidence_unverified",
     )
+
+
+_UNRESOLVED_RECORD_STATUSES = frozenset(
+    {"conflicting_variant_records", "missing_genotype", "non_diploid"}
+)
+
+
+def length_partition_selection(
+    variants: list[dict], evidence: dict
+) -> tuple[int | str, str, list[dict]]:
+    """Choose the consensus selector for reads already partitioned by allele length.
+
+    A length partition holds one haplotype, so genotype indices carry no phase
+    meaning there. ``filter_vcf`` has already turned clear allele-specific ALT
+    support into 1/1 and clear REF support into 0/0; a heterozygous record that
+    remains is in the ambiguous allele-fraction band (or diploid genotypes were
+    kept by configuration). Selecting GT1 would silently keep REF, so any
+    remaining heterozygous or unresolved record selects the IUPAC/unphased
+    candidate ``"I"``. Returns ``(selector, allele_genotype_status, sites)``.
+    """
+    heterozygous = [
+        {key: variant[key] for key in ("chrom", "pos", "ref", "alt", "genotype")}
+        for variant in variants
+        if len(set(re.split(r"[/|]", variant["genotype"]))) > 1
+    ]
+    if evidence["phase_status"] in _UNRESOLVED_RECORD_STATUSES:
+        status = "unresolved_genotype_records"
+    elif heterozygous:
+        status = "heterozygous_within_length_partition"
+    else:
+        status = "allele_specific_resolved"
+    return (1 if status == "allele_specific_resolved" else "I"), status, heterozygous

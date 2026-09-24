@@ -22,8 +22,8 @@ pytestmark = [
 ]
 
 
-@pytest.mark.parametrize("name", ["dupC", "dupA", "insG", "insCCCC", "del18_31"])
-def test_normalized_named_mutation_support(name: str, tmp_path: Path) -> None:
+def _named_mutation_case(name: str, genotype: str, tmp_path: Path) -> tuple[str, str, dict]:
+    """Build one named mutation VCF, run real filter/consensus/trim, return sequence and result."""
     rd = load_repeat_dictionary()
     mutant, (parent, _) = next(
         (s, label) for s, label in rd.mutated_sequences.items() if label[1] == name
@@ -48,7 +48,8 @@ def test_normalized_named_mutation_support(name: str, tmp_path: Path) -> None:
         f"##contig=<ID=contig_3,length={len(ref)}>\n"
         '##FORMAT=<ID=GT,Number=1,Type=String,Description="Genotype">\n'
         "#CHROM\tPOS\tID\tREF\tALT\tQUAL\tFILTER\tINFO\tFORMAT\tS\n"
-        f"contig_3\t{left + 1}\t.\t{ref[left:end_ref]}\t{alt[left:end_alt]}\t30\tPASS\t.\tGT\t1/1\n"
+        f"contig_3\t{left + 1}\t.\t{ref[left:end_ref]}\t{alt[left:end_alt]}\t30\tPASS\t.\tGT"
+        f"\t{genotype}\n"
     )
     filtered = filter_vcf(vp, rp, tmp_path / "normalized")
     full, trimmed = tmp_path / "full.fa", tmp_path / "trimmed.fa"
@@ -64,7 +65,6 @@ def test_normalized_named_mutation_support(name: str, tmp_path: Path) -> None:
     sequence = "".join(
         line for line in trimmed.read_text().splitlines() if not line.startswith(">")
     )
-    assert sequence == rd.repeats["X"] + mutant + rd.repeats["X"]
     result = validate_mutations_against_vcf(
         classify_sequence(sequence, rd),
         parse_vcf_variants(filtered),
@@ -72,6 +72,27 @@ def test_normalized_named_mutation_support(name: str, tmp_path: Path) -> None:
         repeat_dict=rd,
         consensus_context=context,
     )
+    return sequence, rd.repeats["X"] + mutant + rd.repeats["X"], result
+
+
+@pytest.mark.parametrize("name", ["dupC", "dupA", "insG", "insCCCC", "del18_31"])
+def test_normalized_named_mutation_support(name: str, tmp_path: Path) -> None:
+    sequence, expected, result = _named_mutation_case(name, "1/1", tmp_path)
+    assert sequence == expected
     matching = [m for m in result["mutations_detected"] if m.get("mutation_name") == name]
     assert len(matching) == 1
     assert matching[0]["vcf_support"] is True
+
+
+@pytest.mark.parametrize("name", ["dupC", "del18_31"])
+def test_iupac_consensus_applies_heterozygous_indel_as_unresolved_event(
+    name: str, tmp_path: Path
+) -> None:
+    """Guards the installed bcftools: -H I applies a 0/1 indel's ALT (verified on 1.17)."""
+    sequence, expected, result = _named_mutation_case(name, "0/1", tmp_path)
+    assert sequence == expected
+    assert result["vcf_projection"]["status"] == "available"
+    matching = [m for m in result["mutations_detected"] if m.get("mutation_name") == name]
+    assert len(matching) == 1
+    assert matching[0]["vcf_support_status"] == "heterozygous_genotype_unresolved"
+    assert matching[0]["vcf_support"] is False

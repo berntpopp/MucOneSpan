@@ -26,6 +26,7 @@ from muc_one_span.report_assets import (
 from muc_one_span.report_igv import (
     build_igv_context,
     create_locus_bed,
+    preflight_igv_report,
     run_igv_report,
 )
 
@@ -181,6 +182,7 @@ def test_generate_report_with_igv_and_hgvs(tmp_path: Path):
                         "repeat_index": 7,
                         "mutation_name": "59dupC",
                         "frameshift": True,
+                        "template_match": True,
                         "vcf_support": True,
                     }
                 ],
@@ -309,3 +311,42 @@ def test_malformed_generated_vcf_is_rejected(tmp_path):
         pytest.raises(ValueError, match=r"Malformed VCF.*create_report"),
     ):
         run_igv_report(bed, fasta, tmp_path / "igv.html", vcf_file=vcf, report_igv="embedded")
+
+
+def test_preflight_is_a_noop_when_igv_is_off(tmp_path: Path) -> None:
+    with patch("muc_one_span.report_igv.run_igv_report") as run:
+        preflight_igv_report(REPORT_IGV_OFF, tmp_path)
+    run.assert_not_called()
+
+
+def test_preflight_runs_create_report_on_a_synthetic_locus(tmp_path: Path) -> None:
+    seen: dict[str, str] = {}
+
+    def fake_run(
+        bed: Path, fasta: Path, output: Path, *, report_igv: str, vcf_paths: dict[str, Path]
+    ) -> Path:
+        seen["fasta"] = fasta.read_text()
+        seen["vcf"] = vcf_paths["probe"].read_text()
+        seen["mode"] = report_igv
+        return output
+
+    with patch("muc_one_span.report_igv.run_igv_report", side_effect=fake_run):
+        preflight_igv_report(REPORT_IGV_EMBEDDED, tmp_path)
+    assert seen["mode"] == REPORT_IGV_EMBEDDED
+    assert seen["fasta"].startswith(">probe\n")
+    assert "probe\t550\t.\tC\tA" in seen["vcf"]
+    assert "probe\t600\t.\tT\tA" in seen["vcf"]
+    # The igv-reports 1.16.x header-concatenation defect is only reproduced
+    # with 2+ VCF records; a single-record probe does not trigger it.
+    data_records = [line for line in seen["vcf"].splitlines() if line and not line.startswith("#")]
+    assert len(data_records) >= 2
+    assert list(tmp_path.iterdir()) == []
+
+
+def test_preflight_failure_is_actionable(tmp_path: Path) -> None:
+    error = ValueError("Malformed VCF track 'Probe variants' from create_report")
+    with (
+        patch("muc_one_span.report_igv.run_igv_report", side_effect=error),
+        pytest.raises(RuntimeError, match="IGV report preflight failed for --report-igv sidecar"),
+    ):
+        preflight_igv_report(REPORT_IGV_SIDECAR, tmp_path)

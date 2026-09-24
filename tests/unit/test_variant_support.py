@@ -109,15 +109,16 @@ def test_wrong_trim_disables_projection(tmp_path: Path) -> None:
 @pytest.mark.parametrize(
     "problem,reason",
     [
-        ("heterozygous_indel", "ambiguous_genotype_selection"),
+        ("multiallelic_heterozygous_indel", "ambiguous_genotype_selection"),
         ("trim", "trim_mismatch"),
         ("consensus", "consensus_replay_mismatch"),
     ],
 )
 def test_projection_exposes_allele_failure_reason(tmp_path, problem, reason):
     rd, seq, variants, context = fixture(tmp_path)
-    if problem == "heterozygous_indel":
-        variants[0]["genotype"] = "0/1"
+    if problem == "multiallelic_heterozygous_indel":
+        anchor = variants[0]["ref"]
+        variants[0].update(alt=f"{anchor}TT,{anchor}T", genotype="1/2")
     elif problem == "trim":
         context["trim_start"] += 1
     else:
@@ -132,3 +133,52 @@ def test_projection_exposes_allele_failure_reason(tmp_path, problem, reason):
     )
     assert result["vcf_projection"]["status"] == "unavailable"
     assert result["vcf_projection"]["reason"] == reason
+
+
+def _validate(rd, seq: str, variants: list[dict], context: dict) -> dict:
+    return validate_mutations_against_vcf(
+        classify_sequence(seq, rd),
+        variants,
+        sequence=seq,
+        repeat_dict=rd,
+        consensus_context=context,
+    )
+
+
+def test_unrelated_heterozygous_indel_keeps_per_event_support(tmp_path: Path) -> None:
+    """bcftools -H I applies a 0/1 flank insertion; the homozygous VNTR event stays supported."""
+    rd, seq, variants, context = fixture(tmp_path)
+    reference = Path(context["reference_path"]).read_text().splitlines()[1]
+    flank = len(reference) - 4  # right flank "TGCA"; insert A after its G
+    assert reference[flank + 1] == "G"
+    variants.append(
+        {"chrom": "contig_1", "pos": flank + 2, "ref": "G", "alt": "GA", "genotype": "0/1"}
+    )
+    consensus = Path(context["full_consensus_path"])
+    full = consensus.read_text().splitlines()[1]
+    consensus.write_text(">contig_1\n" + full[:-2] + "A" + full[-2:] + "\n")
+    context["trim_end"] = len(full) + 1 - 5
+    result = _validate(rd, seq, variants, context)
+    mutation = result["mutations_detected"][0]
+    assert result["vcf_projection"]["status"] == "available"
+    assert result["vcf_projection"]["unresolved_genotype_edits"] == 1
+    assert mutation["vcf_support_status"] == "exact_sequence_concordance"
+    assert mutation["vcf_support"] is True
+
+
+def test_heterozygous_event_under_iupac_is_unresolved_not_supported(tmp_path: Path) -> None:
+    rd, seq, variants, context = fixture(tmp_path)
+    variants[0]["genotype"] = "0/1"
+    result = _validate(rd, seq, variants, context)
+    mutation = result["mutations_detected"][0]
+    assert result["vcf_projection"]["status"] == "available"
+    assert mutation["vcf_support_status"] == "heterozygous_genotype_unresolved"
+    assert mutation["vcf_support"] is False
+
+
+def test_phase_selected_heterozygous_event_remains_supported(tmp_path: Path) -> None:
+    rd, seq, variants, context = fixture(tmp_path)
+    variants[0]["genotype"] = "0|1"
+    context["haplotype"] = 2
+    mutation = _validate(rd, seq, variants, context)["mutations_detected"][0]
+    assert mutation["vcf_support_status"] == "exact_sequence_concordance"

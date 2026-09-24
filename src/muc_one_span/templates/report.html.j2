@@ -264,6 +264,8 @@
             <span class="badge badge-info">Support unavailable</span>
           {% elif m.get("vcf_support_status") == "localization_ambiguous" %}
             <span class="badge badge-info">Support ambiguous</span>
+          {% elif m.get("vcf_support_status") == "heterozygous_genotype_unresolved" %}
+            <span class="badge badge-info">Genotype unresolved</span>
           {% else %}
             <span class="badge badge-warning">Unsupported</span>
           {% endif %}

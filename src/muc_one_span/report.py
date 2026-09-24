@@ -19,6 +19,11 @@ except ImportError:
 
 from typing import Any
 
+from muc_one_span.clinical_gates import (
+    LEGACY_MIN_TOTAL_READS,
+    allele_gate_reasons,
+    mutation_blockers,
+)
 from muc_one_span.nomenclature import enrich_mutation_record
 from muc_one_span.report_assets import (
     REPORT_IGV_MODES,
@@ -75,34 +80,45 @@ def _execution_context(summary: dict, execution_status: dict | None) -> dict[str
 def compute_clinical_decision(
     summary: dict[str, Any], *, execution_status: dict | None = None
 ) -> dict[str, Any]:
-    """Derive 3-state clinical decision support banner and multiplicity caveats."""
+    """Derive the 3-state clinical decision banner after all evidence gates.
+
+    Gate order: each observed mutation must pass frameshift, event identity,
+    localization, explicit support and carrier-allele depth before it can make
+    the banner PATHOGENIC. NEGATIVE additionally requires completed execution,
+    resolved allele selection, genotype and length, adequate depth and no
+    uncertain observed event. Legacy summaries without per-allele depth fall
+    back to the total-read threshold.
+    """
     execution = _execution_context(summary, execution_status)
     classifications = summary.get("classifications", {})
     alleles = summary.get("alleles", {})
+    a1 = alleles.get("allele_1", {}) if isinstance(alleles, dict) else {}
+    a2 = alleles.get("allele_2", {}) if isinstance(alleles, dict) else {}
+    carriers = {"allele_1": a1, "allele_2": a2}
+    depth_assessed = any(a.get("depth_status") in ("adequate", "low") for a in (a1, a2))
+    total_reads = (a1.get("reads", 0) or 0) + (a2.get("reads", 0) or 0)
+    low_coverage = (
+        not depth_assessed and total_reads < LEGACY_MIN_TOTAL_READS and (bool(a1) or bool(a2))
+    )
 
     pathogenic_mutations: list[dict[str, Any]] = []
     uncertain_mutations: list[dict[str, Any]] = []
     for allele_key, acls in classifications.items():
-        if isinstance(acls, dict):
-            for mut in acls.get("mutations", []):
-                if isinstance(mut, dict):
-                    mut_copy = dict(mut)
-                    mut_copy["allele"] = allele_key
-                    frameshift = mut.get("frameshift") is True
-                    loc_ok = mut.get("localization_status") != "ambiguous"
-                    supp_ok = (
-                        mut.get("vcf_support") is not False
-                        and mut.get("vcf_support_status") != "absent"
-                    )
-                    if frameshift and loc_ok and supp_ok:
-                        pathogenic_mutations.append(mut_copy)
-                    else:
-                        uncertain_mutations.append(mut_copy)
-
-    a1 = alleles.get("allele_1", {}) if isinstance(alleles, dict) else {}
-    a2 = alleles.get("allele_2", {}) if isinstance(alleles, dict) else {}
-    total_reads = (a1.get("reads", 0) or 0) + (a2.get("reads", 0) or 0)
-    low_coverage = total_reads < 30 and (bool(a1) or bool(a2))
+        if not isinstance(acls, dict):
+            continue
+        carrier = carriers.get(allele_key) or {}
+        for mut in acls.get("mutations", []):
+            if not isinstance(mut, dict):
+                continue
+            mut_copy = dict(mut)
+            mut_copy["allele"] = allele_key
+            blockers = mutation_blockers(mut)
+            if carrier.get("depth_status") == "low":
+                blockers.append("carrying allele is below the per-allele depth gate")
+            if low_coverage:
+                blockers.append("total read depth is below the diagnostic threshold")
+            mut_copy["decision_blockers"] = blockers
+            (uncertain_mutations if blockers else pathogenic_mutations).append(mut_copy)
 
     ambiguous_bases = sum(
         acls.get("ambiguous_bases", 0)
@@ -136,6 +152,8 @@ def compute_clinical_decision(
                     f"{a_key}: Candidate reconstruction not separately resolved."
                 )
 
+    selection_reasons = allele_gate_reasons(a1, "Allele 1") + allele_gate_reasons(a2, "Allele 2")
+
     if pathogenic_mutations:
         state = "PATHOGENIC"
         title = "Pathogenic Variant Detected (ADTKD-MUC1)"
@@ -165,6 +183,9 @@ def compute_clinical_decision(
             details.append(
                 f"{allele_name}: Additional uncertain variant ({m_name} at repeat {rep_idx}) observed."
             )
+        details.extend(
+            f"Quality caveat: {reason}" for reason in selection_reasons + reconstruction_reasons
+        )
         summary_text = (
             "A pathogenic frameshift variant was identified in the MUC1 VNTR region. "
             "This finding is consistent with autosomal dominant tubulointerstitial "
@@ -180,6 +201,7 @@ def compute_clinical_decision(
         or execution["warning"] is not None
         or bool(uncertain_mutations)
         or bool(reconstruction_reasons)
+        or bool(selection_reasons)
     ):
         state = "INCONCLUSIVE"
         title = "Inconclusive / Quality Warning"
@@ -191,7 +213,8 @@ def compute_clinical_decision(
             reasons.append(execution["warning"])
         if low_coverage:
             reasons.append(
-                f"Total read depth ({total_reads} reads) is below diagnostic threshold (30 reads)."
+                f"Total read depth ({total_reads} reads) is below diagnostic threshold "
+                f"({LEGACY_MIN_TOTAL_READS} reads)."
             )
         if ambiguous_bases > 10:
             reasons.append(
@@ -201,12 +224,14 @@ def compute_clinical_decision(
             m_name = m.get("name") or m.get("mutation_name", "Unknown variant")
             rep_idx = m.get("repeat_index", "N/A")
             allele_name = str(m.get("allele", "allele")).replace("_", " ").title()
+            blocker_text = "; ".join(m.get("decision_blockers", []))
             reasons.append(
                 f"{allele_name}: Observed sequence variant ({m_name} at repeat {rep_idx}) "
-                "is inconclusive (in-frame or ambiguous localization/support)."
+                f"is inconclusive ({blocker_text or 'in-frame or ambiguous localization/support'})."
             )
         if reconstruction_reasons:
             reasons.extend(reconstruction_reasons)
+        reasons.extend(selection_reasons)
         if not reasons:
             reasons.append("Quality control metrics did not meet validation standards.")
         summary_text = (

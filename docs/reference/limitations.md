@@ -28,6 +28,10 @@ Clair3 has reduced sensitivity for detecting 1bp insertions within very long tan
 - `sample_dupc_100_120`: dupC mutation in 100-repeat allele not detected
 - `sample_long_120_140`: mutations in 120+ repeat alleles not detected
 
+### Haploid allele-fraction rule without a depth floor
+
+The AD-fraction haploid rule (`calling.haploid_alt_fraction`/`haploid_ref_fraction`) has no minimum informative depth yet, so a genotype on very few allele-specific reads can still be set to ALT or REF (tracked in #70).
+
 ### Boundary Repeat Mutations
 
 Mutations detected in the last 3 repeat units of an allele receive a boundary penalty (0.5x confidence multiplier) because these positions are prone to alignment artifacts at the VNTR boundary.
@@ -157,7 +161,10 @@ be projected with a verified replay, including mixed IUPAC heterozygous indels.
 It does not mean the variant was absent. The legacy boolean remains false until
 exact concordance is proven; the HTML report labels this support unavailable.
 Unavailable or ambiguous projection adds no support penalty to dictionary-fit
-confidence, whereas actually absent support receives that penalty. The separate
+confidence, whereas actually absent support receives that penalty.
+`vcf_support_status=heterozygous_genotype_unresolved` marks an event whose VCF
+record is heterozygous and was replayed under `-H I`; it is never support and
+receives no absence penalty. The separate
 existing heuristic penalty near allele boundaries still applies.
 These scores remain heuristic weights, not probabilities or empirical base support.
 
