@@ -6,7 +6,7 @@ case contributes each of its reason keys once:
 
 - ``gate: <key>``: one per caller reason in ``clinical_reasons`` (the
   INCONCLUSIVE banner details of ``compute_clinical_decision``), normalised
-  by `reason_key`;
+  by `reason_keys`;
 - ``evaluator: <flag>``: one per ``reconstruction_flags`` entry
   (``evaluation.reasons.reconstruction_flags``);
 - `UNRECORDED` when the case has neither (or its evaluation predates reasons).
@@ -15,7 +15,10 @@ case contributes each of its reason keys once:
 or ``allele_1:``); replace a variant descriptor ``(<name> at repeat <index>)``
 with ``(<variant>)``; replace every standalone number and ``None`` (an unset
 numeric field) with ``#``; lowercase, collapse whitespace and drop a trailing
-period. Numbers inside identifiers (``r1041``) are kept.
+period. Numbers inside identifiers (``r1041``) are kept. `reason_keys` then
+splits an uncertain-variant reason (``... is inconclusive (<b1>; <b2>)``) into
+one key per blocker, ``... is inconclusive: <b1>``, so each blocker is counted
+on its own rather than once per blocker combination.
 
 A case is *expected* non-definitive when `expected_conditions` is nonempty:
 ``split`` (its split is in ``expected_inconclusive_splits``) and/or ``depth``
@@ -40,6 +43,9 @@ _GATE, _EVALUATOR = "gate: ", "evaluator: "
 _ALLELE_LABEL = re.compile(r"^allele[ _]\d+:\s*", re.IGNORECASE)
 _VARIANT = re.compile(r"\([^()]* at repeat [^()]*\)")
 _NUMBER = re.compile(r"(?<![\w.])[-+]?\d+(?:\.\d+)?(?:[eE][-+]?\d+)?(?![\w.]*\w)|\bNone\b")
+# Uncertain-variant reason after `reason_key`: "<head> is inconclusive (<b1>; <b2>)".
+_BLOCKERS = re.compile(r"^(?P<head>.* is inconclusive) \((?P<blockers>.*)\)$")
+_BLOCKER_SEP = "; "  # separator of decision blockers in the caller's reason text
 _DEPTH_FIELD = {"design": "depth", "realized_min_allele": "realized_min_allele_depth"}
 
 
@@ -51,9 +57,18 @@ def reason_key(text: str) -> str:
     return key.lower().rstrip(".").strip()
 
 
+def reason_keys(text: str) -> list[str]:
+    """`reason_key`, split into one key per blocker for an uncertain-variant reason."""
+    key = reason_key(text)
+    match = _BLOCKERS.match(key)
+    if match is None:
+        return [key]
+    return [f"{match['head']}: {b}" for b in match["blockers"].split(_BLOCKER_SEP)]
+
+
 def case_reason_keys(row: dict[str, Any]) -> list[str]:
     """Sorted unique reason keys of one case row (`UNRECORDED` when there are none)."""
-    keys = {_GATE + reason_key(r) for r in row.get("clinical_reasons") or []}
+    keys = {_GATE + k for r in row.get("clinical_reasons") or [] for k in reason_keys(r)}
     keys |= {_EVALUATOR + f for f in row.get("reconstruction_flags") or []}
     return sorted(keys) or [UNRECORDED]
 

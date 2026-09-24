@@ -163,3 +163,16 @@ def test_render_atlas_lists_the_split_and_top_reasons() -> None:
     assert "| R1 |" in text and "R2" not in text.split("### By", 1)[1]
     empty = render_atlas(build_atlas([], "dev", A), A)
     assert "no INCONCLUSIVE cases" in empty
+
+
+def test_variant_blockers_become_one_key_each() -> None:
+    text = (
+        "Allele 1: Observed sequence variant (dupC at repeat 12) is inconclusive (event "
+        "identity not established (no exact dictionary template); localization ambiguous)."
+    )
+    other = "Allele 2: Observed sequence variant (dupA at repeat 3) is inconclusive (localization ambiguous)."
+    prefix = "gate: observed sequence variant (<variant>) is inconclusive: "
+    assert case_reason_keys(_row(0, clinical_reasons=[text, other])) == [
+        prefix + "event identity not established (no exact dictionary template)",
+        prefix + "localization ambiguous",
+    ]

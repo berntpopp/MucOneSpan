@@ -261,7 +261,9 @@ and counts each case once per reason key:
   leading allele label (`Allele 1:`) removed, a variant descriptor
   `(<name> at repeat <n>)` replaced by `(<variant>)`, every standalone number
   and `None` replaced by `#`, lowercased, with whitespace collapsed and a
-  trailing period dropped.
+  trailing period dropped. An uncertain-variant reason
+  (`... is inconclusive (<blocker>; <blocker>)`) gives one key per blocker
+  (`... is inconclusive: <blocker>`).
 - `evaluator: <flag>` for each evaluator reconstruction flag.
 - `unrecorded` when a case has neither (evaluations written before the atlas).
 

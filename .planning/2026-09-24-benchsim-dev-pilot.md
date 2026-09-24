@@ -196,3 +196,152 @@ separate factors at n=90.
 6. The 6 critical false negatives are all minimum-coverage aborts at design
    depth 3-5. The P0 and hybrid comparison should report them separately from
    miscalls.
+
+## v0.16.0 ladder on dev v2 (Task 12b)
+
+Run on 2026-09-24 (system clock) on `feat/benchsim` after merging `origin/main` (v0.16.0,
+merge commit `4dd3ccc`). The caller is `muconespan 0.16.0`, which has the P0
+clinical-safety gates. Data are in `../MucOneSpan-bench-data/v2` (outside Git).
+The older `dev` and `_prefix_2026-09-25` directories were not touched.
+
+### Setup and commands
+
+The settings are the current bench-config defaults, SHA-256 `032ba4f1…4a7d94`.
+The same hash is recorded in every `case.json` and in `report.json`. Tools,
+models and MucOneUp are as in the first pilot.
+
+| Step | Command (out-root `v2`) | Wall | Result |
+| --- | --- | --- | --- |
+| design | `design --split dev --n 30` | < 1 s | 90 designs |
+| generate | `generate --jobs 4` | 9 min 01 s (112 CPU-min) | 90 ok, 0 failed |
+| realism | `realism --split dev` | 1 min 41 s | 0 case failures |
+| run | `run --engines ladder --threads 3 --jobs 4` | 14 min 35 s (112 CPU-min) | 84 completed, 6 insufficient_evidence |
+| evaluate | `evaluate --split dev --engines ladder` | 3 s | exit 0 |
+| report | `report --split dev --baseline ladder` | < 1 s | tables and reason atlas |
+
+Median per-case caller wall time is 11 s for HiFi amplicon (max 273 s),
+12 s for ONT amplicon (max 652 s) and 8 s for ONT genomic (max 17 s).
+
+Generation: 23/90 designs had a clamped event target. `amount_capped` applied
+to 4 HiFi and 3 ONT amplicon cases. `real_derived` again fell back to Markov
+(84 Markov, 6 rare-unit cases). 138/180 alleles (77%) reached within 30% of the
+target depth.
+
+Realism is unchanged in kind:
+- ONT amplicon passes 10/21 checks. The span-offset JS distance is 0.209/0.247,
+  against a limit of 0.1.
+- ONT genomic passes 10/15 checks.
+- The amplicon range checks still fail, although smear 0.5 is gone. The
+  known indel-rate and span-shape gaps remain.
+
+### Side by side with the v0.15.1 baseline (indicative, not paired)
+
+The designs changed between the two runs, so the same design IDs are not the
+same cases:
+- event targets moved to units 6..L-4;
+- dev smear levels are now {0.05, 0.25};
+- the settings hash differs.
+
+The comparison is therefore indicative only. No paired test applies.
+
+| Metric (all profiles) | v0.15.1 (dev, first pilot) | v0.16.0 (dev v2) |
+| --- | --- | --- |
+| Per-allele exact | 18/180 = 0.100 [0.050, 0.156] | 22/180 = 0.122 [0.067, 0.178] |
+| Case exact | 4/90 | 5/90 |
+| Event recall | 7/57 | 12/57 |
+| FP PATHOGENIC on normal | 0/33 | 0/33 |
+| Critical FN | 6/90 (all insufficient_evidence) | 6/90 (all insufficient_evidence, design depth 3-5) |
+| INCONCLUSIVE | 73/90 | **81/90** |
+| NEGATIVE on normal truths | 8/33 | 1/33 |
+| PATHOGENIC on pathogenic truths | 3/57 | 2/57 |
+| Cases with 2 / 1 / 0 predicted alleles | 62 / 22 / 6 | 56 / 28 / 6 |
+
+Per profile (v0.16.0): per-allele exact is 0.117 for HiFi, 0.133 for ONT
+amplicon and 0.117 for ONT genomic. INCONCLUSIVE is 28/30, 28/30 and 25/30.
+
+INCONCLUSIVE rose from 73 to 81. The v0.16.0 gates explain this. A negative
+now needs:
+- resolved allele selection;
+- a consistent length;
+- adequate per-allele primary depth;
+- no heterozygous call left inside a length partition.
+
+Normal-truth NEGATIVE calls dropped from 8 to 1. There are still no false
+PATHOGENIC calls, and the critical false negatives are still only the 6
+minimum-coverage aborts. The gates work as designed; the reconstruction did
+not improve.
+
+### INCONCLUSIVE reason atlas (v0.16.0)
+
+Atlas settings are the defaults:
+- decisions: INCONCLUSIVE;
+- expected when the split is `stress` or the lowest realized allele depth is
+  below 30 (the caller's per-allele gate).
+
+Every case counts once per reason.
+
+| Profile | INCONCLUSIVE | Expected (depth) | Resolvable |
+| --- | --- | --- | --- |
+| hifi_amplicon | 28/30 | 14 | 14 |
+| ont_amplicon_r10 | 28/30 | 12 | 16 |
+| ont_genomic_targeted | 25/30 | 17 | 8 |
+| all | 81/90 | 43 | 38 |
+
+Of the 38 resolvable cases, 22 have a pathogenic truth and 16 a normal truth.
+
+Top causes (cases out of 81; expected / resolvable):
+
+| # | Reason key | Cases | Expected / resolvable |
+| --- | --- | --- | --- |
+| 1 | evaluator: ambiguous_reconstruction | 75 | 39 / 36 |
+| 1 | gate: reconstruction incomplete; independent biological haplotype evidence not established | 75 | 39 / 36 |
+| 3 | evaluator: iupac_bases | 71 | 35 / 36 |
+| 4 | gate: high number of ambiguous consensus bases (#) detected | 60 | 27 / 33 |
+| 5 | gate: # primary alignments, below the per-allele depth gate (#) | 50 | 33 / 17 |
+| 6 | gate: observed sequence variant is inconclusive: localization ambiguous | 49 | 24 / 25 |
+| 7 | gate: observed sequence variant is inconclusive: no explicit sequence-level support (localization_ambiguous) | 47 | 23 / 24 |
+| 8 | gate: heterozygous call left within the length-partitioned allele; consensus uses unresolved (IUPAC) selection | 46 | 19 / 27 |
+| 9 | gate: observed sequence variant is inconclusive: event identity not established | 35 | 18 / 17 |
+| 10 | gate: reported length # differs from the consensus contig length # | 31 | 9 / 22 |
+| 11 | gate: observed sequence variant is inconclusive: carrying allele is below the per-allele depth gate | 30 | 23 / 7 |
+| 12 | evaluator: missing_allele / unresolved_allele_alias | 28 each | 20 / 8 |
+| 13 | gate: allele selection unresolved (unresolved_secondary_mode) | 24 | 7 / 17 |
+| 14 | gate: allele selection unresolved (unresolved_unselected_clusters) | 13 | 6 / 7 |
+
+Readings:
+
+- **Reconstruction dominates.** 36 of the 38 resolvable cases have an IUPAC
+  consensus and are `ambiguous_reconstruction`. The other 2 fail only the
+  per-allele depth gate.
+- **The per-allele depth gate hits resolvable cases with high realized depth.**
+  17 resolvable cases have fewer than 30 primary alignments on an allele,
+  even though their lowest realized spanning depth is 30-1984. The ladder
+  loses reads during allele partitioning or selection; the sample itself has
+  enough reads.
+- **Missing alleles are mostly expected-depth cases.** 20 of the 28 are
+  expected. 18 of the 28 are `0_identical` or `0_different` designs, and most
+  of the rest are low-depth designs.
+- The expected half (43, all through the depth condition) can only become
+  definitive with more reads. Gates are not relaxed.
+- The v0.15.1 baseline shows the same evaluator picture: 73 INCONCLUSIVE, all
+  `ambiguous_reconstruction`, 71 with IUPAC bases, 22 missing an allele.
+  I reproduced it offline from the archived result directories. Its caller
+  gate reasons cannot be recovered from the v0.16.0 code, so they are not
+  compared.
+
+Full reason × profile × stratum tables (depth, smear, chimera, delta class,
+event position) are in `v2/results/dev/report.md` (not committed). At n=90 they
+do not separate factors beyond the depth effect.
+
+### Which causes the hybrid engine is designed to address
+
+These mappings follow `2026-09-23-hybrid-engine-spec.md`.
+
+| Cause (atlas) | Hybrid mechanism |
+| --- | --- |
+| IUPAC consensus, `ambiguous_reconstruction`, ambiguous consensus bases, heterozygous call left in the length partition | S3/S7 POA consensus plus polishing gives an ACGT consensus with no Clair3 IUPAC selection. S4 splits equal-length or Δ1 alleles only on ≥ 2 linked sites. |
+| Independent haplotype evidence not established | `independent_haplotype_evidence` is true for length or linked-site splits; homozygous cases get `no_informative_heterozygosity`. |
+| Per-allele depth gate in resolvable, high-depth cases | S6 all-read assignment by edit-distance competition; adequate means ≥ 30 spanning or ≥ 40 assigned reads. |
+| Missing allele / unresolved alias, allele selection unresolved, reported length ≠ contig length | S2 smear-aware length model with recorded `rejected_peaks`. The length comes from the consensus itself. |
+| Variant localization ambiguous / no explicit support / event identity | S10 per-event read-level support (`read_support.status`), classified on an ACGT consensus. |
+| Depth below the gate (expected cases) | Not addressed by design. These stay INCONCLUSIVE (`depth_status` low or insufficient). |
