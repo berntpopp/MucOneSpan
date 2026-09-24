@@ -392,6 +392,17 @@ class HybridSettings:
     smear_test_window_frac: float = 0.25
     smear_background_flank_units: float = 2.0
     smear_background_min_reads: int = 5
+    # S4 (Task 8) linked-site phase split: site-table read cap, homopolymer-run site
+    # length and background window, minor alleles per site and their read floor, run
+    # background multiplier (D6), gap-allele AF factor and pairwise-linkage read floor.
+    phase_max_site_reads: int = 300
+    phase_run_min_len: int = 3
+    phase_run_bg_window: int = 3
+    phase_max_minor_alleles: int = 3
+    phase_min_minor_reads: int = 5
+    phase_run_bg_multiplier: float = 4.0
+    phase_gap_af_factor: float = 1.5
+    phase_min_pair_reads: int = 10
 
     def __post_init__(self) -> None:
         for name in (
@@ -457,6 +468,17 @@ class HybridSettings:
         if self.smear_background_flank_units == 0:
             raise ValueError("hybrid.smear_background_flank_units must be > 0")
         _integer("hybrid.smear_background_min_reads", self.smear_background_min_reads, 1)
+        for name, minimum in (
+            ("phase_max_site_reads", 1),
+            ("phase_run_min_len", 2),
+            ("phase_run_bg_window", 1),
+            ("phase_max_minor_alleles", 1),
+            ("phase_min_minor_reads", 1),
+            ("phase_min_pair_reads", 2),
+        ):
+            _integer(f"hybrid.{name}", getattr(self, name), minimum)
+        _number("hybrid.phase_run_bg_multiplier", self.phase_run_bg_multiplier, 0)
+        _number("hybrid.phase_gap_af_factor", self.phase_gap_af_factor, 1)
 
 
 @dataclass(frozen=True)

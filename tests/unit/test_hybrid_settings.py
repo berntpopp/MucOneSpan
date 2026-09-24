@@ -86,9 +86,30 @@ def test_hybrid_smear_significance_defaults() -> None:
         assert not hasattr(h, removed)
 
 
+def test_hybrid_phase_tunables_default_unchanged() -> None:
+    # Task 8 (S4): replace the literals of the prototype linked-site split (hetsplit.py):
+    # site-read cap 300, run min length 3, background window +-3, top-4 alleles (3
+    # minors), minor floor 5 reads, run background multiplier 4 (D6), gap AF factor 1.5
+    # and a 10-read floor for pairwise linkage.
+    h = DEFAULT_SETTINGS.hybrid
+    assert (h.phase_max_site_reads, h.phase_run_min_len, h.phase_run_bg_window) == (300, 3, 3)
+    assert (h.phase_max_minor_alleles, h.phase_min_minor_reads) == (3, 5)
+    assert (h.phase_run_bg_multiplier, h.phase_gap_af_factor) == (4.0, 1.5)
+    assert h.phase_min_pair_reads == 10
+
+
 @pytest.mark.parametrize(
     ("field", "value"),
     [
+        ("phase_max_site_reads", 0),
+        ("phase_run_min_len", 1),
+        ("phase_run_bg_window", 0),
+        ("phase_max_minor_alleles", 0),
+        ("phase_min_minor_reads", 0),
+        ("phase_run_bg_multiplier", -0.5),
+        ("phase_gap_af_factor", 0.5),
+        ("phase_min_pair_reads", 1),
+        ("phase_max_site_reads", 1.5),
         ("n_poa", 0),
         ("assign_margin", -1),
         ("het_af_min", 0.9),
