@@ -14,7 +14,10 @@ Rules for transforming base profiles:
   {"preset": "no_bias"}. Calibrated levels leave the base untouched.
 - All numbers come from `bench_config.ProfileConfig`.
 - Variant name: Encodes profile base name and all levels (smear/chimera omitted for
-  genomic). Provenance records base profile name and SHA256.
+  genomic). Provenance records base profile name and SHA256. The file is
+  ``<variant name>__<SHA-256 of its content>.json``, so variants with the same
+  levels but different settings (or base profile) never overwrite or reuse
+  each other.
 """
 
 from __future__ import annotations
@@ -98,8 +101,10 @@ def write_variant(
         "sha256": hashlib.sha256(raw).hexdigest(),
     }
     out_dir.mkdir(parents=True, exist_ok=True)
-    path = out_dir / f"{data['name']}.json"
     text = json.dumps(data, indent=2, sort_keys=True) + "\n"
+    sha = hashlib.sha256(text.encode()).hexdigest()
+    # Content-addressed: equal levels under different settings never share a file.
+    path = out_dir / f"{data['name']}__{sha}.json"
     if not path.exists() or path.read_text() != text:
         path.write_text(text)
-    return path, hashlib.sha256(text.encode()).hexdigest()
+    return path, sha

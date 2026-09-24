@@ -89,7 +89,7 @@ inside the repository is refused.
 ```text
 MucOneSpan-bench-data/
   designs_<split>.jsonl          # one design per line
-  profiles/                      # generated profile variants
+  profiles/                      # profile variants, <name>__<content sha256>.json
   <split>/
     manifest.jsonl               # one row per design, including failures
     realism.json, realism.md

@@ -159,3 +159,19 @@ def test_profile_levels_come_from_the_config(tmp_path: Path) -> None:
     assert data["errors"]["mismatch_rate"] == 0.007 * 2.0
     alpha = data["config_overrides"]["amplicon_params"]["pcr_bias"]["alpha"]
     assert alpha == 3.0 * P.r10_pcr_alpha
+
+
+def test_variants_are_content_addressed_across_configs(tmp_path: Path) -> None:
+    # Same design levels, different variant-shaping setting: two distinct files,
+    # neither overwritten nor reused; each file name carries its content hash.
+    base = tmp_path / "base.json"
+    base.write_text(json.dumps(BASE))
+    out = tmp_path / "v"
+    other = ProfileConfig(poor_error_scale=P.poor_error_scale * 2)
+    path_a, sha_a = write_variant(base, _design(), out, P)
+    path_b, sha_b = write_variant(base, _design(), out, other)
+    assert path_a != path_b and sha_a != sha_b
+    assert sha_a in path_a.name and sha_b in path_b.name
+    assert json.loads(path_a.read_text())["errors"]["mismatch_rate"] == 0.007 * P.poor_error_scale
+    assert json.loads(path_b.read_text())["name"] == variant_name(_design())
+    assert write_variant(base, _design(), out, P) == (path_a, sha_a)
