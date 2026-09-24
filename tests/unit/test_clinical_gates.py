@@ -37,3 +37,32 @@ def test_unresolved_heterozygous_blocker_does_not_claim_an_allele_partition() ->
     assert len(blockers) == 1
     assert "within its allele" not in blockers[0]
     assert blockers[0] == "heterozygous genotype not resolved to one allele"
+
+
+_TEMPLATED = {
+    "frameshift": True,
+    "template_match": True,
+    "mutation_name": "dupC",
+    "localization_status": "exact",
+    "vcf_support": False,
+    "vcf_support_status": "not_applicable_read_consensus",
+}
+
+
+def test_read_support_statuses_name_the_blocker() -> None:
+    for status in ("insufficient_depth", "discordant", "not_supported", "not_localized"):
+        blockers = mutation_blockers({**_TEMPLATED, "read_support": {"status": status}})
+        assert blockers == [f"read-level support {status}"]
+    assert mutation_blockers({**_TEMPLATED, "read_support": {"status": "supported"}}) == []
+
+
+def test_insufficient_depth_is_gated_like_low() -> None:
+    info = {
+        "depth_status": "insufficient",
+        "depth_basis": "spanning_reads",
+        "spanning_reads": 7,
+        "depth_threshold": 30,
+    }
+    assert allele_gate_reasons(info, "Allele 1") == [
+        "Allele 1: 7 spanning reads, below the per-allele depth gate (30)."
+    ]

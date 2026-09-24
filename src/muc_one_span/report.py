@@ -21,6 +21,7 @@ from typing import Any
 
 from muc_one_span.clinical_gates import (
     LEGACY_MIN_TOTAL_READS,
+    LOW_DEPTH_STATUSES,
     allele_gate_reasons,
     mutation_blockers,
 )
@@ -95,7 +96,9 @@ def compute_clinical_decision(
     a1 = alleles.get("allele_1", {}) if isinstance(alleles, dict) else {}
     a2 = alleles.get("allele_2", {}) if isinstance(alleles, dict) else {}
     carriers = {"allele_1": a1, "allele_2": a2}
-    depth_assessed = any(a.get("depth_status") in ("adequate", "low") for a in (a1, a2))
+    depth_assessed = any(
+        a.get("depth_status") in ("adequate", *LOW_DEPTH_STATUSES) for a in (a1, a2)
+    )
     total_reads = (a1.get("reads", 0) or 0) + (a2.get("reads", 0) or 0)
     low_coverage = (
         not depth_assessed and total_reads < LEGACY_MIN_TOTAL_READS and (bool(a1) or bool(a2))
@@ -113,7 +116,7 @@ def compute_clinical_decision(
             mut_copy = dict(mut)
             mut_copy["allele"] = allele_key
             blockers = mutation_blockers(mut)
-            if carrier.get("depth_status") == "low":
+            if carrier.get("depth_status") in LOW_DEPTH_STATUSES:
                 blockers.append("carrying allele is below the per-allele depth gate")
             if low_coverage:
                 blockers.append("total read depth is below the diagnostic threshold")

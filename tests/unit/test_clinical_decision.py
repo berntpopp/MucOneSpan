@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+import pytest
+
 from muc_one_span.report import compute_clinical_decision
 
 
@@ -328,3 +330,70 @@ def test_pathogenic_allele_1_with_low_allele_2_keeps_caveat() -> None:
         detail.startswith("Quality caveat: Allele 2: 12 primary alignments")
         for detail in decision["details"]
     )
+
+
+HYBRID_GATES = dict(
+    RESOLVED_GATES,
+    depth_basis="spanning_reads",
+    spanning_reads=120,
+    secondary_mode_fraction=None,
+    allele_genotype_status="not_applicable_read_consensus",
+    engine="hybrid",
+)
+
+
+def _hybrid_summary(**allele2: object) -> dict:
+    summary = _gated_summary()
+    for key in ("allele_1", "allele_2"):
+        summary["alleles"][key].update(HYBRID_GATES)
+    summary["alleles"]["allele_2"].update(allele2)
+    return summary
+
+
+def test_hybrid_resolved_is_negative() -> None:
+    assert compute_clinical_decision(_hybrid_summary())["state"] == (
+        "NO_PATHOGENIC_VARIANT_DETECTED"
+    )
+
+
+@pytest.mark.parametrize(
+    ("field", "value"),
+    [
+        ("depth_status", "insufficient"),
+        ("selection_status", "unresolved_rejected_peak"),
+        ("selection_status", "unresolved_unassigned_spanning"),
+        ("selection_status", "unresolved_single_site"),
+        ("selection_status", "unresolved_max_alleles"),
+        ("allele_genotype_status", "residual_heterogeneity"),
+    ],
+)
+def test_hybrid_gate_blocks_negative(field: str, value: str) -> None:
+    decision = compute_clinical_decision(_hybrid_summary(**{field: value}))
+    assert decision["state"] == "INCONCLUSIVE"
+
+
+def test_insufficient_depth_carrier_blocks_pathogenic() -> None:
+    mutation = dict(
+        BASE,
+        vcf_support=False,
+        vcf_support_status="not_applicable_read_consensus",
+        read_support={"status": "supported"},
+    )
+    summary = _hybrid_summary()
+    summary["classifications"]["allele_1"]["mutations"] = [mutation]
+    assert compute_clinical_decision(summary)["state"] == "PATHOGENIC"
+    summary["alleles"]["allele_1"]["depth_status"] = "insufficient"
+    assert compute_clinical_decision(summary)["state"] == "INCONCLUSIVE"
+
+
+def test_hybrid_depth_message_names_spanning_reads() -> None:
+    decision = compute_clinical_decision(_hybrid_summary(depth_status="low", spanning_reads=12))
+    assert any("Allele 2: 12 spanning reads" in detail for detail in decision["details"])
+
+
+def test_selection_message_omits_missing_secondary_fraction() -> None:
+    decision = compute_clinical_decision(
+        _hybrid_summary(selection_status="unresolved_rejected_peak", selection_detail="peak 80u")
+    )
+    reason = next(d for d in decision["details"] if "allele selection unresolved" in d)
+    assert "secondary mode fraction" not in reason and "peak 80u" in reason

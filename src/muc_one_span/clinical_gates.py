@@ -9,6 +9,16 @@ from __future__ import annotations
 from typing import Any
 
 SUPPORTED_VCF_STATUSES = frozenset({"exact_sequence_concordance"})
+# Per-allele depth statuses that block a negative call and a PATHOGENIC carrier.
+LOW_DEPTH_STATUSES = frozenset({"low", "insufficient"})
+# read_support.status values a producer may emit; only "supported" is support.
+READ_SUPPORT_STATUSES = frozenset(
+    {"supported", "insufficient_depth", "discordant", "not_supported", "not_localized"}
+)
+_DEPTH_BASIS_LABELS = {
+    "primary_alignment_records": "primary alignments",
+    "spanning_reads": "spanning reads",
+}
 
 
 def mutation_supported(mutation: dict[str, Any]) -> bool:
@@ -35,6 +45,10 @@ _GENOTYPE_REASONS = {
         "consensus uses unresolved (IUPAC) selection"
     ),
     "unresolved_genotype_records": "conflicting or incomplete genotype records",
+    "residual_heterogeneity": (
+        "residual read heterogeneity on this allele "
+        "(possible unresolved mixture, chimera or mosaicism)"
+    ),
 }
 
 
@@ -48,12 +62,17 @@ def mutation_blockers(mutation: dict[str, Any]) -> list[str]:
     if mutation.get("localization_status") == "ambiguous":
         blockers.append("localization ambiguous")
     if not mutation_supported(mutation):
+        read_support = mutation.get("read_support")
         status = mutation.get("vcf_support_status")
-        blockers.append(
-            "heterozygous genotype not resolved to one allele"
-            if status == "heterozygous_genotype_unresolved"
-            else f"no explicit sequence-level support ({status or 'status unavailable'})"
-        )
+        if isinstance(read_support, dict):
+            state = read_support.get("status") or "status unavailable"
+            blockers.append(f"read-level support {state}")
+        elif status == "heterozygous_genotype_unresolved":
+            blockers.append("heterozygous genotype not resolved to one allele")
+        else:
+            blockers.append(
+                f"no explicit sequence-level support ({status or 'status unavailable'})"
+            )
     return blockers
 
 
@@ -64,10 +83,10 @@ def allele_gate_reasons(info: Any, label: str) -> list[str]:
     reasons: list[str] = []
     selection = info.get("selection_status")
     if isinstance(selection, str) and selection.startswith("unresolved"):
-        reasons.append(
-            f"{label}: allele selection unresolved ({selection}; secondary mode fraction "
-            f"{info.get('secondary_mode_fraction')})."
-        )
+        fraction = info.get("secondary_mode_fraction")
+        detail = "" if fraction is None else f"; secondary mode fraction {fraction}"
+        extra = f" {info['selection_detail']}" if info.get("selection_detail") else ""
+        reasons.append(f"{label}: allele selection unresolved ({selection}{detail}).{extra}")
     length, reference_length = info.get("length"), info.get("reference_length")
     length_status = info.get("length_status")
     if length_status is None:  # Legacy summary without selection_qc: compare conservatively.
@@ -81,9 +100,10 @@ def allele_gate_reasons(info: Any, label: str) -> list[str]:
             f"{label}: reported length {length} differs from the consensus contig length "
             f"{reference_length}."
         )
-    if info.get("depth_status") == "low":
+    if info.get("depth_status") in LOW_DEPTH_STATUSES:
+        basis = info.get("depth_basis") or "primary_alignment_records"
         reasons.append(
-            f"{label}: {info.get('primary_alignment_records')} primary alignments, below the "
+            f"{label}: {info.get(basis)} {_DEPTH_BASIS_LABELS.get(basis, basis)}, below the "
             f"per-allele depth gate ({info.get('depth_threshold')})."
         )
     genotype = info.get("allele_genotype_status")
