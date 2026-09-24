@@ -394,8 +394,10 @@ class HybridSettings:
     smear_background_min_reads: int = 5
     # S4 (Task 8) linked-site phase split: site-table read cap, homopolymer-run site
     # length and background window, minor-allele read floor, run background multiplier
-    # (D6), gap-allele AF factor and pairwise-linkage read floor. Strand consistency
-    # reuses hp_min_strand_reads (reads a strand needs before its AF is trusted).
+    # (D6), gap-allele AF factor and pairwise-linkage read floor. Strand consistency is
+    # a strand-bias test: a site is rejected when a one-sided Fisher exact test finds
+    # its minor allele depleted on either strand at phase_strand_bias_alpha, or when
+    # the minor is absent from a strand with >= hp_min_strand_reads reads.
     # phase_run_min_len (3) < hp_vote_min_run (4) on purpose (prototype values): the
     # split must treat a 3-run as one run-length site, since a run indel is ambiguous
     # per column; the polish median vote only needs to rewrite runs >= 4, where the
@@ -407,6 +409,7 @@ class HybridSettings:
     phase_run_bg_multiplier: float = 4.0
     phase_gap_af_factor: float = 1.5
     phase_min_pair_reads: int = 10
+    phase_strand_bias_alpha: float = 0.001
 
     def __post_init__(self) -> None:
         for name in (
@@ -482,6 +485,7 @@ class HybridSettings:
             _integer(f"hybrid.{name}", getattr(self, name), minimum)
         _number("hybrid.phase_run_bg_multiplier", self.phase_run_bg_multiplier, 0)
         _number("hybrid.phase_gap_af_factor", self.phase_gap_af_factor, 1)
+        _open_unit_interval("hybrid.phase_strand_bias_alpha", self.phase_strand_bias_alpha)
 
 
 @dataclass(frozen=True)

@@ -31,10 +31,15 @@ ONE_A = ["X"] * 10 + ["A"] + ["X"] * 19
 ONE_B = ["X"] * 10 + ["B"] + ["X"] * 19
 ONE_Q = ["X"] * 10 + ["Q"] + ["X"] * 19
 # Seed pairs (allele, PLAIN) sweeping the orientation cases the review found; the ONE_B
-# pairs 302/303, 304/305 and 314/315 (in this sweep) gave opposite-oriented sites before fix round 1.
+# pairs 302/303, 304/305 and 314/315 (in this sweep) gave opposite-oriented sites before
+# fix round 1.
 PURITY_SEEDS = [(300 + 2 * k, 301 + 2 * k) for k in range(8)]
-# Fractions of "-" strand reads carrying a strand-specific systematic error.
-STRAND_ERROR_FRACS = (0.7, 0.9)
+# Fractions of "-" strand reads carrying a strand-specific systematic error (1.0: all).
+STRAND_ERROR_FRACS = (0.5, 0.7, 0.9, 1.0)
+# Unbiased imbalanced heterozygotes (variant : plain read ratios) must still split; fix
+# round 1's per-strand AF floor dropped them to "none" by binomial strand sampling alone.
+ALLELE_RATIOS = ((3, 1), (1, 3))
+IMBALANCE_SEEDS = [(9500 + 2 * k, 9501 + 2 * k) for k in range(3)]
 
 
 def _spans(inner: list[str], n: int, seed: int) -> list[SpanRead]:
@@ -208,12 +213,19 @@ def _two_subs(cons: str) -> str:
     return "".join(out)
 
 
+def _one_sub(cons: str) -> str:
+    p = _isolated(cons, len(cons) // 2)
+    return cons[:p] + next(b for b in "ACGT" if b not in cons[p - 1 : p + 2]) + cons[p + 1 :]
+
+
 def _deletion(cons: str) -> str:
     p = _isolated(cons, len(cons) // 2)
     return cons[:p] + cons[p + 2 :]
 
 
-@pytest.mark.parametrize("edit", [_two_subs, _deletion], ids=["two_subs", "two_bp_deletion"])
+@pytest.mark.parametrize(
+    "edit", [_two_subs, _one_sub, _deletion], ids=["two_subs", "one_sub", "two_bp_deletion"]
+)
 @pytest.mark.parametrize("frac", STRAND_ERROR_FRACS)
 def test_strand_specific_errors_do_not_split_a_homozygote(
     edit: Callable[[str], str], frac: float
@@ -222,6 +234,48 @@ def test_strand_specific_errors_do_not_split_a_homozygote(
     members = _stranded(cons, edit(cons), frac, S.seed)
     res = split_by_linked_sites(cons, members, S, random.Random(S.seed))
     assert res.basis == "none" and len(res.groups) == 1
+
+
+@pytest.mark.parametrize("inner", [ONE_B, TWO_UNITS, ONE_A], ids=["one_b", "two_units", "one_a"])
+@pytest.mark.parametrize("ratio", ALLELE_RATIOS, ids=["3to1", "1to3"])
+@pytest.mark.parametrize(("seed_a", "seed_b"), IMBALANCE_SEEDS)
+def test_unbiased_imbalanced_heterozygote_still_splits(
+    inner: list[str], ratio: tuple[int, int], seed_a: int, seed_b: int
+) -> None:
+    total = 2 * N_PER_ALLELE
+    n_variant = total * ratio[0] // sum(ratio)
+    first = _spans(inner, n_variant, seed_a)
+    members = first + _spans(PLAIN, total - n_variant, seed_b)
+    res = split_by_linked_sites(synth.allele(inner), members, S, random.Random(S.seed))
+    assert res.basis == "linked_sites" and _misgrouped(res, first) == 0
+
+
+@pytest.mark.parametrize("above", [False, True], ids=["noise_below_af_min", "noise_above"])
+def test_run_with_no_same_base_peer_never_splits(above: bool) -> None:
+    # A run of a base that forms no other run in the consensus has no background peer,
+    # so its background falls back to 0 and only het_af_min applies. Run-length noise
+    # there (one base lost) is a single event: at most an unconfirmed candidate.
+    cons_plain = synth.allele(PLAIN)
+    base = next(b for b in "ACGT" if all(r[2] != b for r in _runs(cons_plain, S.phase_run_min_len)))
+    x = synth.RD.repeats["X"]
+    pos = _isolated(x, S.phase_run_min_len)
+    long_run = base * (S.phase_run_min_len + 1)
+    unit, short = x[:pos] + long_run + x[pos:], x[:pos] + long_run[1:] + x[pos:]
+    inner, noisy = ["X"] * 10 + [unit] + ["X"] * 19, ["X"] * 10 + [short] + ["X"] * 19
+    total = 2 * N_PER_ALLELE
+    frac = S.het_af_min * (S.phase_gap_af_factor if above else 1 / S.phase_gap_af_factor)
+    n_noisy = round(frac * total)
+    members = _spans(inner, total - n_noisy, S.seed) + _spans(noisy, n_noisy, S.seed + 1)
+    cons = synth.allele(inner)
+    runs = [r for r in _runs(cons, S.phase_run_min_len) if r[2] == base]
+    assert len(runs) == 1  # the fallback-to-zero precondition
+    res = split_by_linked_sites(cons, members, S, random.Random(S.seed))
+    assert len(res.groups) == 1
+    if above:
+        assert res.basis == "unconfirmed_single_site"
+        assert res.candidate is not None and res.candidate["site"] == ("run", runs[0][0])
+    else:
+        assert res.basis == "none"
 
 
 def test_uninformative_and_tied_reads_are_unassigned_not_grouped() -> None:

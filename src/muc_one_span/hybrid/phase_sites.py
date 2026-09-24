@@ -1,7 +1,8 @@
 """S4 site table: per-read alleles at consensus sites, candidate sites and site events.
 
 Ported from the prototype ``hetsplit.py`` (``site_table``, ``candidate_sites``) with two
-spec-S4 additions: a candidate must be strand-consistent, and features that touch on
+spec-S4 additions: a candidate must show no strand bias (a strand-bias test, not a
+per-strand AF floor, so unbiased imbalanced heterozygotes pass), and features that touch on
 the consensus (adjacent columns, a homopolymer run and its neighbouring column, an
 insertion slot and its neighbouring column) are merged into one event, so one sequence
 change never counts as two linked sites.
@@ -12,6 +13,7 @@ argument; nothing is defaulted from ``DEFAULT_SETTINGS``.
 
 from __future__ import annotations
 
+import math
 import statistics
 from collections import Counter
 from typing import Any
@@ -108,6 +110,20 @@ def _column_minor(c: Counter[Any], major: Any, settings: HybridSettings) -> tupl
     return minor, n_minor
 
 
+def _depletion_p(n_minor: int, n_strand: int, minor_total: int, total: int) -> float:
+    """One-sided Fisher exact p: P(<= n_minor minor reads among n_strand strand reads).
+
+    Hypergeometric lower tail of the allele x strand 2x2 table, conditional on its
+    margins (``total`` reads of which ``minor_total`` carry the minor allele).
+    """
+    lo = max(0, n_strand - (total - minor_total))
+    tail = sum(
+        math.comb(minor_total, i) * math.comb(total - minor_total, n_strand - i)
+        for i in range(lo, n_minor + 1)
+    )
+    return tail / math.comb(total, n_strand)
+
+
 def _strand_consistent(
     feats: list[dict[Site, Any]],
     strands: list[str],
@@ -115,18 +131,26 @@ def _strand_consistent(
     minor: Any,
     settings: HybridSettings,
 ) -> bool:
-    """Minor AF >= het_af_min on every strand with >= hp_min_strand_reads reads."""
+    """False when the minor allele shows strand bias (a likely systematic error).
+
+    Biased means: the minor is absent from a strand with >= hp_min_strand_reads reads,
+    or a one-sided Fisher exact test finds it depleted on a strand at
+    phase_strand_bias_alpha. An unbiased imbalanced heterozygote passes.
+    """
     tally: dict[str, list[int]] = {}
     for f, strand in zip(feats, strands, strict=True):
         if site in f:
             t = tally.setdefault(strand, [0, 0])
             t[0] += 1
             t[1] += f[site] == minor
-    return all(
-        n_minor >= settings.het_af_min * tot
-        for tot, n_minor in tally.values()
-        if tot >= settings.hp_min_strand_reads
-    )
+    total = sum(t[0] for t in tally.values())
+    minor_total = sum(t[1] for t in tally.values())
+    for n_strand, n_minor in tally.values():
+        if n_minor == 0 and n_strand >= settings.hp_min_strand_reads:
+            return False
+        if _depletion_p(n_minor, n_strand, minor_total, total) < settings.phase_strand_bias_alpha:
+            return False
+    return True
 
 
 def candidates(

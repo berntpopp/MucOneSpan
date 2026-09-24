@@ -97,6 +97,8 @@ def test_hybrid_phase_tunables_default_unchanged() -> None:
     assert h.phase_min_minor_reads == 5 and not hasattr(h, "phase_max_minor_alleles")
     assert (h.phase_run_bg_multiplier, h.phase_gap_af_factor) == (4.0, 1.5)
     assert h.phase_min_pair_reads == 10
+    # Fix round 2: strand consistency is a strand-bias test at this alpha.
+    assert h.phase_strand_bias_alpha == 0.001
 
 
 @pytest.mark.parametrize(
@@ -109,6 +111,8 @@ def test_hybrid_phase_tunables_default_unchanged() -> None:
         ("phase_run_bg_multiplier", -0.5),
         ("phase_gap_af_factor", 0.5),
         ("phase_min_pair_reads", 1),
+        ("phase_strand_bias_alpha", 0.0),
+        ("phase_strand_bias_alpha", 1.0),
         ("phase_max_site_reads", 1.5),
         ("n_poa", 0),
         ("assign_margin", -1),
