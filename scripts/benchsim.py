@@ -30,7 +30,12 @@ from typing import Any
 
 from muc_one_span.benchsim.bench_config import DEFAULT_BENCH_CONFIG, load_bench_config
 from muc_one_span.benchsim.design import Design, build_split
-from muc_one_span.benchsim.generate import GenerateContext, generate_case, write_manifest
+from muc_one_span.benchsim.generate import (
+    GenerateContext,
+    StaleCaseError,
+    generate_case,
+    write_manifest,
+)
 from muc_one_span.benchsim.muconeup import BUILTIN_PROFILE, require_muconeup
 from muc_one_span.benchsim.profiles import builtin_profile_dir, write_variant
 from muc_one_span.benchsim.realism import aggregate as realism_aggregate
@@ -175,7 +180,10 @@ def cmd_generate(args: argparse.Namespace) -> int:
         version,
         args.bench,
     )
-    cases = _run_all(designs, ctx, args.jobs)
+    try:
+        cases = _run_all(designs, ctx, args.jobs)
+    except StaleCaseError as exc:
+        raise SystemExit(str(exc)) from exc
     split_of = {d.design_id: d.split for d in designs}
     for split in sorted(set(split_of.values())):
         rows = [c for c in cases if split_of[c["design_id"]] == split]
@@ -364,6 +372,8 @@ def cmd_realism(args: argparse.Namespace) -> int:
             checks = realism_compare(agg, targets, profile, args.bench.realism)
         except KeyError:
             checks = None  # no public target section for this profile
+        except ValueError as exc:
+            raise SystemExit(f"realism settings do not match the targets: {exc}") from exc
         profiles[profile] = {"n_cases": len(cases), "aggregate": agg, "compare": checks}
     _write(
         split_dir / "realism.json",

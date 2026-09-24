@@ -21,9 +21,10 @@ import statistics
 from collections.abc import Callable, Sequence
 from typing import Any
 
+from muc_one_span.benchsim.bench_config import PERCENT
+
 # Numerical-algorithm constants (not benchmark tunables): iteration caps and
 # floating-point guards of the continued-fraction and bisection routines.
-PERCENT = 100  # probability -> percent
 _MAX_ITER = 200
 _EPS = 3e-16
 _FPMIN = 1e-300

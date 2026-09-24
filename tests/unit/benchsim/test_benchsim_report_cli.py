@@ -298,3 +298,18 @@ def test_realism_test_split_needs_preregistration_and_marks_first_evaluation(
     assert marker.is_file()  # realism reads test truth, so it unseals test too
     with pytest.raises(SystemExit, match="already evaluated"):
         cli.main(["preregister", "--out-root", str(tmp_path / "data")])
+
+
+def test_realism_settings_mismatch_exits(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    cli = _cli(tmp_path, monkeypatch)
+    _split(tmp_path)
+    monkeypatch.setattr(cli, "case_metrics", lambda *a, **k: {})
+    monkeypatch.setattr(cli, "realism_aggregate", lambda cases, cfg: {"n_cases": len(cases)})
+
+    def mismatch(m: Any, t: Any, p: str, cfg: Any) -> dict[str, Any]:
+        raise ValueError("histogram keys ['lt60u', 'ge60u']")
+
+    monkeypatch.setattr(cli, "realism_compare", mismatch)
+    monkeypatch.setattr(cli, "load_targets", lambda: {})
+    with pytest.raises(SystemExit, match="lt60u"):
+        cli.main(["realism", "--split", "dev", "--out-root", str(tmp_path / "data")])

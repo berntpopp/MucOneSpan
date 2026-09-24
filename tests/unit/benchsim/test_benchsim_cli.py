@@ -65,6 +65,15 @@ def test_invalid_bench_config_exits(tmp_path: Path, monkeypatch: pytest.MonkeyPa
         _cli(tmp_path, monkeypatch).main(["--bench-config", str(config), "preregister"])
 
 
+def test_bench_config_type_errors_exit_cleanly(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    config = tmp_path / "bench.json"
+    config.write_text(json.dumps({"schema_version": 1, "design": {"chimera_levels": [[1]]}}))
+    with pytest.raises(SystemExit, match="chimera_levels"):
+        _cli(tmp_path, monkeypatch).main(["--bench-config", str(config), "preregister"])
+
+
 def test_default_out_root_is_beside_the_repository(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
@@ -152,6 +161,30 @@ def test_generate_writes_manifest_and_fails_on_generation_failure(
     manifest = (out / "dev" / "manifest.jsonl").read_text().splitlines()
     assert rc == 1 and len(manifest) == 6 and len(seen) == 6
     assert seen[0].muconeup_version == "0.45.0" and seen[0].profile_dir == profiles
+
+
+def test_generate_stale_case_exits_without_writing(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    cli = _cli(tmp_path, monkeypatch)
+    out = tmp_path / "data"
+    cli.main(
+        ["design", "--split", "dev", "--n", "1", "--mutations", "dupC", "--out-root", str(out)]
+    )
+
+    def stale(design: Any, ctx: Any) -> dict[str, Any]:
+        raise cli.StaleCaseError("case made under other inputs; use a fresh --out-root")
+
+    monkeypatch.setattr(cli, "require_muconeup", lambda exe: "0.45.0")
+    monkeypatch.setattr(cli, "generate_case", stale)
+    monkeypatch.setattr(cli, "write_variant", lambda *a: (Path("x"), "0" * 64))
+    profiles = tmp_path / "profiles_in"
+    profiles.mkdir()
+    args = ["generate", "--designs", str(out / "designs_dev.jsonl")]
+    args += ["--muconeup-config", str(tmp_path / "c.json"), "--muconeup-profiles", str(profiles)]
+    with pytest.raises(SystemExit, match="fresh --out-root"):
+        cli.main([*args, "--out-root", str(out)])
+    assert not (out / "dev" / "manifest.jsonl").exists()
 
 
 def _manifest(tmp_path: Path) -> Path:

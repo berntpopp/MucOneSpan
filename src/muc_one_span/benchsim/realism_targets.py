@@ -153,7 +153,7 @@ def compare(
 
     Raises:
         KeyError: If no section exists for `profile`.
-        ValueError: If the configured histogram bins differ from the target's.
+        ValueError: If the configured histogram bins or size keys differ from the target's.
     """
     sec = _section(targets, profile)
     res: dict[str, Any] = {}
@@ -176,6 +176,14 @@ def compare(
         real = _dig(sec, path)
         if metrics.get(key) is not None and isinstance(real, dict):
             res[key] = _range(metrics[key], real, config)
+    pmf = sec.get(OFFSET_PMF_KEY)
+    if metrics.get("span_offset_hist") and isinstance(pmf, dict):
+        missing = [key for key in config.size_keys if key not in pmf]
+        if missing:
+            raise ValueError(
+                f"realism.size_split_units gives histogram keys {list(config.size_keys)}, "
+                f"but the target {OFFSET_PMF_KEY} has {sorted(pmf)} (missing {missing})"
+            )
     for size, hist in (metrics.get("span_offset_hist") or {}).items():
         edges = _dig(sec, (OFFSET_PMF_KEY, size, "bin_lo_bp"))
         if edges is not None and list(edges) != config.bin_lo_bp():

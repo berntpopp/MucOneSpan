@@ -41,7 +41,10 @@ TARGETS = {
         },
         "category_frac": {"off_target": {"min": 0.06, "median": 0.30, "max": 0.77}},
         "span_between_alleles_frac": {"min": 0.01, "median": 0.023, "max": 0.042},
-        "span_offset_pmf_15bp_bins": {"lt55u": {"p": [0.0] * 12 + [1.0] + [0.0] * 4}},
+        "span_offset_pmf_15bp_bins": {
+            "lt55u": {"p": [0.0] * 12 + [1.0] + [0.0] * 4},
+            "ge55u": {"p": []},  # present, no data: the JSD check is omitted
+        },
         "allelic_ratio": {"through_origin_b_per_unit": -0.056},
     }
 }
@@ -105,10 +108,22 @@ def test_tolerances_come_from_the_config() -> None:
 
 
 def test_histogram_bins_must_match_the_target_bins() -> None:
-    edges = {"lt55u": {"bin_lo_bp": REALISM.bin_lo_bp(), "p": [1.0] * REALISM.n_bins}}
+    edges = {
+        key: {"bin_lo_bp": REALISM.bin_lo_bp(), "p": [1.0] * REALISM.n_bins}
+        for key in REALISM.size_keys
+    }
     ok = {"ont_amplicon_PRJEB92208": {"span_offset_pmf_15bp_bins": edges}}
     metrics = {"span_offset_hist": {"lt55u": [1] * REALISM.n_bins}}
     assert compare(metrics, ok, "ont_amplicon_r10")["span_offset_jsd_lt55u"]["pass"] is True
     wider = replace(REALISM, offset_bin_bp=REALISM.offset_bin_bp * 2)
     with pytest.raises(ValueError, match="bin"):
         compare(metrics, ok, "ont_amplicon_r10", wider)
+
+
+def test_size_split_must_exist_in_the_target_file() -> None:
+    other = replace(REALISM, size_split_units=60)
+    metrics = {"span_offset_hist": {key: [1] * other.n_bins for key in other.size_keys}}
+    with pytest.raises(ValueError, match="lt60u"):
+        compare(metrics, TARGETS, "ont_amplicon_r10", other)
+    genomic = {"ont_wgs_PRJEB92208": {"category_frac": {}}}
+    assert compare(metrics, genomic, "ont_genomic_targeted", other) == {}

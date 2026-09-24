@@ -57,11 +57,36 @@ def test_json_overlays_defaults_and_coerces_lists(tmp_path: Path) -> None:
         ({"schema_version": 1, "design": {"compositions": {"markov": 0.5}}}, "sum to 1"),
         ({"schema_version": 1, "design": {"pcr_levels": ["hot"]}}, "pcr_levels"),
         ({"schema_version": 1, "amount": {"pcr_slope_per_unit": {"none": 0}}}, "pcr_slope"),
-        ({"schema_version": 1, "design": {"delta_ranges": {"x": [0, 500]}}}, "length range"),
+        ({"schema_version": 1, "design": {"delta_ranges": {">20": [21, 500]}}}, "length range"),
         ({"schema_version": 1, "design": {"depths": {"hifi_amplicon": [0]}}}, "positive"),
         ({"schema_version": 1, "design": {"split_sizes": {}}}, "at least one split"),
         ({"schema_version": 1, "design": {"split_sizes": {"dev": 3}}}, "every split"),
         ([], "JSON object"),
+        (
+            {"schema_version": 1, "design": {"compositions": {"markov": 1.5, "rare_units": -0.5}}},
+            r"design\.compositions\.markov",
+        ),
+        (
+            {
+                "schema_version": 1,
+                "design": {"compositions": {"markov": 1.0, "rare_units": -0.0001}},
+            },
+            r"design\.compositions\.rare_units",
+        ),
+        ({"schema_version": 1, "design": {"compositions": {"bogus": 1.0}}}, "bogus"),
+        ({"schema_version": 1, "design": {"compositions": {"markov": 0.0}}}, "positive"),
+        (
+            {"schema_version": 1, "design": {"compositions": {"markov": "x"}}},
+            r"compositions\.markov",
+        ),
+        ({"schema_version": 1, "design": {"delta_ranges": {"weird": [1, 2]}}}, "weird"),
+        ({"schema_version": 1, "design": {"delta_ranges": {"1": [1]}}}, r"delta_ranges\.1"),
+        ({"schema_version": 1, "design": {"delta_ranges": {"0_identical": [1, 1]}}}, "0_identical"),
+        ({"schema_version": 1, "design": {"chimera_levels": [[1]]}}, "chimera_levels"),
+        ({"schema_version": 1, "design": {"pcr_levels": [["none"]]}}, "pcr_levels"),
+        ({"schema_version": 1, "design": {"depths": {"hifi_amplicon": [[5]]}}}, "depths"),
+        ({"schema_version": 1, "design": {"split_sizes": {"dev": "x"}}}, "split_sizes"),
+        ({"schema_version": 1, "amount": {"pcr_slope_per_unit": {"none": "x"}}}, "pcr_slope"),
     ],
 )
 def test_invalid_config_is_rejected(tmp_path: Path, data: object, match: str) -> None:
@@ -100,3 +125,15 @@ def test_realism_bins_match_the_public_target_file() -> None:
     for key in CFG.realism.size_keys:
         assert bins[key]["bin_lo_bp"] == CFG.realism.bin_lo_bp()
         assert len(bins[key]["p"]) == CFG.realism.n_bins
+
+
+def test_subset_of_known_names_is_accepted(tmp_path: Path) -> None:
+    data = {
+        "schema_version": 1,
+        "design": {"compositions": {"markov": 1.0}, "delta_ranges": {"1": [1, 1], "2": [2, 2]}},
+    }
+    cfg = load_bench_config(_write(tmp_path, data))
+    assert cfg.design.compositions == {"markov": 1.0} and list(cfg.design.delta_ranges) == [
+        "1",
+        "2",
+    ]

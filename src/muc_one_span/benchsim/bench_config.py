@@ -24,6 +24,10 @@ SCHEMA_VERSION = 1
 PERCENT = 100  # probability -> percent (unit conversion)
 PCR_LEVEL_NAMES = ("calibrated", "strong", "none")  # semantics implemented in `profiles`
 ERROR_LEVEL_NAMES = ("calibrated", "poor")
+# Names with semantics implemented elsewhere (`structures`, `generate`, `design`).
+COMPOSITION_NAMES = ("markov", "real_derived", "rare_units")
+DELTA_CLASS_NAMES = ("0_identical", "0_different", "1", "2", "3-5", "6-20", ">20")
+EQUAL_LENGTH_CLASSES = ("0_identical", "0_different")  # length difference must be 0
 _WEIGHT_SUM_TOL = 1e-9  # float round-off allowed when composition weights sum to 1
 
 
@@ -44,14 +48,18 @@ def _int(name: str, value: object, lo: int) -> None:
 
 
 def _levels(name: str, values: object, lo: float, hi: float) -> None:
-    if not isinstance(values, tuple) or not values or len(set(values)) != len(values):
+    if not isinstance(values, tuple) or not values:
         raise ValueError(f"{name} must be a nonempty list of distinct values")
     for value in values:
         _num(name, value, lo, hi)
+    if len(set(values)) != len(values):
+        raise ValueError(f"{name} must be a nonempty list of distinct values")
 
 
 def _names(name: str, values: object, allowed: tuple[str, ...]) -> None:
-    if not isinstance(values, tuple) or not values or len(set(values)) != len(values):
+    if not isinstance(values, tuple) or not values or not all(isinstance(v, str) for v in values):
+        raise ValueError(f"{name} must be a nonempty list of distinct names")
+    if len(set(values)) != len(values):
         raise ValueError(f"{name} must be a nonempty list of distinct names")
     if not set(values) <= set(allowed):
         raise ValueError(f"{name} must use only {allowed!r}")
@@ -120,14 +128,8 @@ class DesignConfig:
         for profile, depths in self.depths.items():
             if not depths or any(type(d) is not int or d < 1 for d in depths):
                 raise ValueError(f"design.depths.{profile} must be positive integers")
-        span = self.length_max - self.length_min
-        for name, (lo, hi) in self.delta_ranges.items():
-            _int(f"design.delta_ranges.{name}", lo, 0)
-            _int(f"design.delta_ranges.{name}", hi, lo)
-            if hi > span:
-                raise ValueError(f"design.delta_ranges.{name} exceeds the length range")
-        if not self.compositions or abs(sum(self.compositions.values()) - 1) > _WEIGHT_SUM_TOL:
-            raise ValueError("design.compositions weights must sum to 1")
+        self._check_delta_ranges()
+        self._check_compositions()
         _num("design.position_fraction", self.position_fraction, 0, 0.5, open_lo=True)
         _names("design.pcr_levels", self.pcr_levels, PCR_LEVEL_NAMES)
         _names("design.error_levels", self.error_levels, ERROR_LEVEL_NAMES)
@@ -143,6 +145,40 @@ class DesignConfig:
                     f"design.smear_levels.{split}: max smear + max chimera = {offpeak:g} exceeds "
                     f"offpeak_share_cap {self.offpeak_share_cap} (only offpeak_cap_exempt splits may)"
                 )
+
+    def _check_delta_ranges(self) -> None:
+        if not self.delta_ranges:
+            raise ValueError("design.delta_ranges must name at least one class")
+        span = self.length_max - self.length_min
+        for name, bounds in self.delta_ranges.items():
+            key = f"design.delta_ranges.{name}"
+            if name not in DELTA_CLASS_NAMES:
+                raise ValueError(f"{key}: unknown class (known: {', '.join(DELTA_CLASS_NAMES)})")
+            if not isinstance(bounds, tuple) or len(bounds) != 2:
+                raise ValueError(f"{key} must be a [min, max] pair")
+            lo, hi = bounds
+            _int(key, lo, 0)
+            _int(key, hi, lo)
+            if hi > span:
+                raise ValueError(f"{key} exceeds the length range")
+            if name in EQUAL_LENGTH_CLASSES and hi != 0:
+                raise ValueError(f"{key} must be [0, 0] (equal allele lengths)")
+
+    def _check_compositions(self) -> None:
+        if not self.compositions:
+            raise ValueError("design.compositions must name at least one composition")
+        for name, weight in self.compositions.items():
+            key = f"design.compositions.{name}"
+            if name not in COMPOSITION_NAMES:
+                raise ValueError(
+                    f"{key}: unknown composition (known: {', '.join(COMPOSITION_NAMES)})"
+                )
+            _num(key, weight, 0, 1)
+        weights = self.compositions.values()
+        if not any(w > 0 for w in weights):
+            raise ValueError("design.compositions needs at least one positive weight")
+        if abs(sum(weights) - 1) > _WEIGHT_SUM_TOL:
+            raise ValueError("design.compositions weights must sum to 1")
 
 
 @dataclass(frozen=True)
@@ -365,5 +401,8 @@ def load_bench_config(path: Path | None = None) -> BenchConfig:
             else getattr(base, key)
             for key in known
         }
-        sections[name] = type(base)(**merged)
+        try:
+            sections[name] = type(base)(**merged)
+        except TypeError as exc:
+            raise ValueError(f"{name}: invalid value type ({exc})") from exc
     return BenchConfig(schema_version=SCHEMA_VERSION, **sections)

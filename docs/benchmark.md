@@ -47,6 +47,13 @@ duplicate keys and out-of-range values are rejected. The SHA-256 of the
 effective settings is written to every `case.json` (`bench_config_sha256`),
 `realism.json` and `report.json`.
 
+Names in the semantic maps must be known: compositions `markov`,
+`real_derived` and `rare_units` (finite weights >= 0, at least one > 0, sum 1);
+delta classes `0_identical`, `0_different` (both `[0, 0]`), `1`, `2`, `3-5`,
+`6-20` and `>20`. `generate` reuses a completed case only if its design and
+settings hash match; otherwise it stops and asks for a fresh `--out-root` or
+removal of the case.
+
 ```bash
 python scripts/benchsim.py --bench-config my-bench.json design --split dev --n 30
 ```
@@ -157,8 +164,10 @@ of the forward amplicon primer site) or the conserved tail (units 6-9, the last
 four units). A drawn target that would land there (`first10` or `last10` of a
 short allele) is clamped to the nearest allowed unit, and the design records
 `target_clamped: true`. Clamping keeps the random draw sequence, so other
-designs do not change. An allele too short to hold an event outside the head
-and tail is `design_invalid`.
+designs do not change. Configured lengths always leave room for an event, so
+`design` itself exits with an error only for invalid settings. A real-derived
+structure that is too short to hold an event outside the head and tail is
+recorded by `generate` as `design_invalid`.
 
 ```bash
 python scripts/benchsim.py design --split dev --n 30          # 30 per profile

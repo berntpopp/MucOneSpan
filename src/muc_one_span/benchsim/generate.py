@@ -85,6 +85,10 @@ def _ledger(split_dir: Path) -> Iterator[DurableLedger]:
             fcntl.flock(handle.fileno(), fcntl.LOCK_UN)
 
 
+class StaleCaseError(RuntimeError):
+    """A completed case on disk was generated from another design or other settings."""
+
+
 class DesignInvalidError(ValueError):
     """MucOneUp truth does not realize the design."""
 
@@ -350,8 +354,31 @@ def _commit(
         )
 
 
+def _check_reusable(
+    saved: dict[str, Any], design: Design, ctx: GenerateContext, case_dir: Path
+) -> None:
+    """Refuse to reuse a completed case made from another design or other settings."""
+    current = json.loads(json.dumps(design.to_dict()))
+    problems = []
+    if saved.get("design") != current:
+        problems.append("design differs")
+    if saved.get("bench_config_sha256") != ctx.bench.sha256():
+        problems.append(
+            f"bench config sha256 {saved.get('bench_config_sha256')} != {ctx.bench.sha256()}"
+        )
+    if problems:
+        raise StaleCaseError(
+            f"{case_dir} was generated under other inputs ({'; '.join(problems)}); "
+            "use a fresh --out-root or remove the case directory"
+        )
+
+
 def generate_case(design: Design, ctx: GenerateContext) -> dict[str, Any]:
-    """Generate, validate and record one case; returns the ``case.json`` dict."""
+    """Generate, validate and record one case; returns the ``case.json`` dict.
+
+    A verified-complete case is reused only if its design and bench settings
+    match; otherwise `StaleCaseError` is raised and nothing is overwritten.
+    """
     split_dir = (ctx.out_root / design.split).resolve()
     case_dir = split_dir / design.design_id
     case_json = case_dir / "case.json"
@@ -360,6 +387,7 @@ def generate_case(design: Design, ctx: GenerateContext) -> dict[str, Any]:
             done = ledger.is_verified_complete(design.design_id, design.profile)
         if done:
             saved: dict[str, Any] = json.loads(case_json.read_text())
+            _check_reusable(saved, design, ctx, case_dir)
             return saved
     for stale in ("truth", "reads", "structure"):
         shutil.rmtree(case_dir / stale, ignore_errors=True)

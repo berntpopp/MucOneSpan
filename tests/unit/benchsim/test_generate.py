@@ -391,3 +391,21 @@ def test_identical_normal_design_checks_structures() -> None:
     with pytest.raises(DesignInvalidError, match="differ"):
         validate_events(TruthSample("x", haps), design)
     assert validate_events(TruthSample("x", (haps[0], haps[0])), design) == []
+
+
+def test_resume_refuses_a_case_made_under_other_settings(tmp_path: Path) -> None:
+    from muc_one_span.benchsim.generate import StaleCaseError
+
+    design = _plain(DEV, event=False)
+    with (
+        patch(f"{MOD}.run_tool", side_effect=FakeMucOneUp()),
+        patch(f"{MOD}.load_repeat_dictionary", return_value=_rd()),
+    ):
+        first = generate_case(design, _ctx(tmp_path))
+        assert first["status"] == "ok", first.get("error")
+        assert generate_case(design, _ctx(tmp_path)) == first  # same settings: reused
+        other = BenchConfig(amount=AmountConfig(genomic_mc_draws=7))
+        with pytest.raises(StaleCaseError, match="--out-root"):
+            generate_case(design, _ctx(tmp_path, bench=other))
+        with pytest.raises(StaleCaseError, match="design"):
+            generate_case(replace(design, depth=design.depth + 1), _ctx(tmp_path))
