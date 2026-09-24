@@ -87,6 +87,18 @@ def _lengths(delta_class: str, rng: random.Random) -> tuple[int, int]:
     return pair[0], pair[1]
 
 
+# Event targets stay off the conserved head (units 1-4; unit 1 holds part of the
+# forward amplicon primer site) and the last five units (the conserved 6-9 tail).
+# Mutating those units destroys the primer site or breaks truth reconstruction.
+EVENT_HEAD, EVENT_TAIL = 4, 5
+
+
+def event_bounds(length: int) -> tuple[int, int]:
+    """1-based ``(first, last)`` repeat an event may target in a chain of ``length``."""
+    lo = EVENT_HEAD + 1
+    return lo, max(lo, length - EVENT_TAIL)
+
+
 def _target(
     lengths: tuple[int, int], allele: str, position: str, rng: random.Random
 ) -> tuple[int, int]:
@@ -103,7 +115,9 @@ def _target(
         repeat = rng.randint(length - tenth + 1, length)
     else:
         repeat = rng.randint(tenth + 1, max(tenth + 1, length - tenth))
-    return hap, repeat
+    # Clamp (not redraw) so every design consumes the same random draws.
+    lo, hi = event_bounds(length)
+    return hap, min(max(repeat, lo), hi)
 
 
 def build_split(

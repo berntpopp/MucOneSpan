@@ -91,7 +91,12 @@ def test_read_chains_strips_markers_and_comments(tmp_path: Path) -> None:
 
 def test_scale_targets_keeps_relative_position() -> None:
     assert scale_targets(((2, 50),), (100, 100), (40, 20)) == ((2, 10),)
-    assert scale_targets(((1, 1),), (100, 100), (40, 20)) == ((1, 1),)
+    assert scale_targets(((1, 5),), (100, 100), (40, 20)) == ((1, 5),)
+
+
+def test_scale_targets_stay_inside_event_bounds() -> None:
+    assert scale_targets(((1, 6),), (100, 100), (40, 20)) == ((1, 5),)
+    assert scale_targets(((2, 95),), (100, 100), (40, 30)) == ((2, 25),)
 
 
 def test_markov_needs_no_structure(tmp_path: Path) -> None:

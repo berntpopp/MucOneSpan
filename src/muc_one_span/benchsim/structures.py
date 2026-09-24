@@ -23,7 +23,7 @@ from collections.abc import Callable, Collection
 from pathlib import Path
 from typing import Any
 
-from .design import Design
+from .design import Design, event_bounds
 
 Runner = Callable[[list[str]], str]
 CONSERVED = frozenset({"1", "2", "3", "4", "4p", "5", "5C", "6", "6p", "7", "8", "9"})
@@ -108,12 +108,16 @@ def scale_targets(
     design_lengths: tuple[int, int],
     actual_lengths: tuple[int, ...],
 ) -> tuple[tuple[int, int], ...]:
-    """Keep each target's relative position when a structure has other lengths."""
+    """Keep each target's relative position when a structure has other lengths.
+
+    Scaled targets are clamped to `event_bounds` of the actual chain.
+    """
     out = []
     for hap, repeat in targets:
         actual = actual_lengths[hap - 1]
         scaled = round(repeat * actual / design_lengths[hap - 1])
-        out.append((hap, max(1, min(actual, scaled))))
+        lo, hi = event_bounds(actual)
+        out.append((hap, max(lo, min(hi, scaled))))
     return tuple(out)
 
 

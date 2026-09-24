@@ -7,6 +7,7 @@ from muc_one_span.benchsim.design import (
     Design,
     build_split,
     derive_seed,
+    event_bounds,
 )
 
 MUTS = ["dupC", "dupA", "insG", "delGCCCA", "insCCC_benign"]
@@ -52,3 +53,14 @@ def test_designs_are_deterministic_and_round_trip() -> None:
 def test_delta_classes_are_stratified() -> None:
     counts = Counter(d.delta_class for d in build_split("dev", 300, "salt", MUTS))
     assert min(counts.values()) >= 20
+
+
+def test_event_targets_avoid_conserved_head_and_tail() -> None:
+    # Unit 1 holds part of the forward primer site and the last five units are the
+    # conserved 6-9 tail; events there break amplicon extraction or truth.
+    assert event_bounds(20) == (5, 15)
+    for split, n in (("dev", 300), ("val", 300)):
+        for d in build_split(split, n, "salt", MUTS):
+            for hap, repeat in d.targets:
+                lo, hi = event_bounds(d.lengths[hap - 1])
+                assert lo <= repeat <= hi, (d.design_id, d.lengths, d.targets)
