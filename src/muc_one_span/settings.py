@@ -226,6 +226,8 @@ class CallingSettings:
     haploid_min_qual: float | None = 4.0
     haploid_alt_fraction: float = 0.5
     haploid_ref_fraction: float = 0.2
+    stage_discordance_min_af: float = 0.5
+    stage_discordance_min_depth: int = 10
 
     def __post_init__(self) -> None:
         _string("calling.sample_name", self.sample_name)
@@ -243,6 +245,10 @@ class CallingSettings:
             raise ValueError(
                 "calling.haploid_ref_fraction must be below calling.haploid_alt_fraction"
             )
+        _number("calling.stage_discordance_min_af", self.stage_discordance_min_af, 0.0, 1.0)
+        if self.stage_discordance_min_af == 0:
+            raise ValueError("calling.stage_discordance_min_af must be > 0")
+        _integer("calling.stage_discordance_min_depth", self.stage_discordance_min_depth, 1)
 
 
 @dataclass(frozen=True)

@@ -121,6 +121,11 @@ def test_bad_json_configuration_is_rejected(tmp_path: Path, contents: str) -> No
         (CallingSettings, {"sample_name": "a\x00b"}),
         (CallingSettings, {"sample_name": "a\x7fb"}),
         (CallingSettings, {"read_phase": 1}),
+        (CallingSettings, {"stage_discordance_min_af": 0}),
+        (CallingSettings, {"stage_discordance_min_af": 1.1}),
+        (CallingSettings, {"stage_discordance_min_af": True}),
+        (CallingSettings, {"stage_discordance_min_depth": 0}),
+        (CallingSettings, {"stage_discordance_min_depth": 1.5}),
         (ReadPhasingSettings, {"internal_downsampling": 0}),
         (ReadPhasingSettings, {"mapping_quality": -1}),
         (ReadPhasingSettings, {"mapping_quality": False}),
@@ -283,6 +288,24 @@ def test_haploid_fraction_settings_are_validated() -> None:
         CallingSettings(haploid_alt_fraction=0.3, haploid_ref_fraction=0.3)
     with pytest.raises(ValueError, match="finite number"):
         CallingSettings(haploid_alt_fraction=1.5)
+
+
+def test_stage_discordance_settings_defaults_and_roundtrip(tmp_path: Path) -> None:
+    calling = CallingSettings()
+    assert calling.stage_discordance_min_af == 0.5
+    assert calling.stage_discordance_min_depth == 10
+    with pytest.raises(ValueError, match="stage_discordance_min_af must be > 0"):
+        CallingSettings(stage_discordance_min_af=0)
+    path = tmp_path / "settings.json"
+    path.write_text(
+        '{"schema_version": 1, "calling": '
+        '{"stage_discordance_min_af": 0.65, "stage_discordance_min_depth": 25}}'
+    )
+    settings = load_settings(path)
+    assert settings.calling.stage_discordance_min_af == 0.65
+    assert settings.calling.stage_discordance_min_depth == 25
+    path.write_text(json.dumps(settings_as_dict(settings)))
+    assert load_settings(path) == settings
 
 
 def test_selection_gate_settings_are_validated() -> None:
