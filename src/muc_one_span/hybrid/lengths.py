@@ -9,8 +9,9 @@ from __future__ import annotations
 
 import math
 from dataclasses import dataclass, field
-from typing import Any, NamedTuple
+from typing import Any
 
+from muc_one_span.hybrid.smear import smear_test, smear_verdict
 from muc_one_span.hybrid.spans import SpanRead
 from muc_one_span.settings import HybridSettings
 
@@ -78,43 +79,6 @@ def _count_within(lengths: list[float], c: float, w: float) -> int:
     return sum(abs(x - c) <= w for x in lengths)
 
 
-class _Background(NamedTuple):
-    """Local window occupancy, the wider below-top region, and the expected smear count."""
-
-    inside: int
-    window_bp: float
-    outside: int
-    region_width: float
-    expected: float
-
-
-def _region_background(
-    c: float, top: float, lengths: list[float], settings: HybridSettings, unit_bp: int
-) -> _Background:
-    """Read counts inside the candidate's own window versus the rest of the below-top
-    region, and the smear count that background rate would predict inside the window."""
-    w = window_bp(c, settings, unit_bp)
-    inside = _count_within(lengths, c, w)
-    region_lo = min(lengths)
-    region_hi = top - settings.smear_short_product_units * unit_bp
-    region_width = max(region_hi - region_lo, settings.smear_background_floor)
-    total_in_region = sum(1 for x in lengths if region_lo <= x <= region_hi)
-    outside = max(total_in_region - inside, 0)
-    expected = (outside / region_width) * (2 * w)
-    return _Background(inside, w, outside, region_width, expected)
-
-
-def _smear_zone(bg: _Background, n_total: int, settings: HybridSettings) -> str:
-    """Where the candidate's excess over the expected smear count falls, normalised by
-    total depth (not top-peak support, which itself shrinks with smear_frac -- N1)."""
-    excess_frac = (bg.inside - bg.expected) / n_total
-    if excess_frac < settings.smear_explained_frac:
-        return "explained"
-    if excess_frac < settings.smear_confident_frac:
-        return "ambiguous"
-    return "confident"
-
-
 def _reason(
     c: float,
     top: float,
@@ -123,48 +87,33 @@ def _reason(
     lengths: list[float],
     settings: HybridSettings,
     unit_bp: int,
+    smear_ctx: tuple[tuple[float, float], int],
 ) -> str | None:
     """None when the candidate is accepted, else the rejection reason.
 
-    One smear model (C4.2, rounds 2-3) decides every below-top outcome from the observed
-    background density, normalised by total depth: a candidate explained by smear, or
-    with too little background to judge *and* too little support to matter either way,
-    stays silent 'smear'; a candidate that clears the allele-support threshold despite
-    that (real signal, or too little background to judge at all but real support -- R1,
-    fix round 3) is accepted; short of it is support_below_threshold (gate-relevant,
-    this is F2); the residual uncertain band between explained and confident is
-    smear_ambiguous (gate-relevant). A candidate with ``support >= min_peak_reads`` and
-    a positive excess over the expected smear count is never silently 'smear' regardless
-    of that band (R2, fix round 3): partly-explained becomes smear_ambiguous instead.
-    The allele-support threshold is ``max(min_peak_reads, frac * n_total)`` -- total
-    depth, not the top peak's own support (spec S2: "n_min, f_far/near * N").
+    Below-top candidates (more than ``smear_short_product_units`` below the top peak)
+    first face the smear significance test (``hybrid.smear``, C4.2 fix round 4):
+    not significant -> silent 'smear', whatever the absolute read count (smear debris
+    grows with depth); in the configured borderline band around alpha ->
+    'smear_ambiguous' (gate-relevant). Significant candidates, and every candidate that
+    is not below-top, then need ``support >= max(min_peak_reads, frac * n_total)`` --
+    total depth, not the top peak's own support (spec S2: "n_min, f_far/near * N") --
+    else 'support_below_threshold' (gate-relevant). ``smear_ctx`` is the below-top
+    region ``(lo, hi)`` and the number of candidates tested there (the correction family).
     """
     if support <= settings.rejected_peak_noise_reads:
         return "noise"
-    n_total = len(lengths)
+    region, n_tests = smear_ctx
+    if c < region[1]:
+        test = smear_test(c, window_bp(c, settings, unit_bp), lengths, region, settings, unit_bp)
+        verdict = smear_verdict(test.p_value, n_tests, settings)
+        if verdict == "smear":
+            return "smear"
+        if verdict == "borderline":
+            return "smear_ambiguous"
     far = abs(c - top) >= settings.peak_far_near_boundary_units * unit_bp
     frac = settings.far_peak_min_frac if far else settings.near_peak_min_frac
-    allele_threshold = max(settings.min_peak_reads, frac * n_total)
-
-    explained = ambiguous = False
-    if c < top - settings.smear_short_product_units * unit_bp:
-        bg = _region_background(c, top, lengths, settings, unit_bp)
-        if bg.expected >= settings.smear_min_expected:
-            zone = _smear_zone(bg, n_total, settings)
-            never_smear = support >= settings.min_peak_reads and support > bg.expected  # R2
-            explained = zone == "explained" and not never_smear
-            ambiguous = zone == "ambiguous" or (zone == "explained" and never_smear)
-        elif support < settings.smear_low_background_min_support:
-            explained = True
-        # else: too little background anywhere near `c` to judge explainability at all;
-        # fall through to the ordinary support/accept decision below (R1) -- a clean,
-        # isolated candidate that already clears the allele threshold is accepted, not
-        # marked ambiguous merely for having no background to compare against.
-    if explained:
-        return "smear"
-    if ambiguous:
-        return "smear_ambiguous"
-    if support < allele_threshold:
+    if support < max(settings.min_peak_reads, frac * len(lengths)):
         return "support_below_threshold"
     return "max_alleles" if n_kept >= 2 else None
 
@@ -186,11 +135,23 @@ def fit_length_model(spans: list[SpanRead], settings: HybridSettings, unit_bp: i
             centers.append(grid[i])
     support = {c: _count_within(lengths, c, window_bp(c, settings, unit_bp)) for c in centers}
     top = max(centers, key=lambda c: support[c])
+    # Below-top smear region: from the shortest observable span to just below the top peak.
+    region = (
+        min(min(lengths), settings.min_span_units * unit_bp),
+        top - settings.smear_short_product_units * unit_bp,
+    )
+    n_tests = sum(
+        1
+        for c in centers
+        if c != top and c < region[1] and support[c] > settings.rejected_peak_noise_reads
+    )
     kept, rejected = [top], []
     for c in sorted(centers, key=lambda c: -support[c]):
         if c == top:
             continue
-        reason = _reason(c, top, support[c], len(kept), lengths, settings, unit_bp)
+        reason = _reason(
+            c, top, support[c], len(kept), lengths, settings, unit_bp, (region, n_tests)
+        )
         if reason is None:
             kept.append(c)
             continue

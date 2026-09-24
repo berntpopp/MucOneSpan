@@ -46,9 +46,20 @@ def _string(name: str, value: object, *, optional: bool = False, empty: bool = F
         raise ValueError(f"{name} must be a nonempty string" + (" or null" if optional else ""))
 
 
+def _open_unit_interval(name: str, value: object) -> None:
+    _number(name, value, 0, 1)
+    if value in (0, 1):
+        raise ValueError(f"{name} must be strictly between 0 and 1")
+
+
 def _choice(name: str, value: object, allowed: tuple[str, ...]) -> None:
     if not isinstance(value, str) or value not in allowed:
         raise ValueError(f"{name} must be one of {allowed!r}")
+
+
+# Multiple-candidate corrections for the smear significance test (hybrid.lengths):
+# "bonferroni" multiplies each p value by the number of below-top candidates tested.
+SMEAR_CORRECTIONS = ("bonferroni", "none")
 
 
 @dataclass(frozen=True)
@@ -359,18 +370,20 @@ class HybridSettings:
     smear_short_product_units: float = 1.5
     peak_far_near_boundary_units: float = 2.0
     peak_min_separation_units: float = 0.7
-    smear_background_floor: float = 1.0
-    # C4.2 round 2: one explicit smear model (fix round 2, F2/I1/N1/N2). Below-top support
-    # is judged against the background density smear would explain, normalised by total
-    # depth (not top-peak support, which shrinks with smear_frac itself -- N1). Too little
-    # background to estimate a density at all (smear_min_expected) falls back to the
-    # ordinary support threshold, except when support is also below
-    # smear_low_background_min_support, which stays silent 'smear' (both regimes keep F2's
-    # isolated weak minor as support_below_threshold, not smear).
-    smear_min_expected: float = 0.9
-    smear_explained_frac: float = 0.10
-    smear_confident_frac: float = 0.13
-    smear_low_background_min_support: int = 5
+    # C4.2 fix round 4: a below-top candidate is smear unless its read count in a core
+    # window (smear_test_window_frac x its assignment half-window) significantly exceeds
+    # the local smear background on BOTH sides (exact conditional Poisson rate test, one
+    # sided, at smear_test_alpha after smear_test_correction over the candidates tested).
+    # Adjusted p in [alpha / factor, alpha * factor) is the borderline band
+    # (smear_ambiguous). Each background side starts at the assignment-window edge, spans
+    # at least smear_background_flank_units repeat units and widens until it holds
+    # smear_background_min_reads reads (or reaches the below-top region's edge).
+    smear_test_alpha: float = 0.001
+    smear_test_borderline_factor: float = 3.0
+    smear_test_correction: str = "bonferroni"
+    smear_test_window_frac: float = 0.25
+    smear_background_flank_units: float = 2.0
+    smear_background_min_reads: int = 5
 
     def __post_init__(self) -> None:
         for name in (
@@ -421,15 +434,16 @@ class HybridSettings:
         _number("hybrid.smear_short_product_units", self.smear_short_product_units, 0.01)
         _number("hybrid.peak_far_near_boundary_units", self.peak_far_near_boundary_units, 0)
         _number("hybrid.peak_min_separation_units", self.peak_min_separation_units, 0)
-        _number("hybrid.smear_background_floor", self.smear_background_floor, 0.01)
-        _number("hybrid.smear_min_expected", self.smear_min_expected, 0)
-        _number("hybrid.smear_explained_frac", self.smear_explained_frac, 0, 1)
-        _number("hybrid.smear_confident_frac", self.smear_confident_frac, 0, 1)
-        if self.smear_confident_frac < self.smear_explained_frac:
-            raise ValueError("hybrid.smear_confident_frac must be >= hybrid.smear_explained_frac")
-        _integer(
-            "hybrid.smear_low_background_min_support", self.smear_low_background_min_support, 0
-        )
+        _open_unit_interval("hybrid.smear_test_alpha", self.smear_test_alpha)
+        _number("hybrid.smear_test_borderline_factor", self.smear_test_borderline_factor, 1)
+        _choice("hybrid.smear_test_correction", self.smear_test_correction, SMEAR_CORRECTIONS)
+        _number("hybrid.smear_test_window_frac", self.smear_test_window_frac, 0, 1)
+        if self.smear_test_window_frac == 0:
+            raise ValueError("hybrid.smear_test_window_frac must be > 0")
+        _number("hybrid.smear_background_flank_units", self.smear_background_flank_units, 0)
+        if self.smear_background_flank_units == 0:
+            raise ValueError("hybrid.smear_background_flank_units must be > 0")
+        _integer("hybrid.smear_background_min_reads", self.smear_background_min_reads, 1)
 
 
 @dataclass(frozen=True)

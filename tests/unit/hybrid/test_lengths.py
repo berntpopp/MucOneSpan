@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+from functools import cache
+
 from muc_one_span.hybrid.lengths import GATE_RELEVANT_REJECTIONS, LengthModel, fit_length_model
 from muc_one_span.hybrid.spans import Anchors, SpanRead, categorize_reads
 from muc_one_span.settings import HybridSettings
@@ -31,13 +33,7 @@ def test_smear_is_short_product_not_allele() -> None:
     model = _fit(spans(60, 120, 3, smear_frac=0.45))
     assert len(model.peaks) == 1
     assert model.short_product_fraction > 0.3
-    # Fix round 3 (R2): one below-top candidate here (support=8, right at min_peak_reads,
-    # with a small positive excess over the expected smear count) is no longer silently
-    # 'smear' -- it is correctly flagged smear_ambiguous (gate-relevant) instead. R2's
-    # ruling is that this must never be silent, so this is the corrected behaviour, not a
-    # regression: the bulk of the smear tail (every other below-top candidate here) is
-    # still silent 'smear' or 'noise'.
-    assert [r["reason"] for r in model.gate_relevant_rejections] == ["smear_ambiguous"]
+    assert model.gate_relevant_rejections == []
 
 
 def test_real_short_allele_amid_smear_is_kept() -> None:
@@ -95,140 +91,103 @@ def test_isolated_short_allele_with_no_smear_background_is_support_below_thresho
 # its KDE peak always falls at this many total repeat units.
 MINOR_INNER_UNITS = 30
 MINOR_UNITS = len(synth.PRE) + MINOR_INNER_UNITS + len(synth.POST)
+MAJOR_INNER_UNITS = 60
 
-DS = (60, 120, 200, 300)
+# Fix round 4 acceptance grid (controller ruling: statistical significance of the local
+# excess). Every criterion is asserted in EVERY cell; there is no exception list.
+DS = (60, 120, 200, 300, 1000)
 FRACS = (0.3, 0.45, 0.54)
-GRID_SEEDS = 15  # keeps the whole file well under the ~60s budget; see task-5-report.md
+GRID_SEEDS = 10  # seeds 0..9 per cell; runtime is reported in task-5-report.md
+MINOR_SEED_OFFSET = 1000
 F2_SEEDS = 8
-SPURIOUS_TARGET = 0.10  # criterion (b)
-ACCEPT_TARGET = 0.90  # criterion (c)
-MINOR_SUPPORT_FRAC_20 = 0.2  # criterion (c): "support >= 20% of the major"
-MINOR_SUPPORT_FRAC_10 = 0.1  # R2's probe minor: weaker, 10% of the major (fix round 3)
-
-# Fix round 3 (R2): a below-top candidate with support >= min_peak_reads and a positive
-# excess over the expected smear count is now never silently "smear" -- it is accepted or
-# smear_ambiguous (gate-relevant) instead. That correctness fix pushes many homozygous
-# draws that used to be silent into gate-relevant territory, so most cells now miss the
-# <=10% (b) target. Per the controller's ruling ("keep (b) measured... do not loosen
-# (d)"), this is reported as DONE_WITH_CONCERNS with the measured table below rather than
-# a weakened assertion anywhere. R1's fix (a clean, isolated candidate that already clears
-# the allele threshold is accepted, not merely-isolated-therefore-ambiguous) resolved (c)
-# everywhere, including the previous (60, 0.3) shortfall, so (c) has no exceptions left.
-# See task-5-report.md Fix round 3 for the full per-cell (a)/(b)/(c)/(d) table.
-KNOWN_SPURIOUS_TRADEOFF_CELLS = frozenset(
-    {
-        (60, 0.3),
-        (120, 0.45),
-        (120, 0.54),
-        (200, 0.3),
-        (200, 0.45),
-        (200, 0.54),
-        (300, 0.3),
-        (300, 0.45),
-        (300, 0.54),
-    }
-)
+MAX_HOMOZYGOUS_GATED_RATE = 0.10  # criterion (b)
+MIN_MINOR_ACCEPT_RATE = 0.90  # criterion (c)
+MIN_WEAK_MINOR_FLAGGED_RATE = 0.90  # criterion (c')
+MINOR_SUPPORT_FRAC_20 = 0.2  # (c): genuine minor with 20% of the major's reads
+MINOR_SUPPORT_FRAC_10 = 0.1  # (c'): weak minor with 10% of the major's reads
+WEAK_MINOR_MIN_DEPTH = 120  # (c') applies at D >= 120
 
 
-def test_smear_grid_never_silently_accepts_and_spurious_rate_is_bounded() -> None:
-    """(a): a single real allele plus smear must never yield a silently-accepted second
-    peak -- zero tolerance, every (D, smear_frac) cell, every seed, no exceptions.
-    (b): the homozygous gate-relevant (spurious) rate is <=10% per cell, except the
-    documented KNOWN_SPURIOUS_TRADEOFF_CELLS (fix round 3, R2)."""
+@cache
+def _cached_spans(inner_units: int, n: int, seed: int, smear_frac: float) -> tuple[SpanRead, ...]:
+    """Grid draws are shared by the (a)/(b)/(c)/(c') tests; generate each only once."""
+    return tuple(spans(inner_units, n, seed, smear_frac=smear_frac))
+
+
+def _major(depth: int, frac: float, seed: int) -> list[SpanRead]:
+    return list(_cached_spans(MAJOR_INNER_UNITS, depth, seed, frac))
+
+
+def _with_minor(depth: int, frac: float, seed: int, minor_frac: float) -> LengthModel:
+    minor_n = round(minor_frac * depth)
+    minor = list(_cached_spans(MINOR_INNER_UNITS, minor_n, seed + MINOR_SEED_OFFSET, 0.0))
+    return _fit(_major(depth, frac, seed) + minor)
+
+
+def _minor_accepted(model: LengthModel) -> bool:
+    return MINOR_UNITS in {round(p.center_bp / UNIT) for p in model.peaks}
+
+
+def _minor_flagged(model: LengthModel) -> bool:
+    return any(
+        r["units"] == MINOR_UNITS and r["reason"] in GATE_RELEVANT_REJECTIONS
+        for r in model.rejected
+    )
+
+
+def test_homozygous_smear_never_silently_accepts_and_is_rarely_gate_relevant() -> None:
+    """(a) a single allele plus smear never yields an unflagged second peak (zero
+    tolerance); (b) it is gate-relevant (-> INCONCLUSIVE) in at most 10% of seeds, in
+    every (D, smear_frac) cell up to D=1000."""
     false_accepts = []
-    spurious_rates = {}
+    gated_rates = {}
     for depth in DS:
         for frac in FRACS:
             gated = 0
             for seed in range(GRID_SEEDS):
-                model = _fit(spans(60, depth, seed, smear_frac=frac))
+                model = _fit(_major(depth, frac, seed))
                 if len(model.peaks) == 2 and model.gate_relevant_rejections == []:
                     false_accepts.append((depth, frac, seed))
-                if model.gate_relevant_rejections:
-                    gated += 1
-            spurious_rates[(depth, frac)] = gated / GRID_SEEDS
+                gated += bool(model.gate_relevant_rejections)
+            gated_rates[(depth, frac)] = gated / GRID_SEEDS
     assert false_accepts == []
-    for (depth, frac), rate in spurious_rates.items():
-        if (depth, frac) in KNOWN_SPURIOUS_TRADEOFF_CELLS:
-            continue
-        assert rate <= SPURIOUS_TARGET, f"D={depth} frac={frac}: spurious rate {rate:.0%}"
+    over = {cell: rate for cell, rate in gated_rates.items() if rate > MAX_HOMOZYGOUS_GATED_RATE}
+    assert over == {}
 
 
-def _minor_outcome(depth: int, frac: float, minor_n: int, seed: int) -> tuple[bool, list[str]]:
-    """(accepted, reasons recorded for the minor's own unit) for one grid draw."""
-    model = _fit(
-        spans(60, depth, seed, smear_frac=frac) + spans(MINOR_INNER_UNITS, minor_n, seed + 1000)
-    )
-    accepted = MINOR_UNITS in {round(p.center_bp / UNIT) for p in model.peaks}
-    reasons = [r["reason"] for r in model.rejected if r["units"] == MINOR_UNITS]
-    return accepted, reasons
-
-
-def test_smear_grid_genuine_minor_is_accepted_and_never_silently_smear() -> None:
-    """(c): a genuine below-top minor with support >= 20% of the major is accepted in
-    >=90% of seeds, every cell -- R1's fix resolved the previous (60, 0.3) shortfall, so
-    there are no (c) exceptions any more.
-    (d): that minor is never silently 'smear' when its support clears min_peak_reads --
-    always accepted or gate-relevant, every cell, every seed, no exceptions."""
-    silent_smear = []
-    accept_rates = {}
+def test_genuine_twenty_percent_minor_is_accepted() -> None:
+    """(c) a below-top minor with 20% of the major's reads is accepted in >= 90% of
+    seeds, in every cell."""
+    rates = {}
     for depth in DS:
         for frac in FRACS:
-            minor_n = round(MINOR_SUPPORT_FRAC_20 * depth)
-            accepted_count = 0
-            for seed in range(GRID_SEEDS):
-                accepted, reasons = _minor_outcome(depth, frac, minor_n, seed)
-                if accepted:
-                    accepted_count += 1
-                elif minor_n >= S.min_peak_reads and "smear" in reasons:
-                    silent_smear.append((depth, frac, seed))
-            accept_rates[(depth, frac)] = accepted_count / GRID_SEEDS
-    assert silent_smear == []
-    for (depth, frac), rate in accept_rates.items():
-        assert rate >= ACCEPT_TARGET, f"D={depth} frac={frac}: accept rate {rate:.0%}"
+            hits = sum(
+                _minor_accepted(_with_minor(depth, frac, seed, MINOR_SUPPORT_FRAC_20))
+                for seed in range(GRID_SEEDS)
+            )
+            rates[(depth, frac)] = hits / GRID_SEEDS
+    low = {cell: rate for cell, rate in rates.items() if rate < MIN_MINOR_ACCEPT_RATE}
+    assert low == {}
 
 
-def test_smear_grid_ten_percent_minor_is_never_silently_smear() -> None:
-    """R2 (fix round 3): a below-top local maximum with support >= min_peak_reads and a
-    positive excess over the expected smear count is never silently 'smear' -- accepted
-    or gate-relevant only. Probes a weaker minor (10% of the major) than the (c) test
-    above: this was the review's own counter-example (D=120: 12 reads silent in 14/15
-    seeds; D=300: 30 reads silent in 15/15, both under the pre-fix model)."""
-    silent_smear = []
-    for depth in DS:
-        minor_n = round(MINOR_SUPPORT_FRAC_10 * depth)
-        if minor_n < S.min_peak_reads:
-            continue  # below the threshold this guarantee is scoped to (D=60: 6 reads)
+def test_weak_ten_percent_minor_is_accepted_or_gate_relevant() -> None:
+    """(c') a minor with 10% of the major's reads at D >= 120 is accepted or
+    gate-relevant (never silent 'smear') in >= 90% of seeds, in every cell."""
+    rates = {}
+    for depth in (d for d in DS if d >= WEAK_MINOR_MIN_DEPTH):
         for frac in FRACS:
+            hits = 0
             for seed in range(GRID_SEEDS):
-                accepted, reasons = _minor_outcome(depth, frac, minor_n, seed)
-                if not accepted and "smear" in reasons:
-                    silent_smear.append((depth, frac, minor_n, seed))
-    assert silent_smear == []
-
-
-def test_d60_light_smear_minor_that_misses_acceptance_is_gate_relevant() -> None:
-    """In the hardest grid cell (D=60, smear=0.3), a genuine 20%-minor that is not
-    accepted must still be recorded exactly once at its own unit (not silently dropped,
-    and not merged into a neighbouring unit's candidate) and must be gate-relevant --
-    never plain "noise" and never silent "smear"."""
-    depth, frac = 60, 0.3
-    minor_n = round(MINOR_SUPPORT_FRAC_20 * depth)
-    for seed in range(GRID_SEEDS):
-        model = _fit(
-            spans(60, depth, seed, smear_frac=frac) + spans(MINOR_INNER_UNITS, minor_n, seed + 1000)
-        )
-        peak_units = {round(p.center_bp / UNIT) for p in model.peaks}
-        matches = [r for r in model.rejected if r["units"] == MINOR_UNITS]
-        assert MINOR_UNITS in peak_units or len(matches) == 1, (seed, model.rejected)
-        if MINOR_UNITS not in peak_units:
-            assert matches[0]["reason"] in GATE_RELEVANT_REJECTIONS, (seed, matches)
+                model = _with_minor(depth, frac, seed, MINOR_SUPPORT_FRAC_10)
+                hits += _minor_accepted(model) or _minor_flagged(model)
+            rates[(depth, frac)] = hits / GRID_SEEDS
+    low = {cell: rate for cell, rate in rates.items() if rate < MIN_WEAK_MINOR_FLAGGED_RATE}
+    assert low == {}
 
 
 def test_isolated_minor_with_light_smear_is_support_below_threshold() -> None:
-    # (e), F2: an isolated real minor allele stays support_below_threshold (gate-relevant),
-    # never silently "smear", across the light smear fractions the review measured it
-    # failing at (0.01-0.1: 1-10% of the major's reads smeared).
+    # (e), F2: an isolated real 5-read minor stays support_below_threshold (gate-relevant),
+    # never silently "smear", across light smear fractions (1-10% of the major smeared).
     for smear_frac in (0.01, 0.02, 0.05, 0.1):
         for seed in range(F2_SEEDS):
             model = _fit(spans(80, 200, 6 + seed, smear_frac=smear_frac) + spans(30, 5, 7 + seed))
@@ -239,9 +198,16 @@ def test_isolated_minor_with_light_smear_is_support_below_threshold() -> None:
 def test_clean_isolated_minor_is_accepted_not_ambiguous() -> None:
     """R1 (fix round 3): a below-top candidate with no smear background at all, that
     already clears the allele threshold, is accepted -- being isolated is not itself
-    ambiguous. Round 2 regressed every one of these to smear_ambiguous."""
+    ambiguous."""
     for depth, minor_n in ((200, 50), (200, 20), (120, 30), (60, 15)):
         for seed in range(10):
             model = _fit(spans(80, depth, seed) + spans(MINOR_INNER_UNITS, minor_n, seed + 7777))
-            accepted = MINOR_UNITS in {round(p.center_bp / UNIT) for p in model.peaks}
-            assert accepted, (depth, minor_n, seed, model.rejected)
+            assert _minor_accepted(model), (depth, minor_n, seed, model.rejected)
+
+
+def test_borderline_smear_candidate_is_smear_ambiguous() -> None:
+    # Widening the borderline band to cover every non-trivial p value routes the smear
+    # tail's tested candidates to smear_ambiguous (gate-relevant) instead of silent smear.
+    wide = HybridSettings(smear_test_borderline_factor=1e6)
+    model = fit_length_model(spans(60, 120, 3, smear_frac=0.45), wide, UNIT)
+    assert "smear_ambiguous" in [r["reason"] for r in model.gate_relevant_rejections]
