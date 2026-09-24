@@ -28,6 +28,8 @@ def execute_pipeline(
     mapping_timeout: float | None = None,
     settings: RuntimeSettings | None = None,
     configuration: Path | None = None,
+    engine: str | None = None,
+    assay: str | None = None,
 ) -> None:
     """Run the full MucOneSpan pipeline."""
     from muc_one_span.alleles import detect_alleles, parse_idxstats
@@ -66,6 +68,7 @@ def execute_pipeline(
         mapping_timeout=mapping_timeout
         if mapping_timeout is not None
         else (settings or DEFAULT_SETTINGS).run.mapping_timeout,
+        **{k: v for k, v in (("engine", engine), ("assay", assay)) if v is not None},
     )
     if reference is None and (
         settings.repeat_dictionary is not None
@@ -88,6 +91,10 @@ def execute_pipeline(
     configuration_record = write_run_configuration(
         settings, configuration, Path(input_path), ref, out
     )
+    if settings.run.engine == "hybrid":  # Temporary: removed when the engine lands.
+        raise click.BadParameter(
+            "the hybrid engine is not available in this build", param_hint="--engine"
+        )
     igv_requested = settings.run.report_igv != "off"
     check_tools(
         ["minimap2", "samtools", "bcftools", "run_clair3.sh"]
