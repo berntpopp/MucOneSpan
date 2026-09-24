@@ -94,19 +94,35 @@ def clopper_pearson(k: int, n: int, alpha: float = 0.05) -> tuple[float, float]:
     return lower, upper
 
 
+_LOG_HALF = math.log(0.5)
+_MCNEMAR_TOL = 1e-9  # absolute log-probability slack so symmetric pmf[i]/pmf[n-i]
+# ties (equal up to lgamma's floating-point rounding) are never split apart.
+
+
+def _log_binom_pmf(n: int, k: int) -> float:
+    """log P(X = k) for X ~ Binomial(n, 0.5), via math.lgamma (no big-int conversion)."""
+    return math.lgamma(n + 1) - math.lgamma(k + 1) - math.lgamma(n - k + 1) + n * _LOG_HALF
+
+
 def mcnemar_exact(b: int, c: int) -> float:
     """Exact two-sided McNemar test: binomial(n=b+c, p=0.5) test on the discordant pairs.
 
     Two-sided p-value is the sum of all Binomial(n, 0.5) point probabilities
     that are <= the observed count's probability (matches R `binom.test`'s
-    two-sided method), capped at 1.0.
+    two-sided method), capped at 1.0. Computed in log-space (`math.lgamma`,
+    as `_betai` already does) rather than via `math.comb(n, i) * 0.5**n`:
+    for n above ~1030, `math.comb`'s exact integer result is too large to
+    convert to a Python float at all (`OverflowError`), which the log-space
+    binomial pmf never hits (every log-pmf value is <= 0, so `math.exp` of
+    it never overflows).
     """
     n = b + c
     if n == 0:
         return 1.0
-    pmf = [math.comb(n, i) * (0.5**n) for i in range(n + 1)]
-    observed = pmf[b]
-    return min(sum(p for p in pmf if p <= observed), 1.0)
+    log_pmf = [_log_binom_pmf(n, i) for i in range(n + 1)]
+    observed = log_pmf[b]
+    total = sum(math.exp(lp) for lp in log_pmf if lp <= observed + _MCNEMAR_TOL)
+    return min(total, 1.0)
 
 
 def holm(pvalues: dict[str, float]) -> dict[str, float]:
@@ -187,7 +203,12 @@ def noninferior(
     Uses one-sided Wilson score bounds at z = `_norm_ppf(1 - alpha)` (z=1.6449
     for alpha=0.05) combined per Newcombe's method 10; noninferior iff the
     upper bound of the difference is strictly below `margin`.
+
+    Raises `ValueError` if `n_new` or `n_ref` is 0 (undefined proportion),
+    rather than letting the division raise `ZeroDivisionError`.
     """
+    if n_new == 0 or n_ref == 0:
+        raise ValueError("noninferior requires n_new > 0 and n_ref > 0")
     z = _norm_ppf(1 - alpha)
     p_new, p_ref = fp_new / n_new, fp_ref / n_ref
     diff = p_new - p_ref
@@ -227,7 +248,11 @@ def cluster_bootstrap(
     which cluster is picked cannot change the pooled composition. That is
     correct cluster-bootstrap behaviour, not a bug — see
     `test_cluster_bootstrap_identical_clusters_is_degenerate`.
+
+    Raises `ValueError` if `rows` is empty (no point estimate is defined).
     """
+    if not rows:
+        raise ValueError("cluster_bootstrap requires at least one row")
     groups: dict[Any, list[dict[str, Any]]] = {}
     for row in rows:
         groups.setdefault(row[key], []).append(row)

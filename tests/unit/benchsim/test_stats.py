@@ -30,14 +30,38 @@ def test_mcnemar_exact() -> None:
     assert mcnemar_exact(1, 9) == pytest.approx(0.02148, abs=1e-5)
 
 
+def test_mcnemar_exact_at_test_split_scale_no_overflow() -> None:
+    # n = b + c = 2400 (the plan's `test` split size). The old
+    # math.comb(n, i) * 0.5**n implementation raised OverflowError above
+    # n ~= 1030 (comb(n, n//2) too large to convert to float); this must
+    # work at benchmark scale. Reference: R binom.test(1150, 2400)$p.value
+    # and binom.test(1200, 2400)$p.value.
+    assert mcnemar_exact(1150, 1250) == pytest.approx(0.04327505, abs=1e-6)
+    assert mcnemar_exact(1200, 1200) == 1.0
+
+
 def test_holm_monotone() -> None:
     adj = holm({"a": 0.01, "b": 0.04, "c": 0.03})
     assert adj == pytest.approx({"a": 0.03, "b": 0.06, "c": 0.06})
 
 
+def test_holm_caps_at_one() -> None:
+    # Raw Holm-adjusted p-values (2 * 0.8 = 1.6, 1 * 0.9 = 0.9) both exceed
+    # or approach 1.0 once the running max is applied; both must be capped.
+    adj = holm({"a": 0.9, "b": 0.8})
+    assert adj == {"a": 1.0, "b": 1.0}
+
+
 def test_noninferiority() -> None:
     assert noninferior(0, 280, 0, 280)["noninferior"] is False  # CI too wide at n=280
     assert noninferior(0, 2000, 0, 2000)["noninferior"] is True
+
+
+def test_noninferiority_rejects_zero_n() -> None:
+    with pytest.raises(ValueError, match="n_new"):
+        noninferior(0, 0, 0, 280)
+    with pytest.raises(ValueError, match="n_new"):
+        noninferior(0, 280, 0, 0)
 
 
 def test_noninferiority_alpha_widens_or_narrows_bound() -> None:
@@ -72,3 +96,8 @@ def test_cluster_bootstrap_single_replicate() -> None:
     mean, lo, hi = cluster_bootstrap(rows, "g", lambda r: r["ok"], n=1, seed=0)
     assert mean == 0.5
     assert lo == hi  # a single replicate has no percentile spread
+
+
+def test_cluster_bootstrap_rejects_empty_rows() -> None:
+    with pytest.raises(ValueError, match="at least one row"):
+        cluster_bootstrap([], "g", lambda r: r["ok"])
