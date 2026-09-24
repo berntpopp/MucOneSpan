@@ -104,6 +104,28 @@ def test_cluster_helpers_are_reexported():
     assert alleles._find_clusters is ladder_clusters._find_clusters
 
 
+def test_alleles_has_no_all_and_preserves_star_import_surface():
+    """The Task 4 split must not shrink or alter ``from alleles import *``.
+
+    ``alleles.py`` had no ``__all__`` before Task 4 (#74), so a star-import
+    pulled in every non-underscore module-level name. Re-exporting the
+    moved names must not introduce an ``__all__`` (which would silently
+    narrow that surface) and must not star-export the private
+    ``_find_clusters`` helper, even though it is directly accessible as
+    ``alleles._find_clusters`` for patch targets.
+    """
+    assert not hasattr(alleles, "__all__")
+    public_names = {n for n in vars(alleles) if not n.startswith("_")}
+    assert "_find_clusters" not in public_names
+    assert {
+        "AlleleInfo",
+        "AlleleResult",
+        "parse_idxstats",
+        "detect_alleles",
+        "refine_peak_contig",
+    } <= public_names
+
+
 class TestDetectAlleles:
     """Tests for allele detection via peak finding."""
 
