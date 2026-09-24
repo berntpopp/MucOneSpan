@@ -363,8 +363,9 @@ NEGATIVE additionally requires:
 - adequate per-allele depth.
 - no caller-stage discordance (`stage_concordance.status` is not `discordant_frameshift`).
 
-Summaries without per-allele depth fall back to the 30-read total. The gates can
-only lower certainty; PATHOGENIC lists remaining problems as quality caveats.
+Summaries without per-allele depth fall back to `clinical_decision.legacy_min_total_reads`
+(default 30). The gates can only lower certainty; PATHOGENIC lists remaining
+problems as quality caveats.
 
 The full pipeline passes an `analysis_completed` rendering context after all
 analysis stages succeed. This means analysis completed and the report is being

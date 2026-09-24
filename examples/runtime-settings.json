@@ -65,5 +65,9 @@
     "min_units": 1,
     "max_units": 150
   },
+  "clinical_decision": {
+    "max_ambiguous_bases": 10,
+    "legacy_min_total_reads": 30
+  },
   "repeat_dictionary": null
 }

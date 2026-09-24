@@ -5,7 +5,7 @@ from __future__ import annotations
 import json
 import logging
 import math
-from collections.abc import Mapping
+from collections.abc import Callable, Mapping
 from dataclasses import asdict, dataclass, field, fields
 from pathlib import Path
 from typing import Any
@@ -312,6 +312,23 @@ class ReferenceLayoutSettings:
 
 
 @dataclass(frozen=True)
+class ClinicalDecisionSettings:
+    """Thresholds for the report's final clinical decision banner (``report.py``).
+
+    Defaults reproduce v0.16.0 exactly: a summed ambiguous-base count above
+    ``max_ambiguous_bases`` and, for legacy summaries without per-allele depth,
+    a total read count below ``legacy_min_total_reads`` each block NEGATIVE.
+    """
+
+    max_ambiguous_bases: int = 10
+    legacy_min_total_reads: int = 30
+
+    def __post_init__(self) -> None:
+        _integer("clinical_decision.max_ambiguous_bases", self.max_ambiguous_bases, 0)
+        _integer("clinical_decision.legacy_min_total_reads", self.legacy_min_total_reads, 1)
+
+
+@dataclass(frozen=True)
 class RuntimeSettings:
     """Complete schema-one settings; sections remain immutable when passed to workers."""
 
@@ -324,6 +341,7 @@ class RuntimeSettings:
     calling: CallingSettings = field(default_factory=CallingSettings)
     read_phasing: ReadPhasingSettings = field(default_factory=ReadPhasingSettings)
     reference_layout: ReferenceLayoutSettings = field(default_factory=ReferenceLayoutSettings)
+    clinical_decision: ClinicalDecisionSettings = field(default_factory=ClinicalDecisionSettings)
     repeat_dictionary: str | None = None
 
     def __post_init__(self) -> None:
@@ -344,6 +362,7 @@ _SECTIONS = {
     "calling": CallingSettings,
     "read_phasing": ReadPhasingSettings,
     "reference_layout": ReferenceLayoutSettings,
+    "clinical_decision": ClinicalDecisionSettings,
 }
 DEFAULT_SETTINGS = RuntimeSettings()
 DEFAULT_LAYOUT = DEFAULT_SETTINGS.reference_layout
@@ -369,6 +388,42 @@ def _resolve_path(value: str | None, folder: Path) -> str | None:
     return str((folder / path).resolve())
 
 
+def _coerce_reference_layout_lists(values: dict[str, Any]) -> None:
+    """Turn JSON arrays into the hashable tuples ``ReferenceLayoutSettings`` requires."""
+    for key in ("pre", "after"):
+        if key not in values:
+            continue
+        value = values[key]
+        if not isinstance(value, list):
+            raise ValueError(f"reference_layout.{key} must be a JSON array")
+        values[key] = tuple(value)
+
+
+def build_settings_section(
+    name: str,
+    constructor: type,
+    values: object,
+    *,
+    preprocess: Callable[[dict[str, Any]], None] | None = None,
+) -> Any:
+    """Build one settings section from a JSON object: shared by a configuration file's
+    sections (``load_settings``) and a recorded ``configuration.settings`` section
+    (``decision_settings.resolve_decision_settings``).
+
+    A field missing from *values* keeps the dataclass default. An unrecognised
+    field always raises ``ValueError`` (never a bare ``TypeError`` from unpacking
+    a non-mapping, and never silently ignored or defaulted).
+    """
+    if not isinstance(values, dict):
+        raise ValueError(f"{name} must be a JSON object")
+    unknown = values.keys() - {f.name for f in fields(constructor)}
+    if unknown:
+        raise ValueError(f"Unknown {name} fields: {', '.join(sorted(unknown))}")
+    if preprocess is not None:
+        preprocess(values)
+    return constructor(**values)
+
+
 def load_settings(path: Path | None) -> RuntimeSettings:
     """Load strict schema-one JSON, resolving resource paths relative to its location.
 
@@ -391,21 +446,8 @@ def load_settings(path: Path | None) -> RuntimeSettings:
     for name, constructor in _SECTIONS.items():
         if name not in data:
             continue
-        values = data[name]
-        if not isinstance(values, dict):
-            raise ValueError(f"{name} must be a JSON object")
-        unknown = values.keys() - {f.name for f in fields(constructor)}
-        if unknown:
-            raise ValueError(f"Unknown {name} fields: {', '.join(sorted(unknown))}")
-        if name == "reference_layout":
-            for key in ("pre", "after"):
-                if key not in values:
-                    continue
-                value = values[key]
-                if not isinstance(value, list):
-                    raise ValueError(f"reference_layout.{key} must be a JSON array")
-                values[key] = tuple(value)
-        data[name] = constructor(**values)
+        preprocess = _coerce_reference_layout_lists if name == "reference_layout" else None
+        data[name] = build_settings_section(name, constructor, data[name], preprocess=preprocess)
     settings = RuntimeSettings(**data)
     consensus, legacy = settings.consensus, ConsensusSettings()
     if (consensus.haploid_majority, consensus.haploid_min_qual) != (

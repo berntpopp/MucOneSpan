@@ -155,6 +155,22 @@ unresolved phase evidence have explicit statuses; execution failures from an
 available tool remain visible. The helper preserves its genotype and common
 phase-set checks. It does not introduce a read-count support floor.
 
+### Clinical decision
+
+| Section.field | Default | Meaning and validation |
+| --- | --- | --- |
+| `clinical_decision.max_ambiguous_bases` | `10` | Summed classification `ambiguous_bases` across both alleles above which the report banner becomes INCONCLUSIVE; integer >=0. |
+| `clinical_decision.legacy_min_total_reads` | `30` | Total-read fallback for a summary without per-allele `depth_status` (see the per-allele gates above); below it, the banner becomes INCONCLUSIVE. Integer >=1. |
+
+These thresholds are resolved by `report.compute_clinical_decision`: an
+explicit `settings` argument overrides a `clinical_decision` section recorded
+under a summary's `configuration.settings` (written by a prior `run`), which
+overrides these central defaults. The resolved values and their source
+(`explicit`, `recorded_configuration`, or `default`) are returned under the
+decision's `"thresholds"` key. A recorded section with an unknown field or an
+out-of-range value raises the same `ValueError` as an invalid configuration
+file; it is never silently ignored or defaulted.
+
 ### Dictionary, selected layout and ladder range
 
 | Section.field | Default | Meaning and validation |

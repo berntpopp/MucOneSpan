@@ -14,6 +14,7 @@ from muc_one_span.settings import (
     AlleleSelectionSettings,
     CallingSettings,
     ClassificationSettings,
+    ClinicalDecisionSettings,
     ConfidenceSettings,
     ConsensusSettings,
     ReadPhasingSettings,
@@ -38,6 +39,8 @@ def test_default_configuration_roundtrip_and_immutability(tmp_path: Path) -> Non
     assert settings.reference_layout.fixed_repeat_count == 9
     assert settings.reference_layout.left_anchor_id == "1"
     assert settings.reference_layout.right_anchor_id == "9"
+    assert settings.clinical_decision.max_ambiguous_bases == 10
+    assert settings.clinical_decision.legacy_min_total_reads == 30
     path = tmp_path / "settings.json"
     path.write_text(json.dumps(settings_as_dict(settings)))
     assert load_settings(path) == settings
@@ -58,6 +61,7 @@ def test_default_configuration_roundtrip_and_immutability(tmp_path: Path) -> Non
         '{"schema_version":1,"run":null}',
         '{"schema_version":1,"run":[]}',
         '{"schema_version":1,"run":{"unknown":2}}',
+        '{"schema_version":1,"clinical_decision":{"x":1}}',
         '{"schema_version":1,"schema_version":1}',
         '{"schema_version":1,"run":{"threads":2,"threads":4}}',
         '{"schema_version":1,"run":{"min_qual":NaN}}',
@@ -135,6 +139,9 @@ def test_bad_json_configuration_is_rejected(tmp_path: Path, contents: str) -> No
         (ReferenceLayoutSettings, {"pre": ("6",)}),
         (ReferenceLayoutSettings, {"after": ("",)}),
         (ReferenceLayoutSettings, {"after": (9,)}),
+        (ClinicalDecisionSettings, {"max_ambiguous_bases": -1}),
+        (ClinicalDecisionSettings, {"max_ambiguous_bases": True}),
+        (ClinicalDecisionSettings, {"legacy_min_total_reads": 0}),
         (RuntimeSettings, {"schema_version": 2}),
         (RuntimeSettings, {"run": {}}),
         (RuntimeSettings, {"repeat_dictionary": 1}),
@@ -306,6 +313,22 @@ def test_stage_discordance_settings_defaults_and_roundtrip(tmp_path: Path) -> No
     assert settings.calling.stage_discordance_min_depth == 25
     path.write_text(json.dumps(settings_as_dict(settings)))
     assert load_settings(path) == settings
+
+
+def test_clinical_decision_settings_defaults_and_roundtrip(tmp_path: Path) -> None:
+    settings = ClinicalDecisionSettings()
+    assert (settings.max_ambiguous_bases, settings.legacy_min_total_reads) == (10, 30)
+    path = tmp_path / "settings.json"
+    path.write_text(
+        '{"schema_version": 1, "clinical_decision": '
+        '{"max_ambiguous_bases": 20, "legacy_min_total_reads": 45}}'
+    )
+    loaded = load_settings(path)
+    assert loaded.clinical_decision == ClinicalDecisionSettings(
+        max_ambiguous_bases=20, legacy_min_total_reads=45
+    )
+    path.write_text(json.dumps(settings_as_dict(loaded)))
+    assert load_settings(path) == loaded
 
 
 def test_selection_gate_settings_are_validated() -> None:
