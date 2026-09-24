@@ -11,6 +11,11 @@ from typing import Any
 SUPPORTED_VCF_STATUSES = frozenset({"exact_sequence_concordance"})
 # Per-allele depth statuses that block a negative call and a PATHOGENIC carrier.
 LOW_DEPTH_STATUSES = frozenset({"low", "insufficient"})
+ADEQUATE_DEPTH = "adequate"
+# "No per-allele depth measured" (the ladder marks both alleles so without a BAM). It
+# defers to the legacy total-read gate only while no allele carries an assessed status.
+DEPTH_NOT_ASSESSED = "not_assessed"
+ASSESSED_DEPTH_STATUSES = frozenset({ADEQUATE_DEPTH, *LOW_DEPTH_STATUSES})
 # read_support.status values a producer may emit; only "supported" is support.
 READ_SUPPORT_STATUSES = frozenset(
     {"supported", "insufficient_depth", "discordant", "not_supported", "not_localized"}
@@ -76,8 +81,41 @@ def mutation_blockers(mutation: dict[str, Any]) -> list[str]:
     return blockers
 
 
-def allele_gate_reasons(info: Any, label: str) -> list[str]:
-    """Reasons an allele's selection, genotype, length or depth prevents a negative call."""
+def depth_assessed(alleles: list[Any]) -> bool:
+    """True when any allele carries an assessed per-allele depth status."""
+    return any(
+        isinstance(info, dict) and info.get("depth_status") in ASSESSED_DEPTH_STATUSES
+        for info in alleles
+    )
+
+
+def depth_gate_failure(info: Any, *, assessed: bool = True) -> str | None:
+    """The allele's failing depth status, or None when its per-allele depth gate passes.
+
+    Low statuses always fail. When ``depth_basis`` is present the gate fails closed on
+    any status other than ``"adequate"`` (a typo, a missing value or an unknown
+    producer value), except ``"not_assessed"`` while no allele is ``assessed`` (the
+    legacy total-read fallback then applies). Legacy summaries without a basis keep
+    their historical behaviour.
+    """
+    if not isinstance(info, dict):
+        return None
+    status = info.get("depth_status")
+    if status in LOW_DEPTH_STATUSES:
+        return str(status)
+    if not info.get("depth_basis") or status == ADEQUATE_DEPTH:
+        return None
+    if status == DEPTH_NOT_ASSESSED and not assessed:
+        return None
+    return "missing" if status is None else str(status)
+
+
+def allele_gate_reasons(info: Any, label: str, *, assessed: bool = True) -> list[str]:
+    """Reasons an allele's selection, genotype, length or depth prevents a negative call.
+
+    ``assessed`` says whether any allele of the sample has an assessed depth status
+    (see :func:`depth_gate_failure`); the fail-closed default treats it as assessed.
+    """
     if not isinstance(info, dict) or not info:
         return []
     reasons: list[str] = []
@@ -100,11 +138,18 @@ def allele_gate_reasons(info: Any, label: str) -> list[str]:
             f"{label}: reported length {length} differs from the consensus contig length "
             f"{reference_length}."
         )
-    if info.get("depth_status") in LOW_DEPTH_STATUSES:
-        basis = info.get("depth_basis") or "primary_alignment_records"
+    failed = depth_gate_failure(info, assessed=assessed)
+    basis = info.get("depth_basis") or "primary_alignment_records"
+    basis_label = _DEPTH_BASIS_LABELS.get(basis, basis)
+    if failed in LOW_DEPTH_STATUSES:
         reasons.append(
-            f"{label}: {info.get(basis)} {_DEPTH_BASIS_LABELS.get(basis, basis)}, below the "
+            f"{label}: {info.get(basis)} {basis_label}, below the "
             f"per-allele depth gate ({info.get('depth_threshold')})."
+        )
+    elif failed is not None:
+        reasons.append(
+            f"{label}: per-allele depth status {failed!r} ({basis_label}) is not "
+            f"'{ADEQUATE_DEPTH}'; the depth gate fails closed."
         )
     genotype = info.get("allele_genotype_status")
     if genotype in _GENOTYPE_REASONS:

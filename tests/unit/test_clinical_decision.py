@@ -397,3 +397,32 @@ def test_selection_message_omits_missing_secondary_fraction() -> None:
     )
     reason = next(d for d in decision["details"] if "allele selection unresolved" in d)
     assert "secondary mode fraction" not in reason and "peak 80u" in reason
+
+
+def test_unknown_depth_status_fails_closed_when_other_allele_is_adequate() -> None:
+    decision = compute_clinical_decision(_hybrid_summary(depth_status="bogus"))
+    assert decision["state"] == "INCONCLUSIVE"
+    assert any("Allele 2" in d and "'bogus'" in d for d in decision["details"])
+
+
+def test_not_assessed_depth_beside_an_assessed_allele_fails_closed() -> None:
+    negative = _hybrid_summary(depth_status="not_assessed")
+    assert compute_clinical_decision(negative)["state"] == "INCONCLUSIVE"
+    positive = _hybrid_summary()
+    positive["classifications"]["allele_1"]["mutations"] = [dict(SUPPORTED)]
+    positive["alleles"]["allele_1"]["depth_status"] = "bogus"
+    decision = compute_clinical_decision(positive)
+    assert decision["state"] == "INCONCLUSIVE"
+    assert any(
+        "carrying allele depth status 'bogus' is not adequate" in d for d in decision["details"]
+    )
+
+
+def test_ladder_not_assessed_on_both_alleles_keeps_legacy_fallback() -> None:
+    """Ladder without a BAM marks both alleles not_assessed; total reads decide."""
+    summary = _gated_summary()
+    for key in ("allele_1", "allele_2"):
+        summary["alleles"][key].update(
+            depth_status="not_assessed", depth_basis="primary_alignment_records", reads=40
+        )
+    assert compute_clinical_decision(summary)["state"] == "NO_PATHOGENIC_VARIANT_DETECTED"

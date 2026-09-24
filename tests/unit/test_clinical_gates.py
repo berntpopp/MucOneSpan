@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from muc_one_span.clinical_gates import allele_gate_reasons, mutation_blockers
+from muc_one_span.clinical_gates import allele_gate_reasons, depth_gate_failure, mutation_blockers
 
 _MISMATCH = "differs from the consensus contig length"
 
@@ -65,4 +65,20 @@ def test_insufficient_depth_is_gated_like_low() -> None:
     }
     assert allele_gate_reasons(info, "Allele 1") == [
         "Allele 1: 7 spanning reads, below the per-allele depth gate (30)."
+    ]
+
+
+def test_depth_gate_fails_closed_on_unrecognised_status_with_a_basis() -> None:
+    basis = {"depth_basis": "spanning_reads"}
+    assert depth_gate_failure({**basis, "depth_status": "adequate"}) is None
+    assert depth_gate_failure({**basis, "depth_status": "bogus"}, assessed=False) == "bogus"
+    assert depth_gate_failure(basis) == "missing"
+    assert depth_gate_failure({**basis, "depth_status": "not_assessed"}) == "not_assessed"
+    assert depth_gate_failure({**basis, "depth_status": "not_assessed"}, assessed=False) is None
+    assert depth_gate_failure({"depth_status": "bogus"}) is None  # legacy: no basis
+    assert depth_gate_failure({"depth_status": "low"}, assessed=False) == "low"
+    reasons = allele_gate_reasons({**basis, "depth_status": "bogus"}, "Allele 2")
+    assert reasons == [
+        "Allele 2: per-allele depth status 'bogus' (spanning reads) is not 'adequate'; "
+        "the depth gate fails closed."
     ]
