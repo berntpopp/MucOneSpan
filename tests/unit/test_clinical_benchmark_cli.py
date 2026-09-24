@@ -56,6 +56,61 @@ def test_preparation_error_does_not_skip_later_runs(tmp_path, monkeypatch):
     assert records[0]["error"] == "synthetic corrupt input"
 
 
+def test_run_hashes_engine_and_assay_only_when_non_default(tmp_path, monkeypatch):
+    import json
+
+    spec = spec_from_file_location("clinical_benchmark", Path("scripts/clinical_benchmark.py"))
+    module = module_from_spec(spec)
+    spec.loader.exec_module(module)
+
+    manifest = tmp_path / "manifest.json"
+    manifest.write_text(json.dumps({"runs": []}))
+    environment = tmp_path / "environment.json"
+    environment.write_text(json.dumps({"model": {"path": "model.path"}}))
+    data_root = tmp_path / "data"
+    (data_root / "ERR1").mkdir(parents=True)
+    (data_root / "ERR1" / "preparation.json").write_text(json.dumps({"run_accession": "ERR1"}))
+
+    run = {"run_accession": "ERR1", "arm": "primary_amplicon"}
+    monkeypatch.setattr(module, "validate_inventory", lambda raw: {"runs": [run]})
+    monkeypatch.setattr(module, "verify_environment", lambda environment, checkout: None)
+
+    captured: list[dict] = []
+
+    def fake_run_case(run_arg, preparation, output_root, settings, *, resume=False):
+        captured.append(settings)
+        return {
+            "run_accession": run_arg["run_accession"],
+            "status": "completed",
+            "analysis_state": "completed",
+        }
+
+    monkeypatch.setattr(module, "run_case", fake_run_case)
+
+    def invoke(output_root, extra):
+        args = [
+            "run",
+            "--manifest",
+            str(manifest),
+            "--data-root",
+            str(data_root),
+            "--output-root",
+            str(output_root),
+            "--environment",
+            str(environment),
+            *extra,
+        ]
+        assert module.main(args) == 0
+
+    invoke(tmp_path / "out_default", [])
+    assert "engine" not in captured[-1]
+    assert "assay" not in captured[-1]
+
+    invoke(tmp_path / "out_hybrid", ["--engine", "hybrid", "--assay", "genomic"])
+    assert captured[-1]["engine"] == "hybrid"
+    assert captured[-1]["assay"] == "genomic"
+
+
 def test_load_records_merges_terminal_files_and_latest_failure_journal(tmp_path):
     import json
 

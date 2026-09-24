@@ -17,7 +17,7 @@ SCORING_POLICY = {
     "diploid_evidence": "identical sequence copies require distinct source IDs and explicit independent genotype evidence for duplicate recovery credit and all-sample exactness",
     "assignment": "maximum cardinality then minimum summed literal global Levenshtein distance; all optima",
     "events": "event_annotation_exact: 1-based total-repeat index, exact parent and name; multiset matching",
-    "supported_events": "frameshift AND template_match AND vcf_support are true AND vcf_support_status is exact_sequence_concordance",
+    "supported_events": "frameshift AND template_match AND vcf_support are true AND vcf_support_status is exact_sequence_concordance; OR frameshift AND template_match AND read_support_status is supported (hybrid engine)",
     "legacy_supported_events": "historical comparator: frameshift AND template_match AND vcf_support booleans only",
     "accuracy_migration": "sequence_accuracy and structure_accuracy are evidence-aware; literal_*_accuracy retains the former raw assigned-pair numerator",
     "missing_alleles": "missing_alleles is literal output cardinality; independent_missing_alleles additionally excludes unproven duplicate observations",
