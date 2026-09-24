@@ -48,6 +48,7 @@ from muc_one_span.benchsim.bench_config import (
     PERCENT,
     BenchConfig,
     ReportConfig,
+    TargetsConfig,
 )
 from muc_one_span.benchsim.preregistration import (
     first_evaluation,
@@ -57,6 +58,7 @@ from muc_one_span.benchsim.preregistration import (
     rule_sha256,
 )
 from muc_one_span.benchsim.stats import clopper_pearson, holm, mcnemar_exact, noninferior
+from muc_one_span.benchsim.targets import evaluate_targets, render_targets, targets_text
 
 __all__ = [
     "RULE_TEXT",
@@ -92,31 +94,41 @@ STRATA = (
 ALLELE_UNIT = ("sample", "allele")
 
 _RULE_TEMPLATE = (
-    "MucSim-Bench decision rule v3 (spec section 6). Adopt the candidate engine over the "
-    "baseline only if, for every profile: (1) it is superior on per-allele exact sequence "
-    "(unit: each truth allele of each case, exact under the least favourable optimal "
-    "assignment with independent haplotype evidence), by exact two-sided McNemar on "
-    "allele pairs (same (design_id, truth allele) keys for both engines), Holm-adjusted "
-    "across the primary family {{allele_exact, false_positive, critical_false_negative}} at "
-    "alpha {alpha:g}, with more candidate-only than baseline-only exact alleles; (2) it is "
-    "non-inferior on the false-positive PATHOGENIC rate among normal and benign truths "
-    "(Newcombe hybrid-score one-sided {level:g}% upper bound of candidate minus baseline below "
-    "{margin:g}); and (3) its count of pathogenic truths called NO_PATHOGENIC_VARIANT_DETECTED "
-    "or NO_CALL does not exceed the baseline's. Pooled per-allele and case-exact rates are "
-    "reported with {level:g}% cluster-bootstrap intervals over design_id ({replicates} "
-    "replicates, seed {seed}). Failed or unattempted runs count as NO_CALL with every truth "
-    "allele not exact; no case or allele is dropped. The rule applies to the `{headline}` "
-    "benchmark set only; other sets are reported descriptively and never decide adoption."
+    "MucSim-Bench decision rule v4 (spec section 6, plus the task 12e absolute targets). "
+    "Adopt the candidate engine over the baseline only if both parts hold. Part 1, the "
+    "relative rule, is decided on the `{headline}` benchmark set only (other sets are "
+    "reported descriptively and never decide it): for every profile, (1) the candidate is "
+    "superior on per-allele exact sequence (unit: each truth allele of each case, exact "
+    "under the least favourable optimal assignment with independent haplotype evidence), "
+    "by exact two-sided McNemar on allele pairs (same (design_id, truth allele) keys for "
+    "both engines), Holm-adjusted across the primary family {{allele_exact, false_positive, "
+    "critical_false_negative}} at alpha {alpha:g}, with more candidate-only than "
+    "baseline-only exact alleles; (2) it is non-inferior on the false-positive PATHOGENIC "
+    "rate among normal and benign truths (Newcombe hybrid-score one-sided {level:g}% upper "
+    "bound of candidate minus baseline below {margin:g}); and (3) its count of pathogenic "
+    "truths called NO_PATHOGENIC_VARIANT_DETECTED or NO_CALL does not exceed the "
+    "baseline's. Pooled per-allele and case-exact rates are reported with {level:g}% "
+    "cluster-bootstrap intervals over design_id ({replicates} replicates, seed {seed}). "
+    "Failed or unattempted runs count as NO_CALL with every truth allele not exact; no "
+    "case or allele is dropped. Part 2, the absolute targets (`targets.by_set`), "
+    "{targets_text}, on the candidate alone (no baseline comparison), pooled over every "
+    "profile of that set and on each profile separately; a bench set named in "
+    "`targets.by_set` with no candidate cases fails its targets. A bench set not named in "
+    "`targets.by_set` (for example `stress`) is reported without a target. Adopt only if "
+    "the relative rule and every target of every named set pass."
 )
 
 
 def rule_text(
     report: ReportConfig = DEFAULT_BENCH_CONFIG.report,
     headline_set: str = DEFAULT_BENCH_CONFIG.sets.headline,
+    targets: TargetsConfig = DEFAULT_BENCH_CONFIG.targets,
 ) -> str:
-    """The decision rule with its numbers from ``report`` (its SHA-256 is pre-registered).
+    """The decision rule with its numbers from ``report`` and ``targets`` (SHA-256 pre-registered).
 
-    ``headline_set`` is the only benchmark set the rule is applied to.
+    ``headline_set`` is the only set part 1 (the relative rule) is decided on; part 2
+    (the absolute targets) applies to every set named in ``targets.by_set``, whatever
+    ``headline_set`` is.
     """
     return _RULE_TEMPLATE.format(
         headline=headline_set,
@@ -125,6 +137,7 @@ def rule_text(
         margin=report.ni_margin,
         replicates=report.bootstrap_replicates,
         seed=report.bootstrap_seed,
+        targets_text=targets_text(targets),
     )
 
 
@@ -379,29 +392,42 @@ def decide(
     candidate: str,
     config: BenchConfig = DEFAULT_BENCH_CONFIG,
 ) -> dict[str, Any]:
-    """Apply `rule_text` per profile to the headline set; adopt only if every profile passes.
+    """Apply the decision rule's two parts (`rule_text`); adopt only if both hold (task 12e).
 
-    Rows of other benchmark sets (``bench_set``) are ignored.
+    Part 1, the relative rule, is per profile of ``config.sets.headline``, baseline vs.
+    candidate; rows of other benchmark sets (``bench_set``) are ignored by it. Part 2,
+    the absolute targets, is `targets.evaluate_targets` on the candidate alone, for
+    every set named in ``config.targets.by_set`` -- not restricted to the headline set.
     """
     cfg, headline = config.report, config.sets.headline
     base = [r for r in reports[baseline] if r.get("bench_set") == headline]
     cand = [r for r in reports[candidate] if r.get("bench_set") == headline]
     profiles = sorted({_key(r.get("profile")) for r in (*base, *cand)})
+    cand_all = reports[candidate]
+    target_results = {
+        name: evaluate_targets(
+            [r for r in cand_all if r.get("bench_set") == name], name, config.targets, cfg.alpha
+        )
+        for name in config.targets.by_set
+    }
     result: dict[str, Any] = {
         "baseline": baseline,
         "candidate": candidate,
         "bench_set": headline,
-        "rule_sha256": rule_sha256(rule_text(cfg, headline)),
+        "rule_sha256": rule_sha256(rule_text(cfg, headline, config.targets)),
         "holm_family": list(HOLM_FAMILY),
         "alpha": cfg.alpha,
         "margin": cfg.ni_margin,
         "profiles": {},
+        "targets": target_results,
     }
     for profile in profiles:
         b = [r for r in base if _key(r.get("profile")) == profile]
         c = [r for r in cand if _key(r.get("profile")) == profile]
         result["profiles"][profile] = _profile(b, c, cfg)
-    result["adopt"] = bool(profiles) and all(p["pass"] for p in result["profiles"].values())
+    relative_pass = bool(profiles) and all(p["pass"] for p in result["profiles"].values())
+    targets_pass = all(t["pass"] for t in target_results.values() if t is not None)
+    result["adopt"] = relative_pass and targets_pass
     return result
 
 
@@ -438,7 +464,9 @@ def _table_md(title: str, table: Sequence[dict[str, Any]]) -> list[str]:
 def render_markdown(result: dict[str, Any]) -> str:
     """Markdown summary of a ``decide`` result plus optional ``result["tables"]``.
 
-    Without a ``candidate`` no rule was applied, so no verdict is printed.
+    Without a ``candidate`` no rule was applied, so no verdict is printed. A verdict
+    covers both rule parts: the relative rule per profile (below) and, when present,
+    the absolute targets (task 12e) of every set in ``result["targets"]``.
     """
     verdict = "ADOPT" if result.get("adopt") else "NOT ADOPTED"
     lines = ["# MucSim-Bench report", ""]
@@ -448,14 +476,15 @@ def render_markdown(result: dict[str, Any]) -> str:
             "",
             f"Rule sha256: `{result.get('rule_sha256')}`",
             "",
-            f"Decided on benchmark set `{result.get('bench_set')}` only.",
+            f"Relative rule decided on benchmark set `{result.get('bench_set')}` only; "
+            "absolute targets are evaluated per set below.",
             "",
         ]
     else:
         lines += [result.get("note") or "Decision: not evaluated (no candidate; tables only).", ""]
     if result.get("profiles"):
         lines += [
-            "## Decision rule per profile",
+            "## Part 1: relative rule per profile",
             "",
             "Metric 1 is per-allele exact sequence (McNemar on allele pairs); FP is the "
             "PATHOGENIC rate over normal + benign truths, shown next to their no-call rate.",
@@ -480,7 +509,10 @@ def render_markdown(result: dict[str, Any]) -> str:
                 f"{prof['pass']} |"
             )
         lines.append("")
-    return "\n".join(lines) + "\n" + render_tables(result.get("tables") or {})
+    body = "\n".join(lines) + "\n"
+    if result.get("targets"):
+        body += "## Part 2: absolute targets\n\n" + render_targets(result["targets"]) + "\n"
+    return body + render_tables(result.get("tables") or {})
 
 
 def render_tables(tables: Mapping[str, Sequence[dict[str, Any]]]) -> str:

@@ -3,7 +3,7 @@ from dataclasses import replace
 
 import pytest
 
-from muc_one_span.benchsim.bench_config import DEFAULT_BENCH_CONFIG, BenchConfig
+from muc_one_span.benchsim.bench_config import DEFAULT_BENCH_CONFIG, BenchConfig, TargetsConfig
 from muc_one_span.benchsim.design import (
     CONSERVED_HEAD,
     CONSERVED_TAIL,
@@ -142,7 +142,10 @@ def test_design_factors_come_from_the_config() -> None:
     sets = replace(SETS, definitions=only, legacy="standard")
     atlas = replace(DEFAULT_BENCH_CONFIG.atlas, expected_inconclusive_sets=())
     cfg = BenchConfig(
-        design=replace(CFG, normal_fraction=0.5, length_min=40), sets=sets, atlas=atlas
+        design=replace(CFG, normal_fraction=0.5, length_min=40),
+        sets=sets,
+        atlas=atlas,
+        targets=TargetsConfig(by_set={}),
     )
     designs = build_split("val", 20, "salt", MUTS, cfg)
     assert {d.chimera for d in designs} == {0.02} and {d.pcr for d in designs} == {"none"}

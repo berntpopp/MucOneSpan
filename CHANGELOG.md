@@ -53,6 +53,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
   levels and ignores `simulator_threads`; the reason atlas treats the `stress`
   set as expected (`atlas.expected_inconclusive_sets`).
   `bench_config_sha256` stays the full provenance hash.
+- Owner-approved absolute targets in the decision rule (`targets` bench-config
+  section, task 12e): a candidate must, on top of beating the baseline, clear
+  a fixed floor or ceiling per bench set on `pathogenic_rate`,
+  `inconclusive_rate` and `false_positive_rate` (`clean` >= 0.90 / <= 0.10 /
+  <= 0, `standard` >= 0.80 / <= 0.20 / <= 0; `stress` has none), judged on the
+  point estimate or a Clopper-Pearson CI bound (`targets.basis`). `report`
+  evaluates every configured target for the candidate, pooled per set and per
+  profile, and writes a pass/fail table to `report.md` and `report.json`
+  (`decision.targets`); adoption now needs the relative rule and every named
+  set's targets to pass. The decision rule is now v4; a changed threshold,
+  comparator, basis or set membership needs a new pre-registration.
 
 ## [0.16.0] - 2026-09-24
 

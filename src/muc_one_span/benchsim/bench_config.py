@@ -27,7 +27,16 @@ from .bench_checks import check_names as _names
 from .bench_checks import check_num as _num
 from .bench_sets import SetsConfig
 
-__all__ = ["ERROR_LEVEL_NAMES", "PCR_LEVEL_NAMES", "SetsConfig"]
+__all__ = [
+    "ERROR_LEVEL_NAMES",
+    "PCR_LEVEL_NAMES",
+    "TARGET_BASIS_NAMES",
+    "TARGET_COMPARATOR_NAMES",
+    "TARGET_METRIC_NAMES",
+    "SetsConfig",
+    "Target",
+    "TargetsConfig",
+]
 
 SCHEMA_VERSION = 1
 PERCENT = 100  # probability -> percent (unit conversion)
@@ -54,6 +63,12 @@ ATLAS_STRATUM_NAMES = (
 # Depth compared with the atlas depth gate: the design target, or the lowest
 # realized spanning depth over the case's alleles (``case.json`` realized_depth).
 DEPTH_BASIS_NAMES = ("design", "realized_min_allele")
+# Owner-approved absolute targets (task 12e, `targets` section): metrics a bench set's
+# `targets.by_set` entry may name (`benchsim.targets`), comparators ("ge" >=, "le" <=,
+# candidate value vs. threshold) and how a target is judged (`benchsim.targets.evaluate_targets`).
+TARGET_METRIC_NAMES = ("pathogenic_rate", "inconclusive_rate", "false_positive_rate")
+TARGET_COMPARATOR_NAMES = ("ge", "le")
+TARGET_BASIS_NAMES = ("point", "ci_bound")
 # Sections that shape generated cases (designs, amounts, read profiles, structures).
 # With the case's own set levels (`BenchConfig.generation_sha256`) their hash decides
 # whether `generate` may reuse a case; report, realism, run and atlas settings, set
@@ -276,6 +291,72 @@ class ReportConfig:
 
 
 @dataclass(frozen=True)
+class Target:
+    """One absolute pass/fail check (task 12e): the judged value `comparator` `threshold`.
+
+    ``comparator`` is ``"ge"`` (>=, a rate floor such as PATHOGENIC-on-pathogenic) or
+    ``"le"`` (<=, a rate ceiling such as INCONCLUSIVE or false-positive). Validated by
+    `_check_targets`, which has the enclosing bench set and metric name for its errors.
+    """
+
+    comparator: str
+    threshold: float
+
+
+def _check_targets(set_name: str, metrics: Any) -> None:
+    key = f"targets.by_set.{set_name}"
+    if not isinstance(metrics, dict):
+        raise ValueError(f"{key} must be a JSON object")
+    for metric, target in metrics.items():
+        where = f"{key}.{metric}"
+        if metric not in TARGET_METRIC_NAMES:
+            raise ValueError(f"{where}: unknown metric (known: {', '.join(TARGET_METRIC_NAMES)})")
+        if not isinstance(target, Target):
+            raise ValueError(f"{where} must be a target object")
+        if target.comparator not in TARGET_COMPARATOR_NAMES:
+            raise ValueError(f"{where}.comparator must be one of {TARGET_COMPARATOR_NAMES!r}")
+        _num(f"{where}.threshold", target.threshold, 0, 1)
+
+
+@dataclass(frozen=True)
+class TargetsConfig:
+    """Owner-approved absolute targets per bench set (task 12e, spec section 6, `targets`).
+
+    ``basis`` decides how a target is judged (`benchsim.targets.evaluate_targets`): the
+    pooled/per-profile point estimate (``"point"``), or the Clopper-Pearson CI bound on
+    the side `comparator` cares about (``"ci_bound"``: the lower bound for ``"ge"``, the
+    upper bound for ``"le"``). ``by_set`` names, for each bench set, the metrics that gate
+    `report.decide`'s adoption verdict; a set absent from `by_set` (or mapped to an empty
+    object) is reported without a target, for example `stress`. Like `sets.definitions`,
+    overriding `by_set` in a bench-config file replaces the whole map.
+    """
+
+    basis: str = "point"
+    by_set: dict[str, dict[str, Target]] = field(
+        default_factory=lambda: {
+            "standard": {
+                "pathogenic_rate": Target("ge", 0.80),
+                "inconclusive_rate": Target("le", 0.20),
+                "false_positive_rate": Target("le", 0.0),
+            },
+            "clean": {
+                "pathogenic_rate": Target("ge", 0.90),
+                "inconclusive_rate": Target("le", 0.10),
+                "false_positive_rate": Target("le", 0.0),
+            },
+        }
+    )
+
+    def __post_init__(self) -> None:
+        if self.basis not in TARGET_BASIS_NAMES:
+            raise ValueError(f"targets.basis must be one of {TARGET_BASIS_NAMES!r}")
+        if not isinstance(self.by_set, dict):
+            raise ValueError("targets.by_set must be a JSON object")
+        for set_name, metrics in self.by_set.items():
+            _check_targets(set_name, metrics)
+
+
+@dataclass(frozen=True)
 class AtlasConfig:
     """Reason atlas of non-definitive decisions (`atlas`, docs/benchmark.md).
 
@@ -332,6 +413,7 @@ class BenchConfig:
     run: RunConfig = field(default_factory=RunConfig)
     atlas: AtlasConfig = field(default_factory=AtlasConfig)
     sets: SetsConfig = field(default_factory=SetsConfig)
+    targets: TargetsConfig = field(default_factory=TargetsConfig)
 
     def __post_init__(self) -> None:
         if self.schema_version != SCHEMA_VERSION:
@@ -346,6 +428,12 @@ class BenchConfig:
         if unknown:
             raise ValueError(
                 "atlas.expected_inconclusive_sets must name sets in sets.definitions "
+                f"(unknown: {', '.join(sorted(unknown))})"
+            )
+        unknown = set(self.targets.by_set) - set(self.sets.definitions)
+        if unknown:
+            raise ValueError(
+                "targets.by_set must name sets in sets.definitions "
                 f"(unknown: {', '.join(sorted(unknown))})"
             )
 

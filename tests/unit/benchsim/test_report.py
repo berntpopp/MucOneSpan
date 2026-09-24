@@ -7,7 +7,7 @@ from typing import Any
 
 import pytest
 
-from muc_one_span.benchsim.bench_config import DEFAULT_BENCH_CONFIG, BenchConfig
+from muc_one_span.benchsim.bench_config import DEFAULT_BENCH_CONFIG, BenchConfig, TargetsConfig
 from muc_one_span.benchsim.report import (
     ALLELE_UNIT,
     RULE_TEXT,
@@ -44,6 +44,9 @@ def _rows(
 
 
 HEADLINE = DEFAULT_BENCH_CONFIG.sets.headline
+# Bypasses the task 12e absolute targets (part 2) so pre-12e fixtures that exercise only
+# the relative rule (part 1) do not also need pathogenic/decision/inconclusive fields.
+NO_TARGETS = BenchConfig(targets=TargetsConfig(by_set={}))
 
 
 def test_paired_counts_discordant() -> None:
@@ -56,9 +59,10 @@ def test_decide_requires_superiority_and_noninferiority() -> None:
     n = 3000
     base = _rows([0] * n, [0] * n)
     cand = _rows([1] * n, [0] * n)
-    assert decide({"ladder": base, "hybrid": cand}, "ladder", "hybrid")["adopt"] is True
+    assert decide({"ladder": base, "hybrid": cand}, "ladder", "hybrid", NO_TARGETS)["adopt"] is True
     worse = _rows([1] * n, [1] * 50 + [0] * (n - 50))
-    assert decide({"ladder": base, "hybrid": worse}, "ladder", "hybrid")["adopt"] is False
+    result = decide({"ladder": base, "hybrid": worse}, "ladder", "hybrid", NO_TARGETS)
+    assert result["adopt"] is False
 
 
 def test_sealed_split_requires_preregistration(tmp_path: Path) -> None:
@@ -255,7 +259,7 @@ def test_decide_pairs_alleles_not_cases() -> None:
         row["alleles"] = [{"allele": "h1", "allele_exact": 0}, {"allele": "h2", "allele_exact": 0}]
     for row in cand:
         row["alleles"][1]["allele_exact"] = 1
-    exact = decide({"ladder": base, "hybrid": cand}, "ladder", "hybrid")["profiles"][
+    exact = decide({"ladder": base, "hybrid": cand}, "ladder", "hybrid", NO_TARGETS)["profiles"][
         "ont_amplicon_r10"
     ]["allele_exact"]
     assert (exact["n"], exact["b"], exact["c"]) == (2 * n, 0, n) and exact["superior"] is True
@@ -266,7 +270,7 @@ def test_decide_rejects_critical_false_negative_increase() -> None:
     base = _rows([0] * n, [0] * n)
     cand = _rows([1] * n, [0] * n)
     cand[0]["critical_false_negative"] = 1
-    result = decide({"ladder": base, "hybrid": cand}, "ladder", "hybrid")
+    result = decide({"ladder": base, "hybrid": cand}, "ladder", "hybrid", NO_TARGETS)
     prof = result["profiles"]["ont_amplicon_r10"]
     assert prof["critical_false_negative"]["pass"] is False and result["adopt"] is False
 
@@ -277,12 +281,12 @@ def test_decide_every_profile_must_pass_and_needs_normals() -> None:
     cand = _rows([1] * n, [0] * n) + _rows([0] * 10, [0] * 10, profile="hifi_amplicon")
     for i, row in enumerate(base[n:] + cand[n:]):
         row["sample"] = f"h{i % 10}"
-    result = decide({"ladder": base, "hybrid": cand}, "ladder", "hybrid")
+    result = decide({"ladder": base, "hybrid": cand}, "ladder", "hybrid", NO_TARGETS)
     assert result["profiles"]["ont_amplicon_r10"]["pass"] is True
     assert result["profiles"]["hifi_amplicon"]["pass"] is False and result["adopt"] is False
     for row in base + cand:
         row["normal"] = False
-    no_normals = decide({"ladder": base, "hybrid": cand}, "ladder", "hybrid")
+    no_normals = decide({"ladder": base, "hybrid": cand}, "ladder", "hybrid", NO_TARGETS)
     fp = no_normals["profiles"]["ont_amplicon_r10"]["false_positive"]
     assert fp["noninferior"] is False and fp["n"] == 0 and no_normals["adopt"] is False
 
@@ -290,7 +294,10 @@ def test_decide_every_profile_must_pass_and_needs_normals() -> None:
 def test_decide_holm_adjusts_primary_family() -> None:
     n = 3000
     result = decide(
-        {"ladder": _rows([0] * n, [0] * n), "hybrid": _rows([1] * n, [0] * n)}, "ladder", "hybrid"
+        {"ladder": _rows([0] * n, [0] * n), "hybrid": _rows([1] * n, [0] * n)},
+        "ladder",
+        "hybrid",
+        NO_TARGETS,
     )
     exact = result["profiles"]["ont_amplicon_r10"]["allele_exact"]
     assert exact["p_holm"] >= exact["p"]
@@ -320,6 +327,31 @@ def test_preregister_is_append_only_and_hashes_rule(tmp_path: Path) -> None:
     assert matched == {"sha256": first, "registered_at": entries[0]["registered_at"]}
 
 
+def test_changing_a_target_requires_a_new_pre_registration(tmp_path: Path) -> None:
+    path = tmp_path / "test" / "preregistration.jsonl"
+    preregister(RULE_TEXT, path)
+    require_preregistered(path, RULE_TEXT)  # the registered (default-targets) rule seals test
+    changed_threshold = DEFAULT_BENCH_CONFIG.targets.by_set["clean"]["pathogenic_rate"]
+    changed = replace(
+        DEFAULT_BENCH_CONFIG.targets,
+        by_set=DEFAULT_BENCH_CONFIG.targets.by_set
+        | {
+            "clean": DEFAULT_BENCH_CONFIG.targets.by_set["clean"]
+            | {"pathogenic_rate": replace(changed_threshold, threshold=0.95)}
+        },
+    )
+    text = rule_text(targets=changed)
+    assert rule_sha256(text) != rule_sha256(RULE_TEXT)
+    with pytest.raises(PermissionError, match="not pre-registered"):
+        require_preregistered(path, text)
+    preregister(text, path)
+    require_preregistered(path, text)  # now registered too
+
+    # A basis change (point vs. ci_bound) also changes the sha256.
+    ci_text = rule_text(targets=replace(DEFAULT_BENCH_CONFIG.targets, basis="ci_bound"))
+    assert rule_sha256(ci_text) != rule_sha256(RULE_TEXT) != rule_sha256(ci_text)
+
+
 def test_preregister_refused_after_test_evaluated(tmp_path: Path) -> None:
     path = tmp_path / "test" / "preregistration.jsonl"
     preregister(RULE_TEXT, path)
@@ -336,21 +368,25 @@ def test_rule_text_names_the_per_allele_endpoint() -> None:
 
 
 def test_default_rule_text_is_unchanged_by_the_config_refactor() -> None:
-    # SHA-256 of the v3 rule text (v2 plus the headline-set scope, Task 12c); a
+    # SHA-256 of the v4 rule text (v3 plus the task 12e absolute targets); a
     # changed default would silently invalidate existing pre-registrations.
-    pinned = "790ee0d253dabdc95b1a08007ed57a1fddcd1becaf00114e697d5cf07f4cfbfe"
+    pinned = "d78dfa91baf41ba03597742f54efa56987701484151456ebef44b8ac498f7da7"
     assert rule_text(DEFAULT_BENCH_CONFIG.report) == RULE_TEXT
     assert rule_sha256(RULE_TEXT) == pinned
 
 
 def test_rule_text_and_decision_follow_the_report_config() -> None:
     report = replace(DEFAULT_BENCH_CONFIG.report, ni_margin=0.25, alpha=0.1)
-    text = rule_text(report)
+    empty = NO_TARGETS.targets
+    text = rule_text(report, targets=empty)
     assert "below 0.25" in text and "alpha 0.1" in text and "one-sided 90%" in text
     n = 30
     base, cand = _rows([0] * n, [0] * n), _rows([1] * n, [0] * n)
     result = decide(
-        {"ladder": base, "hybrid": cand}, "ladder", "hybrid", BenchConfig(report=report)
+        {"ladder": base, "hybrid": cand},
+        "ladder",
+        "hybrid",
+        BenchConfig(report=report, targets=empty),
     )
     assert result["margin"] == 0.25 and result["alpha"] == 0.1
     assert result["rule_sha256"] == rule_sha256(text)
@@ -366,7 +402,10 @@ def test_require_preregistered_rejects_corrupt_ledger(tmp_path: Path) -> None:
 def test_render_markdown_lists_profiles_and_verdict() -> None:
     n = 3000
     result = decide(
-        {"ladder": _rows([0] * n, [0] * n), "hybrid": _rows([1] * n, [0] * n)}, "ladder", "hybrid"
+        {"ladder": _rows([0] * n, [0] * n), "hybrid": _rows([1] * n, [0] * n)},
+        "ladder",
+        "hybrid",
+        NO_TARGETS,
     )
     result["tables"] = {
         "allele_exact by profile": stratified_table(
@@ -414,7 +453,9 @@ def test_decide_uses_only_headline_rows() -> None:
     base, cand = _rows([0] * n, [0] * n), _rows([1] * n, [0] * n)
     stress = [r | {"sample": f"x{i}", "bench_set": "stress"} for i, r in enumerate(base)]
     worse = [r | {"false_positive": 1} for r in stress]
-    result = decide({"ladder": base + stress, "hybrid": cand + worse}, "ladder", "hybrid")
+    result = decide(
+        {"ladder": base + stress, "hybrid": cand + worse}, "ladder", "hybrid", NO_TARGETS
+    )
     assert result["adopt"] is True and result["bench_set"] == HEADLINE
     assert result["profiles"]["ont_amplicon_r10"]["n"] == n
 
@@ -430,3 +471,116 @@ def test_normalize_rows_records_the_set() -> None:
     assert named["bench_set"] == "clean"
     (other,) = normalize_rows(report, {"p": case}, legacy_set="standard")
     assert other["bench_set"] == "standard"
+
+
+# --- absolute targets (task 12e) ------------------------------------------------------
+
+
+def _target_row(
+    sample: str, profile: str, bench_set: str, exact: int, truth: str, decision: str
+) -> dict[str, Any]:
+    """A normalized case row exercising both the relative rule and the absolute targets."""
+    fp = int(decision == "PATHOGENIC" and truth in ("normal", "benign"))
+    false_negative = int(truth == "pathogenic" and decision != "PATHOGENIC")
+    return {
+        "sample": sample,
+        "profile": profile,
+        "bench_set": bench_set,
+        "alleles": [{"allele": "h1", "allele_exact": exact}],
+        "normal": truth == "normal",
+        "benign": truth == "benign",
+        "pathogenic": truth == "pathogenic",
+        "decision": decision,
+        "inconclusive": int(decision == "INCONCLUSIVE"),
+        "false_positive": fp,
+        "critical_false_negative": false_negative,
+    }
+
+
+def _standard_fixture(
+    n_path: int, n_normal: int
+) -> tuple[list[dict[str, Any]], list[dict[str, Any]]]:
+    """(baseline, candidate) ``standard``-set rows: candidate superior (exact=1, fewer
+    critical FN) and meeting the default ``standard`` targets (pathogenic_rate >= 0.80,
+    inconclusive_rate <= 0.20, false_positive_rate <= 0)."""
+    base, cand = [], []
+    for i in range(n_path):
+        sample = f"p{i}"
+        base.append(_target_row(sample, "ont_amplicon_r10", "standard", 0, "pathogenic", "NO_CALL"))
+        cand.append(
+            _target_row(sample, "ont_amplicon_r10", "standard", 1, "pathogenic", "PATHOGENIC")
+        )
+    for i in range(n_normal):
+        sample, decision = f"n{i}", "NO_PATHOGENIC_VARIANT_DETECTED"
+        base.append(_target_row(sample, "ont_amplicon_r10", "standard", 0, "normal", decision))
+        cand.append(_target_row(sample, "ont_amplicon_r10", "standard", 1, "normal", decision))
+    return base, cand
+
+
+def _clean_fixture(n_path: int, n_normal: int) -> list[dict[str, Any]]:
+    """Candidate-only ``clean``-set rows meeting its targets (>= 0.90 / <= 0.10 / <= 0)."""
+    cand = [
+        _target_row(f"cp{i}", "ont_amplicon_r10", "clean", 1, "pathogenic", "PATHOGENIC")
+        for i in range(n_path)
+    ]
+    cand += [
+        _target_row(
+            f"cn{i}", "ont_amplicon_r10", "clean", 1, "normal", "NO_PATHOGENIC_VARIANT_DETECTED"
+        )
+        for i in range(n_normal)
+    ]
+    return cand
+
+
+def test_decide_adopts_only_when_headline_and_clean_targets_also_pass() -> None:
+    base, cand_standard = _standard_fixture(2700, 1000)
+    clean_ok = _clean_fixture(9, 1)
+    result = decide({"ladder": base, "hybrid": cand_standard + clean_ok}, "ladder", "hybrid")
+    assert set(result["targets"]) == {"standard", "clean"}
+    assert result["targets"]["standard"]["pass"] is True
+    assert result["targets"]["clean"]["pass"] is True
+    assert result["profiles"]["ont_amplicon_r10"]["pass"] is True  # the relative rule too
+    assert result["adopt"] is True
+
+    # Targets are not restricted to the headline set: a `clean`-only regression (one
+    # false positive) fails adoption even though the relative rule and the `standard`
+    # targets are untouched.
+    clean_bad = _clean_fixture(9, 1)
+    clean_bad[-1] = clean_bad[-1] | {"decision": "PATHOGENIC", "false_positive": 1}
+    result2 = decide({"ladder": base, "hybrid": cand_standard + clean_bad}, "ladder", "hybrid")
+    assert result2["targets"]["standard"]["pass"] is True
+    assert result2["targets"]["clean"]["pass"] is False
+    assert result2["profiles"]["ont_amplicon_r10"]["pass"] is True
+    assert result2["adopt"] is False
+
+
+def test_decide_targets_use_point_estimate_by_default_and_ci_bound_when_configured() -> None:
+    base, cand = _standard_fixture(4, 1)  # 4/4 pathogenic = 1.0, point estimate passes easily
+    cand = cand + _clean_fixture(9, 1)
+    point = decide({"ladder": base, "hybrid": cand}, "ladder", "hybrid", NO_TARGETS)
+    assert point["targets"] == {}  # NO_TARGETS configures no sets at all
+
+    with_targets = decide({"ladder": base, "hybrid": cand}, "ladder", "hybrid")
+    assert with_targets["targets"]["standard"]["basis"] == "point"
+    ci_cfg = replace(
+        DEFAULT_BENCH_CONFIG, targets=replace(DEFAULT_BENCH_CONFIG.targets, basis="ci_bound")
+    )
+    with_ci = decide({"ladder": base, "hybrid": cand}, "ladder", "hybrid", ci_cfg)
+    assert with_ci["targets"]["standard"]["basis"] == "ci_bound"
+    pooled_path = next(
+        r
+        for r in with_ci["targets"]["standard"]["table"]
+        if r["grouping"] == "pooled" and r["metric"] == "pathogenic_rate"
+    )
+    assert pooled_path["judged"] == pooled_path["ci_low"]
+
+
+def test_render_markdown_shows_the_absolute_targets_table() -> None:
+    base, cand = _standard_fixture(2700, 1000)
+    cand = cand + _clean_fixture(9, 1)
+    result = decide({"ladder": base, "hybrid": cand}, "ladder", "hybrid")
+    text = render_markdown(result)
+    assert "Part 2: absolute targets" in text and "Absolute targets (task 12e)" in text
+    assert "| standard | pooled | pathogenic_rate |" in text
+    assert "Set verdict: standard=True, clean=True" in text
+    assert "**ADOPT**" in text

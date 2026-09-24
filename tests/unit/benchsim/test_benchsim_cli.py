@@ -75,6 +75,7 @@ def test_bench_config_drives_design(tmp_path: Path, monkeypatch: pytest.MonkeyPa
                 "design": {"split_sizes": sizes},
                 "sets": sets,
                 "atlas": {"expected_inconclusive_sets": []},
+                "targets": {"by_set": {}},
             }
         )
     )

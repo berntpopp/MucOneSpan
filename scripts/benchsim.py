@@ -236,8 +236,8 @@ def cmd_run(args: argparse.Namespace) -> int:
 
 
 def _rule(args: argparse.Namespace) -> str:
-    """The decision rule under the effective settings (headline set included)."""
-    return rule_text(args.bench.report, args.bench.sets.headline)
+    """The decision rule under the effective settings (headline set and targets included)."""
+    return rule_text(args.bench.report, args.bench.sets.headline, args.bench.targets)
 
 
 def _prereg_path(root: Path) -> Path:

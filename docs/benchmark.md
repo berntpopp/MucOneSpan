@@ -94,13 +94,18 @@ delta classes `0_identical`, `0_different` (both `[0, 0]`), `1`, `2`, `3-5`,
 needs `description`, `offpeak_share_cap` (a number or `null`) and `profiles`,
 and each profile (a known profile name) needs `depths`, `pcr_levels`,
 `error_levels`, `smear_levels`, `chimera_levels`, `concatemer_levels` and
-`offtarget_levels`. Set names match `[a-z][a-z0-9_]*`. `generate` reuses a
+`offtarget_levels`. Set names match `[a-z][a-z0-9_]*`. `targets.by_set`
+likewise replaces the whole default map: each set's metric names must be one
+of `pathogenic_rate`, `inconclusive_rate`, `false_positive_rate`, each with a
+`comparator` (`ge`, `le`) and a `threshold` in `[0, 1]`, and each set named
+there must be defined in `sets.definitions`. `generate` reuses a
 completed case only if its design and generation hash match. Changes to
-`report`, `realism`, `run`, `atlas`, `profiles.simulator_threads`, set names,
-descriptions, `sets.headline`/`default`/`legacy` or another set's or profile's
-levels keep cases reusable. A case written before the generation hash existed is reused
-only when its full `bench_config_sha256` matches. Otherwise `generate` stops and
-asks for a fresh `--out-root` or removal of the case.
+`report`, `realism`, `run`, `atlas`, `targets`, `profiles.simulator_threads`,
+set names, descriptions, `sets.headline`/`default`/`legacy` or another set's
+or profile's levels keep cases reusable. A case written before the generation
+hash existed is reused only when its full `bench_config_sha256` matches.
+Otherwise `generate` stops and asks for a fresh `--out-root` or removal of
+the case.
 
 ```bash
 python scripts/benchsim.py --bench-config my-bench.json design --split dev --n 30 --set standard
@@ -129,6 +134,8 @@ python scripts/benchsim.py --bench-config my-bench.json design --split dev --n 3
 | `realism.*` | see the realism section | Metric definitions and tolerances |
 | `report.alpha`, `ni_margin` | 0.05, 0.005 | Decision rule and interval level |
 | `report.bootstrap_replicates`, `bootstrap_seed` | 2000, 0 | Cluster bootstrap |
+| `targets.basis` | point | How a target is judged: `point` estimate or `ci_bound` (Clopper-Pearson) |
+| `targets.by_set` | `standard`, `clean` (see [Decision rule](#decision-rule)) | Owner-approved absolute targets (`pathogenic_rate`, `inconclusive_rate`, `false_positive_rate`) per bench set; `stress` has none |
 | `run.threads` | 4 | Default `run --threads` |
 | `atlas.decisions` | INCONCLUSIVE | Decisions the reason atlas covers (`PATHOGENIC`, `INCONCLUSIVE`, `NO_PATHOGENIC_VARIANT_DETECTED`, `NO_CALL`) |
 | `atlas.strata` | depth, smear, chimera, delta_class, event_position | Design factors tabulated per profile |
@@ -191,17 +198,46 @@ SHA-256, registration and first-evaluation times) is copied into each
 
 ### Decision rule
 
-Adopt a candidate engine over the baseline only if, for **every** profile, it
+Adopt a candidate engine over the baseline only if **both** parts hold (v4,
+task 12e).
+
+**Part 1, the relative rule**, decided on the headline set
+(`sets.headline`, default `standard`) only: for every profile, the candidate
 is superior on per-allele exact sequence (exact two-sided McNemar on paired
 truth alleles, Holm-adjusted across the three primary metrics at alpha 0.05),
 non-inferior on the false-positive `PATHOGENIC` rate among normal and benign
 truths (Newcombe one-sided 95% upper bound of the difference below 0.5
 percentage points), and calls no more pathogenic truths
-`NO_PATHOGENIC_VARIANT_DETECTED` or `NO_CALL` than the baseline. The rule
-applies to the headline set (`sets.headline`, default `standard`) only. The numbers
-are `report.alpha` and `report.ni_margin`. The full text is `rule_text()` in
-`muc_one_span.benchsim.report`, built from the report settings; its SHA-256 is
-what `preregister` records, so changing a report setting needs a new
+`NO_PATHOGENIC_VARIANT_DETECTED` or `NO_CALL` than the baseline. The numbers
+are `report.alpha` and `report.ni_margin`.
+
+**Part 2, the absolute targets** (owner-approved 2026-09-25): the candidate
+alone (no baseline comparison) must clear a fixed floor or ceiling per bench
+set, pooled over every profile of that set and on each profile separately.
+Each target names a metric (`pathogenic_rate`, `inconclusive_rate` or
+`false_positive_rate`), a comparator (`ge` >=, `le` <=) and a threshold, in
+`targets.by_set`; a set absent from `targets.by_set` (or mapped to an empty
+object) is reported without a target, for example `stress`. The defaults:
+
+| Set | `pathogenic_rate` | `inconclusive_rate` | `false_positive_rate` |
+| --- | --- | --- | --- |
+| `standard` (headline) | >= 0.80 | <= 0.20 | <= 0 |
+| `clean` | >= 0.90 | <= 0.10 | <= 0 |
+| `stress` | no target | no target | no target |
+
+`targets.basis` decides how a target is judged: the pooled/per-profile point
+estimate (`"point"`, the default), or the Clopper-Pearson CI bound on the
+threshold's side (`"ci_bound"`: the lower bound for a `ge` target, the upper
+bound for a `le` target) at `report.alpha`. A bench set named in
+`targets.by_set` with no candidate cases fails its targets rather than being
+silently skipped. `report` writes a pass/fail table per (bench set, grouping,
+metric) to `report.md` and `report.json` (`decision.targets`); adoption
+requires the relative rule **and** every target of every named set to pass.
+
+The full rule text is `rule_text()` in `muc_one_span.benchsim.report`, built
+from the report and targets settings; its SHA-256 is what `preregister`
+records, so changing a report or targets setting (including a threshold,
+comparator, basis or a set's membership in `targets.by_set`) needs a new
 pre-registration.
 
 ## Subcommands
@@ -307,7 +343,10 @@ truths, and a failure atlas per design factor. Intervals are 95% cluster
 bootstrap intervals over designs. `report.json` holds one section per set
 (`sets.<set>`, ordered in `set_order`, headline first) with its tables and
 atlas per engine; `report.md` has one section per set and engine. Without
-headline-set cases the decision rule is not applied.
+headline-set cases the decision rule is not applied. When it is, `decision.targets`
+(`report.json`) and "Part 2: absolute targets" (`report.md`) hold the task
+12e pass/fail table: one row per (bench set, grouping, metric) of
+`targets.by_set`, pooled and per profile, for the candidate alone.
 
 Each engine section starts with the **reason atlas** (`report.json` key
 `sets.<set>.atlas.<engine>`). It covers the cases whose decision is in `atlas.decisions`

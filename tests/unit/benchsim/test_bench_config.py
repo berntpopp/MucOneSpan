@@ -6,7 +6,11 @@ import pytest
 
 from muc_one_span.benchsim.bench_config import (
     DEFAULT_BENCH_CONFIG,
+    TARGET_BASIS_NAMES,
+    TARGET_COMPARATOR_NAMES,
+    TARGET_METRIC_NAMES,
     BenchConfig,
+    Target,
     load_bench_config,
 )
 from muc_one_span.benchsim.realism_targets import load_targets, target_section
@@ -98,6 +102,55 @@ def test_json_overlays_defaults_and_coerces_lists(tmp_path: Path) -> None:
             {"schema_version": 1, "atlas": {"expected_inconclusive_splits": "stress"}},
             "JSON array",
         ),
+        ({"schema_version": 1, "targets": {"basis": "mean"}}, r"targets\.basis"),
+        (
+            {
+                "schema_version": 1,
+                "targets": {
+                    "by_set": {
+                        "standard": {"bogus": {"comparator": "ge", "threshold": 0.5}},
+                    }
+                },
+            },
+            "unknown metric",
+        ),
+        (
+            {
+                "schema_version": 1,
+                "targets": {
+                    "by_set": {
+                        "standard": {"pathogenic_rate": {"comparator": "gt", "threshold": 0.5}},
+                    }
+                },
+            },
+            "comparator",
+        ),
+        (
+            {
+                "schema_version": 1,
+                "targets": {
+                    "by_set": {
+                        "standard": {"pathogenic_rate": {"comparator": "ge", "threshold": 1.5}},
+                    }
+                },
+            },
+            "threshold",
+        ),
+        (
+            {"schema_version": 1, "targets": {"by_set": {"nope": {}}}},
+            r"targets\.by_set",
+        ),
+        (
+            {
+                "schema_version": 1,
+                "targets": {
+                    "by_set": {
+                        "standard": {"pathogenic_rate": {"comparator": "ge"}},
+                    }
+                },
+            },
+            "missing",
+        ),
     ],
 )
 def test_invalid_config_is_rejected(tmp_path: Path, data: object, match: str) -> None:
@@ -180,3 +233,52 @@ def test_atlas_expected_sets_must_be_defined(tmp_path: Path) -> None:
     data = {"schema_version": 1, "atlas": {"expected_inconclusive_sets": ["nope"]}}
     with pytest.raises(ValueError, match="expected_inconclusive_sets"):
         load_bench_config(_write(tmp_path, data))
+
+
+def test_target_defaults_match_the_owner_directive() -> None:
+    # Owner ruling 2026-09-25 (task 12e): clean >=0.90 PATHOGENIC / <=0.10 INCONCLUSIVE / 0
+    # FP; standard >=0.80 / <=0.20 / 0 FP; stress reported only, no target.
+    targets = CFG.targets
+    assert targets.basis == "point"
+    standard, clean = targets.by_set["standard"], targets.by_set["clean"]
+    assert standard == {
+        "pathogenic_rate": Target("ge", 0.80),
+        "inconclusive_rate": Target("le", 0.20),
+        "false_positive_rate": Target("le", 0.0),
+    }
+    assert clean == {
+        "pathogenic_rate": Target("ge", 0.90),
+        "inconclusive_rate": Target("le", 0.10),
+        "false_positive_rate": Target("le", 0.0),
+    }
+    assert "stress" not in targets.by_set
+
+
+def test_target_names_are_exhaustive_and_known() -> None:
+    assert CFG.targets.basis in TARGET_BASIS_NAMES
+    for metrics in CFG.targets.by_set.values():
+        assert set(metrics) <= set(TARGET_METRIC_NAMES)
+        for target in metrics.values():
+            assert target.comparator in TARGET_COMPARATOR_NAMES
+
+
+def test_targets_overlay_replaces_by_set_and_coerces_targets(tmp_path: Path) -> None:
+    data = {
+        "schema_version": 1,
+        "targets": {
+            "basis": "ci_bound",
+            "by_set": {"clean": {"pathogenic_rate": {"comparator": "ge", "threshold": 0.95}}},
+        },
+    }
+    cfg = load_bench_config(_write(tmp_path, data))
+    assert cfg.targets.basis == "ci_bound"
+    assert list(cfg.targets.by_set) == ["clean"]
+    assert cfg.targets.by_set["clean"] == {"pathogenic_rate": Target("ge", 0.95)}
+    assert isinstance(cfg.targets.by_set["clean"]["pathogenic_rate"], Target)
+    assert cfg.sha256() != CFG.sha256()
+    assert cfg.generation_sha256() == CFG.generation_sha256()  # targets do not shape generation
+
+
+def test_targets_by_set_must_name_a_known_set() -> None:
+    with pytest.raises(ValueError, match=r"targets\.by_set"):
+        BenchConfig(targets=type(CFG.targets)(by_set={"nope": {}}))

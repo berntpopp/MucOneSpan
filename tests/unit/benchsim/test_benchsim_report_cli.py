@@ -201,8 +201,16 @@ def test_evaluate_then_report_writes_json_and_markdown(
     assert set(tables) == {"stratified", "pooled", "events", "confusion"}
     assert tables["pooled"]["ont_amplicon_r10"]["allele_exact"]["point"] == 1.0
     assert report["preregistration"] is None
+    # Task 12e: the absolute targets are evaluated per set, not restricted to `standard`
+    # (this fixture has no `clean` cases at all, so its target cohort is empty and fails).
+    targets = report["decision"]["targets"]
+    assert set(targets) == {STANDARD, "clean"}
+    assert targets[STANDARD]["pass"] is True
+    assert targets["clean"]["pass"] is False
+    assert any(row["reason"] == "no cases in this cohort" for row in targets["clean"]["table"])
     text = (results / "report.md").read_text()
     assert "NOT ADOPTED" in text and "failure atlas: composition" in text
+    assert "Part 2: absolute targets" in text and "Set verdict:" in text
 
 
 def test_report_invalid_truth_is_a_visible_error(

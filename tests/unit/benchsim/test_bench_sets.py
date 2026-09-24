@@ -175,6 +175,7 @@ def test_json_replaces_definitions(tmp_path: Path) -> None:
             "legacy": "only",
         },
         "atlas": {"expected_inconclusive_sets": []},
+        "targets": {"by_set": {}},
     }
     cfg = load_bench_config(_write(tmp_path, data))
     assert list(cfg.sets.definitions) == ["only"]
