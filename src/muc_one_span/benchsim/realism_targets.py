@@ -2,8 +2,10 @@
 
 The packaged ``targets/prjeb92208_v1.json`` holds only ``_meta`` and the
 ``ont_amplicon_PRJEB92208`` / ``ont_wgs_PRJEB92208`` sections exported from the
-local ``realprofile/targets.json``; in-house genomic targets stay local and
-are passed by path (`load_targets(path)`), their section named explicitly.
+local ``realprofile/targets.json``. In-house genomic targets stay local: load
+them by path (`load_targets(path)`) and pass their section name explicitly as
+`profile` (e.g. ``ont_genomic_inhouse``); `PROFILE_SECTIONS` maps benchmark
+profiles to the public sections only.
 
 Spec section 4 tolerance -> target key (per section):
 
@@ -22,7 +24,9 @@ metric (`realism`)          target key                                        pa
 ==========================  ================================================  ==========================
 
 ``<rate>`` is mismatch/insertion/deletion/error_rate for type
-mismatch/ins/del/total and ``<strand>`` is ``+``, ``-`` or ``all``. A range
+mismatch/ins/del/total and ``<strand>`` is ``+``, ``-`` or ``all``; for an
+`aggregate` it is the median of per-case rates, compared with the median of
+per-library rates. A range
 metric given as an `aggregate` spread must also keep its median within
 +/- 25 % of the real median. Checks whose simulated value or target is
 missing are omitted from the result.

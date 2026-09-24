@@ -14,6 +14,10 @@ so the span is the VNTR itself inside the flanked source,
 ``[ext_left + len(flank_left), + len(VNTR))``, where ``flank_left`` is the
 MucOneUp flank in the truth FASTA and ``ext_left`` the ``--flank-fasta`` left
 record.
+
+``case.json["geometry"]`` (`geometry.case_geometry`) records the amplicon
+primer pair (MucOneUp config ``amplicon_params``), each haplotype's amplicon
+interval and the VNTR bounds in the haplotype and read-truth source frames.
 """
 
 from __future__ import annotations
@@ -35,6 +39,7 @@ from muc_one_span.tools import run_tool
 
 from .depth import amplicon_templates, genomic_reads, pcr_minor_share
 from .design import Design
+from .geometry import case_geometry, haplotype_sequences, primer_pair, vntr_bounds
 from .muconeup import BUILTIN_PROFILE, reads_args, simulate_args
 from .profiles import variant_name, write_variant
 from .read_truth import composition, load_read_truth, realized_depth
@@ -254,6 +259,14 @@ def _reads(
     truth_fa = _one(truth_dir, "*.simulated.fa")
     if truth_fa is None:  # _one(required=True) raises first; explicit for type narrowing
         raise ValueError(f"no *.simulated.fa in {truth_dir}")
+    haplotypes = haplotype_sequences(truth_fa)
+    case["geometry"] = case_geometry(
+        design.profile,
+        haplotypes,
+        vntr_bounds(truth, rd.flanking_left, haplotypes),
+        primers=None if genomic else primer_pair(ctx.config),
+        flank_ext=_flank_lengths(ctx.flank_fasta),
+    )
     reads_dir = case_dir / "reads"
     run_tool(
         reads_args(

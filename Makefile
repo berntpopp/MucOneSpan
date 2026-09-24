@@ -1,7 +1,7 @@
 .DEFAULT_GOAL := help
 UV_RUN = uv run --locked --no-default-groups
-UV_TEST = $(UV_RUN) --group test --extra report
-UV_QUALITY = $(UV_RUN) --group quality --extra report
+UV_TEST = $(UV_RUN) --group test --extra report --extra bench
+UV_QUALITY = $(UV_RUN) --group quality --extra report --extra bench
 PYTHON_PATHS = src tests scripts
 DOCKER_IMAGE ?= muconespan:local
 

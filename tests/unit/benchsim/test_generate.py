@@ -30,9 +30,10 @@ def _ctx(tmp_path: Path, **kw: Any) -> GenerateContext:
         (prof / f"{name}.json").write_text(
             json.dumps({"schema_version": 1, "name": name, "platform": "ont", "molecules": {}})
         )
-    ctx = GenerateContext(
-        "muconeup", tmp_path / "c.json", tmp_path / "out", prof, None, None, "0.45.0"
-    )
+    config = tmp_path / "c.json"
+    primers = {"forward_primer": "TT", "reverse_primer": "CC"}  # revcomp CC = GG flank
+    config.write_text(json.dumps({"amplicon_params": primers}))
+    ctx = GenerateContext("muconeup", config, tmp_path / "out", prof, None, None, "0.45.0")
     return replace(ctx, **kw)
 
 
@@ -183,6 +184,11 @@ def test_ok_case_records_depth_hashes_ledger_and_is_idempotent(tmp_path: Path) -
         assert case["actual_targets"] == [[design.targets[0][0], 1]]
         assert case["composition_effective"] == "markov"
         assert set(case["hashes"]) == {"truth_fa", "fastq", "read_truth"}
+        geo = case["geometry"]
+        assert geo["frame"] == "amplicon" and geo["primers"] == {"forward": "TT", "reverse": "CC"}
+        long_hap = str(design.targets[0][0])  # dupC adds one base on the mutant haplotype
+        assert geo["amplicon"][long_hap] == [0, 7] and geo["vntr_haplotype"][long_hap] == [2, 5]
+        assert geo["vntr_source"][long_hap] == [2, 5] and geo["flank_ext"] is None
         reads = next(c for c in fake.calls if "reads" in c)
         profile_arg = Path(_opt(reads, "--read-profile"))
         assert profile_arg.parent == ctx.out_root / "profiles"
@@ -210,6 +216,18 @@ def test_fastq_manifest_mismatch_fails_generation(tmp_path: Path) -> None:
     assert case["status"] == "generation_failed" and "records" in case["error"]
 
 
+def test_amplicon_without_primers_is_generation_failed(tmp_path: Path) -> None:
+    design = _plain(DEV, event=False)
+    ctx = _ctx(tmp_path)
+    ctx.config.write_text("{}")
+    with (
+        patch(f"{MOD}.run_tool", side_effect=FakeMucOneUp()),
+        patch(f"{MOD}.load_repeat_dictionary", return_value=_rd()),
+    ):
+        case = generate_case(design, ctx)
+    assert case["status"] == "generation_failed" and "primers" in case["error"]
+
+
 def test_tool_failure_is_generation_failed(tmp_path: Path) -> None:
     design = _plain(DEV, event=False)
     with patch(f"{MOD}.run_tool", side_effect=RuntimeError("pbsim crashed")):
@@ -233,6 +251,10 @@ def test_genomic_case_uses_span_and_n_reads(tmp_path: Path) -> None:
     assert _opt(reads, "--flank-fasta") == str(flank)
     # fragment rows cover [0, 7) of the flanked source; the VNTR sits at [52, 54)
     assert case["span"] == {"1": [52, 54], "2": [52, 54]}
+    geo = case["geometry"]
+    assert geo["frame"] == "flanked_source" and geo["primers"] is None
+    assert geo["vntr_haplotype"]["1"] == [2, 4] and geo["vntr_source"]["1"] == [52, 54]
+    assert geo["flank_ext"] == [50, 50] and geo["amplicon"] is None
     assert case["realized_depth"] == {"1": 0, "2": 0}
 
 
