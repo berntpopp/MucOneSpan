@@ -26,6 +26,8 @@ from muc_one_span.evaluation import (
     load_truth,
 )
 from muc_one_span.evaluation.artifacts import discover_input, read_inventory
+from muc_one_span.evaluation.clinical_confusion import confusion, predicted_clinical, truth_class
+from muc_one_span.evaluation.reasons import reconstruction_flags
 
 
 def _run_records(root: Path) -> dict[str, dict[str, Any]]:
@@ -76,6 +78,7 @@ def run(args: argparse.Namespace) -> tuple[dict[str, Any], int]:
         try:
             truth = replace(load_truth(truth_dir, rd), name=name)
             row = evaluate_sample(truth, observation)
+            row["clinical"] = {"truth": truth_class(truth, rd), **predicted_clinical(result_dir)}
         except TruthValidationError as exc:
             row = {
                 "sample": name,
@@ -84,7 +87,9 @@ def run(args: argparse.Namespace) -> tuple[dict[str, Any], int]:
                 "observation_status": observation.status,
                 "error": str(exc),
                 "run_record": observation.run_record,
+                "clinical": {"truth": None, "decision": "NO_CALL", "reasons": []},
             }
+        row["reconstruction_flags"] = reconstruction_flags(observation, row)
         row["inventory"] = entry
         row["truth_dir"] = str(truth_dir)
         row["result_dir"] = str(result_dir)
@@ -104,6 +109,7 @@ def run(args: argparse.Namespace) -> tuple[dict[str, Any], int]:
             "not_attempted",
         )
     report = aggregate(rows)
+    report["clinical_confusion"] = confusion(rows)
     report["inventory_mode"] = "explicit"
     report["inventory_sha256"] = _hash(args.expected_samples)
     report["result_root"] = str(args.result_root)

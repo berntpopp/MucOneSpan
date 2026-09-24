@@ -152,6 +152,8 @@ Inspect skip reasons. A successful invocation in an environment missing tools,
 models, or generated data does not demonstrate that those behaviors work.
 Report the commands, pass/fail/skip counts, and missing prerequisites in a PR.
 See [benchmarking](guides/benchmarking.md) for portable generation and batch runs.
+See [MucSim-Bench](benchmark.md) for the stratified simulated benchmark used to
+compare calling engines (`scripts/benchsim.py`, sealed `test` split, decision rule).
 
 ## CI and container efficiency
 

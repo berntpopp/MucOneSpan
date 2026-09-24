@@ -113,8 +113,7 @@ def run_pipeline(
     """Run the real full CLI while timing its five scientific stages.
 
     ``engine`` is appended to ``cli_args`` as ``--engine <engine>`` only when it
-    is not the default ``"ladder"`` (the current CLI has no ``--engine`` flag;
-    it arrives with the hybrid engine), and is always recorded in the returned
+    is not the default ``"ladder"``, and is always recorded in the returned
     record and ``measurement.json``.
     """
     from muc_one_span.cli import main

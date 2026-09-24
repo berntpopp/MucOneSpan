@@ -168,6 +168,7 @@ nav:
     - Validation Results: guides/validation-results.md
     - Clinical Validation & Benchmark: guides/clinical-validation-results.md
     - Benchmarking with MucOneUp: guides/benchmarking.md
+    - MucSim-Bench (Simulated Benchmark): benchmark.md
 
   - Reference:
     - CLI Commands: reference/cli.md
