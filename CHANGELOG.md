@@ -27,6 +27,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
   (units 6-9) and recorded as `target_clamped`. Too-short alleles are
   `design_invalid`.
 - MucSim-Bench guide (`docs/benchmark.md`).
+- MucSim-Bench reason atlas. `evaluate` keeps each sample's clinical reason list
+  (`clinical.reasons`) and evaluator `reconstruction_flags`; `report` tabulates
+  normalised reasons by profile and design stratum and splits INCONCLUSIVE
+  cases into resolvable and expected (split or depth below the caller's
+  per-allele gate), with every threshold in the `atlas` bench-config section.
 
 ## [0.16.0] - 2026-09-24
 

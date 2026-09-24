@@ -82,6 +82,12 @@ python scripts/benchsim.py --bench-config my-bench.json design --split dev --n 3
 | `report.alpha`, `ni_margin` | 0.05, 0.005 | Decision rule and interval level |
 | `report.bootstrap_replicates`, `bootstrap_seed` | 2000, 0 | Cluster bootstrap |
 | `run.threads` | 4 | Default `run --threads` |
+| `atlas.decisions` | INCONCLUSIVE | Decisions the reason atlas covers (`PATHOGENIC`, `INCONCLUSIVE`, `NO_PATHOGENIC_VARIANT_DETECTED`, `NO_CALL`) |
+| `atlas.strata` | depth, smear, chimera, delta_class, event_position | Design factors tabulated per profile |
+| `atlas.expected_inconclusive_splits` | stress | Splits whose atlas cases are expected (must be in `design.split_sizes`) |
+| `atlas.min_resolvable_depth` | 30 (the caller's `allele_selection.min_allele_primary_records`) | Depth below which an atlas case is expected |
+| `atlas.depth_basis` | realized_min_allele | Depth compared with the gate: `design` target or the lowest realized allele depth |
+| `atlas.top_reasons` | 10 | Reasons shown in the per-stratum tables of `report.md` (`report.json` keeps all) |
 
 Domain constants are not settings. The repeat-unit length and the conserved
 unit IDs come from the bundled repeat dictionary. The conserved head (units
@@ -231,6 +237,13 @@ Scores each engine's results with `scripts/evaluate.py` into
 python scripts/benchsim.py evaluate --split dev --engines ladder
 ```
 
+Each sample row keeps the caller's reason list in `clinical.reasons` (the
+INCONCLUSIVE banner details; empty for other decisions) and the evaluator's
+`reconstruction_flags`: the run status when it is not `completed` (for example
+`ambiguous_reconstruction`, `insufficient_evidence`), `iupac_bases`,
+`unresolved_allele_alias`, `producer_status_unresolved`, `missing_allele`,
+`unproven_duplicate_allele` and `extra_allele`.
+
 ### `report`
 
 Writes stratified tables and, when `--candidate` is given, the decision rule
@@ -239,6 +252,29 @@ case exact (metric 2), event recall and precision (metric 3), clinical
 confusion per profile (metric 4), false positives and no-calls on normal
 truths, and a failure atlas per design factor. Intervals are 95% cluster
 bootstrap intervals over designs.
+
+Each engine section starts with the **reason atlas** (`report.json` key
+`atlas.<engine>`). It covers the cases whose decision is in `atlas.decisions`
+and counts each case once per reason key:
+
+- `gate: <key>` for each caller reason. The key is the reason text with a
+  leading allele label (`Allele 1:`) removed, a variant descriptor
+  `(<name> at repeat <n>)` replaced by `(<variant>)`, every standalone number
+  and `None` replaced by `#`, lowercased, with whitespace collapsed and a
+  trailing period dropped.
+- `evaluator: <flag>` for each evaluator reconstruction flag.
+- `unrecorded` when a case has neither (evaluations written before the atlas).
+
+A case is **expected** INCONCLUSIVE when its split is in
+`atlas.expected_inconclusive_splits` or its `atlas.depth_basis` depth is below
+`atlas.min_resolvable_depth`. The default gate is the caller's per-allele depth
+gate for a negative call, so no engine can resolve such a case without relaxing
+a clinical gate. Every other atlas case is **resolvable**. The atlas reports:
+
+- the expected / resolvable split per profile, with the matching conditions;
+- the reason table with counts, the share of atlas cases, the rate over all cases, and
+  expected / resolvable counts;
+- reason x profile x stratum tables for each factor in `atlas.strata`.
 
 ```bash
 python scripts/benchsim.py report --split dev --baseline ladder

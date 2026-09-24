@@ -313,3 +313,46 @@ def test_realism_settings_mismatch_exits(tmp_path: Path, monkeypatch: pytest.Mon
     monkeypatch.setattr(cli, "load_targets", lambda: {})
     with pytest.raises(SystemExit, match="lt60u"):
         cli.main(["realism", "--split", "dev", "--out-root", str(tmp_path / "data")])
+
+
+def test_report_writes_the_reason_atlas_with_config_thresholds(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    cli = _cli(tmp_path, monkeypatch)
+    reason = "Allele 1: 7 primary alignments, below the per-allele depth gate (30)."
+
+    def fake_run(args: Any) -> tuple[dict[str, Any], int]:
+        unclear = _sample("c1", "pathogenic", "INCONCLUSIVE", 0)
+        unclear["clinical"]["reasons"] = [reason]
+        unclear["reconstruction_flags"] = ["ambiguous_reconstruction", "iupac_bases"]
+        return {"samples": [unclear, _sample("c2", "normal", "INCONCLUSIVE", 0)]}, 0
+
+    monkeypatch.setattr(cli, "evaluate_run", fake_run)
+    _split(tmp_path)
+    (tmp_path / "data" / "results" / "dev" / "ladder").mkdir(parents=True)
+    data = str(tmp_path / "data")
+    cli.main(["evaluate", "--split", "dev", "--out-root", data])
+    assert cli.main(["report", "--split", "dev", "--out-root", data]) == 0
+    report = json.loads((tmp_path / "data" / "results" / "dev" / "report.json").read_text())
+    atlas = report["atlas"]["ladder"]
+    assert (atlas["n_cases"], atlas["n_atlas"]) == (2, 2)
+    keys = {r["reason"]: r["k"] for r in atlas["reasons"]}
+    assert keys["evaluator: iupac_bases"] == 1 and keys["unrecorded"] == 1
+    assert keys["gate: # primary alignments, below the per-allele depth gate (#)"] == 1
+    assert atlas["split_summary"][-1]["resolvable"] == 2  # no realized depth recorded
+    text = (tmp_path / "data" / "results" / "dev" / "report.md").read_text()
+    assert "Reason atlas (INCONCLUSIVE)" in text and "evaluator: iupac_bases" in text
+    config = tmp_path / "bench.json"
+    case = json.loads((tmp_path / "data" / "dev" / "c1" / "case.json").read_text())
+    gate = case["design"]["depth"] + 1  # every fixture case is now below the gate
+    config.write_text(
+        json.dumps(
+            {
+                "schema_version": 1,
+                "atlas": {"depth_basis": "design", "min_resolvable_depth": gate},
+            }
+        )
+    )
+    cli.main(["--bench-config", str(config), "report", "--split", "dev", "--out-root", data])
+    report = json.loads((tmp_path / "data" / "results" / "dev" / "report.json").read_text())
+    assert report["atlas"]["ladder"]["split_summary"][-1]["expected"] == 2

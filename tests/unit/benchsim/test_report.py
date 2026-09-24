@@ -378,3 +378,22 @@ def test_render_markdown_lists_profiles_and_verdict() -> None:
 def test_render_markdown_without_candidate_is_not_a_verdict() -> None:
     text = render_markdown({"profiles": {}, "adopt": False})
     assert "not evaluated" in text and "ADOPT" not in text
+
+
+def test_normalize_rows_keeps_reasons_position_and_minimum_depth() -> None:
+    sample = _sample("p", "pathogenic", "INCONCLUSIVE")
+    sample["clinical"]["reasons"] = ["Allele 1: Genotype phase is unphased or conflicting."]
+    sample["reconstruction_flags"] = ["ambiguous_reconstruction", "iupac_bases"]
+    case = _case("p", "dupC")
+    case["design"]["event_position"] = "first10"
+    (row,) = normalize_rows({"samples": [sample]}, {"p": case})
+    assert row["clinical_reasons"] == sample["clinical"]["reasons"]
+    assert row["reconstruction_flags"] == ["ambiguous_reconstruction", "iupac_bases"]
+    assert row["reasons_recorded"] is True and row["event_position"] == "first10"
+    assert row["realized_min_allele_depth"] == min(case["realized_depth"].values())
+    legacy = _sample("q", "normal", "INCONCLUSIVE")
+    (old,) = normalize_rows(
+        {"samples": [legacy]}, {"q": _case("q", None) | {"realized_depth": None}}
+    )
+    assert old["reasons_recorded"] is False and old["clinical_reasons"] == []
+    assert old["realized_min_allele_depth"] is None

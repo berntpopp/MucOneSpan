@@ -42,23 +42,37 @@ def truth_class(truth: TruthSample, rd: RepeatDictionary) -> str:
     return "pathogenic" if any(frameshifts) else "benign"
 
 
-def predicted_decision(result_dir: Path) -> str:
-    """Return the caller's 3-state clinical decision, or ``NO_CALL`` when unreadable."""
+def predicted_clinical(result_dir: Path) -> dict[str, Any]:
+    """Return the caller's clinical decision and, when INCONCLUSIVE, its reason list.
+
+    ``reasons`` is ``compute_clinical_decision(summary)["details"]`` for an
+    INCONCLUSIVE decision (the gate reasons shown in the report banner) and
+    empty otherwise. An unreadable summary is ``NO_CALL`` without reasons.
+    """
+    no_call: dict[str, Any] = {"decision": "NO_CALL", "reasons": []}
     try:
         # RecursionError: json.loads uses a recursive parser, so a pathologically
         # nested-but-syntactically-valid document (e.g. thousands of "[") can blow the
         # interpreter's recursion limit instead of raising a JSON decode error.
         summary = json.loads((result_dir / "summary.json").read_text())
     except (OSError, ValueError, RecursionError):
-        return "NO_CALL"
+        return no_call
     try:
         # A malformed-but-valid-JSON shape (e.g. a list instead of an object) always
         # surfaces here as one of these three types: AttributeError (no .get on a
         # non-dict), KeyError (missing "state"/expected key), or TypeError (wrong
         # argument shape passed further down) — checked against compute_clinical_decision.
-        return str(compute_clinical_decision(summary)["state"])
+        decision = compute_clinical_decision(summary)
     except (AttributeError, KeyError, TypeError):
-        return "NO_CALL"
+        return no_call
+    state = str(decision["state"])
+    reasons = [str(r) for r in decision["details"]] if state == "INCONCLUSIVE" else []
+    return {"decision": state, "reasons": reasons}
+
+
+def predicted_decision(result_dir: Path) -> str:
+    """Return the caller's 3-state clinical decision, or ``NO_CALL`` when unreadable."""
+    return str(predicted_clinical(result_dir)["decision"])
 
 
 def confusion(rows: Sequence[dict[str, Any]]) -> dict[str, Any]:

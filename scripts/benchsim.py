@@ -28,6 +28,7 @@ from pathlib import Path
 from types import ModuleType
 from typing import Any
 
+from muc_one_span.benchsim.atlas import build_atlas, render_atlas
 from muc_one_span.benchsim.bench_config import DEFAULT_BENCH_CONFIG, load_bench_config
 from muc_one_span.benchsim.design import Design, build_split
 from muc_one_span.benchsim.generate import (
@@ -325,18 +326,21 @@ def cmd_report(args: argparse.Namespace) -> int:
             raise SystemExit(f"cannot normalize {path}: {exc}") from exc
     decision = decide(rows, args.baseline, args.candidate, args.bench) if args.candidate else None
     tables = {engine: build_tables(r, args.bench.report) for engine, r in rows.items()}
+    atlases = {engine: build_atlas(r, args.split, args.bench.atlas) for engine, r in rows.items()}
     report = {
         "split": args.split,
         "preregistration": audit,
         "bench_config_sha256": args.bench.sha256(),
         "decision": decision,
         "tables": tables,
+        "atlas": atlases,
         "engines": {engine: {"rows": r} for engine, r in rows.items()},
     }
     _write(results / "report.json", report)
     parts = [render_markdown(decision or {})]
     parts += [
-        f"## Engine `{e}`\n\n{render_engine_tables(t, args.bench.report)}"
+        f"## Engine `{e}`\n\n{render_atlas(atlases[e], args.bench.atlas)}"
+        f"{render_engine_tables(t, args.bench.report)}"
         for e, t in tables.items()
     ]
     (results / "report.md").write_text("\n".join(parts))

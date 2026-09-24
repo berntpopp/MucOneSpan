@@ -23,6 +23,11 @@ Key mapping from ``evaluation.scoring.evaluate_sample`` rows:
   ``metrics["event_tp"]["min"]``, ``metrics["event_fp"]["max"]`` and
   ``truth_events`` (the conservative bounds ``scoring.aggregate`` uses).
 - ``truth`` / ``decision`` (metrics 4-5): ``row["clinical"]``.
+- Reason atlas inputs (`atlas`): ``clinical_reasons`` (``row["clinical"]["reasons"]``),
+  ``reconstruction_flags`` (evaluator causes) and ``reasons_recorded`` (both
+  present; evaluations written before the atlas lack them), plus the design's
+  ``event_position`` and ``realized_min_allele_depth`` (lowest realized allele
+  depth in ``case.json``).
 
 Runs with status ``execution_failed``, ``not_attempted`` or
 ``invalid_artifacts`` are kept: every truth allele scores 0, events score 0
@@ -191,7 +196,12 @@ def normalize_rows(
             "inconclusive": int(decision == "INCONCLUSIVE"),
             "no_call": int(decision == "NO_CALL"),
             "event": design.get("event"),
+            "event_position": design.get("event_position"),
             "realized_depth": _depth_sum(case.get("realized_depth")),
+            "realized_min_allele_depth": _depth_min(case.get("realized_depth")),
+            "clinical_reasons": [str(r) for r in clinical.get("reasons") or []],
+            "reconstruction_flags": [str(f) for f in sample.get("reconstruction_flags") or []],
+            "reasons_recorded": "reasons" in clinical and "reconstruction_flags" in sample,
         }
         for key in STRATA:
             row[key] = case.get(key, design.get(key)) if key == "profile" else design.get(key)
@@ -203,6 +213,13 @@ def _depth_sum(realized: Any) -> int | None:
     if isinstance(realized, dict):
         return int(sum(realized.values()))
     return None if realized is None else int(realized)
+
+
+def _depth_min(realized: Any) -> int | None:
+    """Lowest per-allele realized depth; a scalar total says nothing about one allele."""
+    if isinstance(realized, dict) and realized:
+        return int(min(realized.values()))
+    return None
 
 
 def allele_rows(rows: Sequence[dict[str, Any]]) -> list[dict[str, Any]]:
