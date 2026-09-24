@@ -353,6 +353,9 @@ class HybridSettings:
     min_fragment_bp: int = 1000
     assign_margin: int = 3
     assign_max_error_rate: float = 0.15
+    # S5/S6 (Task 7): ladder-flank width wrapped around each allele draft to build the
+    # references that reads are assigned against.
+    assign_flank_bp: int = 500
     qc_residual_af: float = 0.25
     max_unassigned_spanning_fraction: float = 0.2
     depth_adequate_spanning: int = 30
@@ -415,6 +418,7 @@ class HybridSettings:
         _integer("hybrid.flank_anchor_bp", self.flank_anchor_bp, 1)
         _integer("hybrid.flank_anchor_edit_divisor", self.flank_anchor_edit_divisor, 1)
         _integer("hybrid.flank_anchor_edit_floor", self.flank_anchor_edit_floor, 0)
+        _integer("hybrid.assign_flank_bp", self.assign_flank_bp, 1)
         _number("hybrid.peak_window_base_bp", self.peak_window_base_bp, 1)
         _number("hybrid.peak_window_per_unit_bp", self.peak_window_per_unit_bp)
         _number("hybrid.poa_sample_window_floor_bp", self.poa_sample_window_floor_bp, 0)

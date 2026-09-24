@@ -61,6 +61,12 @@ def test_hybrid_poa_and_polish_tunables_default_unchanged() -> None:
     assert (h.polish_insertion_majority_frac, h.hp_vote_min_run) == (0.5, 4)
 
 
+def test_hybrid_assign_flank_bp_default_unchanged() -> None:
+    # Task 7 (S5/S6): replaces the brief's bare module-level FLANK_BP = 500 literal with
+    # a validated HybridSettings field; the default reproduces the brief's value.
+    assert DEFAULT_SETTINGS.hybrid.assign_flank_bp == 500
+
+
 def test_hybrid_smear_significance_defaults() -> None:
     # Fix round 4 (C4.2): the smear decision is a one-sided significance test of the
     # candidate's core count against its local below-top background; these defaults
@@ -116,6 +122,8 @@ def test_hybrid_smear_significance_defaults() -> None:
         ("polish_insertion_majority_frac", 1.5),
         ("hp_vote_min_run", 1),
         ("hp_vote_min_run", -1),
+        ("assign_flank_bp", 0),
+        ("assign_flank_bp", -1),
     ],
 )
 def test_hybrid_rejects_invalid(field: str, value: object) -> None:
