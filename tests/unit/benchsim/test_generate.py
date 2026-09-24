@@ -2,6 +2,7 @@
 
 import gzip
 import json
+import math
 from dataclasses import replace
 from pathlib import Path
 from typing import Any
@@ -9,6 +10,7 @@ from unittest.mock import patch
 
 import pytest
 
+from muc_one_span.benchsim.bench_config import DEFAULT_BENCH_CONFIG, AmountConfig, BenchConfig
 from muc_one_span.benchsim.design import Design, build_split
 from muc_one_span.benchsim.generate import GenerateContext, generate_case, write_manifest
 from muc_one_span.config import load_repeat_dictionary
@@ -289,8 +291,39 @@ def test_amplicon_amount_is_capped_at_the_minor_share_floor(tmp_path: Path) -> N
         patch(f"{MOD}.pcr_minor_share", return_value=1e-4),
     ):
         case = generate_case(design, _ctx(tmp_path))
-    # 10 / (MIN_MINOR_SHARE 0.05 * (1 - 0.5)) = 400 templates
-    assert case["requested_amount"] == 400 and case["amount_capped"] is True
+    floor = DEFAULT_BENCH_CONFIG.amount.min_minor_share
+    assert case["requested_amount"] == math.ceil(10 / (floor * (1 - 0.5)))
+    assert case["amount_capped"] is True and case["min_minor_share"] == floor
+
+
+def test_minor_share_floor_is_configured_and_recorded(tmp_path: Path) -> None:
+    design = replace(_plain(DEV, event=False), smear=0.25, chimera=0.25, depth=10, pcr="strong")
+    floor = DEFAULT_BENCH_CONFIG.amount.min_minor_share * 2
+    cfg = BenchConfig(amount=AmountConfig(min_minor_share=floor))
+    with (
+        patch(f"{MOD}.run_tool", side_effect=FakeMucOneUp()),
+        patch(f"{MOD}.load_repeat_dictionary", return_value=_rd()),
+        patch(f"{MOD}.pcr_minor_share", return_value=1e-4),
+    ):
+        case = generate_case(design, _ctx(tmp_path, bench=cfg))
+    assert case["requested_amount"] == math.ceil(10 / (floor * (1 - 0.5)))
+    assert case["min_minor_share"] == floor and case["bench_config_sha256"] == cfg.sha256()
+
+
+def test_case_records_target_clamp(tmp_path: Path) -> None:
+    design = replace(_plain(DEV), target_clamped=True)
+    with patch(f"{MOD}.run_tool"), patch(f"{MOD}.load_truth", side_effect=ValueError("x")):
+        case = generate_case(design, _ctx(tmp_path))
+    assert case["target_clamped"] is True and case["design"]["target_clamped"] is True
+
+
+def test_pool_structure_too_short_for_an_event_is_design_invalid(tmp_path: Path) -> None:
+    pool = tmp_path / "pool.txt"
+    pool.write_text("haplotype_1\t1-X-9\nhaplotype_2\t1-X-9\n")
+    design = replace(_plain(DEV), composition="real_derived")
+    with patch(f"{MOD}.run_tool"):
+        case = generate_case(design, _ctx(tmp_path, structure_pool=pool))
+    assert case["status"] == "design_invalid" and "too short" in case["error"]
 
 
 def test_rerun_after_failure_clears_stale_outputs(tmp_path: Path) -> None:

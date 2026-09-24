@@ -2,7 +2,7 @@
 
 Input is ``report.normalize_rows`` output (case rows). Metric 1 (per-allele
 exact) is tabulated on ``report.allele_rows``; metric 2 (case exact) on the
-case rows. Pooled per-allele and case-exact estimates carry 95%
+case rows. Pooled per-allele and case-exact estimates carry ``1 - alpha``
 cluster-bootstrap intervals over ``design_id`` (``sample``). Event recall and
 precision (metric 3) use the conservative per-case bounds; ``dupC`` is
 reported separately from other events. Metric 4 reuses
@@ -14,8 +14,10 @@ negative) by every design factor in ``report.STRATA``.
 from __future__ import annotations
 
 from collections.abc import Sequence
+from fractions import Fraction
 from typing import Any
 
+from muc_one_span.benchsim.bench_config import DEFAULT_BENCH_CONFIG, PERCENT, ReportConfig
 from muc_one_span.benchsim.report import (
     STRATA,
     allele_rows,
@@ -27,7 +29,7 @@ from muc_one_span.benchsim.stats import clopper_pearson, cluster_bootstrap
 from muc_one_span.evaluation.clinical_confusion import confusion
 
 GROUPINGS = (("profile",), ("profile", "delta_class"), ("profile", "depth"))
-N_BOOT = 2000
+_DEFAULT = DEFAULT_BENCH_CONFIG.report
 
 
 def _by_profile(rows: Sequence[dict[str, Any]]) -> dict[str, list[dict[str, Any]]]:
@@ -37,35 +39,44 @@ def _by_profile(rows: Sequence[dict[str, Any]]) -> dict[str, list[dict[str, Any]
     return groups
 
 
-def _pooled(rows: list[dict[str, Any]], metric: str, n_boot: int, seed: int) -> dict[str, Any]:
+def _pooled(rows: list[dict[str, Any]], metric: str, cfg: ReportConfig) -> dict[str, Any]:
     if not rows:
         return {"n": 0, "clusters": 0, "point": None, "ci_low": None, "ci_high": None}
-    point, low, high = cluster_bootstrap(rows, "sample", lambda r: r[metric], n_boot, seed)
+    point, low, high = cluster_bootstrap(
+        rows,
+        "sample",
+        lambda r: r[metric],
+        n=cfg.bootstrap_replicates,
+        seed=cfg.bootstrap_seed,
+        alpha=cfg.alpha,
+    )
     clusters = len({r["sample"] for r in rows})
     return {"n": len(rows), "clusters": clusters, "point": point, "ci_low": low, "ci_high": high}
 
 
 def pooled_estimates(
-    rows: Sequence[dict[str, Any]], n_boot: int = N_BOOT, seed: int = 0
+    rows: Sequence[dict[str, Any]], report: ReportConfig = _DEFAULT
 ) -> dict[str, dict[str, Any]]:
     """Per profile (and ``all``): per-allele and case-exact rates, cluster-bootstrap CIs."""
     out = {}
     for profile, group in _by_profile(rows).items():
         out[profile] = {
-            "allele_exact": _pooled(allele_rows(group), "allele_exact", n_boot, seed),
-            "case_exact": _pooled(group, "case_exact", n_boot, seed),
+            "allele_exact": _pooled(allele_rows(group), "allele_exact", report),
+            "case_exact": _pooled(group, "case_exact", report),
         }
     return out
 
 
-def _ratio(k: int, n: int) -> dict[str, Any]:
+def _ratio(k: int, n: int, alpha: float) -> dict[str, Any]:
     if n == 0:
         return {"k": k, "n": n, "rate": None, "ci_low": None, "ci_high": None}
-    low, high = clopper_pearson(k, n)
+    low, high = clopper_pearson(k, n, alpha=alpha)
     return {"k": k, "n": n, "rate": k / n, "ci_low": low, "ci_high": high}
 
 
-def event_table(rows: Sequence[dict[str, Any]]) -> list[dict[str, Any]]:
+def event_table(
+    rows: Sequence[dict[str, Any]], alpha: float = _DEFAULT.alpha
+) -> list[dict[str, Any]]:
     """Event recall (tp / truth events) and precision (tp / (tp + fp)) per profile x event class."""
     groups: dict[tuple[str, str], list[dict[str, Any]]] = {}
     for row in rows:
@@ -81,8 +92,8 @@ def event_table(rows: Sequence[dict[str, Any]]) -> list[dict[str, Any]]:
                 "profile": profile,
                 "event_class": cls,
                 "cases": len(group),
-                "recall": _ratio(tp, truth),
-                "precision": _ratio(tp, tp + fp),
+                "recall": _ratio(tp, truth, alpha),
+                "precision": _ratio(tp, tp + fp, alpha),
             }
         )
     return table
@@ -98,9 +109,7 @@ def confusion_by_profile(rows: Sequence[dict[str, Any]]) -> dict[str, dict[str, 
     }
 
 
-def build_tables(
-    rows: Sequence[dict[str, Any]], n_boot: int = N_BOOT, seed: int = 0
-) -> dict[str, Any]:
+def build_tables(rows: Sequence[dict[str, Any]], report: ReportConfig = _DEFAULT) -> dict[str, Any]:
     """All per-engine tables: stratified CP tables, pooled bootstrap, events, confusion."""
     alleles = allele_rows(rows)
     normals = [r for r in rows if r["normal"] or r["benign"]]
@@ -108,21 +117,27 @@ def build_tables(
     for by in GROUPINGS:
         label = " x ".join(by)
         stratified[f"allele_exact (metric 1, per allele) by {label}"] = stratified_table(
-            alleles, by, "allele_exact"
+            alleles, by, "allele_exact", report.alpha
         )
-        stratified[f"case_exact (metric 2) by {label}"] = stratified_table(rows, by, "case_exact")
+        stratified[f"case_exact (metric 2) by {label}"] = stratified_table(
+            rows, by, "case_exact", report.alpha
+        )
     for metric in ("critical_false_negative", "inconclusive", "no_call"):
-        stratified[f"{metric} by profile"] = stratified_table(rows, ("profile",), metric)
+        stratified[f"{metric} by profile"] = stratified_table(
+            rows, ("profile",), metric, report.alpha
+        )
     for metric in ("false_positive", "no_call"):
         stratified[f"{metric} on normal + benign truths by profile"] = stratified_table(
-            normals, ("profile",), metric
+            normals, ("profile",), metric, report.alpha
         )
     for factor in STRATA:
-        stratified[f"failure atlas: {factor}"] = stratified_table(rows, (factor,), "failure")
+        stratified[f"failure atlas: {factor}"] = stratified_table(
+            rows, (factor,), "failure", report.alpha
+        )
     return {
         "stratified": stratified,
-        "pooled": pooled_estimates(rows, n_boot, seed),
-        "events": event_table(rows),
+        "pooled": pooled_estimates(rows, report),
+        "events": event_table(rows, report.alpha),
         "confusion": confusion_by_profile(rows),
     }
 
@@ -131,10 +146,11 @@ def _ci(entry: dict[str, Any], rate: str = "rate") -> str:
     return f"{fmt_value(entry[rate])} [{fmt_value(entry['ci_low'])}, {fmt_value(entry['ci_high'])}]"
 
 
-def render_engine_tables(tables: dict[str, Any]) -> str:
-    """Markdown for ``build_tables`` output."""
+def render_engine_tables(tables: dict[str, Any], report: ReportConfig = _DEFAULT) -> str:
+    """Markdown for ``build_tables`` output (``report`` gives the interval level)."""
+    level = float((1 - Fraction(str(report.alpha))) * PERCENT)
     lines = [
-        "### Pooled estimates (95% cluster bootstrap over design_id)",
+        f"### Pooled estimates ({level:g}% cluster bootstrap over design_id)",
         "",
         "| profile | per-allele exact | alleles | case exact | cases |",
         "|---|---|---|---|---|",

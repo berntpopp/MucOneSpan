@@ -28,6 +28,7 @@ from pathlib import Path
 from types import ModuleType
 from typing import Any
 
+from muc_one_span.benchsim.bench_config import DEFAULT_BENCH_CONFIG, load_bench_config
 from muc_one_span.benchsim.design import Design, build_split
 from muc_one_span.benchsim.generate import GenerateContext, generate_case, write_manifest
 from muc_one_span.benchsim.muconeup import BUILTIN_PROFILE, require_muconeup
@@ -37,7 +38,6 @@ from muc_one_span.benchsim.realism import case_metrics
 from muc_one_span.benchsim.realism_targets import compare as realism_compare
 from muc_one_span.benchsim.realism_targets import load_targets
 from muc_one_span.benchsim.report import (
-    RULE_TEXT,
     decide,
     first_evaluation,
     mark_first_evaluation,
@@ -45,6 +45,7 @@ from muc_one_span.benchsim.report import (
     preregister,
     render_markdown,
     require_preregistered,
+    rule_text,
 )
 from muc_one_span.benchsim.report_tables import build_tables, render_engine_tables
 from muc_one_span.benchsim.run_cases import run_split
@@ -52,7 +53,7 @@ from muc_one_span.config import load_repeat_dictionary
 from muc_one_span.tools import run_tool
 
 DATA_DIR_NAME = "MucOneSpan-bench-data"
-DEFAULT_N = {"dev": 300, "val": 300, "test": 800, "stress": 100}
+SPLITS = sorted(DEFAULT_BENCH_CONFIG.design.split_sizes)
 DEFAULT_SALT = "mucsim-bench-v1"
 HERE = Path(__file__).resolve().parent
 
@@ -126,8 +127,14 @@ def cmd_design(args: argparse.Namespace) -> int:
     mutations = (
         args.mutations.split(",") if args.mutations else sorted(load_repeat_dictionary().mutations)
     )
-    n = args.n if args.n is not None else DEFAULT_N[args.split]
-    designs = build_split(args.split, n, salt, mutations)
+    sizes = args.bench.design.split_sizes
+    if args.split not in sizes:
+        raise SystemExit(f"no size configured for split {args.split!r}")
+    n = args.n if args.n is not None else sizes[args.split]
+    try:
+        designs = build_split(args.split, n, salt, mutations, args.bench)
+    except ValueError as exc:
+        raise SystemExit(str(exc)) from exc
     if args.output is not None:
         out = ensure_outside(args.output, "--output")
     else:
@@ -157,7 +164,7 @@ def cmd_generate(args: argparse.Namespace) -> int:
     profile_dir = builtin_profile_dir(args.muconeup_profiles)
     for design in designs:  # write shared variant files once, before workers start
         base = profile_dir / f"{BUILTIN_PROFILE[design.profile]}.json"
-        write_variant(base, design, root / "profiles")
+        write_variant(base, design, root / "profiles", args.bench.profiles)
     ctx = GenerateContext(
         args.muconeup,
         Path(config).resolve(),
@@ -166,6 +173,7 @@ def cmd_generate(args: argparse.Namespace) -> int:
         args.flank_fasta.resolve() if args.flank_fasta else None,
         args.structure_pool.resolve() if args.structure_pool else None,
         version,
+        args.bench,
     )
     cases = _run_all(designs, ctx, args.jobs)
     split_of = {d.design_id: d.split for d in designs}
@@ -202,8 +210,9 @@ def cmd_run(args: argparse.Namespace) -> int:
         "ont": args.model_ont or os.environ.get("CLAIR3_MODEL_ONT"),
         "hifi": args.model_hifi or os.environ.get("CLAIR3_MODEL_HIFI"),
     }
+    threads = args.threads if args.threads is not None else args.bench.run.threads
     records = run_split(
-        manifest, engines, results_root, partial(_model_lookup, models), args.threads, args.jobs
+        manifest, engines, results_root, partial(_model_lookup, models), threads, args.jobs
     )
     counts = Counter((r["engine"], r["status"]) for r in records)
     for engine in engines:
@@ -217,7 +226,7 @@ def _prereg_path(root: Path) -> Path:
     return root / "test" / "preregistration.jsonl"
 
 
-def _guard_sealed(split: str, root: Path) -> dict[str, Any] | None:
+def _guard_sealed(split: str, root: Path, rule: str) -> dict[str, Any] | None:
     """``test`` truth stays sealed until the decision rule is pre-registered.
 
     Returns the matched pre-registration entry for ``test`` (``None`` otherwise).
@@ -225,7 +234,7 @@ def _guard_sealed(split: str, root: Path) -> dict[str, Any] | None:
     if split != "test":
         return None
     try:
-        return require_preregistered(_prereg_path(root), RULE_TEXT)
+        return require_preregistered(_prereg_path(root), rule)
     except PermissionError as exc:
         raise SystemExit(f"test split is sealed: {exc}") from exc
 
@@ -249,7 +258,7 @@ def cmd_preregister(args: argparse.Namespace) -> int:
     """Append the decision rule to ``<out-root>/test/preregistration.jsonl``."""
     path = _prereg_path(out_root(args))
     try:
-        digest = preregister(RULE_TEXT, path)
+        digest = preregister(rule_text(args.bench.report), path)
     except PermissionError as exc:
         raise SystemExit(str(exc)) from exc
     print(f"pre-registered rule sha256 {digest} in {path}")
@@ -259,7 +268,7 @@ def cmd_preregister(args: argparse.Namespace) -> int:
 def cmd_evaluate(args: argparse.Namespace) -> int:
     """Score each engine's results with ``scripts/evaluate.py`` into ``evaluation.json``."""
     root = out_root(args)
-    audit = _guard_sealed(args.split, root)  # before any truth is read
+    audit = _guard_sealed(args.split, root, rule_text(args.bench.report))  # before truth is read
     if audit is not None:  # marked before scoring starts (conservative: a failed run counts)
         audit["test_first_evaluated_at"] = mark_first_evaluation(_prereg_path(root))
     results, split_dir = _results_root(args, root), root / args.split
@@ -292,7 +301,7 @@ def _cases(split_dir: Path) -> dict[str, dict[str, Any]]:
 def cmd_report(args: argparse.Namespace) -> int:
     """Stratified tables per engine and the decision rule: ``report.json`` + ``report.md``."""
     root = out_root(args)
-    audit = _guard_sealed(args.split, root)
+    audit = _guard_sealed(args.split, root, rule_text(args.bench.report))
     if audit is not None:
         audit["test_first_evaluated_at"] = first_evaluation(_prereg_path(root))
     results, cases = _results_root(args, root), _cases(root / args.split)
@@ -306,21 +315,22 @@ def cmd_report(args: argparse.Namespace) -> int:
             rows[engine] = normalize_rows(json.loads(path.read_text()), cases)
         except (KeyError, ValueError) as exc:
             raise SystemExit(f"cannot normalize {path}: {exc}") from exc
-    decision = decide(rows, args.baseline, args.candidate) if args.candidate else None
-    tables = {engine: build_tables(r) for engine, r in rows.items()}
+    decision = decide(rows, args.baseline, args.candidate, args.bench) if args.candidate else None
+    tables = {engine: build_tables(r, args.bench.report) for engine, r in rows.items()}
     report = {
         "split": args.split,
         "preregistration": audit,
+        "bench_config_sha256": args.bench.sha256(),
         "decision": decision,
         "tables": tables,
         "engines": {engine: {"rows": r} for engine, r in rows.items()},
     }
     _write(results / "report.json", report)
-    if decision is None:
-        parts = ["# MucSim-Bench report\n\nDecision: not evaluated (no candidate; tables only).\n"]
-    else:
-        parts = [render_markdown(decision)]
-    parts += [f"## Engine `{e}`\n\n{render_engine_tables(t)}" for e, t in tables.items()]
+    parts = [render_markdown(decision or {})]
+    parts += [
+        f"## Engine `{e}`\n\n{render_engine_tables(t, args.bench.report)}"
+        for e, t in tables.items()
+    ]
     (results / "report.md").write_text("\n".join(parts))
     print(f"report: {results / 'report.json'}")
     return 0
@@ -329,7 +339,7 @@ def cmd_report(args: argparse.Namespace) -> int:
 def cmd_realism(args: argparse.Namespace) -> int:
     """Task 9 realism metrics over a split, aggregated and compared per profile."""
     root = out_root(args)
-    if _guard_sealed(args.split, root) is not None:
+    if _guard_sealed(args.split, root, rule_text(args.bench.report)) is not None:
         mark_first_evaluation(_prereg_path(root))  # realism reads test truth: unseals
     split_dir = root / args.split
     per_profile: dict[str, list[dict[str, Any]]] = {}
@@ -339,7 +349,9 @@ def cmd_realism(args: argparse.Namespace) -> int:
             failures.append({"design_id": design_id, "error": f"status {case.get('status')}"})
             continue
         try:
-            metrics = case_metrics(split_dir / design_id, args.muconeup_config, args.flank_fasta)
+            metrics = case_metrics(
+                split_dir / design_id, args.muconeup_config, args.flank_fasta, args.bench.realism
+            )
         except (OSError, ValueError, KeyError) as exc:
             failures.append({"design_id": design_id, "error": f"{type(exc).__name__}: {exc}"})
             continue
@@ -347,15 +359,20 @@ def cmd_realism(args: argparse.Namespace) -> int:
     targets = load_targets()
     profiles: dict[str, Any] = {}
     for profile, cases in sorted(per_profile.items()):
-        agg = realism_aggregate(cases)
+        agg = realism_aggregate(cases, args.bench.realism)
         try:
-            checks = realism_compare(agg, targets, profile)
+            checks = realism_compare(agg, targets, profile, args.bench.realism)
         except KeyError:
             checks = None  # no public target section for this profile
         profiles[profile] = {"n_cases": len(cases), "aggregate": agg, "compare": checks}
     _write(
         split_dir / "realism.json",
-        {"split": args.split, "profiles": profiles, "failures": failures},
+        {
+            "split": args.split,
+            "bench_config_sha256": args.bench.sha256(),
+            "profiles": profiles,
+            "failures": failures,
+        },
     )
     lines = [f"# Realism: {args.split}", ""]
     for profile, res in profiles.items():
@@ -374,9 +391,14 @@ def cmd_realism(args: argparse.Namespace) -> int:
 def parser() -> argparse.ArgumentParser:
     """Command-line interface."""
     result = argparse.ArgumentParser(description=__doc__.splitlines()[0])
+    result.add_argument(
+        "--bench-config",
+        type=Path,
+        help="JSON overriding MucSim-Bench settings (default: built-in, docs/benchmark.md)",
+    )
     commands = result.add_subparsers(dest="action", required=True)
     design = commands.add_parser("design", help="write designs_<split>.jsonl")
-    design.add_argument("--split", choices=sorted(DEFAULT_N), required=True)
+    design.add_argument("--split", choices=SPLITS, required=True)
     design.add_argument("--n", type=int, help="cases per profile (default: split size)")
     design.add_argument("--salt", default=DEFAULT_SALT, help="public salt for non-test splits")
     design.add_argument("--salt-file", type=Path, help="secret salt file (required for test)")
@@ -402,7 +424,7 @@ def parser() -> argparse.ArgumentParser:
     run_cmd.add_argument("--results-root", type=Path, help="default: <out-root>/results/<split>")
     run_cmd.add_argument("--model-ont", help="caller model for ont (default: $CLAIR3_MODEL_ONT)")
     run_cmd.add_argument("--model-hifi", help="caller model for hifi (default: $CLAIR3_MODEL_HIFI)")
-    run_cmd.add_argument("--threads", type=int, default=4)
+    run_cmd.add_argument("--threads", type=int, help="default: bench config run.threads")
     run_cmd.add_argument(
         "--jobs", type=int, default=1, help="parallel (engine, case) pairs (process pool)"
     )
@@ -416,7 +438,7 @@ def parser() -> argparse.ArgumentParser:
         ("realism", cmd_realism, "realism metrics vs targets: realism.json + realism.md"),
     ):
         sp = commands.add_parser(name, help=text)
-        sp.add_argument("--split", choices=sorted(DEFAULT_N), required=True)
+        sp.add_argument("--split", choices=SPLITS, required=True)
         sp.add_argument("--out-root", type=Path, help=f"default: <repo parent>/{DATA_DIR_NAME}")
         sp.set_defaults(func=func)
         if name == "evaluate":
@@ -435,6 +457,10 @@ def parser() -> argparse.ArgumentParser:
 def main(argv: Sequence[str] | None = None) -> int:
     """Entry point."""
     args = parser().parse_args(argv)
+    try:
+        args.bench = load_bench_config(args.bench_config)
+    except (OSError, ValueError) as exc:
+        raise SystemExit(f"--bench-config: {exc}") from exc
     code: int = args.func(args)
     return code
 

@@ -4,10 +4,12 @@ Target shapes follow the real `targets/prjeb92208_v1.json` keys, not the
 brief's illustrative shape.
 """
 
+from dataclasses import replace
 from pathlib import Path
 
 import pytest
 
+from muc_one_span.benchsim.bench_config import DEFAULT_BENCH_CONFIG
 from muc_one_span.benchsim.realism_targets import (
     PROFILE_SECTIONS,
     compare,
@@ -86,3 +88,27 @@ def test_load_local_targets(tmp_path: Path) -> None:
     path.write_text('{"custom": {"category_frac": {"spanning": {"min": 0.1, "max": 0.2}}}}')
     res = compare({"spanning_frac": 0.15}, load_targets(path), "custom")
     assert res["spanning_frac"]["pass"] is True
+
+
+REALISM = DEFAULT_BENCH_CONFIG.realism
+
+
+def test_tolerances_come_from_the_config() -> None:
+    metrics = {"c7_correct": {"+": 0.60}, "span_offset_hist": {"lt55u": [0] * 13 + [9] + [0] * 3}}
+    default = compare(metrics, TARGETS, "ont_amplicon_r10")
+    assert default["c7_correct_+"]["pass"] is False
+    assert default["span_offset_jsd_lt55u"]["pass"] is False
+    loose = replace(REALISM, c7_abs_tol=0.1, jsd_max=1.0)
+    res = compare(metrics, TARGETS, "ont_amplicon_r10", loose)
+    assert res["c7_correct_+"]["pass"] is True and res["span_offset_jsd_lt55u"]["pass"] is True
+    assert "0.1" in res["c7_correct_+"]["tolerance"]
+
+
+def test_histogram_bins_must_match_the_target_bins() -> None:
+    edges = {"lt55u": {"bin_lo_bp": REALISM.bin_lo_bp(), "p": [1.0] * REALISM.n_bins}}
+    ok = {"ont_amplicon_PRJEB92208": {"span_offset_pmf_15bp_bins": edges}}
+    metrics = {"span_offset_hist": {"lt55u": [1] * REALISM.n_bins}}
+    assert compare(metrics, ok, "ont_amplicon_r10")["span_offset_jsd_lt55u"]["pass"] is True
+    wider = replace(REALISM, offset_bin_bp=REALISM.offset_bin_bp * 2)
+    with pytest.raises(ValueError, match="bin"):
+        compare(metrics, ok, "ont_amplicon_r10", wider)

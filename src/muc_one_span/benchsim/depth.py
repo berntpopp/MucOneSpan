@@ -5,9 +5,10 @@ in [-(L-1), S) and is clipped at both ends, where L is the fragment length
 and S is the source sequence length. A fragment spans the target VNTR when
 its start <= span_start and start + length >= span_end.
 
-PCR slope convention: negative slopes (calibrated: -0.056/unit, strong: -0.112/unit,
-none: 0) describe the effect of allele length difference on minor allele share,
-using the formula: share = 1 / (1 + exp(slope * Δ)).
+PCR slope convention: ``amount.pcr_slope_per_unit`` holds the magnitude of the
+(negative) per-unit slope of the log allele ratio for each PCR level; the minor
+(shorter) allele share is ``1 / (1 + exp(slope * Δ))``. All tunables come from
+`bench_config.AmountConfig`.
 """
 
 from __future__ import annotations
@@ -15,31 +16,39 @@ from __future__ import annotations
 import math
 import random
 
-SLOPE = {"calibrated": 0.056, "strong": 0.112, "none": 0.0}
-# Floor on the minor-allele share used to size amplicon template counts. Below it
-# (strong PCR bias with a large length difference) the uncapped count reaches
-# 10^5-10^6 templates and simulation does not finish in bounded time/memory; the
-# minor allele then gets below-target depth, as in real allelic dropout.
-MIN_MINOR_SHARE = 0.05
+from .bench_config import DEFAULT_BENCH_CONFIG, AmountConfig
+
+MAX_MINOR_SHARE = 0.5  # the minor allele's share by definition never exceeds one half
 
 
-def pcr_minor_share(lengths: tuple[int, int], pcr: str) -> float:
+def pcr_minor_share(
+    lengths: tuple[int, int], pcr: str, config: AmountConfig = DEFAULT_BENCH_CONFIG.amount
+) -> float:
     """Calculate the expected PCR share of the minor (shorter) allele.
 
     Args:
         lengths: Tuple of (allele1_length, allele2_length) in bp.
-        pcr: PCR condition: "calibrated", "strong", or "none".
+        pcr: PCR level, a key of ``config.pcr_slope_per_unit``.
+        config: Amount settings.
 
     Returns:
         Expected PCR share of the minor (shorter) allele in (0, 0.5].
     """
     delta = abs(lengths[0] - lengths[1])
-    return 1.0 / (1.0 + math.exp(SLOPE[pcr] * delta))
+    return 1.0 / (1.0 + math.exp(config.pcr_slope_per_unit[pcr] * delta))
 
 
-def capped_minor_share(share: float) -> tuple[float, bool]:
-    """Return ``(max(share, MIN_MINOR_SHARE), capped)`` for sizing template counts."""
-    return (MIN_MINOR_SHARE, True) if share < MIN_MINOR_SHARE else (share, False)
+def capped_minor_share(
+    share: float, config: AmountConfig = DEFAULT_BENCH_CONFIG.amount
+) -> tuple[float, bool]:
+    """Return ``(max(share, config.min_minor_share), capped)`` for sizing template counts.
+
+    Below the floor (strong PCR bias, large length difference) the template count
+    explodes and simulation does not finish in bounded time; the minor allele then
+    gets below-target depth instead, as in real allelic dropout.
+    """
+    floor = config.min_minor_share
+    return (floor, True) if share < floor else (share, False)
 
 
 def amplicon_templates(
@@ -63,8 +72,10 @@ def amplicon_templates(
     Raises:
         ValueError: If minor_share is not in (0, 0.5] or artefact_rate is not in [0, 1).
     """
-    if not 0 < minor_share <= 0.5 or not 0 <= artefact_rate < 1:
-        raise ValueError("minor_share in (0, 0.5] and artefact_rate in [0, 1) required")
+    if not 0 < minor_share <= MAX_MINOR_SHARE or not 0 <= artefact_rate < 1:
+        raise ValueError(
+            f"minor_share in (0, {MAX_MINOR_SHARE}] and artefact_rate in [0, 1) required"
+        )
     return math.ceil(target_full_per_allele / (minor_share * (1.0 - artefact_rate)))
 
 
@@ -76,8 +87,8 @@ def genomic_reads(
     median: float,
     sigma: float,
     n_hap: int = 2,
-    draws: int = 20000,
     seed: int = 0,
+    config: AmountConfig = DEFAULT_BENCH_CONFIG.amount,
 ) -> int:
     """Calculate genomic reads needed to reach target spanning reads (Monte-Carlo).
 
@@ -94,8 +105,8 @@ def genomic_reads(
         median: Median fragment length (lognormal distribution).
         sigma: Shape parameter of the lognormal distribution (scale).
         n_hap: Number of haplotypes (default 2).
-        draws: Number of Monte-Carlo samples (default 20000).
         seed: Random seed for reproducibility (default 0).
+        config: Amount settings; ``genomic_mc_draws`` Monte-Carlo samples are drawn.
 
     Returns:
         Number of genomic reads required to reach the target spanning depth per haplotype.
@@ -105,6 +116,7 @@ def genomic_reads(
                     (no spanning reads in the Monte-Carlo sample).
     """
     rng = random.Random(seed)
+    draws = config.genomic_mc_draws
     hits = 0
     for _ in range(draws):
         length = max(1, round(rng.lognormvariate(math.log(median), sigma)))

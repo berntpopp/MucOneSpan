@@ -7,28 +7,30 @@ them by path (`load_targets(path)`) and pass their section name explicitly as
 `profile` (e.g. ``ont_genomic_inhouse``); `PROFILE_SECTIONS` maps benchmark
 profiles to the public sections only.
 
-Spec section 4 tolerance -> target key (per section):
+Spec section 4 tolerance -> target key (per section); every tolerance is a
+`bench_config.RealismConfig` field (default in brackets):
 
-==========================  ================================================  ==========================
+==========================  ================================================  ================================
 metric (`realism`)          target key                                        pass rule
-==========================  ================================================  ==========================
-``<rate>[<strand>]``        ``error_rates_per_ref_base["<strand>:<type>"]``   median +/- 20 % relative
-``c7_correct[+|-]``         ``hp_P_obs_given_true["C7|<strand>"].p_correct``  +/- 0.03 absolute
+==========================  ================================================  ================================
+``<rate>[<strand>]``        ``error_rates_per_ref_base["<strand>:<type>"]``   median +/- error_rel_tol [20 %]
+``c7_correct[+|-]``         ``hp_P_obs_given_true["C7|<strand>"].p_correct``  +/- c7_abs_tol [0.03]
 ``span_off_gt1unit_frac``   ``span_off_gt1unit_frac`` (smear products)        real [min, max]
 ``span_between_alleles_``   ``span_between_alleles_frac``                     real [min, max]
 ``span_below_short_frac``   ``span_below_short_frac``                         real [min, max]
 ``offtarget_frac``          ``category_frac["off_target"]``                   real [min, max]
 ``spanning_frac``           ``category_frac["spanning"]``                     real [min, max]
-``span_offset_hist``        ``span_offset_pmf_15bp_bins[lt55u|ge55u].p``      JS distance <= 0.1
-``log_ratio_slope``         ``allelic_ratio.through_origin_b_per_unit``       +/- 0.01 per unit
-==========================  ================================================  ==========================
+``span_offset_hist``        ``span_offset_pmf_15bp_bins[<size key>].p``       JS distance <= jsd_max [0.1]
+``log_ratio_slope``         ``allelic_ratio.through_origin_b_per_unit``       +/- slope_abs_tol [0.01]
+==========================  ================================================  ================================
 
 ``<rate>`` is mismatch/insertion/deletion/error_rate for type
 mismatch/ins/del/total and ``<strand>`` is ``+``, ``-`` or ``all``; for an
 `aggregate` it is the median of per-case rates, compared with the median of
 per-library rates. A range
 metric given as an `aggregate` spread must also keep its median within
-+/- 25 % of the real median. Checks whose simulated value or target is
++/- ``range_median_rel_tol`` [25 %] of the real median. The configured
+span-offset bins must equal the target's ``bin_lo_bp`` when it lists them. Checks whose simulated value or target is
 missing are omitted from the result.
 """
 
@@ -41,16 +43,14 @@ from importlib import resources
 from pathlib import Path
 from typing import Any
 
+from .bench_config import DEFAULT_BENCH_CONFIG, PERCENT, RealismConfig
+
 PROFILE_SECTIONS = {
     "ont_amplicon_r10": "ont_amplicon_PRJEB92208",
     "ont_genomic_targeted": "ont_wgs_PRJEB92208",
 }
 PACKAGED_TARGETS = "prjeb92208_v1.json"
-ERROR_REL_TOL = 0.20
-C7_ABS_TOL = 0.03
-RANGE_MEDIAN_REL_TOL = 0.25
-JSD_MAX = 0.1
-SLOPE_ABS_TOL = 0.01
+OFFSET_PMF_KEY = "span_offset_pmf_15bp_bins"  # target-file key (format definition)
 ERROR_TYPES = {
     "mismatch_rate": "mismatch",
     "insertion_rate": "ins",
@@ -111,18 +111,34 @@ def _check(sim: Any, target: Any, tolerance: str, ok: bool) -> dict[str, Any]:
     return {"sim": sim, "target": target, "tolerance": tolerance, "pass": bool(ok)}
 
 
-def _range(sim: Any, real: dict[str, float]) -> dict[str, Any]:
+def _pct(value: float) -> str:
+    return f"{value * PERCENT:g} %"
+
+
+def _range(sim: Any, real: dict[str, float], cfg: RealismConfig) -> dict[str, Any]:
     lo, hi = real["min"], real["max"]
     if not isinstance(sim, dict):
         return _check(sim, [lo, hi], "within real [min, max]", lo <= sim <= hi)
     median = real.get("median")
     in_range = lo <= sim["min"] and sim["max"] <= hi
-    near = median is None or abs(sim["median"] - median) <= RANGE_MEDIAN_REL_TOL * median
+    tol = cfg.range_median_rel_tol
+    near = median is None or abs(sim["median"] - median) <= tol * median
     target = {"min": lo, "median": median, "max": hi}
-    return _check(sim, target, "within real [min, max]; median +/- 25 %", in_range and near)
+    rule = f"within real [min, max]; median +/- {_pct(tol)}"
+    return _check(sim, target, rule, in_range and near)
 
 
-def compare(metrics: dict[str, Any], targets: dict[str, Any], profile: str) -> dict[str, Any]:
+def target_section(targets: dict[str, Any], profile: str) -> dict[str, Any]:
+    """The target section for a benchmark profile or an explicit section name."""
+    return _section(targets, profile)
+
+
+def compare(
+    metrics: dict[str, Any],
+    targets: dict[str, Any],
+    profile: str,
+    config: RealismConfig = DEFAULT_BENCH_CONFIG.realism,
+) -> dict[str, Any]:
     """Score realism metrics against one target section (spec section 4).
 
     Args:
@@ -130,12 +146,14 @@ def compare(metrics: dict[str, Any], targets: dict[str, Any], profile: str) -> d
         targets: Loaded targets (`load_targets`).
         profile: A benchmark profile (mapped by `PROFILE_SECTIONS`) or an
             explicit section name present in `targets`.
+        config: Tolerances and histogram bins.
 
     Returns:
         Check name -> `{sim, target, tolerance, pass}`.
 
     Raises:
         KeyError: If no section exists for `profile`.
+        ValueError: If the configured histogram bins differ from the target's.
     """
     sec = _section(targets, profile)
     res: dict[str, Any] = {}
@@ -144,28 +162,35 @@ def compare(metrics: dict[str, Any], targets: dict[str, Any], profile: str) -> d
         for strand, sim in (metrics.get(key) or {}).items():
             real = _dig(rates, (f"{strand}:{etype}", "median"))
             if sim is not None and real:
-                ok = abs(sim - real) <= ERROR_REL_TOL * real
-                res[f"{key}_{strand}"] = _check(sim, real, "+/- 20 % relative", ok)
+                ok = abs(sim - real) <= config.error_rel_tol * real
+                rule = f"+/- {_pct(config.error_rel_tol)} relative"
+                res[f"{key}_{strand}"] = _check(sim, real, rule, ok)
     for strand in ("+", "-"):
         sim = (metrics.get("c7_correct") or {}).get(strand)
         real = _dig(sec, ("hp_P_obs_given_true", f"C7|{strand}", "p_correct"))
         if sim is not None and real is not None:
-            ok = abs(sim - real) <= C7_ABS_TOL
-            res[f"c7_correct_{strand}"] = _check(sim, real, "+/- 0.03 absolute", ok)
+            ok = abs(sim - real) <= config.c7_abs_tol
+            rule = f"+/- {config.c7_abs_tol:g} absolute"
+            res[f"c7_correct_{strand}"] = _check(sim, real, rule, ok)
     for key, path in RANGE_TARGETS.items():
         real = _dig(sec, path)
         if metrics.get(key) is not None and isinstance(real, dict):
-            res[key] = _range(metrics[key], real)
+            res[key] = _range(metrics[key], real, config)
     for size, hist in (metrics.get("span_offset_hist") or {}).items():
-        real = _dig(sec, ("span_offset_pmf_15bp_bins", size, "p"))
+        edges = _dig(sec, (OFFSET_PMF_KEY, size, "bin_lo_bp"))
+        if edges is not None and list(edges) != config.bin_lo_bp():
+            raise ValueError(
+                f"span-offset bins {config.bin_lo_bp()} differ from the target's {edges} ({size})"
+            )
+        real = _dig(sec, (OFFSET_PMF_KEY, size, "p"))
         dist = js_distance(hist, real) if real else None
         if dist is not None:
-            res[f"span_offset_jsd_{size}"] = _check(
-                dist, 0.0, "JS distance <= 0.1", dist <= JSD_MAX
-            )
+            rule = f"JS distance <= {config.jsd_max:g}"
+            res[f"span_offset_jsd_{size}"] = _check(dist, 0.0, rule, dist <= config.jsd_max)
     sim = metrics.get("log_ratio_slope")
     real = _dig(sec, ("allelic_ratio", "through_origin_b_per_unit"))
     if sim is not None and real is not None:
-        ok = abs(sim - real) <= SLOPE_ABS_TOL
-        res["allele_ratio_slope"] = _check(sim, real, "+/- 0.01 per unit", ok)
+        ok = abs(sim - real) <= config.slope_abs_tol
+        rule = f"+/- {config.slope_abs_tol:g} per unit"
+        res["allele_ratio_slope"] = _check(sim, real, rule, ok)
     return res

@@ -45,6 +45,26 @@ def test_design_writes_jsonl(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) ->
     assert rc == 0 and len(rows) == 12 and {r["split"] for r in rows} == {"dev"}
 
 
+def test_bench_config_drives_design(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    out = tmp_path / "data"
+    config = tmp_path / "bench.json"
+    sizes = {"dev": 2, "val": 2, "test": 2, "stress": 2}
+    config.write_text(
+        json.dumps({"schema_version": 1, "design": {"split_sizes": sizes, "chimera_levels": [0.2]}})
+    )
+    args = ["--bench-config", str(config), "design", "--split", "dev", "--mutations", "dupC"]
+    rc = _cli(tmp_path, monkeypatch).main([*args, "--out-root", str(out)])
+    rows = [json.loads(x) for x in (out / "designs_dev.jsonl").read_text().splitlines()]
+    assert rc == 0 and len(rows) == 6 and {r["chimera"] for r in rows} == {0.2}
+
+
+def test_invalid_bench_config_exits(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    config = tmp_path / "bench.json"
+    config.write_text(json.dumps({"schema_version": 1, "report": {"alpha": 2}}))
+    with pytest.raises(SystemExit, match=r"report\.alpha"):
+        _cli(tmp_path, monkeypatch).main(["--bench-config", str(config), "preregister"])
+
+
 def test_default_out_root_is_beside_the_repository(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:

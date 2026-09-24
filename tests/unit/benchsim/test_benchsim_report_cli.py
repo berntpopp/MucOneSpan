@@ -7,6 +7,7 @@ from typing import Any
 
 import pytest
 
+from muc_one_span.benchsim.bench_config import DEFAULT_BENCH_CONFIG
 from muc_one_span.benchsim.report import RULE_TEXT
 from tests.unit.benchsim.test_benchsim_cli import _cli
 
@@ -242,7 +243,7 @@ def test_realism_aggregates_per_profile_and_keeps_failures(
     seen: list[Path] = []
 
     def fake_case_metrics(
-        case_dir: Path, muconeup_config: Any = None, flank_fasta: Any = None
+        case_dir: Path, muconeup_config: Any = None, flank_fasta: Any = None, cfg: Any = None
     ) -> dict[str, Any]:
         seen.append(case_dir)
         if case_dir.name == "c2":
@@ -250,14 +251,15 @@ def test_realism_aggregates_per_profile_and_keeps_failures(
         return {"n_reads": 3}
 
     monkeypatch.setattr(cli, "case_metrics", fake_case_metrics)
-    monkeypatch.setattr(cli, "realism_aggregate", lambda cases: {"n_cases": len(cases)})
-    monkeypatch.setattr(cli, "realism_compare", lambda m, t, p: {"check": {"pass": True}})
+    monkeypatch.setattr(cli, "realism_aggregate", lambda cases, cfg: {"n_cases": len(cases)})
+    monkeypatch.setattr(cli, "realism_compare", lambda m, t, p, cfg: {"check": {"pass": True}})
     monkeypatch.setattr(cli, "load_targets", lambda: {})
     assert cli.main(["realism", "--split", "dev", "--out-root", str(tmp_path / "data")]) == 0
     out = json.loads((tmp_path / "data" / "dev" / "realism.json").read_text())
     prof = out["profiles"]["ont_amplicon_r10"]
     assert prof["aggregate"] == {"n_cases": 1} and prof["compare"]["check"]["pass"] is True
     assert out["failures"] == [{"design_id": "c2", "error": "ValueError: broken truth"}]
+    assert out["bench_config_sha256"] == DEFAULT_BENCH_CONFIG.sha256()
     assert "ont_amplicon_r10" in (tmp_path / "data" / "dev" / "realism.md").read_text()
 
 
@@ -265,9 +267,9 @@ def test_realism_profile_without_targets(tmp_path: Path, monkeypatch: pytest.Mon
     cli = _cli(tmp_path, monkeypatch)
     _split(tmp_path)
     monkeypatch.setattr(cli, "case_metrics", lambda *a, **k: {})
-    monkeypatch.setattr(cli, "realism_aggregate", lambda cases: {"n_cases": len(cases)})
+    monkeypatch.setattr(cli, "realism_aggregate", lambda cases, cfg: {"n_cases": len(cases)})
 
-    def no_section(m: Any, t: Any, p: str) -> dict[str, Any]:
+    def no_section(m: Any, t: Any, p: str, cfg: Any) -> dict[str, Any]:
         raise KeyError(p)
 
     monkeypatch.setattr(cli, "realism_compare", no_section)
@@ -283,8 +285,8 @@ def test_realism_test_split_needs_preregistration_and_marks_first_evaluation(
     cli = _cli(tmp_path, monkeypatch)
     _split(tmp_path, "test")
     monkeypatch.setattr(cli, "case_metrics", lambda *a, **k: {})
-    monkeypatch.setattr(cli, "realism_aggregate", lambda cases: {"n_cases": len(cases)})
-    monkeypatch.setattr(cli, "realism_compare", lambda m, t, p: {})
+    monkeypatch.setattr(cli, "realism_aggregate", lambda cases, cfg: {"n_cases": len(cases)})
+    monkeypatch.setattr(cli, "realism_compare", lambda m, t, p, cfg: {})
     monkeypatch.setattr(cli, "load_targets", lambda: {})
     argv = ["realism", "--split", "test", "--out-root", str(tmp_path / "data")]
     with pytest.raises(SystemExit, match="pre-regist"):

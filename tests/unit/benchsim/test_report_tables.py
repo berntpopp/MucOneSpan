@@ -1,7 +1,9 @@
 """benchsim.report_tables: metric 1-5 tables, cluster-bootstrap pooled CIs, failure atlas."""
 
+from dataclasses import replace
 from typing import Any
 
+from muc_one_span.benchsim.bench_config import DEFAULT_BENCH_CONFIG, ReportConfig
 from muc_one_span.benchsim.report import STRATA
 from muc_one_span.benchsim.report_tables import (
     build_tables,
@@ -10,6 +12,12 @@ from muc_one_span.benchsim.report_tables import (
     pooled_estimates,
     render_engine_tables,
 )
+
+R = DEFAULT_BENCH_CONFIG.report
+
+
+def _boot(n: int, seed: int = 0) -> ReportConfig:
+    return replace(R, bootstrap_replicates=n, bootstrap_seed=seed)
 
 
 def _row(i: int, profile: str, truth: str, decision: str, exact: tuple[int, int]) -> dict[str, Any]:
@@ -53,13 +61,13 @@ ROWS = [
 
 
 def test_pooled_estimates_cluster_bootstrap_per_profile() -> None:
-    est = pooled_estimates(ROWS, n_boot=200, seed=1)
+    est = pooled_estimates(ROWS, _boot(200, 1))
     ont = est["ont_amplicon_r10"]
     assert ont["allele_exact"]["n"] == 6 and ont["allele_exact"]["clusters"] == 3
     assert ont["allele_exact"]["point"] == 0.5 and ont["case_exact"]["point"] == 1 / 3
     assert 0 <= ont["allele_exact"]["ci_low"] <= 0.5 <= ont["allele_exact"]["ci_high"] <= 1
     assert est["all"]["allele_exact"]["n"] == 8
-    assert pooled_estimates([], n_boot=10)["all"]["allele_exact"]["point"] is None
+    assert pooled_estimates([], _boot(10))["all"]["allele_exact"]["point"] is None
 
 
 def test_event_table_separates_dupc() -> None:
@@ -79,7 +87,7 @@ def test_confusion_by_profile_reuses_clinical_confusion() -> None:
 
 
 def test_build_tables_has_all_metrics_and_failure_atlas() -> None:
-    tables = build_tables(ROWS, n_boot=50)
+    tables = build_tables(ROWS, _boot(50))
     names = tables["stratified"]
     assert "allele_exact (metric 1, per allele) by profile" in names
     assert "case_exact (metric 2) by profile x delta_class" in names
@@ -98,5 +106,5 @@ def test_build_tables_has_all_metrics_and_failure_atlas() -> None:
 
 def test_failure_atlas_is_stratified_by_event() -> None:
     assert "event" in STRATA
-    atlas = build_tables(ROWS, n_boot=10)["stratified"]["failure atlas: event"]
+    atlas = build_tables(ROWS, _boot(10))["stratified"]["failure atlas: event"]
     assert {t["stratum"]["event"] for t in atlas} >= {"dupC"}

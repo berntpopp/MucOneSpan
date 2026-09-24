@@ -8,9 +8,10 @@ from typing import Any
 
 import pytest
 
-from muc_one_span.benchsim.design import build_split
+from muc_one_span.benchsim.bench_config import DEFAULT_BENCH_CONFIG, StructureConfig
+from muc_one_span.benchsim.design import build_split, event_bounds
 from muc_one_span.benchsim.structures import (
-    CONSERVED,
+    conserved_units,
     inject_rare,
     prepare_structure,
     rare_units,
@@ -72,15 +73,29 @@ def test_rare_units_exclude_conserved_and_common(tmp_path: Path) -> None:
     rare = rare_units(_config(tmp_path), {"X", "A", "L", "K", "1", "9"})
     assert "L" in rare and "K" in rare  # K never reached by the model
     assert "X" not in rare and "A" not in rare
-    assert not set(rare) & CONSERVED
+    assert not set(rare) & conserved_units()
+
+
+def test_conserved_units_come_from_the_repeat_dictionary() -> None:
+    from muc_one_span.config import load_repeat_dictionary
+
+    rd = load_repeat_dictionary()
+    assert conserved_units() == frozenset(rd.pre_repeat_ids) | frozenset(rd.after_repeat_ids)
+
+
+def test_rare_usage_threshold_is_configured(tmp_path: Path) -> None:
+    strict = StructureConfig(rare_usage_max=1e-6)
+    assert "L" not in rare_units(_config(tmp_path), {"X", "A", "L", "K"}, strict)
 
 
 def test_inject_rare_never_touches_motifs_or_targets() -> None:
+    lo, hi = event_bounds(len(CHAIN))  # the same conserved head/tail as event targets
     chain = inject_rare(CHAIN, ["L"], random.Random(1), protect={10})
-    assert chain[:4] == CHAIN[:4] and chain[-5:] == CHAIN[-5:] and chain[9] == "X"
+    assert chain[: lo - 1] == CHAIN[: lo - 1] and chain[hi:] == CHAIN[hi:] and chain[9] == "X"
     changed = [i for i, (a, b) in enumerate(zip(CHAIN, chain, strict=True)) if a != b]
-    assert len(changed) == round(0.1 * (len(CHAIN) - 9))
-    assert all(chain[i] == "L" for i in changed)
+    fraction = DEFAULT_BENCH_CONFIG.structures.rare_fraction
+    assert len(changed) == round(fraction * (hi - lo + 1))
+    assert all(chain[i] == "L" and lo <= i + 1 <= hi for i in changed)
 
 
 def test_read_chains_strips_markers_and_comments(tmp_path: Path) -> None:
@@ -91,12 +106,14 @@ def test_read_chains_strips_markers_and_comments(tmp_path: Path) -> None:
 
 def test_scale_targets_keeps_relative_position() -> None:
     assert scale_targets(((2, 50),), (100, 100), (40, 20)) == ((2, 10),)
-    assert scale_targets(((1, 5),), (100, 100), (40, 20)) == ((1, 5),)
+    assert scale_targets(((1, 15),), (100, 100), (40, 20)) == ((1, 6),)
 
 
 def test_scale_targets_stay_inside_event_bounds() -> None:
-    assert scale_targets(((1, 6),), (100, 100), (40, 20)) == ((1, 5),)
-    assert scale_targets(((2, 95),), (100, 100), (40, 30)) == ((2, 25),)
+    assert scale_targets(((1, 6),), (100, 100), (40, 20)) == ((1, event_bounds(40)[0]),)
+    assert scale_targets(((2, 95),), (100, 100), (40, 30)) == ((2, event_bounds(30)[1]),)
+    with pytest.raises(ValueError, match="too short"):
+        scale_targets(((1, 5),), (100, 100), (3, 3))
 
 
 def test_markov_needs_no_structure(tmp_path: Path) -> None:

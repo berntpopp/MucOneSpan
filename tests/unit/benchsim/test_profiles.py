@@ -8,9 +8,11 @@ from unittest import mock
 
 import pytest
 
+from muc_one_span.benchsim.bench_config import DEFAULT_BENCH_CONFIG, ProfileConfig
 from muc_one_span.benchsim.design import build_split
 from muc_one_span.benchsim.profiles import builtin_profile_dir, variant_name, write_variant
 
+P = DEFAULT_BENCH_CONFIG.profiles
 BASE = {
     "schema_version": 1,
     "name": "ont_r10_sup_amplicon_v1",
@@ -38,8 +40,9 @@ def test_variant_applies_all_levels(tmp_path: Path) -> None:
     path, sha = write_variant(base, _design(), tmp_path / "v")
     data = json.loads(path.read_text())
     assert data["molecules"]["smear_rate"] == 0.5 and data["molecules"]["chimera_rate"] == 0.05
-    assert data["errors"]["mismatch_rate"] == 0.007 * 1.5
-    assert data["config_overrides"]["amplicon_params"]["pcr_bias"]["alpha"] == 2 * 9.27e-5
+    assert data["errors"]["mismatch_rate"] == 0.007 * P.poor_error_scale
+    alpha = P.strong_pcr_alpha_factor * P.r10_pcr_alpha
+    assert data["config_overrides"]["amplicon_params"]["pcr_bias"]["alpha"] == alpha
     assert data["name"] == variant_name(_design()) and len(sha) == 64
     assert data["provenance"]["derived_from"]["name"] == "ont_r10_sup_amplicon_v1"
 
@@ -98,7 +101,7 @@ def test_builtin_profile_dir_no_spec_raises(tmp_path: Path) -> None:
 
 
 def test_hifi_error_poor_sets_accuracy(tmp_path: Path) -> None:
-    """HiFi profile without 'errors' dict: error=poor sets accuracy_mean = 0.95."""
+    """HiFi profile without 'errors' dict: error=poor sets the configured accuracy_mean."""
     hifi_base = {
         "schema_version": 1,
         "name": "hifi_amplicon_v1",
@@ -111,7 +114,7 @@ def test_hifi_error_poor_sets_accuracy(tmp_path: Path) -> None:
     d = next(x for x in build_split("dev", 30, "s", ["dupC"]) if x.profile == "hifi_amplicon")
     d = replace(d, error="poor")
     data = json.loads(write_variant(base, d, tmp_path / "v")[0].read_text())
-    assert data["config_overrides"]["pacbio_params"]["accuracy_mean"] == 0.95
+    assert data["config_overrides"]["pacbio_params"]["accuracy_mean"] == P.hifi_poor_accuracy_mean
 
 
 def test_pcr_none_sets_no_bias(tmp_path: Path) -> None:
@@ -145,3 +148,14 @@ def test_genomic_profile_excludes_artefact_and_pcr(tmp_path: Path) -> None:
     data = json.loads(path.read_text())
     assert data["molecules"]["smear_rate"] == 0.0 and data["molecules"]["chimera_rate"] == 0.0
     assert data["config_overrides"]["amplicon_params"]["pcr_bias"]["preset"] == "madritsch2025_r10"
+
+
+def test_profile_levels_come_from_the_config(tmp_path: Path) -> None:
+    base = tmp_path / "base.json"
+    base.write_text(json.dumps(BASE))
+    cfg = ProfileConfig(poor_error_scale=2.0, strong_pcr_alpha_factor=3.0)
+    path, _ = write_variant(base, _design(), tmp_path / "v", cfg)
+    data = json.loads(path.read_text())
+    assert data["errors"]["mismatch_rate"] == 0.007 * 2.0
+    alpha = data["config_overrides"]["amplicon_params"]["pcr_bias"]["alpha"]
+    assert alpha == 3.0 * P.r10_pcr_alpha

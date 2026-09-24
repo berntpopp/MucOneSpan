@@ -21,6 +21,9 @@ import statistics
 from collections.abc import Callable, Sequence
 from typing import Any
 
+# Numerical-algorithm constants (not benchmark tunables): iteration caps and
+# floating-point guards of the continued-fraction and bisection routines.
+PERCENT = 100  # probability -> percent
 _MAX_ITER = 200
 _EPS = 3e-16
 _FPMIN = 1e-300
@@ -87,7 +90,7 @@ def _beta_quantile(a: float, b: float, target: float) -> float:
     return (lo + hi) / 2
 
 
-def clopper_pearson(k: int, n: int, alpha: float = 0.05) -> tuple[float, float]:
+def clopper_pearson(k: int, n: int, *, alpha: float) -> tuple[float, float]:
     """Exact (Clopper-Pearson) two-sided binomial confidence interval for k/n."""
     lower = 0.0 if k == 0 else _beta_quantile(k, n - k + 1, alpha / 2)
     upper = 1.0 if k == n else _beta_quantile(k + 1, n - k, 1 - alpha / 2)
@@ -196,7 +199,7 @@ def _wilson_bounds(x: int, n: int, z: float) -> tuple[float, float]:
 
 
 def noninferior(
-    fp_new: int, n_new: int, fp_ref: int, n_ref: int, margin: float = 0.005, alpha: float = 0.05
+    fp_new: int, n_new: int, fp_ref: int, n_ref: int, *, margin: float, alpha: float
 ) -> dict[str, Any]:
     """Newcombe hybrid-score non-inferiority test on p_new - p_ref (one-sided upper bound).
 
@@ -220,7 +223,7 @@ def noninferior(
 
 def _percentile(sorted_values: list[float], pct: float) -> float:
     """Linear-interpolation percentile (R type-7 / numpy default) of pre-sorted values."""
-    idx = (len(sorted_values) - 1) * pct / 100
+    idx = (len(sorted_values) - 1) * pct / PERCENT
     lo_i, hi_i = math.floor(idx), math.ceil(idx)
     if lo_i == hi_i:
         return sorted_values[int(idx)]
@@ -232,10 +235,12 @@ def cluster_bootstrap(
     rows: Sequence[dict[str, Any]],
     key: str,
     value: Callable[[dict[str, Any]], float],
-    n: int = 2000,
-    seed: int = 0,
+    *,
+    n: int,
+    seed: int,
+    alpha: float,
 ) -> tuple[float, float, float]:
-    """Cluster bootstrap: point estimate plus (2.5th, 97.5th) percentile CI.
+    """Cluster bootstrap: point estimate plus (alpha/2, 1 - alpha/2) percentile CI.
 
     Point estimate is the plain mean of `value(row)` over all `rows`. Each of
     the `n` bootstrap replicates resamples cluster keys with replacement
@@ -268,4 +273,5 @@ def cluster_bootstrap(
         ]
         estimates.append(statistics.fmean(values))
     estimates.sort()
-    return point, _percentile(estimates, 2.5), _percentile(estimates, 97.5)
+    tail = alpha / 2 * PERCENT
+    return point, _percentile(estimates, tail), _percentile(estimates, PERCENT - tail)

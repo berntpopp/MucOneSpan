@@ -35,8 +35,15 @@ never guessed.
 from __future__ import annotations
 
 from collections.abc import Mapping, Sequence
+from fractions import Fraction
 from typing import Any
 
+from muc_one_span.benchsim.bench_config import (
+    DEFAULT_BENCH_CONFIG,
+    PERCENT,
+    BenchConfig,
+    ReportConfig,
+)
 from muc_one_span.benchsim.preregistration import (
     first_evaluation,
     mark_first_evaluation,
@@ -59,13 +66,12 @@ __all__ = [
     "render_tables",
     "require_preregistered",
     "rule_sha256",
+    "rule_text",
     "stratified_table",
 ]
 
 FAILED_STATUSES = frozenset({"execution_failed", "not_attempted", "invalid_artifacts"})
 FALSE_NEGATIVE_DECISIONS = frozenset({"NO_PATHOGENIC_VARIANT_DETECTED", "NO_CALL"})
-NI_MARGIN = 0.005
-ALPHA = 0.05
 HOLM_FAMILY = ("allele_exact", "false_positive", "critical_false_negative")
 STRATA = (
     "profile",
@@ -80,22 +86,36 @@ STRATA = (
 )
 ALLELE_UNIT = ("sample", "allele")
 
-RULE_TEXT = (
+_RULE_TEMPLATE = (
     "MucSim-Bench decision rule v2 (spec section 6). Adopt the candidate engine over the "
     "baseline only if, for every profile: (1) it is superior on per-allele exact sequence "
     "(unit: each truth allele of each case, exact under the least favourable optimal "
     "assignment with independent haplotype evidence), by exact two-sided McNemar on "
     "allele pairs (same (design_id, truth allele) keys for both engines), Holm-adjusted "
-    "across the primary family {allele_exact, false_positive, critical_false_negative} at "
-    "alpha 0.05, with more candidate-only than baseline-only exact alleles; (2) it is "
+    "across the primary family {{allele_exact, false_positive, critical_false_negative}} at "
+    "alpha {alpha:g}, with more candidate-only than baseline-only exact alleles; (2) it is "
     "non-inferior on the false-positive PATHOGENIC rate among normal and benign truths "
-    "(Newcombe hybrid-score one-sided 95% upper bound of candidate minus baseline below "
-    "0.005); and (3) its count of pathogenic truths called NO_PATHOGENIC_VARIANT_DETECTED "
+    "(Newcombe hybrid-score one-sided {level:g}% upper bound of candidate minus baseline below "
+    "{margin:g}); and (3) its count of pathogenic truths called NO_PATHOGENIC_VARIANT_DETECTED "
     "or NO_CALL does not exceed the baseline's. Pooled per-allele and case-exact rates are "
-    "reported with 95% cluster-bootstrap intervals over design_id (2000 replicates, seed "
-    "0). Failed or unattempted runs count as NO_CALL with every truth allele not exact; no "
-    "case or allele is dropped."
+    "reported with {level:g}% cluster-bootstrap intervals over design_id ({replicates} "
+    "replicates, seed {seed}). Failed or unattempted runs count as NO_CALL with every truth "
+    "allele not exact; no case or allele is dropped."
 )
+
+
+def rule_text(report: ReportConfig = DEFAULT_BENCH_CONFIG.report) -> str:
+    """The decision rule with its numbers from ``report`` (its SHA-256 is pre-registered)."""
+    return _RULE_TEMPLATE.format(
+        alpha=report.alpha,
+        level=float((1 - Fraction(str(report.alpha))) * PERCENT),
+        margin=report.ni_margin,
+        replicates=report.bootstrap_replicates,
+        seed=report.bootstrap_seed,
+    )
+
+
+RULE_TEXT = rule_text()
 
 
 def _alleles(sample: dict[str, Any], failed: bool) -> list[dict[str, Any]]:
@@ -199,18 +219,22 @@ def _key(value: Any) -> str:
 
 
 def stratified_table(
-    rows: Sequence[dict[str, Any]], by: Sequence[str], metric: str
+    rows: Sequence[dict[str, Any]],
+    by: Sequence[str],
+    metric: str,
+    alpha: float = DEFAULT_BENCH_CONFIG.report.alpha,
 ) -> list[dict[str, Any]]:
-    """Successes ``k`` of ``n`` rows, rate and 95% Clopper-Pearson interval per stratum."""
+    """Successes ``k`` of ``n`` rows, rate and ``1 - alpha`` Clopper-Pearson interval."""
     groups: dict[tuple[Any, ...], list[int]] = {}
     for row in rows:
         stratum = tuple(row.get(k) for k in by)
         groups.setdefault(stratum, []).append(int(row[metric]))
+    level = float((1 - Fraction(str(alpha))) * PERCENT)
     table = []
     for stratum in sorted(groups, key=lambda s: tuple(_key(v) for v in s)):
         values = groups[stratum]
         k, n = sum(values), len(values)
-        low, high = clopper_pearson(k, n)
+        low, high = clopper_pearson(k, n, alpha=alpha)
         table.append(
             {
                 "stratum": dict(zip(by, stratum, strict=True)),
@@ -220,6 +244,7 @@ def stratified_table(
                 "rate": k / n,
                 "ci_low": low,
                 "ci_high": high,
+                "ci_level_pct": level,
             }
         )
     return table
@@ -256,7 +281,9 @@ def paired(
     }
 
 
-def _fp_test(base: list[dict[str, Any]], cand: list[dict[str, Any]]) -> dict[str, Any]:
+def _fp_test(
+    base: list[dict[str, Any]], cand: list[dict[str, Any]], cfg: ReportConfig
+) -> dict[str, Any]:
     def eligible(rows: list[dict[str, Any]]) -> list[dict[str, Any]]:
         return [r for r in rows if r.get("normal") or r.get("benign")]
 
@@ -269,7 +296,7 @@ def _fp_test(base: list[dict[str, Any]], cand: list[dict[str, Any]]) -> dict[str
         "fp_baseline": sum(r["false_positive"] for r in b_rows),
         "no_call": sum(int(r.get("no_call", 0)) for r in c_rows),
         "no_call_baseline": sum(int(r.get("no_call", 0)) for r in b_rows),
-        "margin": NI_MARGIN,
+        "margin": cfg.ni_margin,
     }
     if not b_rows or not c_rows:
         return out | {
@@ -278,11 +305,20 @@ def _fp_test(base: list[dict[str, Any]], cand: list[dict[str, Any]]) -> dict[str
             "noninferior": False,
             "reason": "no normal or benign truths in this profile",
         }
-    test = noninferior(out["fp"], len(c_rows), out["fp_baseline"], len(b_rows), NI_MARGIN, ALPHA)
+    test = noninferior(
+        out["fp"],
+        len(c_rows),
+        out["fp_baseline"],
+        len(b_rows),
+        margin=cfg.ni_margin,
+        alpha=cfg.alpha,
+    )
     return out | test
 
 
-def _profile(base: list[dict[str, Any]], cand: list[dict[str, Any]]) -> dict[str, Any]:
+def _profile(
+    base: list[dict[str, Any]], cand: list[dict[str, Any]], cfg: ReportConfig
+) -> dict[str, Any]:
     tests = {
         "allele_exact": paired(allele_rows(base), allele_rows(cand), "allele_exact", ALLELE_UNIT)
     }
@@ -292,8 +328,8 @@ def _profile(base: list[dict[str, Any]], cand: list[dict[str, Any]]) -> dict[str
     for metric, test in tests.items():
         test["p_holm"] = adjusted[metric]
     exact = tests["allele_exact"]
-    exact["superior"] = exact["c"] > exact["b"] and exact["p_holm"] < ALPHA
-    fp = _fp_test(base, cand) | {"paired": tests["false_positive"]}
+    exact["superior"] = exact["c"] > exact["b"] and exact["p_holm"] < cfg.alpha
+    fp = _fp_test(base, cand, cfg) | {"paired": tests["false_positive"]}
     cfn = tests["critical_false_negative"]
     cfn["pass"] = cfn["k_b"] <= cfn["k_a"]
     return {
@@ -307,24 +343,28 @@ def _profile(base: list[dict[str, Any]], cand: list[dict[str, Any]]) -> dict[str
 
 
 def decide(
-    reports: dict[str, list[dict[str, Any]]], baseline: str, candidate: str
+    reports: dict[str, list[dict[str, Any]]],
+    baseline: str,
+    candidate: str,
+    config: BenchConfig = DEFAULT_BENCH_CONFIG,
 ) -> dict[str, Any]:
-    """Apply ``RULE_TEXT`` per profile to case rows; adopt only if every profile passes."""
+    """Apply `rule_text` (``config.report``) per profile; adopt only if every profile passes."""
+    cfg = config.report
     base, cand = reports[baseline], reports[candidate]
     profiles = sorted({_key(r.get("profile")) for r in (*base, *cand)})
     result: dict[str, Any] = {
         "baseline": baseline,
         "candidate": candidate,
-        "rule_sha256": rule_sha256(RULE_TEXT),
+        "rule_sha256": rule_sha256(rule_text(cfg)),
         "holm_family": list(HOLM_FAMILY),
-        "alpha": ALPHA,
-        "margin": NI_MARGIN,
+        "alpha": cfg.alpha,
+        "margin": cfg.ni_margin,
         "profiles": {},
     }
     for profile in profiles:
         b = [r for r in base if _key(r.get("profile")) == profile]
         c = [r for r in cand if _key(r.get("profile")) == profile]
-        result["profiles"][profile] = _profile(b, c)
+        result["profiles"][profile] = _profile(b, c, cfg)
     result["adopt"] = bool(profiles) and all(p["pass"] for p in result["profiles"].values())
     return result
 
@@ -345,7 +385,7 @@ def _table_md(title: str, table: Sequence[dict[str, Any]]) -> list[str]:
     lines = [
         f"### {title}",
         "",
-        "| " + " | ".join([*keys, "k", "n", "rate", "95% CI"]) + " |",
+        "| " + " | ".join([*keys, "k", "n", "rate", f"{table[0]['ci_level_pct']:g}% CI"]) + " |",
         "|" + "---|" * (len(keys) + 4),
     ]
     for row in table:
@@ -360,7 +400,10 @@ def _table_md(title: str, table: Sequence[dict[str, Any]]) -> list[str]:
 
 
 def render_markdown(result: dict[str, Any]) -> str:
-    """Markdown summary of a ``decide`` result plus optional ``result["tables"]``."""
+    """Markdown summary of a ``decide`` result plus optional ``result["tables"]``.
+
+    Without a ``candidate`` no rule was applied, so no verdict is printed.
+    """
     verdict = "ADOPT" if result.get("adopt") else "NOT ADOPTED"
     lines = ["# MucSim-Bench report", ""]
     if "candidate" in result:
@@ -371,7 +414,7 @@ def render_markdown(result: dict[str, Any]) -> str:
             "",
         ]
     else:
-        lines += [f"Decision: **{verdict}**", ""]
+        lines += ["Decision: not evaluated (no candidate; tables only).", ""]
     if result.get("profiles"):
         lines += [
             "## Decision rule per profile",

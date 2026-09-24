@@ -10,18 +10,21 @@ import json
 import math
 import random
 import sys
+from dataclasses import replace
 from pathlib import Path
 from types import SimpleNamespace
 from unittest.mock import patch
 
 import pytest
 
+from muc_one_span.benchsim.bench_config import DEFAULT_BENCH_CONFIG, RealismConfig
 from muc_one_span.benchsim.read_truth import ReadTruth
 from muc_one_span.benchsim.realism import aggregate, case_metrics, read_metrics
 from muc_one_span.nomenclature import revcomp
 
 SRC = "ACGTACGTAA" + "C" * 7 + "GATTACAGATTACA" * 4
 WHOLE = {1: (0, len(SRC))}
+REALISM = DEFAULT_BENCH_CONFIG.realism
 HEADER = "read_id\thap\tmolecule\tkind\tstrand\tsrc_start\tsrc_end\tn_hp_edits\thp_edits\tdetail\n"
 
 
@@ -99,7 +102,9 @@ def test_only_vntr_of_spanning_fragments_is_scored(tmp_path: Path, edlib: object
 FLANK_L, FLANK_R = _seq(40, 7), _seq(30, 8)
 
 
-def _amplicon_case(tmp_path: Path, n_short: int, n_long: int) -> dict:
+def _amplicon_case(
+    tmp_path: Path, n_short: int, n_long: int, config: RealismConfig = REALISM
+) -> dict:
     short, long_ = _seq(600, 2), _seq(1200, 3)
     amp = {1: FLANK_L + short + FLANK_R, 2: FLANK_L + long_ + FLANK_R}
     vntr = {1: (40, 640), 2: (40, 1240)}
@@ -123,7 +128,7 @@ def _amplicon_case(tmp_path: Path, n_short: int, n_long: int) -> dict:
         ("ch1", amp[1]),  # on the short peak (chimera by truth only)
         ("ot1", short[10:300]),
     ]
-    return read_metrics(_fq(tmp_path / f"a{n_short}.fq", reads), rows, amp, vntr)
+    return read_metrics(_fq(tmp_path / f"a{n_short}.fq", reads), rows, amp, vntr, config)
 
 
 def test_amplicon_products_offpeak_and_ratio(tmp_path: Path, edlib: object) -> None:
@@ -139,8 +144,17 @@ def test_amplicon_products_offpeak_and_ratio(tmp_path: Path, edlib: object) -> N
     assert m["span_off_gt1unit_frac"] == pytest.approx(2 / n_products)
     assert m["allele_ratio"] == {"delta_units": 10.0, "log_ratio": pytest.approx(math.log(2 / 5))}
     assert m["log_ratio_slope"] == pytest.approx(math.log(2 / 5) / 10)
-    lt, ge = m["span_offset_hist"]["lt55u"], m["span_offset_hist"]["ge55u"]
-    assert sum(lt) == n_products and sum(ge) == 0 and lt[12] == 7
+    lt_key, ge_key = REALISM.size_keys
+    lt, ge = m["span_offset_hist"][lt_key], m["span_offset_hist"][ge_key]
+    assert sum(lt) == n_products and sum(ge) == 0 and lt[-REALISM.offset_bin_min] == 7
+    assert len(lt) == REALISM.n_bins
+
+
+def test_amplicon_size_split_is_configured(tmp_path: Path, edlib: object) -> None:
+    small = replace(REALISM, size_split_units=1)
+    m = _amplicon_case(tmp_path, n_short=2, n_long=2, config=small)
+    assert set(m["span_offset_hist"]) == set(small.size_keys)
+    assert sum(m["span_offset_hist"][small.size_keys[0]]) == 0
 
 
 def test_aggregate_medians_rates_pools_counts_fits_slope(tmp_path: Path, edlib: object) -> None:

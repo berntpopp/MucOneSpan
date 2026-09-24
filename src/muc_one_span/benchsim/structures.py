@@ -5,9 +5,11 @@ are made by a first ``muconeup simulate`` with ``--fixed-lengths`` (a valid
 Markov chain), then edited and written as an ``--input-structure`` file:
 
 - ``0_identical``: one pre-run haplotype, written twice.
-- ``rare_units``: about 10% of the interior units are replaced by dictionary
-  units that the Markov model uses in < 1% of positions; never the first four
-  motifs (1-4), the last five units, conserved unit types, or event targets.
+- ``rare_units``: ``structures.rare_fraction`` of the interior units are replaced
+  by dictionary units that the Markov model visits below
+  ``structures.rare_usage_max``; never the conserved head or tail positions
+  (`design.event_bounds`), conserved unit types (the repeat dictionary's pre-
+  and after-repeat IDs), or event targets.
 - ``real_derived``: diploid entry ``bio_seed % n`` of a local structure pool
   (a MucOneUp structure file, haplotype lines in consecutive pairs). Only the
   pool's SHA-256 and the entry index are recorded, never the chain. Without a
@@ -16,6 +18,7 @@ Markov chain), then edited and written as an ``--input-structure`` file:
 
 from __future__ import annotations
 
+import functools
 import hashlib
 import json
 import random
@@ -23,13 +26,19 @@ from collections.abc import Callable, Collection
 from pathlib import Path
 from typing import Any
 
+from muc_one_span.config import load_repeat_dictionary
+
+from .bench_config import DEFAULT_BENCH_CONFIG, StructureConfig
 from .design import Design, event_bounds
 
 Runner = Callable[[list[str]], str]
-CONSERVED = frozenset({"1", "2", "3", "4", "4p", "5", "5C", "6", "6p", "7", "8", "9"})
-RARE_FRACTION = 0.10
-RARE_USAGE = 0.01
-_HEAD, _TAIL = 4, 5
+
+
+@functools.cache
+def conserved_units() -> frozenset[str]:
+    """Conserved unit IDs: the bundled dictionary's pre- and after-repeat IDs."""
+    rd = load_repeat_dictionary()
+    return frozenset(rd.pre_repeat_ids) | frozenset(rd.after_repeat_ids)
 
 
 def read_chains(path: Path) -> list[list[str]]:
@@ -52,8 +61,12 @@ def write_chains(path: Path, chains: list[list[str]]) -> Path:
     return path
 
 
-def rare_units(config: Path, known: Collection[str] | None = None) -> list[str]:
-    """Non-conserved units used at < 1% of positions by the MucOneUp Markov model.
+def rare_units(
+    config: Path,
+    known: Collection[str] | None = None,
+    settings: StructureConfig = DEFAULT_BENCH_CONFIG.structures,
+) -> list[str]:
+    """Non-conserved units the MucOneUp Markov model visits below ``rare_usage_max``.
 
     Usage is the long-run visit frequency of the transition chain (``END``
     restarts at ``1``), averaged over iterations so periodic chains converge.
@@ -64,7 +77,7 @@ def rare_units(config: Path, known: Collection[str] | None = None) -> list[str]:
     state = dict.fromkeys(units, 0.0)
     state["1"] = 1.0
     total = dict.fromkeys(units, 0.0)
-    steps = 2000
+    steps = settings.stationary_steps
     for _ in range(steps):
         nxt = dict.fromkeys(units, 0.0)
         for unit, mass in state.items():
@@ -78,24 +91,30 @@ def rare_units(config: Path, known: Collection[str] | None = None) -> list[str]:
         u
         for u in units
         if u in data["repeats"]
-        and u not in CONSERVED
-        and total[u] < RARE_USAGE
+        and u not in conserved_units()
+        and total[u] < settings.rare_usage_max
         and (known is None or u in known)
     ]
 
 
 def inject_rare(
-    chain: list[str], rare: list[str], rng: random.Random, protect: Collection[int] = ()
+    chain: list[str],
+    rare: list[str],
+    rng: random.Random,
+    protect: Collection[int] = (),
+    settings: StructureConfig = DEFAULT_BENCH_CONFIG.structures,
 ) -> list[str]:
-    """Replace ~10% of interior units with rare units (``protect`` is 1-based)."""
+    """Replace ``rare_fraction`` of the interior units with rare units.
+
+    The interior is `event_bounds` (1-based, as ``protect``).
+    """
     if not rare:
         raise ValueError("no rare units available in the MucOneUp config")
+    lo, hi = event_bounds(len(chain))
     positions = [
-        i
-        for i in range(_HEAD, len(chain) - _TAIL)
-        if i + 1 not in protect and chain[i] not in CONSERVED
+        i for i in range(lo - 1, hi) if i + 1 not in protect and chain[i] not in conserved_units()
     ]
-    n = min(len(positions), max(1, round(RARE_FRACTION * (len(chain) - _HEAD - _TAIL))))
+    n = min(len(positions), max(1, round(settings.rare_fraction * (hi - lo + 1))))
     out = list(chain)
     for i in rng.sample(positions, n):
         choices = [u for u in rare if u != chain[i]] or rare
@@ -111,6 +130,9 @@ def scale_targets(
     """Keep each target's relative position when a structure has other lengths.
 
     Scaled targets are clamped to `event_bounds` of the actual chain.
+
+    Raises:
+        ValueError: If an actual chain is too short for any event.
     """
     out = []
     for hap, repeat in targets:
@@ -157,6 +179,7 @@ def prepare_structure(
     work: Path,
     run: Runner,
     known: Collection[str] | None = None,
+    settings: StructureConfig = DEFAULT_BENCH_CONFIG.structures,
 ) -> tuple[Path | None, dict[str, Any]]:
     """Return an ``--input-structure`` file (or ``None`` for plain Markov) and provenance."""
     effective = design.composition
@@ -177,9 +200,11 @@ def prepare_structure(
         chains = [chains[0], list(chains[0])]
     if effective == "rare_units":
         rng = random.Random(design.bio_seed)
-        rare = rare_units(config, known)
+        rare = rare_units(config, known, settings)
         protect = {repeat for _, repeat in design.targets}
-        edited = [inject_rare(c, rare, rng, protect) for c in chains[: 1 if identical else 2]]
+        edited = [
+            inject_rare(c, rare, rng, protect, settings) for c in chains[: 1 if identical else 2]
+        ]
         chains = [edited[0], list(edited[0])] if identical else edited
         info["rare_units_present"] = sorted({u for c in chains for u in c} & set(rare))
     return write_chains(work / "input_structure.txt", chains), info

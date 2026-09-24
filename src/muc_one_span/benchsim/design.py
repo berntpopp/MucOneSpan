@@ -3,34 +3,26 @@
 from __future__ import annotations
 
 import hashlib
+import math
 import random
 from collections.abc import Sequence
 from dataclasses import asdict, dataclass, fields
+from fractions import Fraction
 from typing import Any
 
+from muc_one_span.settings import DEFAULT_LAYOUT
+
+from .bench_config import DEFAULT_BENCH_CONFIG, BenchConfig, DesignConfig
+
 PROFILES = ("ont_amplicon_r10", "ont_genomic_targeted", "hifi_amplicon")
-DEPTHS = {
-    "ont_amplicon_r10": (5, 10, 20, 30, 60, 150, 500, 2000),
-    "hifi_amplicon": (5, 10, 20, 30, 60, 150, 500, 2000),
-    "ont_genomic_targeted": (3, 6, 10, 20, 40, 80),
-}
-DELTA_CLASSES = ("0_identical", "0_different", "1", "2", "3-5", "6-20", ">20")
-_DELTA_RANGE = {
-    "0_identical": (0, 0),
-    "0_different": (0, 0),
-    "1": (1, 1),
-    "2": (2, 2),
-    "3-5": (3, 5),
-    "6-20": (6, 20),
-    ">20": (21, 90),
-}
-COMPOSITIONS = (("markov", 0.75), ("real_derived", 0.20), ("rare_units", 0.05))
-NORMAL_FRACTION = 0.35
-LENGTH_MIN, LENGTH_MAX = 20, 130
-PCR_LEVELS = ("calibrated", "strong", "none")
-SMEAR_LEVELS = (0.05, 0.25, 0.5)
-CHIMERA_LEVELS = (0.01, 0.05)
-ERROR_LEVELS = ("calibrated", "poor")
+ALLELE_CHOICES = ("shorter", "longer", "equal")
+POSITION_CHOICES = ("first10", "middle", "last10")
+
+# Conserved repeat positions from the bundled reference layout: the head (units
+# 1-5; unit 1 holds part of the forward amplicon primer site) and the tail
+# (units 6-9). Events and rare units never go there (`event_bounds`).
+CONSERVED_HEAD = len(DEFAULT_LAYOUT.pre)
+CONSERVED_TAIL = len(DEFAULT_LAYOUT.after)
 
 
 @dataclass(frozen=True)
@@ -52,6 +44,7 @@ class Design:
     error: str
     bio_seed: int
     read_seed: int
+    target_clamped: bool = False  # a drawn event target was moved inside `event_bounds`
 
     def to_dict(self) -> dict[str, Any]:
         return asdict(self)
@@ -78,81 +71,107 @@ def _stratum(values: Sequence[Any], n: int, rng: random.Random) -> list[Any]:
     return out
 
 
-def _lengths(delta_class: str, rng: random.Random) -> tuple[int, int]:
-    lo, hi = _DELTA_RANGE[delta_class]
+def _lengths(delta_class: str, rng: random.Random, cfg: DesignConfig) -> tuple[int, int]:
+    lo, hi = cfg.delta_ranges[delta_class]
     delta = rng.randint(lo, hi)
-    a = rng.randint(LENGTH_MIN, LENGTH_MAX - delta)
+    a = rng.randint(cfg.length_min, cfg.length_max - delta)
     pair = [a, a + delta]
     rng.shuffle(pair)
     return pair[0], pair[1]
 
 
-# Event targets stay off the conserved head (units 1-4; unit 1 holds part of the
-# forward amplicon primer site) and the last five units (the conserved 6-9 tail).
-# Mutating those units destroys the primer site or breaks truth reconstruction.
-EVENT_HEAD, EVENT_TAIL = 4, 5
-
-
 def event_bounds(length: int) -> tuple[int, int]:
-    """1-based ``(first, last)`` repeat an event may target in a chain of ``length``."""
-    lo = EVENT_HEAD + 1
-    return lo, max(lo, length - EVENT_TAIL)
+    """1-based ``(first, last)`` repeat an event (or rare unit) may occupy.
+
+    Raises:
+        ValueError: If the chain has no unit outside the conserved head and tail.
+    """
+    lo, hi = CONSERVED_HEAD + 1, length - CONSERVED_TAIL
+    if hi < lo:
+        raise ValueError(
+            f"allele of {length} units is too short for an event "
+            f"(needs > {CONSERVED_HEAD + CONSERVED_TAIL} units)"
+        )
+    return lo, hi
 
 
 def _target(
-    lengths: tuple[int, int], allele: str, position: str, rng: random.Random
-) -> tuple[int, int]:
+    lengths: tuple[int, int], allele: str, position: str, rng: random.Random, fraction: float
+) -> tuple[tuple[int, int], bool]:
+    """Event target ``(hap, repeat)`` and whether the drawn repeat was clamped."""
     if allele == "equal" or lengths[0] == lengths[1]:
         hap = rng.choice((1, 2))
     else:
         short = 1 if lengths[0] < lengths[1] else 2
         hap = short if allele == "shorter" else 3 - short
     length = lengths[hap - 1]
-    tenth = max(1, length // 10)
+    edge = max(1, int(Fraction(str(fraction)) * length))
     if position == "first10":
-        repeat = rng.randint(1, tenth)
+        repeat = rng.randint(1, edge)
     elif position == "last10":
-        repeat = rng.randint(length - tenth + 1, length)
+        repeat = rng.randint(length - edge + 1, length)
     else:
-        repeat = rng.randint(tenth + 1, max(tenth + 1, length - tenth))
+        repeat = rng.randint(edge + 1, max(edge + 1, length - edge))
     # Clamp (not redraw) so every design consumes the same random draws.
     lo, hi = event_bounds(length)
-    return hap, min(max(repeat, lo), hi)
+    clamped = min(max(repeat, lo), hi)
+    return (hap, clamped), clamped != repeat
 
 
 def build_split(
-    split: str, n_per_profile: int, salt: str, mutations: Sequence[str]
+    split: str,
+    n_per_profile: int,
+    salt: str,
+    mutations: Sequence[str],
+    config: BenchConfig = DEFAULT_BENCH_CONFIG,
 ) -> list[Design]:
-    """Designs for one split; every profile gets ``n_per_profile`` cases."""
+    """Designs for one split; every profile gets ``n_per_profile`` cases.
+
+    Factor levels, the normal fraction and length ranges come from
+    ``config.design``; smear levels are per split.
+
+    Raises:
+        ValueError: If there are no mutations, the split has no smear levels, or
+            a profile has no depths.
+    """
+    cfg = config.design
     if not mutations:
         raise ValueError("at least one mutation name is required")
+    if split not in cfg.smear_levels:
+        raise ValueError(f"no smear levels configured for split {split!r}")
+    missing = [p for p in PROFILES if p not in cfg.depths]
+    if missing:
+        raise ValueError(f"no depths configured for {', '.join(missing)}")
     designs: list[Design] = []
     for profile in PROFILES:
         rng = random.Random(derive_seed(salt, f"{split}:{profile}", "design"))
-        n_normal = -(-int(n_per_profile * NORMAL_FRACTION * 100) // 100)
+        n_normal = math.ceil(Fraction(str(cfg.normal_fraction)) * n_per_profile)
         events: list[str | None] = [None] * n_normal + _stratum(
             list(mutations), n_per_profile - n_normal, rng
         )
         rng.shuffle(events)
-        deltas = _stratum(DELTA_CLASSES, n_per_profile, rng)
-        depths = _stratum(DEPTHS[profile], n_per_profile, rng)
-        alleles = _stratum(("shorter", "longer", "equal"), n_per_profile, rng)
-        positions = _stratum(("first10", "middle", "last10"), n_per_profile, rng)
-        pcrs = _stratum(PCR_LEVELS, n_per_profile, rng)
-        smears = _stratum(SMEAR_LEVELS, n_per_profile, rng)
-        chimeras = _stratum(CHIMERA_LEVELS, n_per_profile, rng)
-        errors = _stratum(ERROR_LEVELS, n_per_profile, rng)
-        comps = [c for c, w in COMPOSITIONS for _ in range(round(w * n_per_profile))]
-        comps = (comps + ["markov"] * n_per_profile)[:n_per_profile]
+        deltas = _stratum(tuple(cfg.delta_ranges), n_per_profile, rng)
+        depths = _stratum(cfg.depths[profile], n_per_profile, rng)
+        alleles = _stratum(ALLELE_CHOICES, n_per_profile, rng)
+        positions = _stratum(POSITION_CHOICES, n_per_profile, rng)
+        pcrs = _stratum(cfg.pcr_levels, n_per_profile, rng)
+        smears = _stratum(cfg.smear_levels[split], n_per_profile, rng)
+        chimeras = _stratum(cfg.chimera_levels, n_per_profile, rng)
+        errors = _stratum(cfg.error_levels, n_per_profile, rng)
+        default_comp = next(iter(cfg.compositions))
+        comps = [c for c, w in cfg.compositions.items() for _ in range(round(w * n_per_profile))]
+        comps = (comps + [default_comp] * n_per_profile)[:n_per_profile]
         rng.shuffle(comps)
         for i in range(n_per_profile):
             design_id = f"{split}-{profile}-{i + 1:04d}"
-            lengths = _lengths(deltas[i], rng)
+            lengths = _lengths(deltas[i], rng, cfg)
             event = events[i]
+            clamped = False
             if event:
                 allele = alleles[i]
                 position = positions[i]
-                targets: tuple[tuple[int, int], ...] = (_target(lengths, allele, position, rng),)
+                target, clamped = _target(lengths, allele, position, rng, cfg.position_fraction)
+                targets: tuple[tuple[int, int], ...] = (target,)
             else:
                 allele = None
                 position = None
@@ -176,6 +195,7 @@ def build_split(
                     errors[i],
                     derive_seed(salt, design_id, "bio"),
                     derive_seed(salt, design_id, "reads"),
+                    clamped,
                 )
             )
     return designs

@@ -2,13 +2,24 @@ import math
 
 import pytest
 
-from muc_one_span.benchsim.depth import amplicon_templates, genomic_reads, pcr_minor_share
+from muc_one_span.benchsim.bench_config import DEFAULT_BENCH_CONFIG, AmountConfig
+from muc_one_span.benchsim.depth import (
+    amplicon_templates,
+    capped_minor_share,
+    genomic_reads,
+    pcr_minor_share,
+)
+
+AMOUNT = DEFAULT_BENCH_CONFIG.amount
 
 
 def test_minor_share() -> None:
     assert pcr_minor_share((40, 40), "calibrated") == 0.5
     assert pcr_minor_share((40, 60), "none") == 0.5
-    assert pcr_minor_share((40, 60), "calibrated") == pytest.approx(1 / (1 + math.exp(0.056 * 20)))
+    slope = AMOUNT.pcr_slope_per_unit["calibrated"]
+    assert pcr_minor_share((40, 60), "calibrated") == pytest.approx(1 / (1 + math.exp(slope * 20)))
+    flat = AmountConfig(pcr_slope_per_unit={"calibrated": 0.0, "strong": 0.0, "none": 0.0})
+    assert pcr_minor_share((40, 60), "strong", flat) == 0.5
     assert pcr_minor_share((40, 60), "strong") < pcr_minor_share((40, 60), "calibrated")
 
 
@@ -42,8 +53,14 @@ def test_genomic_reads_rejects_impossible_span() -> None:
 
 
 def test_capped_minor_share_floor() -> None:
-    from muc_one_span.benchsim.depth import MIN_MINOR_SHARE, capped_minor_share
+    floor = AMOUNT.min_minor_share
+    assert capped_minor_share(floor / 100) == (floor, True)
+    assert capped_minor_share(floor * 2) == (floor * 2, False)
+    lower = AmountConfig(min_minor_share=floor / 10)
+    assert capped_minor_share(floor / 100, lower) == (floor / 10, True)
 
-    assert MIN_MINOR_SHARE == 0.05
-    assert capped_minor_share(1e-4) == (0.05, True)
-    assert capped_minor_share(0.3) == (0.3, False)
+
+def test_genomic_draws_are_configured() -> None:
+    few = AmountConfig(genomic_mc_draws=10)
+    n = genomic_reads(20, 26000, 10000, 16000, 6000, 0.5, seed=1, config=few)
+    assert n > 0

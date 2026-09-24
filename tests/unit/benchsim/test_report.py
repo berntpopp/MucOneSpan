@@ -1,11 +1,13 @@
 """benchsim.report: row normalization, stratified tables, paired tests, decision rule."""
 
 import json
+from dataclasses import replace
 from pathlib import Path
 from typing import Any
 
 import pytest
 
+from muc_one_span.benchsim.bench_config import DEFAULT_BENCH_CONFIG, BenchConfig
 from muc_one_span.benchsim.report import (
     ALLELE_UNIT,
     RULE_TEXT,
@@ -17,6 +19,8 @@ from muc_one_span.benchsim.report import (
     preregister,
     render_markdown,
     require_preregistered,
+    rule_sha256,
+    rule_text,
     stratified_table,
 )
 
@@ -323,7 +327,29 @@ def test_preregister_refused_after_test_evaluated(tmp_path: Path) -> None:
 
 def test_rule_text_names_the_per_allele_endpoint() -> None:
     assert "per-allele" in RULE_TEXT and "allele pairs" in RULE_TEXT
-    assert "cluster-bootstrap" in RULE_TEXT and "0.005" in RULE_TEXT
+    margin = DEFAULT_BENCH_CONFIG.report.ni_margin
+    assert "cluster-bootstrap" in RULE_TEXT and f"{margin:g}" in RULE_TEXT
+
+
+def test_default_rule_text_is_unchanged_by_the_config_refactor() -> None:
+    # SHA-256 of the v2 rule text before its numbers moved to ReportConfig; a
+    # changed default would silently invalidate existing pre-registrations.
+    pinned = "65c66399a6a91f6297b2363d0f3037a839430f4fc849653966813463ceef2b74"
+    assert rule_text(DEFAULT_BENCH_CONFIG.report) == RULE_TEXT
+    assert rule_sha256(RULE_TEXT) == pinned
+
+
+def test_rule_text_and_decision_follow_the_report_config() -> None:
+    report = replace(DEFAULT_BENCH_CONFIG.report, ni_margin=0.25, alpha=0.1)
+    text = rule_text(report)
+    assert "below 0.25" in text and "alpha 0.1" in text and "one-sided 90%" in text
+    n = 30
+    base, cand = _rows([0] * n, [0] * n), _rows([1] * n, [0] * n)
+    result = decide(
+        {"ladder": base, "hybrid": cand}, "ladder", "hybrid", BenchConfig(report=report)
+    )
+    assert result["margin"] == 0.25 and result["alpha"] == 0.1
+    assert result["rule_sha256"] == rule_sha256(text)
 
 
 def test_require_preregistered_rejects_corrupt_ledger(tmp_path: Path) -> None:
@@ -346,4 +372,9 @@ def test_render_markdown_lists_profiles_and_verdict() -> None:
     text = render_markdown(result)
     assert "ont_amplicon_r10" in text and "ADOPT" in text and "| profile |" in text
     assert "allele_exact by profile" in text and "normal + benign" in text and "no-call" in text
-    assert "NOT ADOPTED" in render_markdown({"profiles": {}, "adopt": False})
+    assert "NOT ADOPTED" in render_markdown({"candidate": "hybrid", "baseline": "ladder"})
+
+
+def test_render_markdown_without_candidate_is_not_a_verdict() -> None:
+    text = render_markdown({"profiles": {}, "adopt": False})
+    assert "not evaluated" in text and "ADOPT" not in text

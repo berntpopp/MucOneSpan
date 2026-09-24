@@ -19,10 +19,11 @@ end) spans of spanning reads:
   deleted bases per VNTR base, and their sum ``error_rate``. Per case these
   are pooled over reads; `aggregate` reports the median of per-case rates,
   as the target median is over per-library rates.
-- C7 correct-length fraction per strand: every run of exactly 7 C inside the
-  VNTR (not touching its ends) is read through the alignment (read bases
-  between the run's aligned bounds, extended by up to 3 adjacent read C) and
-  is correct when 7 are observed. As in the profiler, a run with no C in its
+- C7 correct-length fraction per strand: every run of exactly
+  ``c7_run_length`` [7] C inside the VNTR (not touching its ends) is read
+  through the alignment (read bases between the run's aligned bounds, extended
+  by up to ``c7_extend_max`` [3] adjacent read C) and is correct when the run
+  length is observed. As in the profiler, a run with no C in its
   aligned window (obs 0) is not extended and counts as incorrect. Counts are
   pooled, as in the target's ``hp_P_obs_given_true``.
 - Amplicon products (``full``/``smear``/``chimera``/``concatemer``) are the
@@ -30,13 +31,16 @@ end) spans of spanning reads:
   Their VNTR span is the aligned segment length for ``full`` reads and read
   length minus the haplotype's amplicon flanks otherwise (smear, chimera and
   concatemer junctions lie inside the VNTR). ``d`` = span minus the nearest
-  allele's VNTR length gives ``span_off_gt1unit_frac`` (|d| > 1.5 units),
-  ``span_between_alleles_frac``, ``span_below_short_frac`` and the 15 bp
-  histogram (bins ``(d + 7) // 15`` clamped to [-12, 4], allele size < / >= 55
+  allele's VNTR length gives ``span_off_gt1unit_frac`` (|d| >
+  ``off_peak_units`` [1.5] units), ``span_between_alleles_frac``,
+  ``span_below_short_frac`` and the offset histogram (bins ``(d + bp // 2) //
+  bp`` for ``offset_bin_bp`` [15], clamped to [``offset_bin_min``,
+  ``offset_bin_max``] [-12, 4], allele size < / >= ``size_split_units`` [55]
   units) for ``span_offset_pmf_15bp_bins``. ``smear_frac``/``chimera_frac``
   (truth kinds over products) are reported only; ``offtarget_frac`` is over
   all reads, like ``category_frac["off_target"]``.
-- Allele ratio: on-peak products (|d| <= max(30 bp, 1.2 %)) per allele give
+- Allele ratio: on-peak products (|d| <= max(``on_peak_min_bp`` [30 bp],
+  ``on_peak_rel`` [1.2 %] of the allele)) per allele give
   ``log_ratio`` = ln(n_long / n_short) over ``delta_units``; the per-case
   ``log_ratio_slope`` is their quotient and `aggregate` fits a through-origin
   slope across cases (target ``allelic_ratio["through_origin_b_per_unit"]``).
@@ -66,6 +70,7 @@ from muc_one_span.config import load_repeat_dictionary
 from muc_one_span.evaluation.truth import load_truth
 from muc_one_span.nomenclature import revcomp
 
+from .bench_config import DEFAULT_BENCH_CONFIG, RealismConfig
 from .generate import FASTQ
 from .geometry import (
     GENOMIC,
@@ -78,7 +83,7 @@ from .geometry import (
 )
 from .read_truth import ReadTruth, load_read_truth
 
-UNIT = 60
+UNIT = load_repeat_dictionary().repeat_length_bp  # repeat-unit length (bundled dictionary)
 STRANDS = ("+", "-")
 ALIGNED_KINDS = ("full", "fragment")
 PRODUCT_KINDS = ("full", "smear", "chimera", "concatemer")
@@ -97,9 +102,6 @@ FRACTION_KEYS = (
     "span_below_short_frac",
     "spanning_frac",
 )
-BIN_MIN, BIN_MAX = -12, 4
-SIZE_SPLIT_UNITS = 55
-C7 = 7
 COUNT_KEYS = ("ref_bases", "mismatch", "ins", "del")
 _CIGAR = re.compile(r"(\d+)([=XID])")
 
@@ -147,23 +149,24 @@ def _align(edlib: ModuleType, read: str, ref: str) -> tuple[Counter[str], list[i
     return counts, ref2read
 
 
-def _c7_calls(read: str, ref: str, ref2read: list[int]) -> list[bool]:
-    """Per C7 reference run: whether the read shows exactly 7 C there."""
+def _c7_calls(read: str, ref: str, ref2read: list[int], cfg: RealismConfig) -> list[bool]:
+    """Per C7 reference run: whether the read shows exactly ``c7_run_length`` C there."""
+    run, extend = cfg.c7_run_length, cfg.c7_extend_max
     calls = []
     for match in re.finditer(r"C+", ref):
         s, e = match.span()
-        if e - s != C7 or s == 0 or e >= len(ref):
+        if e - s != run or s == 0 or e >= len(ref):
             continue
         rs, re_ = ref2read[s], ref2read[e]
         obs = read[rs:re_].count("C")
         if obs:  # profiler parity: an empty window is not extended
             i = rs - 1
-            while i >= max(rs - 3, 0) and read[i] == "C":
+            while i >= max(rs - extend, 0) and read[i] == "C":
                 obs, i = obs + 1, i - 1
             i = re_
-            while i < min(re_ + 3, len(read)) and read[i] == "C":
+            while i < min(re_ + extend, len(read)) and read[i] == "C":
                 obs, i = obs + 1, i + 1
-        calls.append(obs == C7)
+        calls.append(obs == run)
     return calls
 
 
@@ -191,6 +194,7 @@ def _amplicon(
     exact: dict[str, int],
     sources: dict[int, str],
     vntr: dict[int, tuple[int, int]],
+    cfg: RealismConfig,
 ) -> dict[str, Any]:
     kinds = Counter(r.kind for r in rows)
     products = [r for r in rows if r.kind in PRODUCT_KINDS]
@@ -200,19 +204,22 @@ def _amplicon(
     flanks = {h: len(sources[h]) - n for h, n in allele.items() if h in sources}
     alleles = sorted(set(allele.values()))
     lo, hi = alleles[0], alleles[-1]
-    hist = {"lt55u": [0] * (BIN_MAX - BIN_MIN + 1), "ge55u": [0] * (BIN_MAX - BIN_MIN + 1)}
+    small, large = cfg.size_keys
+    hist = {small: [0] * cfg.n_bins, large: [0] * cfg.n_bins}
+    bp, off_bp = cfg.offset_bin_bp, cfg.off_peak_units * UNIT
     on_peak: Counter[int] = Counter()
     off = between = below = 0
     for r in products:
         span = exact.get(r.read_id, lengths[r.read_id] - flanks.get(r.hap, 0))
         near = min(alleles, key=lambda a: abs(span - a))
         d = span - near
-        key = "lt55u" if near / UNIT < SIZE_SPLIT_UNITS else "ge55u"
-        hist[key][max(BIN_MIN, min(BIN_MAX, (d + 7) // 15)) - BIN_MIN] += 1
-        on_peak[near] += abs(d) <= max(30.0, 0.012 * near)
-        off += abs(d) > 1.5 * UNIT
-        between += lo + 1.5 * UNIT < span < hi - 1.5 * UNIT
-        below += span < lo - 1.5 * UNIT
+        key = small if near / UNIT < cfg.size_split_units else large
+        b = max(cfg.offset_bin_min, min(cfg.offset_bin_max, (d + bp // 2) // bp))
+        hist[key][b - cfg.offset_bin_min] += 1
+        on_peak[near] += abs(d) <= max(cfg.on_peak_min_bp, cfg.on_peak_rel * near)
+        off += abs(d) > off_bp
+        between += lo + off_bp < span < hi - off_bp
+        below += span < lo - off_bp
     n = len(products)
     out: dict[str, Any] = {
         "smear_frac": _ratio(kinds["smear"], n),
@@ -244,6 +251,7 @@ def read_metrics(
     truth_rows: Sequence[ReadTruth],
     sources: dict[int, str],
     vntr: dict[int, tuple[int, int]],
+    config: RealismConfig = DEFAULT_BENCH_CONFIG.realism,
 ) -> dict[str, Any]:
     """Measure the realism metrics of one simulated case on the VNTR interval.
 
@@ -253,6 +261,7 @@ def read_metrics(
         sources: Haplotype id -> sequence in the read-truth source frame
             (`geometry.source_inputs`).
         vntr: Haplotype id -> VNTR `[start, end)` in the same frame.
+        config: Metric definitions (C7 run, histogram bins, peak widths).
 
     Returns:
         Per-case metrics: raw `error_counts`/`c7_counts`, the rates and
@@ -295,12 +304,12 @@ def read_metrics(
         counts[r.strand].update(found)
         counts["all"].update(found)
         n_aligned[r.strand] += 1
-        for ok in _c7_calls(segment, vntr_ref, seg2read):
+        for ok in _c7_calls(segment, vntr_ref, seg2read, config):
             for key in (r.strand, "both"):
                 c7[key][0] += ok
                 c7[key][1] += 1
     lengths = {k: len(v) for k, v in seqs.items()}
-    out = _empty() | _amplicon(truth_rows, lengths, exact, sources, vntr)
+    out = _empty() | _amplicon(truth_rows, lengths, exact, sources, vntr, config)
     if any(r.kind == "fragment" for r in truth_rows):
         out["spanning_frac"] = _ratio(spanning, overlap)
     out |= _rates(counts)
@@ -320,7 +329,10 @@ def _single(root: Path, pattern: str) -> Path:
 
 
 def case_metrics(
-    case_dir: Path, muconeup_config: Path | None = None, flank_fasta: Path | None = None
+    case_dir: Path,
+    muconeup_config: Path | None = None,
+    flank_fasta: Path | None = None,
+    config: RealismConfig = DEFAULT_BENCH_CONFIG.realism,
 ) -> dict[str, Any]:
     """`read_metrics` for one generated case directory.
 
@@ -331,6 +343,7 @@ def case_metrics(
         case_dir: ``<out_root>/<split>/<design_id>``.
         muconeup_config: MucOneUp config, needed only for older amplicon cases.
         flank_fasta: The ``--flank-fasta`` used at generation (genomic).
+        config: Metric definitions passed to `read_metrics`.
 
     Raises:
         ValueError: If an older amplicon case has no `muconeup_config`, or
@@ -356,7 +369,7 @@ def case_metrics(
     sources, vntr = source_inputs(geometry, haplotypes, flanks)
     rows = load_read_truth(_single(truth_dir, "*_read_truth.tsv.gz"))
     fastq = case_dir / "reads" / FASTQ[case["profile"]].format(case["design_id"])
-    return read_metrics(fastq, rows, sources, vntr)
+    return read_metrics(fastq, rows, sources, vntr, config)
 
 
 def _spread(values: list[float]) -> dict[str, float] | None:
@@ -375,7 +388,9 @@ def _median(values: list[float | None]) -> float | None:
     return statistics.median(present) if present else None
 
 
-def aggregate(cases: Sequence[dict[str, Any]]) -> dict[str, Any]:
+def aggregate(
+    cases: Sequence[dict[str, Any]], config: RealismConfig = DEFAULT_BENCH_CONFIG.realism
+) -> dict[str, Any]:
     """Combine per-case `read_metrics` of matched cases into across-case metrics.
 
     Error rates are the median of per-case rates (the target median is over
@@ -386,13 +401,14 @@ def aggregate(cases: Sequence[dict[str, Any]]) -> dict[str, Any]:
 
     Args:
         cases: Per-case metric dicts from `read_metrics`.
+        config: The histogram layout the cases were measured with.
 
     Returns:
         An aggregate metrics dict accepted by `realism_targets.compare`.
     """
     counts: dict[str, Counter[str]] = {s: Counter() for s in (*STRANDS, "all")}
     c7 = {s: [0, 0] for s in (*STRANDS, "both")}
-    hist = {k: [0] * (BIN_MAX - BIN_MIN + 1) for k in ("lt55u", "ge55u")}
+    hist = {k: [0] * config.n_bins for k in config.size_keys}
     points = []
     for case in cases:
         for s, c in case["error_counts"].items():

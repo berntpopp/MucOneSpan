@@ -37,6 +37,7 @@ from muc_one_span.evaluation.models import TruthSample
 from muc_one_span.evaluation.truth import fasta_records, load_truth
 from muc_one_span.tools import run_tool
 
+from .bench_config import DEFAULT_BENCH_CONFIG, AmountConfig, BenchConfig
 from .depth import amplicon_templates, capped_minor_share, genomic_reads, pcr_minor_share
 from .design import Design
 from .geometry import case_geometry, haplotype_sequences, primer_pair, vntr_bounds
@@ -50,7 +51,8 @@ FASTQ = {
     "hifi_amplicon": "{}_amplicon_hifi.fastq",
     "ont_genomic_targeted": "{}_ont_fragments.fastq",
 }
-FRAGMENT_DEFAULT = (5000.0, 0.5)  # MucOneUp FragmentModel defaults
+SEED_MODULUS = 2**32  # genomic Monte-Carlo seeds are kept in 32-bit range
+FASTQ_LINES = 4  # lines per FASTQ record (format definition)
 
 
 @dataclass(frozen=True)
@@ -64,6 +66,7 @@ class GenerateContext:
     flank_fasta: Path | None
     structure_pool: Path | None
     muconeup_version: str
+    bench: BenchConfig = DEFAULT_BENCH_CONFIG
 
 
 @contextmanager
@@ -159,20 +162,22 @@ def _amount(
     truth: TruthSample,
     span: dict[int, tuple[int, int]],
     source: dict[int, int],
+    cfg: AmountConfig,
 ) -> tuple[int, bool]:
     """Requested reads (genomic) or templates (amplicon), and whether the amount was capped."""
     if design.profile == "ont_genomic_targeted":
         frag = base_profile.get("fragments") or {}
-        median = float(frag.get("length_median", FRAGMENT_DEFAULT[0]))
-        sigma = float(frag.get("length_sigma", FRAGMENT_DEFAULT[1]))
-        seed = design.read_seed % 2**32
+        median = float(frag.get("length_median", cfg.fragment_length_median))
+        sigma = float(frag.get("length_sigma", cfg.fragment_length_sigma))
+        seed = design.read_seed % SEED_MODULUS
         return max(
-            genomic_reads(design.depth, source[h], lo, hi, median, sigma, seed=seed)
+            genomic_reads(design.depth, source[h], lo, hi, median, sigma, seed=seed, config=cfg)
             for h, (lo, hi) in span.items()
         ), False
     concatemer = float((base_profile.get("molecules") or {}).get("concatemer_rate", 0.0))
     counts = [len(h.structure) for h in truth.haplotypes]
-    share, capped = capped_minor_share(pcr_minor_share((counts[0], counts[-1]), design.pcr))
+    share = pcr_minor_share((counts[0], counts[-1]), design.pcr, cfg)
+    share, capped = capped_minor_share(share, cfg)
     rate = design.smear + design.chimera + concatemer
     return amplicon_templates(design.depth, rate, share), capped
 
@@ -180,9 +185,9 @@ def _amount(
 def _fastq_records(path: Path) -> int:
     with path.open() as handle:
         lines = sum(1 for line in handle if line.strip())
-    if lines % 4:
+    if lines % FASTQ_LINES:
         raise ValueError(f"{path.name}: truncated FASTQ ({lines} lines)")
-    return lines // 4
+    return lines // FASTQ_LINES
 
 
 def _one(root: Path, pattern: str, required: bool = True) -> Path | None:
@@ -203,12 +208,16 @@ def _simulate(
         case_dir / "structure",
         run_tool,
         known=set(rd.repeats),
+        settings=ctx.bench.structures,
     )
     case.update(info)
     targets = design.targets
     if structure is not None and info["structure_source"] == "pool":
         lengths = tuple(len(c) for c in read_chains(structure))
-        targets = scale_targets(targets, design.lengths, lengths)
+        try:
+            targets = scale_targets(targets, design.lengths, lengths)
+        except ValueError as exc:
+            raise DesignInvalidError(str(exc)) from exc
     case["requested_targets"] = [list(t) for t in targets]
     truth_dir = case_dir / "truth"
     lengths_arg = None if structure is not None else design.lengths
@@ -251,13 +260,15 @@ def _reads(
 ) -> tuple[Path, Path, int]:
     base_path = ctx.profile_dir / f"{BUILTIN_PROFILE[design.profile]}.json"
     base_profile = json.loads(base_path.read_text())
-    variant, sha = write_variant(base_path, design, ctx.out_root / "profiles")
+    variant, sha = write_variant(base_path, design, ctx.out_root / "profiles", ctx.bench.profiles)
     case.update(profile_variant=variant_name(design), profile_sha256=sha)
     span, source = _span(truth, rd, ctx.flank_fasta)
     genomic = design.profile == "ont_genomic_targeted"
-    amount, capped = _amount(design, base_profile, truth, span, source)
+    amount, capped = _amount(design, base_profile, truth, span, source, ctx.bench.amount)
     case["requested_amount"] = amount
     case["amount_capped"] = capped
+    if not genomic:
+        case["min_minor_share"] = ctx.bench.amount.min_minor_share
     case["amount_unit"] = "reads" if genomic else "templates"
     truth_fa = _one(truth_dir, "*.simulated.fa")
     if truth_fa is None:  # _one(required=True) raises first; explicit for type narrowing
@@ -359,6 +370,8 @@ def generate_case(design: Design, ctx: GenerateContext) -> dict[str, Any]:
         "profile": design.profile,
         "design": design.to_dict(),
         "muconeup_version": ctx.muconeup_version,
+        "bench_config_sha256": ctx.bench.sha256(),
+        "target_clamped": design.target_clamped,
         "status": "generation_failed",
         "error": None,
     }
