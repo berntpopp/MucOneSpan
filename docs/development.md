@@ -239,7 +239,8 @@ multi-site) or any conflicting record selects `I`. The allele records
 `allele_genotype_status` (`heterozygous_within_length_partition` or
 `unresolved_genotype_records`) and `heterozygous_sites`, and it receives no
 independent haplotype credit. Only candidates without remaining heterozygosity
-use genotype index 1 (`allele_specific_resolved`).
+use genotype index 1 (`allele_specific_resolved`). `variant_filter` records the
+filter applied to that allele's calls, including the QUAL threshold used.
 Experimental read-backed phase is available through the Python library's explicit
 `read_phase=True` or JSON `calling.read_phase: true`. It remains disabled by default
 after failing the development false-positive gate; there is no dedicated CLI flag. `consensus_context` records the
@@ -250,8 +251,9 @@ not independent experimental support.
 Under `-H I`, bcftools writes IUPAC codes for heterozygous SNVs but applies the
 ALT allele of a heterozygous REF/ALT indel. Replay mirrors this, and such an
 event gets `vcf_support_status=heterozygous_genotype_unresolved` (not
-supported). Other events on the allele keep their own status, and
-`vcf_projection.unresolved_genotype_edits` counts these edits. Multi-ALT
+supported). Other events on the allele keep their own status.
+`vcf_projection.unresolved_genotype_edits` counts every heterozygous edit
+replayed under `-H I`: IUPAC SNVs and applied indels. Multi-ALT
 heterozygous indels remain unprojectable (`ambiguous_genotype_selection`).
 
 Classifier `allele_confidence` and `exact_match_pct` describe dictionary fit among

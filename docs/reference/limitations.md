@@ -157,7 +157,10 @@ be projected with a verified replay, including mixed IUPAC heterozygous indels.
 It does not mean the variant was absent. The legacy boolean remains false until
 exact concordance is proven; the HTML report labels this support unavailable.
 Unavailable or ambiguous projection adds no support penalty to dictionary-fit
-confidence, whereas actually absent support receives that penalty. The separate
+confidence, whereas actually absent support receives that penalty.
+`vcf_support_status=heterozygous_genotype_unresolved` marks an event whose VCF
+record is heterozygous and was replayed under `-H I`; it is never support and
+receives no absence penalty. The separate
 existing heuristic penalty near allele boundaries still applies.
 These scores remain heuristic weights, not probabilities or empirical base support.
 
