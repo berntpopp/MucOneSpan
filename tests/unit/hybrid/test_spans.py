@@ -12,8 +12,8 @@ from muc_one_span.hybrid.spans import Anchors, ReadRecord, categorize_reads
 from muc_one_span.settings import HybridSettings
 from tests.unit.hybrid import synth
 
-ANCH = Anchors.from_dictionary(synth.RD)
 S = HybridSettings()
+ANCH = Anchors.from_dictionary(synth.RD, S)
 
 
 def test_dupc_template_is_classified() -> None:

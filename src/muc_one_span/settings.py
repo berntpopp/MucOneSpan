@@ -347,6 +347,23 @@ class HybridSettings:
     hp_min_alt_frac: float = 0.30
     hp_min_strand_reads: int = 5
     seed: int = 1
+    # S1 anchor-search tunables (flank-anchor fallback when a motif is mutated).
+    flank_anchor_bp: int = 30
+    flank_anchor_edit_divisor: int = 4
+    flank_anchor_edit_floor: int = 2
+    # S2 length-model tunables: KDE shape, peak spacing, and the smear/rejection rules.
+    kde_bandwidth_base_bp: float = 8.0
+    kde_bandwidth_per_bp: float = 0.004
+    kde_kernel_truncation_bw: float = 4.0
+    kde_grid_step_bp: float = 2.0
+    kde_grid_margin_bp: float = 100.0
+    smear_shoulder_width_mult: float = 3.0
+    smear_shoulder_floor: float = 1.0
+    smear_short_product_units: float = 1.5
+    peak_far_near_boundary_units: float = 2.0
+    peak_min_separation_units: float = 0.7
+    smear_background_ratio_min: float = 15.0
+    smear_background_floor: float = 1.0
 
     def __post_init__(self) -> None:
         for name in (
@@ -369,6 +386,9 @@ class HybridSettings:
         _integer(
             "hybrid.depth_adequate_spanning", self.depth_adequate_spanning, self.depth_low_spanning
         )
+        _integer("hybrid.flank_anchor_bp", self.flank_anchor_bp, 1)
+        _integer("hybrid.flank_anchor_edit_divisor", self.flank_anchor_edit_divisor, 1)
+        _integer("hybrid.flank_anchor_edit_floor", self.flank_anchor_edit_floor, 0)
         _number("hybrid.peak_window_base_bp", self.peak_window_base_bp, 1)
         _number("hybrid.peak_window_per_unit_bp", self.peak_window_per_unit_bp)
         _number("hybrid.smear_min_prominence", self.smear_min_prominence, 1)
@@ -387,6 +407,20 @@ class HybridSettings:
         _number("hybrid.hp_llr_min", self.hp_llr_min)
         _boolean("hybrid.hp_vote", self.hp_vote)
         _choice("hybrid.poa_backend", self.poa_backend, ("pyabpoa", "pyspoa"))
+        _number("hybrid.kde_bandwidth_base_bp", self.kde_bandwidth_base_bp, 1.0)
+        _number("hybrid.kde_bandwidth_per_bp", self.kde_bandwidth_per_bp, 0)
+        _number("hybrid.kde_kernel_truncation_bw", self.kde_kernel_truncation_bw, 1.0)
+        _number("hybrid.kde_grid_step_bp", self.kde_grid_step_bp, 0.1)
+        _number("hybrid.kde_grid_margin_bp", self.kde_grid_margin_bp, 0)
+        _number("hybrid.smear_shoulder_width_mult", self.smear_shoulder_width_mult, 1.0)
+        if self.smear_shoulder_width_mult <= 1.0:
+            raise ValueError("hybrid.smear_shoulder_width_mult must be > 1")
+        _number("hybrid.smear_shoulder_floor", self.smear_shoulder_floor, 0)
+        _number("hybrid.smear_short_product_units", self.smear_short_product_units, 0.01)
+        _number("hybrid.peak_far_near_boundary_units", self.peak_far_near_boundary_units, 0)
+        _number("hybrid.peak_min_separation_units", self.peak_min_separation_units, 0)
+        _number("hybrid.smear_background_ratio_min", self.smear_background_ratio_min, 0)
+        _number("hybrid.smear_background_floor", self.smear_background_floor, 0.01)
 
 
 @dataclass(frozen=True)

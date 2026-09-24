@@ -37,6 +37,27 @@ def test_hybrid_defaults() -> None:
     assert (DEFAULT_SETTINGS.run.engine, DEFAULT_SETTINGS.run.assay) == ("ladder", "amplicon")
 
 
+def test_hybrid_length_model_and_anchor_tunables_default_unchanged() -> None:
+    # Fix round 1: these fields replace literals formerly hardcoded in hybrid/spans.py and
+    # hybrid/lengths.py; their defaults reproduce the old, already-validated behaviour.
+    h = DEFAULT_SETTINGS.hybrid
+    assert (h.flank_anchor_bp, h.flank_anchor_edit_divisor, h.flank_anchor_edit_floor) == (
+        30,
+        4,
+        2,
+    )
+    assert (h.kde_bandwidth_base_bp, h.kde_bandwidth_per_bp, h.kde_kernel_truncation_bw) == (
+        8.0,
+        0.004,
+        4.0,
+    )
+    assert (h.kde_grid_step_bp, h.kde_grid_margin_bp) == (2.0, 100.0)
+    assert (h.smear_shoulder_width_mult, h.smear_shoulder_floor) == (3.0, 1.0)
+    assert (h.smear_short_product_units, h.peak_far_near_boundary_units) == (1.5, 2.0)
+    assert h.peak_min_separation_units == 0.7
+    assert (h.smear_background_ratio_min, h.smear_background_floor) == (15.0, 1.0)
+
+
 @pytest.mark.parametrize(
     ("field", "value"),
     [
@@ -49,6 +70,21 @@ def test_hybrid_defaults() -> None:
         ("max_span_units", 10),
         ("depth_adequate_spanning", 5),
         ("hp_vote", 1),
+        ("flank_anchor_bp", 0),
+        ("flank_anchor_edit_divisor", 0),
+        ("flank_anchor_edit_floor", -1),
+        ("kde_bandwidth_base_bp", 0.0),
+        ("kde_bandwidth_per_bp", -0.1),
+        ("kde_kernel_truncation_bw", 0.5),
+        ("kde_grid_step_bp", 0.0),
+        ("kde_grid_margin_bp", -1.0),
+        ("smear_shoulder_width_mult", 1.0),
+        ("smear_shoulder_floor", -1.0),
+        ("smear_short_product_units", 0.0),
+        ("peak_far_near_boundary_units", -1.0),
+        ("peak_min_separation_units", -0.1),
+        ("smear_background_ratio_min", -1.0),
+        ("smear_background_floor", 0.0),
     ],
 )
 def test_hybrid_rejects_invalid(field: str, value: object) -> None:

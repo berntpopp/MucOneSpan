@@ -9,9 +9,6 @@ from muc_one_span.config import RepeatDictionary
 from muc_one_span.hybrid.align import infix_hit, rc
 from muc_one_span.settings import HybridSettings
 
-FLANK_ANCHOR_BP = 30
-UNIT = 60
-
 
 @dataclass(frozen=True)
 class ReadRecord:
@@ -40,20 +37,27 @@ class SpanRead:
 
 @dataclass(frozen=True)
 class Anchors:
-    """Motif 1/9 anchors plus flank anchors used when a motif carries a mutation."""
+    """Motif 1/9 anchors plus flank anchors used when a motif carries a mutation.
+
+    ``unit_bp`` is the repeat-unit length taken from the loaded dictionary
+    (``rd.repeat_length_bp``, 60 bp for the bundled MUC1 dictionary); it is the
+    single source of the "unit" used to scale spans and length-model windows.
+    """
 
     left: str
     right: str
     left_flank: str
     right_flank: str
+    unit_bp: int
 
     @classmethod
-    def from_dictionary(cls, rd: RepeatDictionary) -> Anchors:
+    def from_dictionary(cls, rd: RepeatDictionary, settings: HybridSettings) -> Anchors:
         return cls(
             rd.repeats["1"],
             rd.repeats["9"],
-            rd.flanking_left[-FLANK_ANCHOR_BP:],
-            rd.flanking_right[:FLANK_ANCHOR_BP],
+            rd.flanking_left[-settings.flank_anchor_bp :],
+            rd.flanking_right[: settings.flank_anchor_bp],
+            rd.repeat_length_bp,
         )
 
 
@@ -79,8 +83,11 @@ def _mean_q(qual: str) -> float:
     return sum(ord(c) - 33 for c in qual) / len(qual) if qual else 0.0
 
 
-def _span_in(target: str, anchors: Anchors, k: int) -> tuple[int, int, int, str] | None:
+def _span_in(
+    target: str, anchors: Anchors, settings: HybridSettings
+) -> tuple[int, int, int, str] | None:
     """Return (start, end_excl, edits, basis) of motif1..motif9 in target, or None."""
+    k = settings.anchor_max_edits
     left = infix_hit(anchors.left, target, k)
     right = None
     if left is not None:
@@ -88,7 +95,7 @@ def _span_in(target: str, anchors: Anchors, k: int) -> tuple[int, int, int, str]
         right = None if tail is None else (tail[0] + left[1], tail[1] + left[1], tail[2])
     if left is not None and right is not None:
         return left[0], right[1], left[2] + right[2], "motif"
-    kf = max(2, k // 4)
+    kf = max(settings.flank_anchor_edit_floor, k // settings.flank_anchor_edit_divisor)
     lf = infix_hit(anchors.left_flank, target, kf)
     rf = infix_hit(anchors.right_flank, target[lf[1] :], kf) if lf else None
     if lf is None or rf is None:
@@ -101,13 +108,14 @@ def categorize_reads(
 ) -> ReadCategories:
     """Classify reads as spanning (oriented, trimmed) / one-end anchored / other."""
     k = settings.anchor_max_edits
-    lo, hi = settings.min_span_units * UNIT, settings.max_span_units * UNIT
+    lo = settings.min_span_units * anchors.unit_bp
+    hi = settings.max_span_units * anchors.unit_bp
     cats = ReadCategories()
     for rec in reads:
         seq = rec.seq.upper()
         best: tuple[tuple[int, int, int, str], str, str, str] | None = None
         for strand, target, qual in (("+", seq, rec.qual), ("-", rc(seq), rec.qual[::-1])):
-            hit = _span_in(target, anchors, k)
+            hit = _span_in(target, anchors, settings)
             if hit and (best is None or hit[2] < best[0][2]):
                 best = (hit, strand, target, qual)
         if best is not None:
