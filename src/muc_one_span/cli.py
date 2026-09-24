@@ -15,6 +15,7 @@ from muc_one_span.cli_settings import (
     current_settings,
     validate_stage_options,
 )
+from muc_one_span.cli_settings_command import settings_group
 from muc_one_span.mapping import PLATFORM_PRESETS
 from muc_one_span.settings import DEFAULT_SETTINGS
 from muc_one_span.version import __version__
@@ -53,6 +54,7 @@ def main(ctx: click.Context, verbose: int, quiet: bool, configuration: Path | No
 
 
 main.add_command(run)
+main.add_command(settings_group)
 
 
 @main.command()

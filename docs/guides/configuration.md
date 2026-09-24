@@ -4,7 +4,7 @@ MucOneSpan accepts a versioned JSON configuration for execution defaults,
 repeat-selection and classification heuristics, consensus boundaries, confidence
 weights, and reference layout. Defaults come from immutable typed settings in
 `muc_one_span.settings`. The repository's `examples/runtime-settings.json` is a
-complete default configuration generated from that API.
+complete default configuration generated with `muconespan settings show`.
 
 ## Use a configuration file
 
@@ -415,6 +415,36 @@ because the ladder's `classify.py` `confidence`/`allele_confidence` (the
 dictionary-fit heuristic shown in `repeats.json`, the CLI's `confidence:`
 line and the HTML report's "Allele confidence" tile) is computed identically
 for both engines and carries no hybrid reconstruction evidence.
+
+## Inspect and validate settings
+
+`muconespan settings show` prints the effective settings as schema-1 JSON. The
+output loads back with `--config`, so it is a complete starting point for a
+custom file:
+
+```bash
+muconespan settings show > settings.json            # central defaults
+muconespan settings show --config my.json           # defaults merged with my.json
+muconespan settings show --section hybrid           # one section only
+```
+
+Without `--config` (either the command's own option or the global one placed
+before `settings`), it prints the central defaults. `--config` runs the same
+strict loader as `run`, so relative resource paths print as absolute paths
+resolved against the file's directory. `--section NAME` prints only
+`schema_version` and that section; the sections it omits keep their defaults
+when the output is loaded. `examples/runtime-settings.json` is the output of
+`muconespan settings show`, and a unit test keeps the two identical.
+
+`muconespan settings validate FILE` runs the strict loader on `FILE` without
+running anything else. A valid file prints a confirmation and exits 0. An
+invalid file (unknown or duplicate keys, a missing `schema_version`, wrong
+types, out-of-range values or malformed JSON) prints the loader's first error,
+naming the file, and exits non-zero:
+
+```bash
+muconespan settings validate settings.json
+```
 
 ## Effective configuration and provenance
 

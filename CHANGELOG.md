@@ -81,6 +81,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
   (`decision.targets`); adoption now needs the relative rule and every named
   set's targets to pass. The decision rule is now v4; a changed threshold,
   comparator, basis or set membership needs a new pre-registration.
+- `muconespan settings show [--section NAME] [--config FILE]` prints the
+  effective settings as schema-1 JSON that loads back with `--config`, and
+  `muconespan settings validate FILE` reports the strict loader's first error
+  and exits non-zero on an invalid file. `examples/runtime-settings.json` is
+  kept identical to `settings show` by a unit test.
 
 ### Fixed
 
