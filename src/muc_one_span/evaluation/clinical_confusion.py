@@ -45,10 +45,17 @@ def truth_class(truth: TruthSample, rd: RepeatDictionary) -> str:
 def predicted_decision(result_dir: Path) -> str:
     """Return the caller's 3-state clinical decision, or ``NO_CALL`` when unreadable."""
     try:
+        # RecursionError: json.loads uses a recursive parser, so a pathologically
+        # nested-but-syntactically-valid document (e.g. thousands of "[") can blow the
+        # interpreter's recursion limit instead of raising a JSON decode error.
         summary = json.loads((result_dir / "summary.json").read_text())
-    except (OSError, ValueError):
+    except (OSError, ValueError, RecursionError):
         return "NO_CALL"
     try:
+        # A malformed-but-valid-JSON shape (e.g. a list instead of an object) always
+        # surfaces here as one of these three types: AttributeError (no .get on a
+        # non-dict), KeyError (missing "state"/expected key), or TypeError (wrong
+        # argument shape passed further down) — checked against compute_clinical_decision.
         return str(compute_clinical_decision(summary)["state"])
     except (AttributeError, KeyError, TypeError):
         return "NO_CALL"

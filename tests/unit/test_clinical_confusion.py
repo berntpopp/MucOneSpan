@@ -56,6 +56,12 @@ def test_valid_json_wrong_shape_is_no_call(tmp_path: Path) -> None:
     assert predicted_decision(tmp_path) == "NO_CALL"
 
 
+def test_pathologically_nested_summary_is_no_call(tmp_path: Path) -> None:
+    """Syntactically valid but deeply nested JSON must not crash json.loads' recursive parser."""
+    (tmp_path / "summary.json").write_text("[" * 20000 + "]" * 20000)
+    assert predicted_decision(tmp_path) == "NO_CALL"
+
+
 def test_confusion_counts_critical_errors() -> None:
     rows = [
         {"clinical": {"truth": "pathogenic", "decision": "NO_CALL"}},
