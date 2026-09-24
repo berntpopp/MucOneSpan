@@ -341,6 +341,11 @@ class HybridSettings:
     poa_backend: str = "pyabpoa"
     polish_rounds: int = 2
     hp_vote: bool = True
+    # S3/S7 (Task 6) POA sampling window and pileup/homopolymer-vote polishing tunables.
+    poa_sample_window_floor_bp: float = 15.0
+    poa_sample_window_frac: float = 0.006
+    polish_insertion_majority_frac: float = 0.5
+    hp_vote_min_run: int = 4
     het_af_min: float = 0.2
     het_min_group: float = 0.15
     link_phi_min: float = 0.5
@@ -401,6 +406,7 @@ class HybridSettings:
         ):
             _integer(f"hybrid.{name}", getattr(self, name))
         _integer("hybrid.n_poa", self.n_poa, 1)
+        _integer("hybrid.hp_vote_min_run", self.hp_vote_min_run, 2)
         _integer("hybrid.min_span_units", self.min_span_units, 1)
         _integer("hybrid.max_span_units", self.max_span_units, self.min_span_units + 1)
         _integer(
@@ -411,6 +417,8 @@ class HybridSettings:
         _integer("hybrid.flank_anchor_edit_floor", self.flank_anchor_edit_floor, 0)
         _number("hybrid.peak_window_base_bp", self.peak_window_base_bp, 1)
         _number("hybrid.peak_window_per_unit_bp", self.peak_window_per_unit_bp)
+        _number("hybrid.poa_sample_window_floor_bp", self.poa_sample_window_floor_bp, 0)
+        _number("hybrid.poa_sample_window_frac", self.poa_sample_window_frac, 0)
         for name in (
             "far_peak_min_frac",
             "near_peak_min_frac",
@@ -420,6 +428,7 @@ class HybridSettings:
             "link_phi_min",
             "assign_max_error_rate",
             "max_unassigned_spanning_fraction",
+            "polish_insertion_majority_frac",
         ):
             _number(f"hybrid.{name}", getattr(self, name), 0, 1)
         _number("hybrid.het_af_min", self.het_af_min, 0.01, 0.5)

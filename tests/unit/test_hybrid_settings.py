@@ -52,6 +52,15 @@ def test_hybrid_length_model_and_anchor_tunables_default_unchanged() -> None:
     assert h.peak_min_separation_units == 0.7
 
 
+def test_hybrid_poa_and_polish_tunables_default_unchanged() -> None:
+    # Task 6 (S3/S7): these fields replace literals formerly hardcoded in hybrid/poa.py
+    # and hybrid/polish.py (POA sampling window, insertion-vote majority fraction, and
+    # homopolymer minimum run length); their defaults reproduce the old behaviour.
+    h = DEFAULT_SETTINGS.hybrid
+    assert (h.poa_sample_window_floor_bp, h.poa_sample_window_frac) == (15.0, 0.006)
+    assert (h.polish_insertion_majority_frac, h.hp_vote_min_run) == (0.5, 4)
+
+
 def test_hybrid_smear_significance_defaults() -> None:
     # Fix round 4 (C4.2): the smear decision is a one-sided significance test of the
     # candidate's core count against its local below-top background; these defaults
@@ -101,6 +110,12 @@ def test_hybrid_smear_significance_defaults() -> None:
         ("smear_test_window_frac", 1.5),
         ("smear_background_flank_units", 0.0),
         ("smear_background_min_reads", 0),
+        ("poa_sample_window_floor_bp", -1.0),
+        ("poa_sample_window_frac", -0.1),
+        ("polish_insertion_majority_frac", -0.1),
+        ("polish_insertion_majority_frac", 1.5),
+        ("hp_vote_min_run", 1),
+        ("hp_vote_min_run", -1),
     ],
 )
 def test_hybrid_rejects_invalid(field: str, value: object) -> None:
