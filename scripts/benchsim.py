@@ -20,7 +20,7 @@ import json
 import os
 import sys
 from collections import Counter
-from collections.abc import Sequence
+from collections.abc import Callable, Sequence
 from concurrent.futures import ProcessPoolExecutor
 from functools import partial
 from importlib.util import module_from_spec, spec_from_file_location
@@ -39,13 +39,14 @@ from muc_one_span.benchsim.realism_targets import load_targets
 from muc_one_span.benchsim.report import (
     RULE_TEXT,
     decide,
+    first_evaluation,
+    mark_first_evaluation,
     normalize_rows,
     preregister,
     render_markdown,
-    render_tables,
     require_preregistered,
-    stratified_table,
 )
+from muc_one_span.benchsim.report_tables import build_tables, render_engine_tables
 from muc_one_span.benchsim.run_cases import run_split
 from muc_one_span.config import load_repeat_dictionary
 from muc_one_span.tools import run_tool
@@ -54,8 +55,6 @@ DATA_DIR_NAME = "MucOneSpan-bench-data"
 DEFAULT_N = {"dev": 300, "val": 300, "test": 800, "stress": 100}
 DEFAULT_SALT = "mucsim-bench-v1"
 HERE = Path(__file__).resolve().parent
-TABLE_STRATA = (("profile",), ("profile", "delta_class"), ("profile", "depth"))
-TABLE_METRICS = ("allele_exact", "critical_false_negative", "inconclusive", "no_call")
 
 
 def _load_evaluate() -> ModuleType:
@@ -67,7 +66,8 @@ def _load_evaluate() -> ModuleType:
     return module
 
 
-evaluate_run = _load_evaluate().run
+# ``scripts/evaluate.py::run``; loaded lazily by ``cmd_evaluate`` (tests patch it).
+evaluate_run: Callable[[argparse.Namespace], tuple[dict[str, Any], int]] | None = None
 
 
 def _git_path(flag: str) -> Path | None:
@@ -217,12 +217,15 @@ def _prereg_path(root: Path) -> Path:
     return root / "test" / "preregistration.jsonl"
 
 
-def _guard_sealed(split: str, root: Path) -> None:
-    """``test`` truth stays sealed until the decision rule is pre-registered."""
+def _guard_sealed(split: str, root: Path) -> dict[str, Any] | None:
+    """``test`` truth stays sealed until the decision rule is pre-registered.
+
+    Returns the matched pre-registration entry for ``test`` (``None`` otherwise).
+    """
     if split != "test":
-        return
+        return None
     try:
-        require_preregistered(_prereg_path(root), RULE_TEXT)
+        return require_preregistered(_prereg_path(root), RULE_TEXT)
     except PermissionError as exc:
         raise SystemExit(f"test split is sealed: {exc}") from exc
 
@@ -245,15 +248,22 @@ def _write(path: Path, data: dict[str, Any]) -> None:
 def cmd_preregister(args: argparse.Namespace) -> int:
     """Append the decision rule to ``<out-root>/test/preregistration.jsonl``."""
     path = _prereg_path(out_root(args))
-    print(f"pre-registered rule sha256 {preregister(RULE_TEXT, path)} in {path}")
+    try:
+        digest = preregister(RULE_TEXT, path)
+    except PermissionError as exc:
+        raise SystemExit(str(exc)) from exc
+    print(f"pre-registered rule sha256 {digest} in {path}")
     return 0
 
 
 def cmd_evaluate(args: argparse.Namespace) -> int:
     """Score each engine's results with ``scripts/evaluate.py`` into ``evaluation.json``."""
     root = out_root(args)
-    _guard_sealed(args.split, root)  # before any truth is read
+    audit = _guard_sealed(args.split, root)  # before any truth is read
+    if audit is not None:
+        audit["test_first_evaluated_at"] = mark_first_evaluation(_prereg_path(root))
     results, split_dir = _results_root(args, root), root / args.split
+    run = evaluate_run or _load_evaluate().run
     code = 0
     for engine in _engines(args.engines):
         engine_dir = results / engine
@@ -262,7 +272,9 @@ def cmd_evaluate(args: argparse.Namespace) -> int:
             truth_root=split_dir,
             expected_samples=engine_dir / f"inventory_{args.split}.json",
         )
-        report, rc = evaluate_run(ns)
+        report, rc = run(ns)
+        if audit is not None:
+            report["preregistration"] = audit
         _write(engine_dir / "evaluation.json", report)
         print(f"{engine}: {engine_dir / 'evaluation.json'} (exit {rc})")
         code = max(code, rc)
@@ -277,22 +289,12 @@ def _cases(split_dir: Path) -> dict[str, dict[str, Any]]:
     return {row["design_id"]: row for row in rows}
 
 
-def _tables(rows: list[dict[str, Any]]) -> dict[str, list[dict[str, Any]]]:
-    tables = {}
-    for by in TABLE_STRATA:
-        for metric in TABLE_METRICS:
-            tables[f"{metric} by {' x '.join(by)}"] = stratified_table(rows, by, metric)
-        normals = [r for r in rows if r["normal"] or r["benign"]]
-        tables[f"false_positive (normal+benign) by {' x '.join(by)}"] = stratified_table(
-            normals, by, "false_positive"
-        )
-    return tables
-
-
 def cmd_report(args: argparse.Namespace) -> int:
     """Stratified tables per engine and the decision rule: ``report.json`` + ``report.md``."""
     root = out_root(args)
-    _guard_sealed(args.split, root)
+    audit = _guard_sealed(args.split, root)
+    if audit is not None:
+        audit["test_first_evaluated_at"] = first_evaluation(_prereg_path(root))
     results, cases = _results_root(args, root), _cases(root / args.split)
     engines = [args.baseline] + ([args.candidate] if args.candidate else [])
     rows: dict[str, list[dict[str, Any]]] = {}
@@ -300,18 +302,22 @@ def cmd_report(args: argparse.Namespace) -> int:
         path = results / engine / "evaluation.json"
         if not path.is_file():
             raise SystemExit(f"missing {path}; run `benchsim evaluate` first")
-        rows[engine] = normalize_rows(json.loads(path.read_text()), cases)
+        try:
+            rows[engine] = normalize_rows(json.loads(path.read_text()), cases)
+        except (KeyError, ValueError) as exc:
+            raise SystemExit(f"cannot normalize {path}: {exc}") from exc
     decision = decide(rows, args.baseline, args.candidate) if args.candidate else None
-    tables = {engine: _tables(r) for engine, r in rows.items()}
+    tables = {engine: build_tables(r) for engine, r in rows.items()}
     report = {
         "split": args.split,
+        "preregistration": audit,
         "decision": decision,
         "tables": tables,
         "engines": {engine: {"rows": r} for engine, r in rows.items()},
     }
     _write(results / "report.json", report)
     parts = [render_markdown(decision or {"profiles": {}, "adopt": False})]
-    parts += [f"## Engine `{e}`\n\n{render_tables(t)}" for e, t in tables.items()]
+    parts += [f"## Engine `{e}`\n\n{render_engine_tables(t)}" for e, t in tables.items()]
     (results / "report.md").write_text("\n".join(parts))
     print(f"report: {results / 'report.json'}")
     return 0

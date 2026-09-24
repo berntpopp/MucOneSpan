@@ -7,8 +7,11 @@ from typing import Any
 import pytest
 
 from muc_one_span.benchsim.report import (
+    ALLELE_UNIT,
     RULE_TEXT,
+    allele_rows,
     decide,
+    mark_first_evaluation,
     normalize_rows,
     paired,
     preregister,
@@ -18,12 +21,15 @@ from muc_one_span.benchsim.report import (
 )
 
 
-def _rows(exact: list[int], fp: list[int], profile="ont_amplicon_r10"):
+def _rows(
+    exact: list[int], fp: list[int], profile: str = "ont_amplicon_r10"
+) -> list[dict[str, Any]]:
+    """Case rows with one truth allele each (``h1``), exact per ``exact``."""
     return [
         {
             "sample": f"s{i}",
             "profile": profile,
-            "allele_exact": e,
+            "alleles": [{"allele": "h1", "allele_exact": e}],
             "normal": True,
             "false_positive": f,
             "critical_false_negative": 0,
@@ -34,8 +40,8 @@ def _rows(exact: list[int], fp: list[int], profile="ont_amplicon_r10"):
 
 def test_paired_counts_discordant() -> None:
     a, b = _rows([1, 0, 0, 1], [0] * 4), _rows([1, 1, 1, 0], [0] * 4)
-    res = paired(a, b, "allele_exact")
-    assert (res["b"], res["c"]) == (1, 2)
+    res = paired(allele_rows(a), allele_rows(b), "allele_exact", ALLELE_UNIT)
+    assert (res["b"], res["c"]) == (1, 2) and res["unit"] == ["sample", "allele"]
 
 
 def test_decide_requires_superiority_and_noninferiority() -> None:
@@ -60,10 +66,16 @@ def test_sealed_split_requires_preregistration(tmp_path: Path) -> None:
 # --- normalize_rows ------------------------------------------------------------------
 
 
-def _metrics(all_exact: int, per_allele: int) -> dict[str, Any]:
+def _pair(truth: str, exact: bool) -> dict[str, Any]:
+    return {"truth": truth, "prediction": f"p_{truth}", "sequence_exact": exact}
+
+
+def _alt(pairs: list[dict[str, Any]], missing: list[str], independent: int) -> dict[str, Any]:
+    exact = sum(p["sequence_exact"] for p in pairs)
     return {
-        "all_sequences_exact": {"min": all_exact, "max": all_exact},
-        "independent_sequence_exact": {"min": per_allele, "max": per_allele},
+        "pairs": pairs,
+        "missing_truth": missing,
+        "metrics": {"independent_sequence_exact": independent, "sequence_exact": exact},
     }
 
 
@@ -72,37 +84,49 @@ def _sample(
     truth: str | None,
     decision: str,
     status: str = "completed",
-    all_exact: int = 1,
-    per_allele: int = 2,
+    exact: tuple[bool, bool] = (True, True),
+    alternatives: list[dict[str, Any]] | None = None,
+    tp: int = 1,
+    fp: int = 0,
 ) -> dict[str, Any]:
     row: dict[str, Any] = {
         "sample": name,
         "status": status,
         "clinical": {"truth": truth, "decision": decision},
     }
-    if truth is not None:
-        row.update(
-            truth_status="valid", truth_haplotypes=2, metrics=_metrics(all_exact, per_allele)
-        )
-    else:
-        row["truth_status"] = "invalid"
-    return row
+    if truth is None:
+        return row | {"truth_status": "invalid"}
+    alts = alternatives or [_alt([_pair("h1", exact[0]), _pair("h2", exact[1])], [], sum(exact))]
+    all_exact = int(all(exact))
+    return row | {
+        "truth_status": "valid",
+        "truth_haplotypes": 2,
+        "truth_events": 0 if truth == "normal" else 1,
+        "alternatives": alts,
+        "metrics": {
+            "all_sequences_exact": {"min": all_exact, "max": all_exact},
+            "independent_sequence_exact": {"min": sum(exact), "max": sum(exact)},
+            "event_tp": {"min": tp, "max": tp},
+            "event_fp": {"min": 0, "max": fp},
+        },
+    }
 
 
 def _case(name: str, event: str | None, profile: str = "hifi_amplicon") -> dict[str, Any]:
+    design = {
+        "design_id": name,
+        "profile": profile,
+        "delta_class": "2",
+        "depth": 60,
+        "composition": "markov",
+        "event": event,
+    }
     return {
         "design_id": name,
         "profile": profile,
         "status": "ok",
         "realized_depth": {"1": 30, "2": 25},
-        "design": {
-            "design_id": name,
-            "profile": profile,
-            "delta_class": "2",
-            "depth": 60,
-            "composition": "markov",
-            "event": event,
-        },
+        "design": design,
     }
 
 
@@ -110,9 +134,9 @@ def test_normalize_rows_one_row_per_clinical_class() -> None:
     report = {
         "samples": [
             _sample("p", "pathogenic", "PATHOGENIC"),
-            _sample("b", "benign", "PATHOGENIC", all_exact=0, per_allele=1),
-            _sample("n", "normal", "NO_PATHOGENIC_VARIANT_DETECTED"),
-            _sample("m", "pathogenic", "NO_PATHOGENIC_VARIANT_DETECTED", all_exact=0, per_allele=0),
+            _sample("b", "benign", "PATHOGENIC", exact=(False, True)),
+            _sample("n", "normal", "NO_PATHOGENIC_VARIANT_DETECTED", tp=0, fp=1),
+            _sample("m", "pathogenic", "NO_PATHOGENIC_VARIANT_DETECTED", exact=(False, False)),
         ]
     }
     cases = {
@@ -122,36 +146,69 @@ def test_normalize_rows_one_row_per_clinical_class() -> None:
         "m": _case("m", "dupC"),
     }
     rows = {r["sample"]: r for r in normalize_rows(report, cases)}
-    assert (
-        rows["p"]["allele_exact"],
-        rows["p"]["false_positive"],
-        rows["p"]["critical_false_negative"],
-        rows["p"]["normal"],
-    ) == (1, 0, 0, False)
+    p = rows["p"]
+    assert (p["case_exact"], p["false_positive"], p["critical_false_negative"]) == (1, 0, 0)
+    assert p["alleles"] == [
+        {"allele": "h1", "allele_exact": 1},
+        {"allele": "h2", "allele_exact": 1},
+    ]
     assert rows["b"]["false_positive"] == 1 and rows["b"]["benign"] is True
-    assert rows["b"]["allele_exact"] == 0 and rows["b"]["alleles_exact"] == 1
+    assert rows["b"]["case_exact"] == 0 and rows["b"]["alleles_exact"] == 1
+    assert [a["allele_exact"] for a in rows["b"]["alleles"]] == [0, 1]
     assert rows["n"]["normal"] is True and rows["n"]["false_positive"] == 0
-    assert rows["m"]["critical_false_negative"] == 1
-    assert rows["p"]["profile"] == "hifi_amplicon" and rows["p"]["delta_class"] == "2"
-    assert rows["p"]["depth"] == 60 and rows["p"]["realized_depth"] == 55
+    assert (rows["n"]["event_tp"], rows["n"]["event_fp"], rows["n"]["truth_events"]) == (0, 1, 0)
+    assert rows["m"]["critical_false_negative"] == 1 and rows["m"]["failure"] == 1
+    assert p["profile"] == "hifi_amplicon" and p["delta_class"] == "2"
+    assert p["depth"] == 60 and p["realized_depth"] == 55 and p["failure"] == 0
     assert all(r["failed"] is False for r in rows.values())
+    flat = allele_rows(list(rows.values()))
+    assert len(flat) == 8 and {r["sample"] for r in flat} == {"p", "b", "n", "m"}
+    assert flat[0]["profile"] == "hifi_amplicon" and "allele" in flat[0]
 
 
 @pytest.mark.parametrize("status", ["execution_failed", "not_attempted"])
 def test_normalize_rows_keeps_failures_as_failures(status: str) -> None:
-    # A failed run with a stale PATHOGENIC summary still becomes NO_CALL, exact 0.
-    report = {"samples": [_sample("f", "pathogenic", "PATHOGENIC", status=status)]}
+    # A failed run with a stale PATHOGENIC summary still becomes NO_CALL, every allele 0.
+    alts = [_alt([], ["h1", "h2"], 0)]
+    report = {"samples": [_sample("f", "pathogenic", "PATHOGENIC", status, alternatives=alts)]}
     (row,) = normalize_rows(report, {"f": _case("f", "dupC")})
     assert row["decision"] == "NO_CALL" and row["failed"] is True
-    assert row["allele_exact"] == 0 and row["alleles_exact"] == 0
+    assert row["alleles"] == [
+        {"allele": "h1", "allele_exact": 0},
+        {"allele": "h2", "allele_exact": 0},
+    ]
+    assert row["case_exact"] == 0 and row["event_tp"] == 0
     assert row["critical_false_negative"] == 1 and row["false_positive"] == 0
 
 
-def test_normalize_rows_invalid_truth_uses_design_class() -> None:
+def test_normalize_rows_uses_least_favourable_assignment_and_evidence() -> None:
+    # Two optimal assignments; the worse one has one exact allele. Of two literal
+    # exact pairs only one has independent evidence -> the later truth name is demoted.
+    alts = [
+        _alt([_pair("h1", True), _pair("h2", True)], [], 2),
+        _alt([_pair("h1", True), _pair("h2", True)], [], 1),
+    ]
+    report = {
+        "samples": [_sample("d", "normal", "NO_PATHOGENIC_VARIANT_DETECTED", alternatives=alts)]
+    }
+    (row,) = normalize_rows(report, {"d": _case("d", None)})
+    assert row["alleles"] == [
+        {"allele": "h1", "allele_exact": 1},
+        {"allele": "h2", "allele_exact": 0},
+    ]
+
+
+def test_normalize_rows_invalid_truth_raises() -> None:
     report = {"samples": [_sample("i", None, "NO_CALL", status="invalid_truth")]}
-    (row,) = normalize_rows(report, {"i": _case("i", None)})
-    assert row["truth"] == "normal" and row["normal"] is True and row["failed"] is True
-    assert row["allele_exact"] == 0 and row["decision"] == "NO_CALL"
+    with pytest.raises(ValueError, match="no valid truth"):
+        normalize_rows(report, {"i": _case("i", None)})
+
+
+def test_normalize_rows_allele_count_must_match_truth() -> None:
+    alts = [_alt([_pair("h1", True)], [], 1)]
+    report = {"samples": [_sample("x", "normal", "NO_CALL", alternatives=alts)]}
+    with pytest.raises(ValueError, match="truth allele names"):
+        normalize_rows(report, {"x": _case("x", None)})
 
 
 def test_normalize_rows_requires_every_case() -> None:
@@ -164,7 +221,7 @@ def test_normalize_rows_requires_every_case() -> None:
 
 
 def test_stratified_table_counts_and_intervals() -> None:
-    rows = _rows([1, 0, 1, 1], [0] * 4) + _rows([0, 0], [0, 0], profile="hifi_amplicon")
+    rows = allele_rows(_rows([1, 0, 1, 1], [0] * 4) + _rows([0, 0], [0, 0], "hifi_amplicon"))
     table = stratified_table(rows, ["profile"], "allele_exact")
     by = {t["stratum"]["profile"]: t for t in table}
     assert (by["ont_amplicon_r10"]["k"], by["ont_amplicon_r10"]["n"]) == (3, 4)
@@ -173,9 +230,27 @@ def test_stratified_table_counts_and_intervals() -> None:
     assert by["hifi_amplicon"]["k"] == 0 and by["hifi_amplicon"]["ci_low"] == 0.0
 
 
-def test_paired_rejects_mismatched_samples() -> None:
+def test_paired_rejects_mismatched_units() -> None:
+    a = allele_rows(_rows([1, 0], [0, 0]))
+    b = allele_rows(_rows([1, 0], [0, 0]))
+    b[1]["allele"] = "h2"
+    with pytest.raises(ValueError, match="sample/allele"):
+        paired(a, b, "allele_exact", ALLELE_UNIT)
     with pytest.raises(ValueError, match="sample"):
-        paired(_rows([1, 0], [0, 0]), _rows([1], [0]), "allele_exact")
+        paired(_rows([1, 0], [0, 0]), _rows([1], [0]), "false_positive")
+
+
+def test_decide_pairs_alleles_not_cases() -> None:
+    n = 40
+    base, cand = _rows([0] * n, [0] * n), _rows([0] * n, [0] * n)
+    for row in base + cand:
+        row["alleles"] = [{"allele": "h1", "allele_exact": 0}, {"allele": "h2", "allele_exact": 0}]
+    for row in cand:
+        row["alleles"][1]["allele_exact"] = 1
+    exact = decide({"ladder": base, "hybrid": cand}, "ladder", "hybrid")["profiles"][
+        "ont_amplicon_r10"
+    ]["allele_exact"]
+    assert (exact["n"], exact["b"], exact["c"]) == (2 * n, 0, n) and exact["superior"] is True
 
 
 def test_decide_rejects_critical_false_negative_increase() -> None:
@@ -210,7 +285,8 @@ def test_decide_holm_adjusts_primary_family() -> None:
         {"ladder": _rows([0] * n, [0] * n), "hybrid": _rows([1] * n, [0] * n)}, "ladder", "hybrid"
     )
     exact = result["profiles"]["ont_amplicon_r10"]["allele_exact"]
-    assert exact["p_holm"] >= exact["p"] and set(result["holm_family"]) == {
+    assert exact["p_holm"] >= exact["p"]
+    assert set(result["holm_family"]) == {
         "allele_exact",
         "false_positive",
         "critical_false_negative",
@@ -232,7 +308,22 @@ def test_preregister_is_append_only_and_hashes_rule(tmp_path: Path) -> None:
     entries = [json.loads(line) for line in path.read_text().splitlines()]
     assert len(entries) == 3 and entries[0]["sha256"] == first == entries[2]["sha256"]
     assert entries[0]["rule_text"] == RULE_TEXT and "registered_at" in entries[0]
-    require_preregistered(path, RULE_TEXT)
+    matched = require_preregistered(path, RULE_TEXT)
+    assert matched == {"sha256": first, "registered_at": entries[0]["registered_at"]}
+
+
+def test_preregister_refused_after_test_evaluated(tmp_path: Path) -> None:
+    path = tmp_path / "test" / "preregistration.jsonl"
+    preregister(RULE_TEXT, path)
+    stamp = mark_first_evaluation(path)
+    assert mark_first_evaluation(path) == stamp  # written once, never moved
+    with pytest.raises(PermissionError, match="already evaluated"):
+        preregister("a later rule", path)
+
+
+def test_rule_text_names_the_per_allele_endpoint() -> None:
+    assert "per-allele" in RULE_TEXT and "allele pairs" in RULE_TEXT
+    assert "cluster-bootstrap" in RULE_TEXT and "0.005" in RULE_TEXT
 
 
 def test_require_preregistered_rejects_corrupt_ledger(tmp_path: Path) -> None:
@@ -249,10 +340,10 @@ def test_render_markdown_lists_profiles_and_verdict() -> None:
     )
     result["tables"] = {
         "allele_exact by profile": stratified_table(
-            _rows([1, 0], [0, 0]), ["profile"], "allele_exact"
+            allele_rows(_rows([1, 0], [0, 0])), ["profile"], "allele_exact"
         )
     }
     text = render_markdown(result)
     assert "ont_amplicon_r10" in text and "ADOPT" in text and "| profile |" in text
-    assert "allele_exact by profile" in text
+    assert "allele_exact by profile" in text and "normal + benign" in text and "no-call" in text
     assert "NOT ADOPTED" in render_markdown({"profiles": {}, "adopt": False})

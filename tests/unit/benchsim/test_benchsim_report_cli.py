@@ -40,10 +40,23 @@ def _sample(name: str, truth: str, decision: str, exact: int) -> dict[str, Any]:
         "status": "completed",
         "truth_status": "valid",
         "truth_haplotypes": 2,
+        "truth_events": int(truth != "normal"),
         "clinical": {"truth": truth, "decision": decision},
+        "alternatives": [
+            {
+                "pairs": [
+                    {"truth": h, "prediction": h, "sequence_exact": bool(exact)}
+                    for h in ("h1", "h2")
+                ],
+                "missing_truth": [],
+                "metrics": {"independent_sequence_exact": 2 * exact, "sequence_exact": 2 * exact},
+            }
+        ],
         "metrics": {
             "all_sequences_exact": {"min": exact, "max": exact},
             "independent_sequence_exact": {"min": 2 * exact, "max": 2 * exact},
+            "event_tp": {"min": exact, "max": exact},
+            "event_fp": {"min": 0, "max": 0},
         },
     }
 
@@ -95,6 +108,43 @@ def test_evaluate_test_split_refused_before_reading_truth(
     cli.main(["preregister", "--out-root", str(tmp_path / "data")])
     assert cli.main(["evaluate", "--split", "test", "--out-root", str(tmp_path / "data")]) == 0
     assert len(calls) == 1
+    evaluation = json.loads(
+        (tmp_path / "data" / "results" / "test" / "ladder" / "evaluation.json").read_text()
+    )
+    audit = evaluation["preregistration"]
+    assert set(audit) == {"sha256", "registered_at", "test_first_evaluated_at"}
+    first = audit["test_first_evaluated_at"]
+    # A second evaluation keeps the first unsealing time; re-registration is refused.
+    cli.main(["evaluate", "--split", "test", "--out-root", str(tmp_path / "data")])
+    again = json.loads(
+        (tmp_path / "data" / "results" / "test" / "ladder" / "evaluation.json").read_text()
+    )
+    assert again["preregistration"]["test_first_evaluated_at"] == first
+    with pytest.raises(SystemExit, match="already evaluated"):
+        cli.main(["preregister", "--out-root", str(tmp_path / "data")])
+    assert cli.main(["report", "--split", "test", "--out-root", str(tmp_path / "data")]) == 0
+    report = json.loads((tmp_path / "data" / "results" / "test" / "report.json").read_text())
+    assert report["preregistration"] == audit
+
+
+def test_evaluate_loads_scripts_evaluate_lazily(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    cli = _cli(tmp_path, monkeypatch)
+    assert cli.evaluate_run is None and callable(cli._load_evaluate().run)
+    _split(tmp_path)
+    (tmp_path / "data" / "results" / "dev" / "ladder").mkdir(parents=True)
+    loaded: list[Any] = []
+
+    class FakeModule:
+        @staticmethod
+        def run(args: Any) -> tuple[dict[str, Any], int]:
+            loaded.append(args)
+            return {"samples": []}, 1
+
+    monkeypatch.setattr(cli, "_load_evaluate", lambda: FakeModule)
+    assert cli.main(["evaluate", "--split", "dev", "--out-root", str(tmp_path / "data")]) == 1
+    assert len(loaded) == 1
 
 
 def test_evaluate_then_report_writes_json_and_markdown(
@@ -137,9 +187,28 @@ def test_evaluate_then_report_writes_json_and_markdown(
     )
     report = json.loads((results / "report.json").read_text())
     assert rc == 0 and report["decision"]["adopt"] is False  # 2 cases cannot reach significance
-    assert report["engines"]["hybrid"]["rows"][0]["allele_exact"] == 1
-    assert "allele_exact by profile" in report["tables"]["hybrid"]
-    assert "NOT ADOPTED" in (results / "report.md").read_text()
+    assert report["engines"]["hybrid"]["rows"][0]["alleles"][0]["allele_exact"] == 1
+    assert report["decision"]["profiles"]["ont_amplicon_r10"]["n_alleles"] == 4
+    tables = report["tables"]["hybrid"]
+    assert set(tables) == {"stratified", "pooled", "events", "confusion"}
+    assert tables["pooled"]["ont_amplicon_r10"]["allele_exact"]["point"] == 1.0
+    assert report["preregistration"] is None
+    text = (results / "report.md").read_text()
+    assert "NOT ADOPTED" in text and "failure atlas: composition" in text
+
+
+def test_report_invalid_truth_is_a_visible_error(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    _split(tmp_path)
+    engine = tmp_path / "data" / "results" / "dev" / "ladder"
+    engine.mkdir(parents=True)
+    bad = {"sample": "c1", "status": "invalid_truth", "truth_status": "invalid"}
+    (engine / "evaluation.json").write_text(json.dumps({"samples": [bad]}))
+    with pytest.raises(SystemExit, match="no valid truth"):
+        _cli(tmp_path, monkeypatch).main(
+            ["report", "--split", "dev", "--out-root", str(tmp_path / "data")]
+        )
 
 
 def test_report_single_engine_has_no_decision(
