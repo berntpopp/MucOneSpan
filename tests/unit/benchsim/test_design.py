@@ -104,6 +104,8 @@ def test_factor_levels_follow_the_set() -> None:
             assert {d.error for d in rows} == set(levels.error_levels)
             assert {d.smear for d in rows} == set(levels.smear_levels)
             assert {d.chimera for d in rows} == set(levels.chimera_levels)
+            assert {d.concatemer for d in rows} == set(levels.concatemer_levels)
+            assert {d.offtarget for d in rows} == set(levels.offtarget_levels)
             assert all(d.bench_set == name for d in rows)
             assert all(d.design_id.startswith(f"dev-{name}-{profile}-") for d in rows)
 
@@ -138,7 +140,10 @@ def test_design_factors_come_from_the_config() -> None:
     }
     only = {"standard": replace(standard, profiles=profiles)}
     sets = replace(SETS, definitions=only, legacy="standard")
-    cfg = BenchConfig(design=replace(CFG, normal_fraction=0.5, length_min=40), sets=sets)
+    atlas = replace(DEFAULT_BENCH_CONFIG.atlas, expected_inconclusive_sets=())
+    cfg = BenchConfig(
+        design=replace(CFG, normal_fraction=0.5, length_min=40), sets=sets, atlas=atlas
+    )
     designs = build_split("val", 20, "salt", MUTS, cfg)
     assert {d.chimera for d in designs} == {0.02} and {d.pcr for d in designs} == {"none"}
     assert min(min(d.lengths) for d in designs) >= 40

@@ -18,7 +18,14 @@ BASE = {
     "name": "ont_r10_sup_amplicon_v1",
     "platform": "ont",
     "config_overrides": {"amplicon_params": {"pcr_bias": {"preset": "madritsch2025_r10"}}},
-    "molecules": {"forward_frac": 0.5, "smear_rate": 0.24, "chimera_rate": 0.023},
+    "molecules": {
+        "forward_frac": 0.5,
+        "smear_rate": 0.24,
+        "chimera_rate": 0.023,
+        "concatemer_rate": 0.024,
+        "offtarget_frac": 0.3,
+        "offtarget_median_bp": 367,
+    },
     "errors": {
         "mismatch_rate": 0.007,
         "insertion_rate": 0.006,
@@ -192,9 +199,49 @@ def test_variant_bounds_simulator_threads(tmp_path: Path, platform: str, section
     assert json.loads(other.read_text())["config_overrides"][section]["threads"] == (
         P.simulator_threads + 1
     )
-    assert other_sha != sha
+    assert json.loads(path.read_text())["config_overrides"][section]["threads"] == (
+        P.simulator_threads + 1
+    )
+    assert other_sha == sha and other == path  # threads are a run-time knob, not content
 
 
 def test_simulator_threads_must_be_positive() -> None:
     with pytest.raises(ValueError, match="simulator_threads"):
         replace(P, simulator_threads=0)
+
+
+def test_clean_variant_has_no_molecule_artefact() -> None:
+    import tempfile
+
+    from muc_one_span.benchsim.bench_config import DEFAULT_BENCH_CONFIG as CFG
+
+    clean = next(
+        x
+        for x in build_split("dev", 3, "s", ["dupC"], CFG, "clean")
+        if x.profile == "ont_amplicon_r10"
+    )
+    with tempfile.TemporaryDirectory() as tmp:
+        base = Path(tmp) / "base.json"
+        base.write_text(json.dumps(BASE))
+        data = json.loads(write_variant(base, clean, Path(tmp) / "v")[0].read_text())
+    rates = {
+        k: v
+        for k, v in data["molecules"].items()
+        if (k.endswith("_rate") or k.endswith("_frac")) and k != "forward_frac"
+    }
+    assert set(rates) >= {"smear_rate", "chimera_rate", "concatemer_rate", "offtarget_frac"}
+    assert all(v == 0 for v in rates.values()), rates
+    assert data["config_overrides"]["amplicon_params"]["pcr_bias"] == {"preset": "no_bias"}
+
+
+def test_variant_sets_concatemer_and_offtarget_levels(tmp_path: Path) -> None:
+    base = tmp_path / "base.json"
+    base.write_text(json.dumps(BASE))
+    design = replace(_design(), concatemer=0.01, offtarget=0.2)
+    path, _ = write_variant(base, design, tmp_path / "v")
+    mol = json.loads(path.read_text())["molecules"]
+    assert (mol["concatemer_rate"], mol["offtarget_frac"]) == (0.01, 0.2)
+    assert "k0.01" in variant_name(design) and "o0.2" in variant_name(design)
+    legacy = replace(_design(), concatemer=None, offtarget=None)
+    mol = json.loads(write_variant(base, legacy, tmp_path / "v")[0].read_text())["molecules"]
+    assert (mol["concatemer_rate"], mol["offtarget_frac"]) == (0.024, 0.3)  # base untouched

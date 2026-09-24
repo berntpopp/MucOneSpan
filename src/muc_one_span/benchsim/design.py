@@ -20,9 +20,10 @@ from typing import Any
 
 from muc_one_span.settings import DEFAULT_LAYOUT
 
+from .bench_checks import PROFILE_NAMES
 from .bench_config import DEFAULT_BENCH_CONFIG, BenchConfig, DesignConfig
 
-PROFILES = ("ont_amplicon_r10", "ont_genomic_targeted", "hifi_amplicon")
+PROFILES = PROFILE_NAMES
 ALLELE_CHOICES = ("shorter", "longer", "equal")
 POSITION_CHOICES = ("first10", "middle", "last10")
 
@@ -54,6 +55,9 @@ class Design:
     read_seed: int
     target_clamped: bool = False  # a drawn event target was moved inside `event_bounds`
     bench_set: str | None = None  # None: written before benchmark sets existed
+    # Molecule concatemer rate and off-target fraction; None keeps the base profile's.
+    concatemer: float | None = None
+    offtarget: float | None = None
 
     def to_dict(self) -> dict[str, Any]:
         return asdict(self)
@@ -179,6 +183,8 @@ def build_split(
         smears = _stratum(factor.smear_levels, n_per_profile, tech)
         chimeras = _stratum(factor.chimera_levels, n_per_profile, tech)
         errors = _stratum(factor.error_levels, n_per_profile, tech)
+        concatemers = _stratum(factor.concatemer_levels, n_per_profile, tech)
+        offtargets = _stratum(factor.offtarget_levels, n_per_profile, tech)
         for i in range(n_per_profile):
             bio_id = f"{split}-{profile}-{i + 1:04d}"
             design_id = f"{split}-{name}-{profile}-{i + 1:04d}"
@@ -215,6 +221,8 @@ def build_split(
                     derive_seed(salt, design_id, "reads"),
                     clamped,
                     name,
+                    concatemers[i],
+                    offtargets[i],
                 )
             )
     return designs

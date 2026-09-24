@@ -12,7 +12,14 @@ from muc_one_span.benchsim.bench_config import (
     GENERATION_SECTIONS,
     load_bench_config,
 )
-from muc_one_span.benchsim.bench_sets import BenchSet, FactorLevels, SetsConfig
+from muc_one_span.benchsim.bench_sets import (
+    ARTEFACT_LEVELS,
+    TYPICAL_CHIMERA,
+    TYPICAL_SMEAR,
+    BenchSet,
+    FactorLevels,
+    SetsConfig,
+)
 from muc_one_span.benchsim.design import PROFILES
 from muc_one_span.benchsim.realism_targets import load_targets, target_section
 
@@ -77,7 +84,8 @@ def test_clean_is_the_standard_top_depth_without_artefacts() -> None:
         levels = clean.profiles[profile]
         assert levels.depths == (max(standard.profiles[profile].depths),)
         assert levels.pcr_levels == ("none",) and levels.error_levels == ("calibrated",)
-        assert levels.smear_levels == (0,) and levels.chimera_levels == (0,)
+        for name in ARTEFACT_LEVELS:
+            assert getattr(levels, name) == (0,), (profile, name)
 
 
 def test_stress_keeps_the_harsh_mix() -> None:
@@ -87,21 +95,74 @@ def test_stress_keeps_the_harsh_mix() -> None:
     for profile in PROFILES:
         levels = stress.profiles[profile]
         assert min(levels.depths) < DEFAULT_BENCH_CONFIG.atlas.min_resolvable_depth
-        assert "poor" in levels.error_levels and "strong" in levels.pcr_levels
+        assert "poor" in levels.error_levels
+    for profile in AMPLICON:
+        assert "strong" in stress.profiles[profile].pcr_levels
+    genomic = stress.profiles["ont_genomic_targeted"]  # no PCR or molecule step (as standard)
+    assert genomic.pcr_levels == ("none",)
+    assert all(getattr(genomic, name) == (0,) for name in ARTEFACT_LEVELS)
     amp = stress.profiles["ont_amplicon_r10"]
     assert max(amp.smear_levels) + max(amp.chimera_levels) > real_max
 
 
-def test_sets_shape_generation() -> None:
-    assert "sets" in GENERATION_SECTIONS
-    stress = SETS.definitions["stress"]
-    changed = replace(
-        DEFAULT_BENCH_CONFIG,
-        sets=replace(
-            SETS, definitions={**SETS.definitions, "stress": replace(stress, description="y")}
+def _with_set(name: str, **changes: Any) -> Any:
+    definitions = {**SETS.definitions, name: replace(SETS.definitions[name], **changes)}
+    return replace(DEFAULT_BENCH_CONFIG, sets=replace(SETS, definitions=definitions))
+
+
+def test_generation_hash_covers_only_the_case_levels() -> None:
+    assert "sets" not in GENERATION_SECTIONS
+    base = DEFAULT_BENCH_CONFIG
+    key = ("standard", "ont_amplicon_r10")
+    same = [
+        replace(base, sets=replace(SETS, headline="clean")),
+        _with_set("standard", description="y"),
+        _with_set("stress", description="y"),
+        _with_set("clean", offpeak_share_cap=None),
+        _with_set(
+            "stress",
+            profiles={
+                p: replace(v, depths=(7,)) for p, v in SETS.definitions["stress"].profiles.items()
+            },
         ),
+    ]
+    other_profile = {**SETS.definitions["standard"].profiles}
+    other_profile["hifi_amplicon"] = replace(other_profile["hifi_amplicon"], depths=(7,))
+    same.append(_with_set("standard", profiles=other_profile))
+    for cfg in same:
+        assert cfg.generation_sha256(*key) == base.generation_sha256(*key)
+    own = {**SETS.definitions["standard"].profiles}
+    own["ont_amplicon_r10"] = replace(own["ont_amplicon_r10"], depths=(7,))
+    assert _with_set("standard", profiles=own).generation_sha256(*key) != base.generation_sha256(
+        *key
     )
-    assert changed.generation_sha256() != DEFAULT_BENCH_CONFIG.generation_sha256()
+    assert base.generation_sha256("clean", key[1]) != base.generation_sha256(*key)
+    assert base.generation_sha256(None, key[1]) != base.generation_sha256(*key)
+
+
+def test_simulator_threads_do_not_shape_generation() -> None:
+    base = DEFAULT_BENCH_CONFIG
+    more = replace(base, profiles=replace(base.profiles, simulator_threads=7))
+    key = ("standard", "hifi_amplicon")
+    assert more.generation_sha256(*key) == base.generation_sha256(*key)
+    assert more.sha256() != base.sha256()
+
+
+def test_typical_rates_equal_the_calibrated_base_profile() -> None:
+    import os
+
+    from muc_one_span.benchsim.profiles import builtin_profile_dir
+
+    explicit = os.environ.get("MUCONEUP_PROFILES")
+    try:
+        directory = builtin_profile_dir(Path(explicit) if explicit else None)
+    except FileNotFoundError:
+        pytest.skip("MucOneUp read profiles not available (set MUCONEUP_PROFILES)")
+    base = json.loads((directory / "ont_r10_sup_amplicon_v1.json").read_text())["molecules"]
+    assert (base["smear_rate"], base["chimera_rate"]) == (TYPICAL_SMEAR, TYPICAL_CHIMERA)
+    standard = SETS.definitions["standard"].profiles["ont_amplicon_r10"]
+    assert standard.concatemer_levels == (base["concatemer_rate"],)
+    assert standard.offtarget_levels == (base["offtarget_frac"],)
 
 
 def test_json_replaces_definitions(tmp_path: Path) -> None:
@@ -113,6 +174,7 @@ def test_json_replaces_definitions(tmp_path: Path) -> None:
             "headline": "only",
             "legacy": "only",
         },
+        "atlas": {"expected_inconclusive_sets": []},
     }
     cfg = load_bench_config(_write(tmp_path, data))
     assert list(cfg.sets.definitions) == ["only"]
@@ -133,21 +195,50 @@ def test_json_replaces_definitions(tmp_path: Path) -> None:
         ({"definitions": {"standard": {"description": "x"}}}, "missing"),
         ({"definitions": {"standard": _set(extra=1)}}, "unknown"),
         ({"definitions": {"standard": _set(profiles={})}}, "at least one profile"),
-        ({"definitions": {"standard": _set(profiles={"hifi_amplicon": []})}}, "JSON object"),
+        ({"definitions": {"standard": _set(profiles={"x": _levels()})}}, "unknown profile"),
         (
-            {"definitions": {"standard": _set(profiles={"x": _levels(depths=[0])})}},
-            r"standard\.profiles\.x\.depths",
+            {
+                "definitions": {
+                    "standard": _set(profiles={"hifi_amplicon": _levels(offtarget_levels=[1])})
+                }
+            },
+            "offtarget_levels",
         ),
         (
-            {"definitions": {"standard": _set(profiles={"x": _levels(pcr_levels=["hot"])})}},
+            {
+                "definitions": {
+                    "standard": _set(profiles={"hifi_amplicon": _levels(concatemer_levels=[1.5])})
+                }
+            },
+            "concatemer_levels",
+        ),
+        ({"definitions": {"standard": _set(profiles={"hifi_amplicon": []})}}, "JSON object"),
+        (
+            {"definitions": {"standard": _set(profiles={"hifi_amplicon": _levels(depths=[0])})}},
+            r"standard\.profiles\.hifi_amplicon\.depths",
+        ),
+        (
+            {
+                "definitions": {
+                    "standard": _set(profiles={"hifi_amplicon": _levels(pcr_levels=["hot"])})
+                }
+            },
             "pcr_levels",
         ),
         (
-            {"definitions": {"standard": _set(profiles={"x": _levels(error_levels=[])})}},
+            {
+                "definitions": {
+                    "standard": _set(profiles={"hifi_amplicon": _levels(error_levels=[])})
+                }
+            },
             "error_levels",
         ),
         (
-            {"definitions": {"standard": _set(profiles={"x": _levels(smear_levels=[2])})}},
+            {
+                "definitions": {
+                    "standard": _set(profiles={"hifi_amplicon": _levels(smear_levels=[2])})
+                }
+            },
             "smear_levels",
         ),
         (
@@ -155,7 +246,9 @@ def test_json_replaces_definitions(tmp_path: Path) -> None:
                 "definitions": {
                     "standard": _set(
                         offpeak_share_cap=0.1,
-                        profiles={"x": _levels(smear_levels=[0.1], chimera_levels=[0.05])},
+                        profiles={
+                            "hifi_amplicon": _levels(smear_levels=[0.1], chimera_levels=[0.05])
+                        },
                     )
                 }
             },

@@ -35,8 +35,9 @@ rule. Everything is driven by `scripts/benchsim.py`.
 Each design layers artefact, error and PCR levels onto the base profile
 (`smear`, `chimera`, `error`, `pcr`); the variant JSON and the SHA-256 of the
 base profile are recorded for every case. The level values come from the
-design's benchmark set (see [Benchmark sets](#benchmark-sets)). PCR bias, smear
-and chimeras are not applied to `ont_genomic_targeted`.
+design's benchmark set (see [Benchmark sets](#benchmark-sets)). PCR bias and
+molecule artefacts (smear, chimera, concatemer, off-target) are not applied to
+`ont_genomic_targeted`.
 
 ## Benchmark sets
 
@@ -49,16 +50,23 @@ are shared by all sets. A split still sets the seed stream and size;
 same haplotypes (the biological draws and the MucOneUp structure seed do not
 depend on the set); technical draws and read seeds do.
 
-| Set | Role | ONT amplicon depth | HiFi amplicon depth | ONT genomic depth | Error | PCR | Smear / chimera |
+| Set | Role | ONT amplicon depth | HiFi amplicon depth | ONT genomic depth | Error | PCR (amplicons) | Smear / chimera (amplicons) |
 | --- | --- | --- | --- | --- | --- | --- | --- |
-| `standard` | **Headline**; the decision rule applies to it only | 500, 1000, 2000 | 200, 500, 1000 | 30, 60, 100 | calibrated | none, calibrated (genomic: none) | 0.24 / 0.023 (amplicons) |
+| `standard` | **Headline**; the decision rule applies to it only | 500, 1000, 2000 | 200, 500, 1000 | 30, 60, 100 | calibrated | none, calibrated | 0.24 / 0.023 |
 | `clean` | Control, comparable with artefact-free historical benchmarks | 2000 | 1000 | 100 | calibrated | none | 0 / 0 |
 | `stress` | Hard corners, reported separately, never a headline number | 5-2000 | 5-2000 | 3-80 | calibrated, poor | calibrated, strong, none | 0.05, 0.25, 0.5 / 0.01, 0.05 |
+
+Concatemer rate and off-target fraction (`concatemer_levels`,
+`offtarget_levels`) are the base profile values in `standard` and `stress`
+(ONT amplicon 0.024 / 0.3, HiFi 0 / 0) and 0 in `clean`, so a clean amplicon has
+no molecule artefact at all. The genomic profile always uses PCR `none` and 0
+artefact levels.
 
 The `standard` smear and chimera rates are those of the calibrated
 `ont_r10_sup_amplicon_v1` MucOneUp profile, fitted to the median PRJEB92208
 smear share. The same PCR artefact rates are assumed for HiFi amplicons.
-`offpeak_share_cap` bounds max smear + max chimera per profile: `standard` uses
+`offpeak_share_cap` bounds max smear + max chimera per profile (smear + chimera +
+concatemer may not exceed 1, a MucOneUp limit): `standard` uses
 the real median of `span_off_gt1unit_frac` (0.2695), `clean` 0, and `stress`
 is exempt. `report` writes one section per set, headline set first, and
 applies the decision rule to the headline set only (the rule text names it, so
@@ -75,18 +83,22 @@ Every tunable number of the benchmark is a validated setting in
 duplicate keys and out-of-range values are rejected. The SHA-256 of the
 effective settings is written to every `case.json` (`bench_config_sha256`),
 `realism.json` and `report.json` for provenance. `case.json` also records
-`bench_generation_sha256`, the hash of the sections that shape generated cases
-(`design`, `sets`, `amount`, `profiles`, `structures`).
+`bench_generation_sha256`, the hash of what shapes that case: the `design`,
+`amount`, `profiles` (without the run-time `simulator_threads`) and `structures`
+sections plus the case's own set levels, `sets.definitions.<set>.profiles.<profile>`.
 
 Names in the semantic maps must be known: compositions `markov`,
 `real_derived` and `rare_units` (finite weights >= 0, at least one > 0, sum 1);
 delta classes `0_identical`, `0_different` (both `[0, 0]`), `1`, `2`, `3-5`,
 `6-20` and `>20`. `sets.definitions` replaces the whole default map: each set
 needs `description`, `offpeak_share_cap` (a number or `null`) and `profiles`,
-and each profile needs `depths`, `pcr_levels`, `error_levels`, `smear_levels`
-and `chimera_levels`. Set names match `[a-z][a-z0-9_]*`. `generate` reuses a completed case only if its design and
-generation hash match. Changes to `report`, `realism`, `run` or `atlas` alone
-keep cases reusable. A case written before the generation hash existed is reused
+and each profile (a known profile name) needs `depths`, `pcr_levels`,
+`error_levels`, `smear_levels`, `chimera_levels`, `concatemer_levels` and
+`offtarget_levels`. Set names match `[a-z][a-z0-9_]*`. `generate` reuses a
+completed case only if its design and generation hash match. Changes to
+`report`, `realism`, `run`, `atlas`, `profiles.simulator_threads`, set names,
+descriptions, `sets.headline`/`default`/`legacy` or another set's or profile's
+levels keep cases reusable. A case written before the generation hash existed is reused
 only when its full `bench_config_sha256` matches. Otherwise `generate` stops and
 asks for a fresh `--out-root` or removal of the case.
 
@@ -112,7 +124,7 @@ python scripts/benchsim.py --bench-config my-bench.json design --split dev --n 3
 | `amount.fragment_length_median` / `sigma` | 5000 / 0.5 | Fallback genomic fragment model (MucOneUp defaults) |
 | `profiles.r10_pcr_alpha`, `strong_pcr_alpha_factor` | 9.27e-5, 2 | Strong PCR bias preset |
 | `profiles.poor_error_scale`, `hifi_poor_accuracy_mean` | 1.5, 0.95 | `poor` error level |
-| `profiles.simulator_threads` | 2 | Threads per case for MucOneUp's simulator tools (written to each profile variant as `pacbio_params.threads` or `ont_amplicon_params.threads`); `generate --jobs` times this is the approximate core use |
+| `profiles.simulator_threads` | 2 | Threads per case for MucOneUp's simulator tools (written to each profile variant as `pacbio_params.threads` or `ont_amplicon_params.threads`); `generate --jobs` times this is the approximate core use. A run-time knob: excluded from the generation hash and the variant's content address |
 | `structures.rare_fraction`, `rare_usage_max`, `stationary_steps` | 0.10, 0.01, 2000 | Rare-unit structures |
 | `realism.*` | see the realism section | Metric definitions and tolerances |
 | `report.alpha`, `ni_margin` | 0.05, 0.005 | Decision rule and interval level |
@@ -121,6 +133,7 @@ python scripts/benchsim.py --bench-config my-bench.json design --split dev --n 3
 | `atlas.decisions` | INCONCLUSIVE | Decisions the reason atlas covers (`PATHOGENIC`, `INCONCLUSIVE`, `NO_PATHOGENIC_VARIANT_DETECTED`, `NO_CALL`) |
 | `atlas.strata` | depth, smear, chimera, delta_class, event_position | Design factors tabulated per profile |
 | `atlas.expected_inconclusive_splits` | stress | Splits whose atlas cases are expected (must be in `design.split_sizes`) |
+| `atlas.expected_inconclusive_sets` | stress | Benchmark sets whose atlas cases are expected (must be in `sets.definitions`) |
 | `atlas.min_resolvable_depth` | 30 (the caller's `allele_selection.min_allele_primary_records`) | Depth below which an atlas case is expected |
 | `atlas.depth_basis` | realized_min_allele | Depth compared with the gate: `design` target or the lowest realized allele depth |
 | `atlas.top_reasons` | 10 | Reasons shown in the per-stratum tables of `report.md` (`report.json` keeps all) |
@@ -314,9 +327,10 @@ and counts each case once per reason key:
 
 Each atlas case is in exactly one class:
 
-- **expected**: its split is in `atlas.expected_inconclusive_splits`, or its
-  `atlas.depth_basis` depth is below `atlas.min_resolvable_depth`;
-- **depth unknown**: no split condition holds and the `atlas.depth_basis` depth
+- **expected**: its split is in `atlas.expected_inconclusive_splits`, its set is
+  in `atlas.expected_inconclusive_sets` (the stress set is expected by design),
+  or its `atlas.depth_basis` depth is below `atlas.min_resolvable_depth`;
+- **depth unknown**: no split or set condition holds and the `atlas.depth_basis` depth
   is not recorded (for example a case without realized depth), so the depth
   condition cannot be decided;
 - **resolvable**: every other case.

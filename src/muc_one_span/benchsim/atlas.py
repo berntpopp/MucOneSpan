@@ -24,9 +24,10 @@ on its own rather than once per blocker combination. Blockers are split on
 Each atlas case gets one class (`atlas_class`):
 
 - *expected* when `expected_conditions` is nonempty: ``split`` (its split is in
-  ``expected_inconclusive_splits``) and/or ``depth`` (its ``depth_basis`` depth
+  ``expected_inconclusive_splits``), ``set`` (its benchmark set is in
+  ``expected_inconclusive_sets``) and/or ``depth`` (its ``depth_basis`` depth
   is below ``min_resolvable_depth``);
-- *depth_unknown* when no split condition holds and the ``depth_basis`` depth is
+- *depth_unknown* when no split or set condition holds and the ``depth_basis`` depth is
   not recorded, so the depth condition cannot be decided;
 - *resolvable* otherwise: the recorded depth reaches the gate. With the default
   basis this is simulator (truth) spanning depth per allele; the caller's own
@@ -103,6 +104,8 @@ def expected_conditions(row: dict[str, Any], split: str, cfg: AtlasConfig) -> li
     out = []
     if split in cfg.expected_inconclusive_splits:
         out.append("split")
+    if row.get("bench_set") in cfg.expected_inconclusive_sets:
+        out.append("set")
     depth = row.get(_DEPTH_FIELD[cfg.depth_basis])
     if depth is not None and depth < cfg.min_resolvable_depth:
         out.append("depth")
@@ -193,6 +196,7 @@ def build_atlas(rows: Sequence[dict[str, Any]], split: str, cfg: AtlasConfig) ->
         "split": split,
         "decisions": list(cfg.decisions),
         "expected_inconclusive_splits": list(cfg.expected_inconclusive_splits),
+        "expected_inconclusive_sets": list(cfg.expected_inconclusive_sets),
         "depth_basis": cfg.depth_basis,
         "min_resolvable_depth": cfg.min_resolvable_depth,
         "n_cases": n_cases,
@@ -214,9 +218,11 @@ def render_atlas(atlas: dict[str, Any], cfg: AtlasConfig) -> str:
     if not atlas["n_atlas"]:
         return "\n".join([*lines, f"(no {label} cases)", ""]) + "\n"
     splits = ", ".join(atlas["expected_inconclusive_splits"]) or "none"
+    sets = ", ".join(atlas.get("expected_inconclusive_sets") or []) or "none"
     lines += [
-        f"Expected {label}: split in [{splits}] or {atlas['depth_basis']} depth below "
-        f"{atlas['min_resolvable_depth']}. Depth unknown: no split condition and no "
+        f"Expected {label}: split in [{splits}], set in [{sets}] or {atlas['depth_basis']} "
+        f"depth below {atlas['min_resolvable_depth']}. Depth unknown: no split or set "
+        "condition and no "
         f"{atlas['depth_basis']} depth recorded. Every other {label} case is resolvable.",
         "",
         f"| profile | cases | {label} | expected | resolvable | depth unknown | "

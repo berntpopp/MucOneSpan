@@ -10,6 +10,8 @@ import math
 
 PCR_LEVEL_NAMES = ("calibrated", "strong", "none")  # semantics implemented in `profiles`
 ERROR_LEVEL_NAMES = ("calibrated", "poor")
+# Benchmark profiles (semantics in `design`, `profiles`, `generate`).
+PROFILE_NAMES = ("ont_amplicon_r10", "ont_genomic_targeted", "hifi_amplicon")
 
 
 def check_num(

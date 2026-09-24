@@ -188,7 +188,9 @@ def _amount(
             genomic_reads(design.depth, source[h], lo, hi, median, sigma, seed=seed, config=cfg)
             for h, (lo, hi) in span.items()
         ), False
-    concatemer = float((base_profile.get("molecules") or {}).get("concatemer_rate", 0.0))
+    concatemer = design.concatemer
+    if concatemer is None:
+        concatemer = float((base_profile.get("molecules") or {}).get("concatemer_rate", 0.0))
     counts = [len(h.structure) for h in truth.haplotypes]
     share = pcr_minor_share((counts[0], counts[-1]), design.pcr, cfg)
     share, capped = capped_minor_share(share, cfg)
@@ -378,7 +380,8 @@ def _check_reusable(
     if saved.get("design") != current:
         problems.append("design differs")
     if "bench_generation_sha256" in saved:
-        saved_hash, current_hash = saved["bench_generation_sha256"], ctx.bench.generation_sha256()
+        saved_hash = saved["bench_generation_sha256"]
+        current_hash = ctx.bench.generation_sha256(design.bench_set, design.profile)
     else:  # case written before the generation hash: the full settings hash must match
         saved_hash, current_hash = saved.get("bench_config_sha256"), ctx.bench.sha256()
     if saved_hash != current_hash:
@@ -417,7 +420,7 @@ def generate_case(design: Design, ctx: GenerateContext) -> dict[str, Any]:
         "design": design.to_dict(),
         "muconeup_version": ctx.muconeup_version,
         "bench_config_sha256": ctx.bench.sha256(),
-        "bench_generation_sha256": ctx.bench.generation_sha256(),
+        "bench_generation_sha256": ctx.bench.generation_sha256(design.bench_set, design.profile),
         "target_clamped": design.target_clamped,
         "status": "generation_failed",
         "error": None,

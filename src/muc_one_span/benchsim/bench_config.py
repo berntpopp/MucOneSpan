@@ -54,10 +54,13 @@ ATLAS_STRATUM_NAMES = (
 # Depth compared with the atlas depth gate: the design target, or the lowest
 # realized spanning depth over the case's alleles (``case.json`` realized_depth).
 DEPTH_BASIS_NAMES = ("design", "realized_min_allele")
-# Sections that shape generated cases (designs, set factor levels, amounts, read
-# profiles, structures). Their hash decides whether `generate` may reuse a case;
-# report, realism, run and atlas settings only change how finished cases are scored or run.
-GENERATION_SECTIONS = ("design", "sets", "amount", "profiles", "structures")
+# Sections that shape generated cases (designs, amounts, read profiles, structures).
+# With the case's own set levels (`BenchConfig.generation_sha256`) their hash decides
+# whether `generate` may reuse a case; report, realism, run and atlas settings, set
+# names, descriptions and other sets' or profiles' levels do not.
+GENERATION_SECTIONS = ("design", "amount", "profiles", "structures")
+# Run-time knobs inside generation sections, excluded from the generation hash.
+RUNTIME_ONLY = {"profiles": ("simulator_threads",)}
 _WEIGHT_SUM_TOL = 1e-9  # float round-off allowed when composition weights sum to 1
 
 
@@ -284,6 +287,7 @@ class AtlasConfig:
     decisions: tuple[str, ...] = ("INCONCLUSIVE",)
     strata: tuple[str, ...] = ("depth", "smear", "chimera", "delta_class", "event_position")
     expected_inconclusive_splits: tuple[str, ...] = ("stress",)
+    expected_inconclusive_sets: tuple[str, ...] = ("stress",)
     # Default: the caller's per-allele primary-alignment gate for a negative call.
     min_resolvable_depth: int = DEFAULT_SETTINGS.allele_selection.min_allele_primary_records
     depth_basis: str = "realized_min_allele"
@@ -292,11 +296,12 @@ class AtlasConfig:
     def __post_init__(self) -> None:
         _names("atlas.decisions", self.decisions, DECISION_NAMES)
         _names("atlas.strata", self.strata, ATLAS_STRATUM_NAMES)
-        splits = self.expected_inconclusive_splits
-        if not isinstance(splits, tuple) or not all(isinstance(v, str) for v in splits):
-            raise ValueError("atlas.expected_inconclusive_splits must be a list of split names")
-        if len(set(splits)) != len(splits):
-            raise ValueError("atlas.expected_inconclusive_splits must be distinct")
+        for name in ("expected_inconclusive_splits", "expected_inconclusive_sets"):
+            values = getattr(self, name)
+            if not isinstance(values, tuple) or not all(isinstance(v, str) for v in values):
+                raise ValueError(f"atlas.{name} must be a list of names")
+            if len(set(values)) != len(values):
+                raise ValueError(f"atlas.{name} must be distinct")
         _int("atlas.min_resolvable_depth", self.min_resolvable_depth, 1)
         if self.depth_basis not in DEPTH_BASIS_NAMES:
             raise ValueError(f"atlas.depth_basis must be one of {DEPTH_BASIS_NAMES!r}")
@@ -337,6 +342,12 @@ class BenchConfig:
                 "atlas.expected_inconclusive_splits must name splits in design.split_sizes "
                 f"(unknown: {', '.join(sorted(unknown))})"
             )
+        unknown = set(self.atlas.expected_inconclusive_sets) - set(self.sets.definitions)
+        if unknown:
+            raise ValueError(
+                "atlas.expected_inconclusive_sets must name sets in sets.definitions "
+                f"(unknown: {', '.join(sorted(unknown))})"
+            )
 
     def to_dict(self) -> dict[str, Any]:
         """JSON-ready settings (tuples become lists)."""
@@ -347,10 +358,22 @@ class BenchConfig:
         """SHA-256 of the canonical JSON of the effective settings (provenance)."""
         return _digest(self.to_dict())
 
-    def generation_sha256(self) -> str:
-        """SHA-256 of the `GENERATION_SECTIONS` only (the `generate` reuse check)."""
+    def generation_sha256(self, bench_set: str | None = None, profile: str | None = None) -> str:
+        """SHA-256 of what shapes one case (the `generate` reuse check).
+
+        Covers the `GENERATION_SECTIONS` without their `RUNTIME_ONLY` knobs and,
+        with ``profile``, the levels of ``bench_set`` for that profile (``None``
+        when the set or profile is undefined, as for pre-set designs).
+        """
         data = self.to_dict()
-        return _digest({k: data[k] for k in ("schema_version", *GENERATION_SECTIONS)})
+        payload = {k: data[k] for k in ("schema_version", *GENERATION_SECTIONS)}
+        for section, keys in RUNTIME_ONLY.items():
+            payload[section] = {k: v for k, v in payload[section].items() if k not in keys}
+        if profile is not None:
+            definition = data["sets"]["definitions"].get(bench_set) if bench_set else None
+            levels = (definition or {}).get("profiles", {}).get(profile)
+            payload["set_levels"] = {"set": bench_set, "profile": profile, "levels": levels}
+        return _digest(payload)
 
 
 def _digest(data: dict[str, Any]) -> str:

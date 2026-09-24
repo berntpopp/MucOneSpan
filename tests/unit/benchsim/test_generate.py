@@ -261,7 +261,9 @@ def test_genomic_case_uses_span_and_n_reads(tmp_path: Path) -> None:
 
 
 def test_amplicon_amount_uses_artefacts_and_pcr_share(tmp_path: Path) -> None:
-    design = replace(_plain(DEV, event=False), smear=0.25, chimera=0.05, depth=10, pcr="none")
+    design = replace(
+        _plain(DEV, event=False), smear=0.25, chimera=0.05, depth=10, pcr="none", concatemer=None
+    )  # a pre-set design: the base profile's concatemer rate applies
     ctx = _ctx(tmp_path)
     base = ctx.profile_dir / "ont_r10_sup_amplicon_v1.json"
     data = json.loads(base.read_text())
@@ -277,13 +279,22 @@ def test_amplicon_amount_uses_artefacts_and_pcr_share(tmp_path: Path) -> None:
     assert case["requested_amount"] == 40 and case["amount_capped"] is False
     reads = next(c for c in fake.calls if "reads" in c)
     assert _opt(reads, "--coverage") == "40"
+    with (
+        patch(f"{MOD}.run_tool", side_effect=FakeMucOneUp()),
+        patch(f"{MOD}.load_repeat_dictionary", return_value=_rd()),
+    ):
+        own = generate_case(replace(design, concatemer=0.0, design_id="own-0001"), ctx)
+    # The design's concatemer level (0) wins over the base profile's 0.2.
+    assert own["requested_amount"] == math.ceil(10 / (0.5 * (1 - 0.25 - 0.05)))
 
 
 def test_amplicon_amount_is_capped_at_the_minor_share_floor(tmp_path: Path) -> None:
     # Strong PCR bias and a large length difference give a minor share ~1e-4; the
     # uncapped template count (~10^5-10^6) never finishes. The floor bounds it and the
     # minor allele is left below its target depth (recorded, like allelic dropout).
-    design = replace(_plain(DEV, event=False), smear=0.25, chimera=0.25, depth=10, pcr="strong")
+    design = replace(
+        _plain(DEV, event=False), smear=0.25, chimera=0.25, depth=10, pcr="strong", concatemer=0.0
+    )
     fake = FakeMucOneUp()
     with (
         patch(f"{MOD}.run_tool", side_effect=fake),
@@ -297,7 +308,9 @@ def test_amplicon_amount_is_capped_at_the_minor_share_floor(tmp_path: Path) -> N
 
 
 def test_minor_share_floor_is_configured_and_recorded(tmp_path: Path) -> None:
-    design = replace(_plain(DEV, event=False), smear=0.25, chimera=0.25, depth=10, pcr="strong")
+    design = replace(
+        _plain(DEV, event=False), smear=0.25, chimera=0.25, depth=10, pcr="strong", concatemer=0.0
+    )
     floor = DEFAULT_BENCH_CONFIG.amount.min_minor_share * 2
     cfg = BenchConfig(amount=AmountConfig(min_minor_share=floor))
     with (
@@ -453,7 +466,9 @@ def test_resume_hashes_only_generation_settings(tmp_path: Path) -> None:
         patch(f"{MOD}.load_repeat_dictionary", return_value=_rd()),
     ):
         first = generate_case(design, _ctx(tmp_path))
-        assert first["bench_generation_sha256"] == base.generation_sha256()
+        assert first["bench_generation_sha256"] == base.generation_sha256(
+            design.bench_set, design.profile
+        )
         assert first["bench_config_sha256"] == base.sha256()
         atlas_only = replace(
             base,
@@ -461,9 +476,18 @@ def test_resume_hashes_only_generation_settings(tmp_path: Path) -> None:
             report=ReportConfig(bootstrap_seed=base.report.bootstrap_seed + 1),
         )
         assert generate_case(design, _ctx(tmp_path, bench=atlas_only)) == first
-        stress = base.sets.definitions["stress"]
-        definitions = {**base.sets.definitions, "stress": replace(stress, description="other")}
-        design_cfg = replace(base, sets=replace(base.sets, definitions=definitions))
+        sets = base.sets
+        stress = sets.definitions["stress"]
+        other_set = {**sets.definitions, "stress": replace(stress, description="other")}
+        other = replace(base, sets=replace(sets, headline="clean", definitions=other_set))
+        threads = replace(base.profiles, simulator_threads=base.profiles.simulator_threads + 1)
+        other = replace(other, profiles=threads)
+        assert generate_case(design, _ctx(tmp_path, bench=other)) == first
+        own = sets.definitions[design.bench_set]
+        levels = {**own.profiles}
+        levels[design.profile] = replace(levels[design.profile], chimera_levels=(0.0,))
+        own_set = {**sets.definitions, design.bench_set: replace(own, profiles=levels)}
+        design_cfg = replace(base, sets=replace(sets, definitions=own_set))
         with pytest.raises(StaleCaseError, match="generation settings"):
             generate_case(design, _ctx(tmp_path, bench=design_cfg))
 

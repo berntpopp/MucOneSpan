@@ -162,7 +162,7 @@ def test_atlas_overlay_accepts_known_names(tmp_path: Path) -> None:
 def test_generation_hash_covers_only_generation_sections() -> None:
     from muc_one_span.benchsim.bench_config import GENERATION_SECTIONS
 
-    assert set(GENERATION_SECTIONS) == {"design", "amount", "profiles", "structures", "sets"}
+    assert set(GENERATION_SECTIONS) == {"design", "amount", "profiles", "structures"}
     same = replace(
         CFG,
         atlas=replace(CFG.atlas, top_reasons=CFG.atlas.top_reasons + 1),
@@ -174,3 +174,9 @@ def test_generation_hash_covers_only_generation_sections() -> None:
     floor = CFG.amount.min_minor_share / 2
     changed = replace(CFG, amount=replace(CFG.amount, min_minor_share=floor))
     assert changed.generation_sha256() != CFG.generation_sha256()
+
+
+def test_atlas_expected_sets_must_be_defined(tmp_path: Path) -> None:
+    data = {"schema_version": 1, "atlas": {"expected_inconclusive_sets": ["nope"]}}
+    with pytest.raises(ValueError, match="expected_inconclusive_sets"):
+        load_bench_config(_write(tmp_path, data))

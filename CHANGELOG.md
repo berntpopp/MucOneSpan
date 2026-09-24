@@ -48,6 +48,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 - `profiles.simulator_threads` bounds the threads of MucOneUp's simulator tools
   per generated case (written into every profile variant), so `generate --jobs`
   sets a predictable core budget.
+- Benchmark sets also fix concatemer and off-target levels (`clean` has no
+  molecule artefact at all); the generation hash covers only a case's own set
+  levels and ignores `simulator_threads`; the reason atlas treats the `stress`
+  set as expected (`atlas.expected_inconclusive_sets`).
   `bench_config_sha256` stays the full provenance hash.
 
 ## [0.16.0] - 2026-09-24

@@ -69,7 +69,14 @@ def test_bench_config_drives_design(tmp_path: Path, monkeypatch: pytest.MonkeyPa
     only = {"description": "x", "offpeak_share_cap": None, "profiles": profiles}
     sets = {"definitions": {"only": only}, "default": "only", "headline": "only", "legacy": "only"}
     config.write_text(
-        json.dumps({"schema_version": 1, "design": {"split_sizes": sizes}, "sets": sets})
+        json.dumps(
+            {
+                "schema_version": 1,
+                "design": {"split_sizes": sizes},
+                "sets": sets,
+                "atlas": {"expected_inconclusive_sets": []},
+            }
+        )
     )
     args = ["--bench-config", str(config), "design", "--split", "dev", "--mutations", "dupC"]
     rc = _cli(tmp_path, monkeypatch).main([*args, "--out-root", str(out)])

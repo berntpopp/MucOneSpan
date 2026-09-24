@@ -208,3 +208,20 @@ def test_unknown_depth_is_its_own_class() -> None:
     assert (stress["expected"], stress["depth_unknown"]) == (3, 0)  # the split decides
     text = render_atlas(atlas, A)
     assert "depth unknown" in text
+
+
+def test_stress_set_cases_are_expected() -> None:
+    assert A.expected_inconclusive_sets == ("stress",)
+    row = _row(0, bench_set="stress", realized_min_allele_depth=None)
+    assert expected_conditions(row, "dev", A) == ["set"]
+    low = _row(1, bench_set="stress", realized_min_allele_depth=GATE - 1)
+    assert expected_conditions(low, "stress", A) == ["split", "set", "depth"]
+    assert expected_conditions(_row(2, bench_set="standard"), "dev", A) == []
+    none = replace(A, expected_inconclusive_sets=())
+    assert expected_conditions(row, "dev", none) == []
+    rows = [row, _row(3, bench_set="standard", reconstruction_flags=["iupac_bases"])]
+    atlas = build_atlas(rows, "dev", A)
+    assert atlas["expected_inconclusive_sets"] == ["stress"]
+    total = atlas["split_summary"][-1]
+    assert (total["expected"], total["depth_unknown"]) == (1, 0)
+    assert "set in [stress]" in render_atlas(atlas, A)

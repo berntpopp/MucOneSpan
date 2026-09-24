@@ -12,6 +12,9 @@ Rules for transforming base profiles:
   amplicon_params.pcr_bias = {"preset": "madritsch2025_r10", "alpha":
   ``strong_pcr_alpha_factor`` x ``r10_pcr_alpha``}; pcr="none" sets
   {"preset": "no_bias"}. Calibrated levels leave the base untouched.
+- Concatemer/off-target levels: amplicon variants set
+  ``molecules.concatemer_rate`` / ``offtarget_frac`` from the design (``None``
+  keeps the base profile's).
 - Simulator threads: every variant sets ``threads`` =
   ``profiles.simulator_threads`` in the MucOneUp section its platform reads
   (``pacbio_params`` for pacbio, ``ont_amplicon_params`` for ont, which the
@@ -19,7 +22,7 @@ Rules for transforming base profiles:
 - All numbers come from `bench_config.ProfileConfig`.
 - Variant name: Encodes profile base name and all levels (smear/chimera omitted for
   genomic). Provenance records base profile name and SHA256. The file is
-  ``<variant name>__<SHA-256 of its content>.json``, so variants with the same
+  ``<variant name>__<SHA-256 of its content without the thread count>.json``, so variants with the same
   levels but different settings (or base profile) never overwrite or reuse
   each other.
 """
@@ -61,19 +64,26 @@ def variant_name(design: Design) -> str:
     base = BUILTIN_PROFILE[design.profile]
     parts = [f"pcr-{design.pcr}", f"err-{design.error}"]
     if design.profile != "ont_genomic_targeted":
-        parts = [f"s{design.smear}", f"c{design.chimera}", *parts]
+        extra = [f"k{design.concatemer}"] if design.concatemer is not None else []
+        extra += [f"o{design.offtarget}"] if design.offtarget is not None else []
+        parts = [f"s{design.smear}", f"c{design.chimera}", *extra, *parts]
     return f"{base}__{'_'.join(parts)}"
 
 
-def _apply(data: dict[str, Any], design: Design, cfg: ProfileConfig) -> None:
+def _set_threads(data: dict[str, Any], threads: int) -> None:
     section = THREAD_SECTIONS[data["platform"]]
-    data.setdefault("config_overrides", {}).setdefault(section, {})["threads"] = (
-        cfg.simulator_threads
-    )
+    data.setdefault("config_overrides", {}).setdefault(section, {})["threads"] = threads
+
+
+def _apply(data: dict[str, Any], design: Design, cfg: ProfileConfig) -> None:
     mol = data.setdefault("molecules", {})
     if design.profile != "ont_genomic_targeted":
         mol["smear_rate"] = design.smear
         mol["chimera_rate"] = design.chimera
+        if design.concatemer is not None:
+            mol["concatemer_rate"] = design.concatemer
+        if design.offtarget is not None:
+            mol["offtarget_frac"] = design.offtarget
     if design.error == "poor":
         if "errors" in data:
             for key in ("mismatch_rate", "insertion_rate", "deletion_rate"):
@@ -111,8 +121,11 @@ def write_variant(
         "sha256": hashlib.sha256(raw).hexdigest(),
     }
     out_dir.mkdir(parents=True, exist_ok=True)
+    # Content address without the run-time thread count, so a CPU-budget change
+    # keeps the variant (and the cases made with it) the same.
+    sha = hashlib.sha256((json.dumps(data, indent=2, sort_keys=True) + "\n").encode()).hexdigest()
+    _set_threads(data, config.simulator_threads)
     text = json.dumps(data, indent=2, sort_keys=True) + "\n"
-    sha = hashlib.sha256(text.encode()).hexdigest()
     # Content-addressed: equal levels under different settings never share a file.
     path = out_dir / f"{data['name']}__{sha}.json"
     if not path.exists() or path.read_text() != text:

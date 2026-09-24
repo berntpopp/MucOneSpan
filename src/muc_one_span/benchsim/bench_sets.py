@@ -30,6 +30,7 @@ from dataclasses import dataclass, field
 from .bench_checks import (
     ERROR_LEVEL_NAMES,
     PCR_LEVEL_NAMES,
+    PROFILE_NAMES,
     check_levels,
     check_names,
     check_num,
@@ -47,6 +48,12 @@ class FactorLevels:
     error_levels: tuple[str, ...]
     smear_levels: tuple[float, ...]
     chimera_levels: tuple[float, ...]
+    concatemer_levels: tuple[float, ...]
+    offtarget_levels: tuple[float, ...]
+
+
+# Molecule artefact levels (MucOneUp ``molecules`` rates; 0 = no such product).
+ARTEFACT_LEVELS = ("smear_levels", "chimera_levels", "concatemer_levels", "offtarget_levels")
 
 
 @dataclass(frozen=True)
@@ -62,27 +69,47 @@ def _uniform(
     depths: Mapping[str, tuple[int, ...]],
     pcr: Mapping[str, tuple[str, ...]],
     error: tuple[str, ...],
-    smear: Mapping[str, tuple[float, ...]],
-    chimera: Mapping[str, tuple[float, ...]],
+    artefacts: tuple[Mapping[str, tuple[float, ...]], ...],
 ) -> dict[str, FactorLevels]:
-    return {p: FactorLevels(depths[p], pcr[p], error, smear[p], chimera[p]) for p in depths}
+    """Levels per profile; ``artefacts`` maps are in `ARTEFACT_LEVELS` order."""
+    smear, chimera, concatemer, offtarget = artefacts
+    return {
+        p: FactorLevels(depths[p], pcr[p], error, smear[p], chimera[p], concatemer[p], offtarget[p])
+        for p in depths
+    }
 
 
 AMPLICON_PROFILES = ("ont_amplicon_r10", "hifi_amplicon")
-GENOMIC_PROFILE = "ont_genomic_targeted"  # no PCR, smear or chimera step (`profiles`)
+GENOMIC_PROFILE = "ont_genomic_targeted"  # no PCR or molecule-artefact step (`profiles`)
+NO_ARTEFACT = (0.0,)
 # Typical amplicon molecule artefacts: the ont_r10_sup_amplicon_v1 MucOneUp profile
 # rates, fitted to the PRJEB92208 median smear share (0.2361 of spanning reads).
 TYPICAL_SMEAR = 0.24
 TYPICAL_CHIMERA = 0.023
+# Concatemer rate and off-target fraction of the base profiles, kept by standard and
+# stress: ont_r10_sup_amplicon_v1 sets them; hifi_amplicon_v1 keeps MucOneUp's 0.
+PROFILE_CONCATEMER = {"ont_amplicon_r10": (0.024,), "hifi_amplicon": NO_ARTEFACT}
+PROFILE_OFFTARGET = {"ont_amplicon_r10": (0.3,), "hifi_amplicon": NO_ARTEFACT}
 # Median PRJEB92208 span_off_gt1unit_frac (packaged realism targets).
 TYPICAL_OFFPEAK_SHARE = 0.2695
 
 
+def _amplicon(levels: tuple[float, ...]) -> dict[str, tuple[float, ...]]:
+    """``levels`` for both amplicon profiles, none for the genomic profile."""
+    return {**dict.fromkeys(AMPLICON_PROFILES, levels), GENOMIC_PROFILE: NO_ARTEFACT}
+
+
+def _profile_values() -> tuple[dict[str, tuple[float, ...]], ...]:
+    return (
+        {**PROFILE_CONCATEMER, GENOMIC_PROFILE: NO_ARTEFACT},
+        {**PROFILE_OFFTARGET, GENOMIC_PROFILE: NO_ARTEFACT},
+    )
+
+
 def _standard() -> BenchSet:
-    amplicon_pcr = ("none", "calibrated")
     return BenchSet(
         "Headline: realistic depths, calibrated error, no or calibrated PCR bias, "
-        "typical (median) smear and chimera rates",
+        "typical (median) smear and chimera rates, profile concatemer and off-target rates",
         TYPICAL_OFFPEAK_SHARE,
         _uniform(
             {
@@ -90,22 +117,24 @@ def _standard() -> BenchSet:
                 "hifi_amplicon": (200, 500, 1000),
                 GENOMIC_PROFILE: (30, 60, 100),
             },
-            {**dict.fromkeys(AMPLICON_PROFILES, amplicon_pcr), GENOMIC_PROFILE: ("none",)},
+            {
+                **dict.fromkeys(AMPLICON_PROFILES, ("none", "calibrated")),
+                GENOMIC_PROFILE: ("none",),
+            },
             ("calibrated",),
-            {**dict.fromkeys(AMPLICON_PROFILES, (TYPICAL_SMEAR,)), GENOMIC_PROFILE: (0.0,)},
-            {**dict.fromkeys(AMPLICON_PROFILES, (TYPICAL_CHIMERA,)), GENOMIC_PROFILE: (0.0,)},
+            (_amplicon((TYPICAL_SMEAR,)), _amplicon((TYPICAL_CHIMERA,)), *_profile_values()),
         ),
     )
 
 
 def _clean() -> BenchSet:
     top = {p: (max(levels.depths),) for p, levels in _standard().profiles.items()}
-    none = dict.fromkeys(top, ("none",))
-    zero = dict.fromkeys(top, (0.0,))
+    zero = dict.fromkeys(top, NO_ARTEFACT)
     return BenchSet(
-        "Control: top standard depth, calibrated error, no PCR bias, no smear or chimeras",
+        "Control: top standard depth, calibrated error, no PCR bias, no molecule artefacts "
+        "(smear, chimera, concatemer, off-target)",
         0.0,
-        _uniform(top, none, ("calibrated",), zero, zero),
+        _uniform(top, dict.fromkeys(top, ("none",)), ("calibrated",), (zero,) * 4),
     )
 
 
@@ -120,10 +149,9 @@ def _stress() -> BenchSet:
                 **dict.fromkeys(AMPLICON_PROFILES, amplicon_depths),
                 GENOMIC_PROFILE: (3, 6, 10, 20, 40, 80),
             },
-            dict.fromkeys((*AMPLICON_PROFILES, GENOMIC_PROFILE), PCR_LEVEL_NAMES),
+            {**dict.fromkeys(AMPLICON_PROFILES, PCR_LEVEL_NAMES), GENOMIC_PROFILE: ("none",)},
             ERROR_LEVEL_NAMES,
-            dict.fromkeys((*AMPLICON_PROFILES, GENOMIC_PROFILE), (0.05, 0.25, 0.5)),
-            dict.fromkeys((*AMPLICON_PROFILES, GENOMIC_PROFILE), (0.01, 0.05)),
+            (_amplicon((0.05, 0.25, 0.5)), _amplicon((0.01, 0.05)), *_profile_values()),
         ),
     )
 
@@ -179,6 +207,8 @@ def _check_set(name: str, bench_set: BenchSet) -> None:
         raise ValueError(f"{key}.profiles must name at least one profile")
     for profile, levels in bench_set.profiles.items():
         where = f"{key}.profiles.{profile}"
+        if profile not in PROFILE_NAMES:
+            raise ValueError(f"{where}: unknown profile (known: {', '.join(PROFILE_NAMES)})")
         depths = levels.depths
         if (
             not isinstance(depths, tuple)
@@ -190,6 +220,15 @@ def _check_set(name: str, bench_set: BenchSet) -> None:
         check_names(f"{where}.error_levels", levels.error_levels, ERROR_LEVEL_NAMES)
         check_levels(f"{where}.smear_levels", levels.smear_levels, 0, 1)
         check_levels(f"{where}.chimera_levels", levels.chimera_levels, 0, 1)
+        check_levels(f"{where}.concatemer_levels", levels.concatemer_levels, 0, 1)
+        check_levels(f"{where}.offtarget_levels", levels.offtarget_levels, 0, 1)
+        if max(levels.offtarget_levels) >= 1:  # MucOneUp: off-target share in [0, 1)
+            raise ValueError(f"{where}.offtarget_levels must be below 1")
+        products = (
+            max(levels.smear_levels) + max(levels.chimera_levels) + max(levels.concatemer_levels)
+        )
+        if products > 1:  # MucOneUp: shares of one molecule pool
+            raise ValueError(f"{where}: max smear + chimera + concatemer = {products:g} exceeds 1")
         offpeak = max(levels.smear_levels) + max(levels.chimera_levels)
         if cap is not None and offpeak > cap:
             raise ValueError(
