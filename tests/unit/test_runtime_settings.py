@@ -378,3 +378,84 @@ def test_deprecated_consensus_haploid_settings_silent_at_defaults(
             warnings.simplefilter("error")
             load_settings(path)
     assert "consensus.haploid" not in caplog.text
+
+
+# Former literals in alleles.py, read_dominance.py, length_candidates.py and calling.py (#74).
+LADDER_DEFAULTS = {
+    "refinement_min_supported_records": 3,
+    "refinement_supported_fraction": 0.25,
+    "refinement_min_shift_ont": 2,
+    "valley_min_canonical_repeats": 10,
+    "minority_min_alignment_records": 3,
+    "dominance_close_candidate_repeats": 6,
+    "dominance_zero_primary_extra_reads": 2,
+    "read_length_split_min_reads": 5,
+    "read_length_split_min_fraction": 0.15,
+    "read_length_split_bin_bp": 5,
+    "read_length_split_min_delta_bp": 45,
+    "read_length_split_max_delta_bp": 320,
+    "read_length_split_unit_tolerance_bp": 15,
+    "read_length_split_offset_bp": 30,
+}
+
+
+def test_ladder_selection_settings_default_to_former_literals() -> None:
+    selection = AlleleSelectionSettings()
+    assert {name: getattr(selection, name) for name in LADDER_DEFAULTS} == LADDER_DEFAULTS
+    assert ReadPhasingSettings().min_haplotype_reads == 5
+
+
+@pytest.mark.parametrize(
+    "values",
+    [
+        {"refinement_min_supported_records": 0},
+        {"refinement_supported_fraction": 0},
+        {"refinement_supported_fraction": 1.5},
+        {"refinement_min_shift_ont": -1},
+        {"valley_min_canonical_repeats": 0},
+        {"minority_min_alignment_records": 0},
+        {"dominance_close_candidate_repeats": 0},
+        {"dominance_zero_primary_extra_reads": 0},
+        {"read_length_split_min_reads": 0},
+        {"read_length_split_min_fraction": 0},
+        {"read_length_split_min_fraction": 1.01},
+        {"read_length_split_bin_bp": 0},
+        {"read_length_split_min_delta_bp": 0},
+        {"read_length_split_max_delta_bp": 45},
+        {"read_length_split_min_delta_bp": 320},
+        {"read_length_split_unit_tolerance_bp": -1},
+        {"read_length_split_offset_bp": -1},
+        {"read_length_split_bin_bp": 5.0},
+        {"refinement_min_supported_records": True},
+    ],
+)
+def test_ladder_selection_settings_reject_invalid_values(values: dict[str, Any]) -> None:
+    with pytest.raises(ValueError, match="allele_selection"):
+        AlleleSelectionSettings(**values)
+
+
+def test_min_haplotype_reads_is_validated() -> None:
+    with pytest.raises(ValueError, match=r"read_phasing\.min_haplotype_reads"):
+        ReadPhasingSettings(min_haplotype_reads=0)
+
+
+def test_ladder_selection_settings_nondefault_roundtrip(tmp_path: Path) -> None:
+    changed = {
+        name: (value + 1 if isinstance(value, int) else value / 2)
+        for name, value in LADDER_DEFAULTS.items()
+    }
+    path = tmp_path / "settings.json"
+    path.write_text(
+        json.dumps(
+            {
+                "schema_version": 1,
+                "allele_selection": changed,
+                "read_phasing": {"min_haplotype_reads": 7},
+            }
+        )
+    )
+    loaded = load_settings(path)
+    assert loaded.allele_selection == AlleleSelectionSettings(**changed)
+    assert loaded.read_phasing.min_haplotype_reads == 7
+    path.write_text(json.dumps(settings_as_dict(loaded)))
+    assert load_settings(path) == loaded

@@ -9,7 +9,7 @@ from unittest.mock import patch
 import pytest
 
 from muc_one_span.calling import disambiguate_same_length_alleles
-from muc_one_span.settings import CallingSettings
+from muc_one_span.settings import CallingSettings, ReadPhasingSettings
 
 
 def _variant(pos: int, ref: str, alt: str, genotype: str) -> dict[str, Any]:
@@ -26,7 +26,11 @@ def _variant(pos: int, ref: str, alt: str, genotype: str) -> dict[str, Any]:
 
 
 def _run_haplotagged(
-    tmp_path: Path, hp1: list[dict], hp2: list[dict], **call_kwargs: Any
+    tmp_path: Path,
+    hp1: list[dict],
+    hp2: list[dict],
+    haplotag_calls: list[dict[str, Any]] | None = None,
+    **call_kwargs: Any,
 ) -> tuple[dict, list[dict[str, Any]]]:
     """Run same-length calling through the haplotag split with all tools mocked."""
     alleles = {
@@ -40,6 +44,11 @@ def _run_haplotagged(
         filter_calls.append({"dir": out_dir.name, **kwargs})
         return out_dir / "variants.vcf.gz"
 
+    def fake_haplotag(*args: Any, **kwargs: Any) -> tuple[Path, Path, int, int]:
+        if haplotag_calls is not None:
+            haplotag_calls.append(kwargs)
+        return tmp_path / "hp1.bam", tmp_path / "hp2.bam", 25, 20
+
     evidence = {"status": "phased", "output_phase_status": "phased"}
     with (
         patch("muc_one_span.calling._extract_and_remap_reads", return_value=tmp_path / "m.bam"),
@@ -49,10 +58,7 @@ def _run_haplotagged(
             "muc_one_span.calling.phase_same_length_reads",
             side_effect=lambda vcf, *args, **kwargs: (vcf, evidence),
         ),
-        patch(
-            "muc_one_span.calling.haplotag_and_split_reads",
-            return_value=(tmp_path / "hp1.bam", tmp_path / "hp2.bam", 25, 20),
-        ),
+        patch("muc_one_span.calling.haplotag_and_split_reads", side_effect=fake_haplotag),
         patch(
             "muc_one_span.calling.parse_vcf_genotypes",
             side_effect=lambda path, sample=None: by_dir[path.parent.name],
@@ -186,3 +192,15 @@ def test_haplotag_path_records_stage_concordance_per_haplotype(tmp_path: Path) -
     assert annotate.call_count == 2
     for key in ("allele_1", "allele_2"):
         assert alleles[key]["stage_concordance"] == records[key]
+
+
+@pytest.mark.parametrize(
+    ("phasing", "expected"),
+    [(None, 5), (ReadPhasingSettings(), 5), (ReadPhasingSettings(min_haplotype_reads=7), 7)],
+)
+def test_haplotag_split_uses_min_haplotype_reads(
+    tmp_path: Path, phasing: ReadPhasingSettings | None, expected: int
+) -> None:
+    calls: list[dict[str, Any]] = []
+    _run_haplotagged(tmp_path, [], [], haplotag_calls=calls, read_phasing_settings=phasing)
+    assert [call["min_reads"] for call in calls] == [expected]

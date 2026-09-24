@@ -99,8 +99,24 @@ class AlleleSelectionSettings:
     min_dominance_ratio: float = 0.01
     secondary_mode_min_fraction: float = 0.2
     min_allele_primary_records: int = 30
+    # Ladder heuristics formerly hardcoded (#74); defaults reproduce v0.16.0.
+    refinement_min_supported_records: int = 3
+    refinement_supported_fraction: float = 0.25
+    refinement_min_shift_ont: int = 2
+    valley_min_canonical_repeats: int = 10
+    minority_min_alignment_records: int = 3
+    dominance_close_candidate_repeats: int = 6
+    dominance_zero_primary_extra_reads: int = 2
+    read_length_split_min_reads: int = 5
+    read_length_split_min_fraction: float = 0.15
+    read_length_split_bin_bp: int = 5
+    read_length_split_min_delta_bp: int = 45
+    read_length_split_max_delta_bp: int = 320
+    read_length_split_unit_tolerance_bp: int = 15
+    read_length_split_offset_bp: int = 30
 
     def __post_init__(self) -> None:
+        self._validate_ladder_heuristics()
         _integer("allele_selection.min_gap", self.min_gap, 1)
         _integer("allele_selection.valley_min_points", self.valley_min_points, 3)
         _integer("allele_selection.valley_min_separation", self.valley_min_separation, 1)
@@ -122,6 +138,36 @@ class AlleleSelectionSettings:
         if self.secondary_mode_min_fraction == 0:
             raise ValueError("allele_selection.secondary_mode_min_fraction must be > 0")
         _integer("allele_selection.min_allele_primary_records", self.min_allele_primary_records, 1)
+
+    def _validate_ladder_heuristics(self) -> None:
+        """Integers >= their minimum, fractions in (0, 1], and an ordered delta window."""
+        for name, minimum in _LADDER_INTEGER_MINIMUMS:
+            _integer(f"allele_selection.{name}", getattr(self, name), minimum)
+        for name in ("refinement_supported_fraction", "read_length_split_min_fraction"):
+            _number(f"allele_selection.{name}", getattr(self, name), 0.0, 1.0)
+            if getattr(self, name) == 0:
+                raise ValueError(f"allele_selection.{name} must be > 0")
+        if self.read_length_split_max_delta_bp <= self.read_length_split_min_delta_bp:
+            raise ValueError(
+                "allele_selection.read_length_split_max_delta_bp must be greater than "
+                "read_length_split_min_delta_bp"
+            )
+
+
+_LADDER_INTEGER_MINIMUMS = (
+    ("refinement_min_supported_records", 1),
+    ("refinement_min_shift_ont", 0),
+    ("valley_min_canonical_repeats", 1),
+    ("minority_min_alignment_records", 1),
+    ("dominance_close_candidate_repeats", 1),
+    ("dominance_zero_primary_extra_reads", 1),
+    ("read_length_split_min_reads", 1),
+    ("read_length_split_bin_bp", 1),
+    ("read_length_split_min_delta_bp", 1),
+    ("read_length_split_max_delta_bp", 1),
+    ("read_length_split_unit_tolerance_bp", 0),
+    ("read_length_split_offset_bp", 0),
+)
 
 
 @dataclass(frozen=True)
@@ -257,8 +303,11 @@ class ReadPhasingSettings:
 
     internal_downsampling: int | None = None
     mapping_quality: int | None = None
+    # Haplotag split: minimum reads per haplotype (formerly ``min_dp``, fixed at 5).
+    min_haplotype_reads: int = 5
 
     def __post_init__(self) -> None:
+        _integer("read_phasing.min_haplotype_reads", self.min_haplotype_reads, 1)
         if self.internal_downsampling is not None:
             _integer("read_phasing.internal_downsampling", self.internal_downsampling, 1)
         if self.mapping_quality is not None:

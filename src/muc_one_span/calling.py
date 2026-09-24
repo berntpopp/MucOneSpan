@@ -329,7 +329,7 @@ def disambiguate_same_length_alleles(
             merged_bam,
             contig_ref,
             merged_dir / "haplotag",
-            min_reads=min_dp,
+            min_reads=(read_phasing_settings or DEFAULT_SETTINGS.read_phasing).min_haplotype_reads,
         )
         if split_result is not None:
             hp1_bam, hp2_bam, hp1_count, hp2_count = split_result

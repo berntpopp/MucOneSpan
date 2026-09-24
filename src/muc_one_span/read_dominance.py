@@ -8,17 +8,27 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
 
+from muc_one_span.settings import DEFAULT_SETTINGS
 from muc_one_span.tools import run_tool_iter
 
 logger = logging.getLogger(__name__)
 
-# Default margin thresholds derived from minimap2 two-piece affine gap minimum g:
-# delta = 0.5 * g.
+# Platform defaults, sourced from ``allele_selection`` (single source of truth).
+# Score margins derive from minimap2 two-piece affine gap minimum g: delta = 0.5 * g.
 # map-hifi: -O6,26 -E2,1 -> min(6+120, 26+60) = 86 -> delta = 43
 # lr:hq:    -O4,24 -E2,1 -> min(4+120, 24+60) = 84 -> delta = 42
-DEFAULT_DELTA_AS = {"hifi": 43, "ont": 42, "default": 43}
-DEFAULT_MIN_DOMINANT_READS = {"hifi": 3, "ont": 4, "default": 3}
-DEFAULT_MIN_RATIO = 0.01
+_SELECTION = DEFAULT_SETTINGS.allele_selection
+DEFAULT_DELTA_AS = {
+    "hifi": _SELECTION.score_margin_hifi,
+    "ont": _SELECTION.score_margin_ont,
+    "default": _SELECTION.score_margin_hifi,
+}
+DEFAULT_MIN_DOMINANT_READS = {
+    "hifi": _SELECTION.min_dominant_reads_hifi,
+    "ont": _SELECTION.min_dominant_reads_ont,
+    "default": _SELECTION.min_dominant_reads_hifi,
+}
+DEFAULT_MIN_RATIO = _SELECTION.min_dominance_ratio
 
 
 @dataclass(frozen=True)
@@ -99,6 +109,8 @@ def evaluate_candidate_pair_dominance(
     min_dominant_reads: int | None = None,
     min_ratio: float = DEFAULT_MIN_RATIO,
     c2_primary_records: int | None = None,
+    close_candidate_repeats: int | None = None,
+    zero_primary_extra_reads: int | None = None,
 ) -> DominanceScore:
     """Evaluate whether candidate c2 has genuine read-dominance over c1.
 
@@ -111,6 +123,11 @@ def evaluate_candidate_pair_dominance(
         min_dominant_reads: Minimum count of reads strictly preferring c2; None uses platform default.
         min_ratio: Minimum ratio |D2| / (|D1| + |D2|).
         c2_primary_records: Optional count of primary alignments on c2.
+        close_candidate_repeats: Repeat difference below which a read aligned to only
+            one candidate is ambiguous; None uses
+            ``allele_selection.dominance_close_candidate_repeats``.
+        zero_primary_extra_reads: Extra dominant reads required when c2 has no primary
+            alignment; None uses ``allele_selection.dominance_zero_primary_extra_reads``.
 
     Returns:
         DominanceScore with decision and detailed counts.
@@ -122,6 +139,17 @@ def evaluate_candidate_pair_dominance(
         min_dominant_reads
         if min_dominant_reads is not None
         else DEFAULT_MIN_DOMINANT_READS.get(platform, DEFAULT_MIN_DOMINANT_READS["default"])
+    )
+
+    close_repeats = (
+        close_candidate_repeats
+        if close_candidate_repeats is not None
+        else _SELECTION.dominance_close_candidate_repeats
+    )
+    extra_reads = (
+        zero_primary_extra_reads
+        if zero_primary_extra_reads is not None
+        else _SELECTION.dominance_zero_primary_extra_reads
     )
 
     d1 = 0
@@ -141,15 +169,15 @@ def evaluate_candidate_pair_dominance(
         if s1 is None and s2 is None:
             continue
         elif s1 is not None and s2 is None:
-            if delta_repeats >= 6:
+            if delta_repeats >= close_repeats:
                 d1 += 1
             else:
                 ambiguous += 1
         elif s2 is not None and s1 is None:
-            if delta_repeats >= 6:
+            if delta_repeats >= close_repeats:
                 d2 += 1
             else:
-                # Close candidate (< 6 repeats): secondary suppression or stutter cannot be excluded
+                # Close candidate: secondary suppression or stutter cannot be excluded
                 ambiguous += 1
         else:
             assert s1 is not None and s2 is not None
@@ -192,7 +220,7 @@ def evaluate_candidate_pair_dominance(
     if (
         c2_primary_records is not None
         and c2_primary_records == 0
-        and d2 < (effective_min_reads + 2)
+        and d2 < (effective_min_reads + extra_reads)
     ):
         return DominanceScore(
             c1=c1,
