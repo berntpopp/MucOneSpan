@@ -359,25 +359,27 @@ def test_write_manifest_sorted(tmp_path: Path) -> None:
     assert path.name == "manifest.jsonl" and [x["design_id"] for x in lines] == ["a", "b"]
 
 
-def test_write_manifest_replaces_only_the_generated_sets(tmp_path: Path) -> None:
+def test_write_manifest_merges_rows_by_design_id(tmp_path: Path) -> None:
+    """Generating part of a set (e.g. one profile) keeps the set's other rows."""
     write_manifest(
         tmp_path,
         [
-            {"design_id": "s1", "bench_set": "standard"},
+            {"design_id": "s1", "bench_set": "standard", "status": "generation_failed"},
             {"design_id": "s2", "bench_set": "standard"},
             {"design_id": "c1", "bench_set": "clean"},
             {"design_id": "old"},
         ],
     )
-    path = write_manifest(tmp_path, [{"design_id": "s3", "bench_set": "standard"}])
-    ids = [json.loads(x)["design_id"] for x in path.read_text().splitlines()]
-    assert ids == ["c1", "old", "s3"]
-    path = write_manifest(tmp_path, [{"design_id": "new"}])
-    assert [json.loads(x)["design_id"] for x in path.read_text().splitlines()] == [
-        "c1",
-        "new",
-        "s3",
-    ]
+    path = write_manifest(
+        tmp_path,
+        [
+            {"design_id": "s1", "bench_set": "standard", "status": "ok"},
+            {"design_id": "s3", "bench_set": "standard"},
+        ],
+    )
+    rows = [json.loads(x) for x in path.read_text().splitlines()]
+    assert [r["design_id"] for r in rows] == ["c1", "old", "s1", "s2", "s3"]
+    assert rows[2]["status"] == "ok"  # the regenerated row replaces its old one
 
 
 def test_case_records_its_set(tmp_path: Path) -> None:
@@ -508,3 +510,67 @@ def test_resume_accepts_a_legacy_case_with_the_same_full_hash(tmp_path: Path) ->
         other = BenchConfig(atlas=replace(DEFAULT_BENCH_CONFIG.atlas, top_reasons=1))
         with pytest.raises(StaleCaseError, match="generation settings"):
             generate_case(design, _ctx(tmp_path, bench=other))
+
+
+def test_case_records_simulator_provenance_hashes(tmp_path: Path) -> None:
+    from muc_one_span.durable_ledger import compute_sha256
+
+    design = _plain(DEV, event=False)
+    ctx = _ctx(tmp_path)
+    with (
+        patch(f"{MOD}.run_tool", side_effect=FakeMucOneUp()),
+        patch(f"{MOD}.load_repeat_dictionary", return_value=_rd()),
+    ):
+        case = generate_case(design, ctx)
+    base = ctx.profile_dir / "ont_r10_sup_amplicon_v1.json"
+    assert case["muconeup_version"] == ctx.muconeup_version
+    assert case["base_profile_sha256"] == compute_sha256(base)
+    assert case["muconeup_config_sha256"] == compute_sha256(ctx.config)
+    assert case["flank_fasta_sha256"] is None
+
+
+@pytest.mark.parametrize("change", ["version", "config", "base_profile", "flank_fasta"])
+def test_resume_refuses_a_case_made_by_another_simulator_setup(tmp_path: Path, change: str) -> None:
+    """Review I2: reuse compares MucOneUp, its config, the base profile and the flanks."""
+    from muc_one_span.benchsim.generate import StaleCaseError
+
+    design = _plain(DEV, event=False)
+    with (
+        patch(f"{MOD}.run_tool", side_effect=FakeMucOneUp()),
+        patch(f"{MOD}.load_repeat_dictionary", return_value=_rd()),
+    ):
+        first = generate_case(design, _ctx(tmp_path))
+        assert first["status"] == "ok", first.get("error")
+        ctx = _ctx(tmp_path)
+        key = f"{change}_sha256"
+        if change == "version":
+            ctx, key = replace(ctx, muconeup_version="0.46.0"), "muconeup_version"
+        elif change == "config":
+            ctx.config.write_text(json.dumps({"amplicon_params": {"forward_primer": "TA"}}))
+            key = "muconeup_config_sha256"
+        elif change == "base_profile":
+            base = ctx.profile_dir / "ont_r10_sup_amplicon_v1.json"
+            base.write_text(base.read_text().replace('"molecules": {}', '"molecules": {"x": 1}'))
+        else:
+            flank = tmp_path / "flank.fa"
+            flank.write_text(">left\nAC\n>right\nGT\n")
+            ctx = replace(ctx, flank_fasta=flank)
+        with pytest.raises(StaleCaseError, match=key):
+            generate_case(design, ctx)
+
+
+def test_resume_refuses_a_case_without_simulator_provenance(tmp_path: Path) -> None:
+    from muc_one_span.benchsim.generate import StaleCaseError
+
+    design = _plain(DEV, event=False)
+    with (
+        patch(f"{MOD}.run_tool", side_effect=FakeMucOneUp()),
+        patch(f"{MOD}.load_repeat_dictionary", return_value=_rd()),
+    ):
+        first = generate_case(design, _ctx(tmp_path))
+        case_json = tmp_path / "out" / design.split / design.design_id / "case.json"
+        case_json.write_text(
+            json.dumps({k: v for k, v in first.items() if k != "base_profile_sha256"})
+        )
+        with pytest.raises(StaleCaseError, match="base_profile_sha256 not recorded"):
+            generate_case(design, _ctx(tmp_path))

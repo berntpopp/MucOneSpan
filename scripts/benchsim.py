@@ -39,6 +39,12 @@ from muc_one_span.benchsim.generate import (
 )
 from muc_one_span.benchsim.muconeup import BUILTIN_PROFILE, require_muconeup
 from muc_one_span.benchsim.profiles import builtin_profile_dir, write_variant
+from muc_one_span.benchsim.provenance import (
+    caller_record,
+    git_commit,
+    report_provenance,
+    write_caller,
+)
 from muc_one_span.benchsim.realism import aggregate as realism_aggregate
 from muc_one_span.benchsim.realism import case_metrics
 from muc_one_span.benchsim.realism_targets import INDICATIVE_NOTE, load_targets, target_note
@@ -55,6 +61,7 @@ from muc_one_span.benchsim.report import (
 )
 from muc_one_span.benchsim.report_tables import build_tables, render_engine_tables
 from muc_one_span.benchsim.run_cases import run_split
+from muc_one_span.benchsim.targets import render_targets, targets_by_set
 from muc_one_span.config import load_repeat_dictionary
 from muc_one_span.tools import run_tool
 
@@ -227,6 +234,9 @@ def cmd_run(args: argparse.Namespace) -> int:
     records = run_split(
         manifest, engines, results_root, partial(_model_lookup, models), threads, args.jobs
     )
+    commit = git_commit(HERE, run_tool)
+    for engine in engines:  # which caller build produced these results
+        write_caller(results_root / engine, caller_record(engine, commit))
     counts = Counter((r["engine"], r["status"]) for r in records)
     for engine in engines:
         line = ", ".join(f"{k}={v}" for (e, k), v in sorted(counts.items()) if e == engine)
@@ -288,7 +298,9 @@ def cmd_evaluate(args: argparse.Namespace) -> int:
     root = out_root(args)
     audit = _guard_sealed(args.split, root, _rule(args))  # before truth is read
     if audit is not None:  # marked before scoring starts (conservative: a failed run counts)
-        audit["test_first_evaluated_at"] = mark_first_evaluation(_prereg_path(root))
+        audit["test_first_evaluated_at"] = mark_first_evaluation(
+            _prereg_path(root), audit["sha256"]
+        )
     results, split_dir = _results_root(args, root), root / args.split
     run = evaluate_run or _load_evaluate().run
     code = 0
@@ -360,7 +372,13 @@ def cmd_report(args: argparse.Namespace) -> int:
     headline = args.bench.sets.headline
     decision, header = None, {}
     if args.candidate and any(r["bench_set"] == headline for r in rows[args.baseline]):
-        decision = decide(rows, args.baseline, args.candidate, args.bench)
+        try:
+            decision = decide(rows, args.baseline, args.candidate, args.bench)
+        except ValueError as exc:
+            raise SystemExit(
+                f"`{args.baseline}` and `{args.candidate}` were scored on different cases "
+                f"({exc}); evaluate both engines on the same manifest"
+            ) from exc
         header = decision
     elif args.candidate:
         header = {
@@ -368,18 +386,30 @@ def cmd_report(args: argparse.Namespace) -> int:
             f"to the `{headline}` set only)."
         }
     sets = _set_sections(args, rows)
+    alpha = args.bench.report.alpha
+    targets = {e: targets_by_set(r, args.bench.targets, alpha) for e, r in rows.items()}
     report = {
         "split": args.split,
         "preregistration": audit,
+        "provenance": report_provenance(
+            git_commit(HERE, run_tool), {e: results / e for e in engines}, cases
+        ),
         "bench_config_sha256": args.bench.sha256(),
         "decision": decision,
         "headline_set": headline,
         "set_order": list(sets),
         "sets": sets,
+        "targets": targets,  # every engine, every targeted set; absent sets not present
         "engines": {engine: {"rows": r} for engine, r in rows.items()},
     }
     _write(results / "report.json", report)
     parts = [render_markdown(header)]
+    if decision is None:
+        parts += [
+            f"## Absolute targets: engine `{e}` (descriptive; no decision)\n\n{render_targets(t)}"
+            for e, t in targets.items()
+            if render_targets(t)
+        ]
     for name, section in sets.items():
         label = f"Set `{name}`" + (" (headline)" if section["headline"] else "")
         about = f"{section['description']}\n\n" if section["description"] else ""
@@ -397,8 +427,9 @@ def cmd_report(args: argparse.Namespace) -> int:
 def cmd_realism(args: argparse.Namespace) -> int:
     """Task 9 realism metrics over a split, aggregated and compared per profile."""
     root = out_root(args)
-    if _guard_sealed(args.split, root, _rule(args)) is not None:
-        mark_first_evaluation(_prereg_path(root))  # realism reads test truth: unseals
+    audit = _guard_sealed(args.split, root, _rule(args))
+    if audit is not None:  # realism reads test truth: unseals under this rule
+        mark_first_evaluation(_prereg_path(root), audit["sha256"])
     split_dir = root / args.split
     per_set: dict[str, dict[str, list[dict[str, Any]]]] = {}
     failures = []
@@ -410,7 +441,7 @@ def cmd_realism(args: argparse.Namespace) -> int:
             metrics = case_metrics(
                 split_dir / design_id, args.muconeup_config, args.flank_fasta, args.bench.realism
             )
-        except (OSError, ValueError, KeyError) as exc:
+        except (OSError, ValueError, KeyError, IndexError) as exc:
             failures.append({"design_id": design_id, "error": f"{type(exc).__name__}: {exc}"})
             continue
         name = (case.get("design") or {}).get("bench_set") or args.bench.sets.legacy

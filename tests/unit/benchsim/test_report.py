@@ -355,8 +355,8 @@ def test_changing_a_target_requires_a_new_pre_registration(tmp_path: Path) -> No
 def test_preregister_refused_after_test_evaluated(tmp_path: Path) -> None:
     path = tmp_path / "test" / "preregistration.jsonl"
     preregister(RULE_TEXT, path)
-    stamp = mark_first_evaluation(path)
-    assert mark_first_evaluation(path) == stamp  # written once, never moved
+    stamp = mark_first_evaluation(path, rule_sha256(RULE_TEXT))
+    assert mark_first_evaluation(path, rule_sha256(RULE_TEXT)) == stamp  # written once
     with pytest.raises(PermissionError, match="already evaluated"):
         preregister("a later rule", path)
 
@@ -368,9 +368,10 @@ def test_rule_text_names_the_per_allele_endpoint() -> None:
 
 
 def test_default_rule_text_is_unchanged_by_the_config_refactor() -> None:
-    # SHA-256 of the v4 rule text (v3 plus the task 12e absolute targets); a
-    # changed default would silently invalidate existing pre-registrations.
-    pinned = "d78dfa91baf41ba03597742f54efa56987701484151456ebef44b8ac498f7da7"
+    # SHA-256 of the v4 rule text (v3 plus the task 12e absolute targets, with an
+    # absent targeted set reported as not present); a changed default would
+    # silently invalidate existing pre-registrations.
+    pinned = "bef9f891331f8fac12f0b8db0c2feecfd0d78042c0ec6e888d9de0f3243bf7e4"
     assert rule_text(DEFAULT_BENCH_CONFIG.report) == RULE_TEXT
     assert rule_sha256(RULE_TEXT) == pinned
 
@@ -552,6 +553,16 @@ def test_decide_adopts_only_when_headline_and_clean_targets_also_pass() -> None:
     assert result2["targets"]["clean"]["pass"] is False
     assert result2["profiles"]["ont_amplicon_r10"]["pass"] is True
     assert result2["adopt"] is False
+
+    # Review I4: a targeted set absent from this root is "not present", never FAIL,
+    # and still blocks adoption (fail closed).
+    result3 = decide({"ladder": base, "hybrid": cand_standard}, "ladder", "hybrid")
+    assert result3["targets"]["clean"]["present"] is False
+    assert result3["targets"]["clean"]["pass"] is None
+    assert result3["targets_not_present"] == ["clean"]
+    assert result3["profiles"]["ont_amplicon_r10"]["pass"] is True
+    assert result3["adopt"] is False
+    assert "not present" in render_markdown(result3)
 
 
 def test_decide_targets_use_point_estimate_by_default_and_ci_bound_when_configured() -> None:

@@ -64,6 +64,18 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
   (`decision.targets`); adoption now needs the relative rule and every named
   set's targets to pass. The decision rule is now v4; a changed threshold,
   comparator, basis or set membership needs a new pre-registration.
+- Benchmark final-review fixes. `first_evaluation.json` records the rule that
+  unsealed `test`, and only that rule is accepted afterwards. `generate` also
+  refuses to reuse a case whose MucOneUp version, base read profile, MucOneUp
+  config or `--flank-fasta` hash differs or is not recorded. A targeted set with
+  no cases in the output root is reported as "not present" (it still blocks
+  adoption), and `report.json` holds target tables for every engine, including
+  reports without a decision. `report.json` also records harness and caller
+  provenance (`run` writes `caller.json`). Manifests merge rows by `design_id`.
+  A caller crash is `execution_failed`. A realism `IndexError` is recorded for
+  its case. Engines scored on different cases give a clean `report` error. The
+  `bench` extra now requires `edlib>=1.3.9` on every Python version, and on
+  3.14 edlib builds from source.
 
 ## [0.16.0] - 2026-09-24
 

@@ -181,3 +181,21 @@ def test_render_targets_builds_a_markdown_pass_fail_table() -> None:
 
 def test_render_targets_skips_untargeted_sets() -> None:
     assert render_targets({"stress": None}) == ""
+
+
+def test_targets_by_set_marks_an_absent_set_not_present() -> None:
+    """Review I4: a targeted set with no cases in this root is not reported as FAIL."""
+    from muc_one_span.benchsim.targets import targets_by_set
+
+    rows = [r | {"bench_set": "standard"} for r in _rows(PASSING_STANDARD)]
+    result = targets_by_set(rows, CFG, ALPHA)
+    assert set(result) == set(CFG.by_set)
+    assert result["standard"] is not None and result["standard"]["pass"] is True
+    assert result["standard"]["present"] is True
+    absent = result["clean"]
+    assert absent is not None and absent["present"] is False
+    assert absent["pass"] is None and absent["table"] == []
+    text = render_targets(result)
+    assert "| clean | - | - | - | 0 cases | n/a | n/a | not present |" in text
+    assert "Set verdict: standard=True, clean=not present" in text
+    assert "FAIL" not in text and "clean=False" not in text

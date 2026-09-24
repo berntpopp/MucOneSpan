@@ -361,8 +361,11 @@ class AtlasConfig:
     """Reason atlas of non-definitive decisions (`atlas`, docs/benchmark.md).
 
     A case is *expected* non-definitive when its split is listed in
-    ``expected_inconclusive_splits`` or its depth (``depth_basis``) is below
-    ``min_resolvable_depth``; every other atlas case counts as resolvable.
+    ``expected_inconclusive_splits``, its benchmark set in
+    ``expected_inconclusive_sets``, or its depth (``depth_basis``) is below
+    ``min_resolvable_depth``. It is *depth_unknown* when no split or set condition
+    holds and its ``depth_basis`` depth is not recorded; every other atlas case
+    counts as resolvable.
     """
 
     decisions: tuple[str, ...] = ("INCONCLUSIVE",)

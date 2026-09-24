@@ -8,7 +8,7 @@ from typing import Any
 import pytest
 
 from muc_one_span.benchsim.bench_config import DEFAULT_BENCH_CONFIG
-from muc_one_span.benchsim.report import RULE_TEXT
+from muc_one_span.benchsim.report import RULE_TEXT, rule_sha256
 from tests.unit.benchsim.test_benchsim_cli import _cli
 
 STANDARD = DEFAULT_BENCH_CONFIG.sets.headline
@@ -202,12 +202,11 @@ def test_evaluate_then_report_writes_json_and_markdown(
     assert tables["pooled"]["ont_amplicon_r10"]["allele_exact"]["point"] == 1.0
     assert report["preregistration"] is None
     # Task 12e: the absolute targets are evaluated per set, not restricted to `standard`
-    # (this fixture has no `clean` cases at all, so its target cohort is empty and fails).
+    # (this fixture has no `clean` cases at all: not present, never FAIL; blocks adoption).
     targets = report["decision"]["targets"]
     assert set(targets) == {STANDARD, "clean"}
     assert targets[STANDARD]["pass"] is True
-    assert targets["clean"]["pass"] is False
-    assert any(row["reason"] == "no cases in this cohort" for row in targets["clean"]["table"])
+    assert targets["clean"]["present"] is False and targets["clean"]["pass"] is None
     text = (results / "report.md").read_text()
     assert "NOT ADOPTED" in text and "failure atlas: composition" in text
     assert "Part 2: absolute targets" in text and "Set verdict:" in text
@@ -441,3 +440,121 @@ def test_realism_groups_by_set(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) 
     out = json.loads((tmp_path / "data" / "dev" / "realism.json").read_text())
     assert list(out["sets"]) == [STANDARD, "clean"]
     assert out["sets"]["clean"]["profiles"]["ont_amplicon_r10"]["n_cases"] == 1
+
+
+def test_only_the_unlocking_rule_can_report_on_test(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """Review I1: a second rule registered before unsealing cannot publish a test verdict."""
+    cli = _cli(tmp_path, monkeypatch)
+    _fake_evaluate(cli, monkeypatch, [])
+    _split(tmp_path, "test")
+    (tmp_path / "data" / "results" / "test" / "ladder").mkdir(parents=True)
+    other = tmp_path / "other.json"
+    margin = DEFAULT_BENCH_CONFIG.report.ni_margin * 2
+    other.write_text(json.dumps({"schema_version": 1, "report": {"ni_margin": margin}}))
+    root = ["--out-root", str(tmp_path / "data")]
+    cli.main(["preregister", *root])
+    cli.main(["--bench-config", str(other), "preregister", *root])
+    assert cli.main(["evaluate", "--split", "test", *root]) == 0
+    marker = json.loads((tmp_path / "data" / "test" / "first_evaluation.json").read_text())
+    assert marker["rule_sha256"] == rule_sha256(RULE_TEXT)
+    assert cli.main(["report", "--split", "test", *root]) == 0
+    for action in (["report"], ["evaluate"]):
+        with pytest.raises(SystemExit, match="unsealed under rule"):
+            cli.main(["--bench-config", str(other), *action, "--split", "test", *root])
+
+
+def test_realism_index_error_is_a_case_failure(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """A case whose metrics raise IndexError is recorded; the split still completes."""
+    cli = _cli(tmp_path, monkeypatch)
+    _split(tmp_path)
+
+    def metrics(case_dir: Path, *_: Any) -> dict[str, Any]:
+        if case_dir.name == "c2":
+            raise IndexError("list index out of range")
+        return {}
+
+    monkeypatch.setattr(cli, "case_metrics", metrics)
+    monkeypatch.setattr(cli, "realism_aggregate", lambda cases, cfg: {"n_cases": len(cases)})
+    monkeypatch.setattr(cli, "realism_compare", lambda m, t, p, cfg: {})
+    monkeypatch.setattr(cli, "load_targets", lambda: {})
+    assert cli.main(["realism", "--split", "dev", "--out-root", str(tmp_path / "data")]) == 0
+    out = json.loads((tmp_path / "data" / "dev" / "realism.json").read_text())
+    assert out["failures"] == [{"design_id": "c2", "error": "IndexError: list index out of range"}]
+
+
+def test_report_computes_targets_per_engine_without_a_decision(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    """Review I4: a per-set root (here `clean` only) still gets its target table."""
+    cli = _cli(tmp_path, monkeypatch)
+    _fake_evaluate(cli, monkeypatch, [])
+    _split(tmp_path, fixture=(("c1", "dupC", "clean"), ("c2", None, "clean")))
+    for engine in ("ladder", "hybrid"):
+        (tmp_path / "data" / "results" / "dev" / engine).mkdir(parents=True)
+    data = str(tmp_path / "data")
+    cli.main(["evaluate", "--split", "dev", "--engines", "ladder,hybrid", "--out-root", data])
+    assert cli.main(["report", "--split", "dev", "--candidate", "hybrid", "--out-root", data]) == 0
+    report = json.loads((tmp_path / "data" / "results" / "dev" / "report.json").read_text())
+    assert report["decision"] is None
+    hybrid = report["targets"]["hybrid"]
+    assert hybrid["clean"]["present"] is True and hybrid["clean"]["pass"] is True
+    assert hybrid[STANDARD]["present"] is False and hybrid[STANDARD]["pass"] is None
+    assert set(report["targets"]) == {"ladder", "hybrid"}
+    text = (tmp_path / "data" / "results" / "dev" / "report.md").read_text()
+    assert "descriptive; no decision" in text and "| clean | pooled |" in text
+    assert f"{STANDARD}=not present" in text and f"{STANDARD}=False" not in text
+
+
+def test_report_engines_scored_on_different_cases_exits_cleanly(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    _split(tmp_path)
+    results = tmp_path / "data" / "results" / "dev"
+    samples = {
+        "ladder": [_sample("c1", "pathogenic", "PATHOGENIC", 1)],
+        "hybrid": [_sample("c2", "normal", "NO_PATHOGENIC_VARIANT_DETECTED", 1)],
+    }
+    for engine, rows in samples.items():
+        (results / engine).mkdir(parents=True)
+        (results / engine / "evaluation.json").write_text(json.dumps({"samples": rows}))
+    argv = [
+        "report",
+        "--split",
+        "dev",
+        "--candidate",
+        "hybrid",
+        "--out-root",
+        str(tmp_path / "data"),
+    ]
+    with pytest.raises(SystemExit, match="scored on different cases"):
+        _cli(tmp_path, monkeypatch).main(argv)
+
+
+def test_report_records_harness_caller_and_simulator_provenance(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    from muc_one_span.version import __version__
+
+    cli = _cli(tmp_path, monkeypatch)
+    _fake_evaluate(cli, monkeypatch, [])
+    split_dir = _split(tmp_path)
+    rows = [json.loads(x) for x in (split_dir / "manifest.jsonl").read_text().splitlines()]
+    (split_dir / "manifest.jsonl").write_text(
+        "".join(json.dumps(r | {"muconeup_version": "0.46.0"}) + "\n" for r in rows)
+    )
+    engine_dir = tmp_path / "data" / "results" / "dev" / "ladder"
+    engine_dir.mkdir(parents=True)
+    caller = {"engine": "ladder", "caller_version": "9.9.9", "caller_commit": "abc"}
+    (engine_dir / "caller.json").write_text(json.dumps(caller))
+    data = str(tmp_path / "data")
+    cli.main(["evaluate", "--split", "dev", "--out-root", data])
+    assert cli.main(["report", "--split", "dev", "--out-root", data]) == 0
+    report = json.loads((engine_dir.parent / "report.json").read_text())
+    prov = report["provenance"]
+    assert prov["harness_version"] == __version__ and prov["harness_commit"]
+    assert prov["callers"] == {"ladder": caller}
+    assert prov["muconeup_versions"] == {"0.46.0": 2}

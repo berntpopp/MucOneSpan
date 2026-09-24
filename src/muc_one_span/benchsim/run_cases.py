@@ -19,7 +19,9 @@ Produces, per engine, under ``<results_root>/<engine>/``:
 
 Non-``ok`` manifest rows (``design_invalid``, ``generation_failed``, or any
 other non-``ok`` status) are never run; they become ``not_attempted`` records
-so the denominator is kept without invoking the caller on invalid input.
+so the denominator is kept without invoking the caller on invalid input. A
+caller that raises once invoked becomes an ``execution_failed`` record (it was
+attempted); a missing platform model stays ``not_attempted``.
 """
 
 from __future__ import annotations
@@ -56,11 +58,16 @@ def _read_manifest(path: Path) -> list[dict[str, Any]]:
 
 
 def _not_attempted(
-    sample: str, engine: str, result_dir: Path, error: str, **extra: Any
+    sample: str,
+    engine: str,
+    result_dir: Path,
+    error: str,
+    status: str = "not_attempted",
+    **extra: Any,
 ) -> dict[str, Any]:
     record: dict[str, Any] = {
         "sample": sample,
-        "status": "not_attempted",
+        "status": status,
         "engine": engine,
         "result_dir": str(result_dir),
         "exit_code": None,
@@ -116,10 +123,21 @@ def _run_one(
         )
     try:
         model = model_for(platform)
+    except (ValueError, KeyError) as exc:
+        return _not_attempted(
+            design_id, engine, output_dir, str(exc), platform=platform, profile=profile
+        )
+    try:
         record = run_pipeline(design_id, fastq, output_dir, platform, model, threads, engine=engine)
     except (OSError, ValueError, RuntimeError, KeyError) as exc:
         return _not_attempted(
-            design_id, engine, output_dir, str(exc), platform=platform, profile=profile
+            design_id,
+            engine,
+            output_dir,
+            str(exc),
+            status="execution_failed",
+            platform=platform,
+            profile=profile,
         )
     record = dict(record)
     record["engine"] = engine

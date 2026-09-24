@@ -3,9 +3,12 @@
 ``<out_root>/test/preregistration.jsonl`` holds one JSON line per registration
 (``sha256`` of the exact rule text, the text, ``registered_at``). Lines are only
 ever appended, under an exclusive lock and fsync. The first scoring of ``test``
-writes ``first_evaluation.json`` beside it (exclusive create, never rewritten);
-from then on a new pre-registration is refused, so a rule cannot be registered
-after the test truth has been seen. The marker is written *before* the scoring
+writes ``first_evaluation.json`` beside it (exclusive create, never rewritten)
+with the SHA-256 of the rule that unlocked it; from then on a new
+pre-registration is refused, so a rule cannot be registered after the test truth
+has been seen, and only that unlocking rule is accepted by later ``test``
+scoring or reports (another rule registered before unsealing cannot publish a
+verdict). The marker is written *before* the scoring
 (``evaluate``) or truth reading (``realism``) starts, so an evaluation that later
 fails still counts as unsealing: conservative by design.
 """
@@ -44,17 +47,49 @@ def first_evaluation(path: Path) -> str | None:
     return str(json.loads(marker.read_text(encoding="utf-8"))["evaluated_at"])
 
 
-def mark_first_evaluation(path: Path) -> str:
-    """Record the first ``test`` scoring time once (exclusive create); return it."""
+def unlocking_rule_sha256(path: Path) -> str | None:
+    """SHA-256 of the rule that unsealed ``test`` (``None`` while still sealed).
+
+    Raises:
+        PermissionError: If the marker exists but records no rule (fail closed).
+    """
+    marker = _marker(path)
+    if not marker.is_file():
+        return None
+    digest = json.loads(marker.read_text(encoding="utf-8")).get("rule_sha256")
+    if not digest:
+        raise PermissionError(f"{marker} records no unlocking rule; test cannot be scored")
+    return str(digest)
+
+
+def _require_unlocking(path: Path, digest: str) -> None:
+    """Raise unless ``test`` is still sealed or was unsealed under ``digest``."""
+    unlocked = unlocking_rule_sha256(path)
+    if unlocked is not None and unlocked != digest:
+        raise PermissionError(
+            f"test was unsealed under rule sha256 {unlocked}; rule {digest} cannot be used"
+        )
+
+
+def mark_first_evaluation(path: Path, unlocking_sha256: str) -> str:
+    """Record the first ``test`` scoring time and its rule once (exclusive create).
+
+    Returns the first scoring time.
+
+    Raises:
+        PermissionError: If ``test`` was already unsealed under another rule.
+    """
     marker = _marker(path)
     marker.parent.mkdir(parents=True, exist_ok=True)
     try:
         fd = os.open(marker, os.O_WRONLY | os.O_CREAT | os.O_EXCL, 0o644)
     except FileExistsError:
+        _require_unlocking(path, unlocking_sha256)
         return str(first_evaluation(path))
     stamp = _now()
     with os.fdopen(fd, "w", encoding="utf-8") as handle:
-        handle.write(json.dumps({"evaluated_at": stamp}) + "\n")
+        entry = {"evaluated_at": stamp, "rule_sha256": unlocking_sha256}
+        handle.write(json.dumps(entry) + "\n")
         handle.flush()
         os.fsync(handle.fileno())
     return stamp
@@ -88,8 +123,9 @@ def require_preregistered(path: Path, rule_text: str) -> dict[str, Any]:
     """Return the first matching entry (``sha256``, ``registered_at``) or raise.
 
     Raises:
-        PermissionError: If the ledger is missing or corrupt, or has no entry
-            whose stored hash and text both match ``rule_text``.
+        PermissionError: If the ledger is missing or corrupt, has no entry
+            whose stored hash and text both match ``rule_text``, or ``test`` was
+            already unsealed under another rule (`unlocking_rule_sha256`).
     """
     digest = rule_sha256(rule_text)
     path = Path(path)
@@ -103,5 +139,6 @@ def require_preregistered(path: Path, rule_text: str) -> dict[str, Any]:
         except ValueError as exc:
             raise PermissionError(f"corrupt pre-registration ledger {path}: {line!r}") from exc
         if entry.get("sha256") == digest and rule_sha256(str(entry.get("rule_text"))) == digest:
+            _require_unlocking(path, digest)
             return {"sha256": digest, "registered_at": entry.get("registered_at")}
     raise PermissionError(f"decision rule sha256 {digest} is not pre-registered in {path}")

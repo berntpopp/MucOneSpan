@@ -58,7 +58,7 @@ from muc_one_span.benchsim.preregistration import (
     rule_sha256,
 )
 from muc_one_span.benchsim.stats import clopper_pearson, holm, mcnemar_exact, noninferior
-from muc_one_span.benchsim.targets import evaluate_targets, render_targets, targets_text
+from muc_one_span.benchsim.targets import render_targets, targets_by_set, targets_text
 
 __all__ = [
     "RULE_TEXT",
@@ -113,7 +113,8 @@ _RULE_TEMPLATE = (
     "case or allele is dropped. Part 2, the absolute targets (`targets.by_set`), "
     "{targets_text}, on the candidate alone (no baseline comparison), pooled over every "
     "profile of that set and on each profile separately; a bench set named in "
-    "`targets.by_set` with no candidate cases fails its targets. A bench set not named in "
+    "`targets.by_set` with no candidate cases is reported as not present and blocks "
+    "adoption. A bench set not named in "
     "`targets.by_set` (for example `stress`) is reported without a target. Adopt only if "
     "the relative rule and every target of every named set pass."
 )
@@ -403,13 +404,8 @@ def decide(
     base = [r for r in reports[baseline] if r.get("bench_set") == headline]
     cand = [r for r in reports[candidate] if r.get("bench_set") == headline]
     profiles = sorted({_key(r.get("profile")) for r in (*base, *cand)})
-    cand_all = reports[candidate]
-    target_results = {
-        name: evaluate_targets(
-            [r for r in cand_all if r.get("bench_set") == name], name, config.targets, cfg.alpha
-        )
-        for name in config.targets.by_set
-    }
+    target_results = targets_by_set(reports[candidate], config.targets, cfg.alpha)
+    not_present = [n for n, t in target_results.items() if t is not None and not t["present"]]
     result: dict[str, Any] = {
         "baseline": baseline,
         "candidate": candidate,
@@ -420,13 +416,15 @@ def decide(
         "margin": cfg.ni_margin,
         "profiles": {},
         "targets": target_results,
+        "targets_not_present": not_present,
     }
     for profile in profiles:
         b = [r for r in base if _key(r.get("profile")) == profile]
         c = [r for r in cand if _key(r.get("profile")) == profile]
         result["profiles"][profile] = _profile(b, c, cfg)
     relative_pass = bool(profiles) and all(p["pass"] for p in result["profiles"].values())
-    targets_pass = all(t["pass"] for t in target_results.values() if t is not None)
+    # A targeted set not present in these rows (pass None) blocks adoption: fail closed.
+    targets_pass = all(t["pass"] is True for t in target_results.values() if t is not None)
     result["adopt"] = relative_pass and targets_pass
     return result
 
@@ -512,6 +510,9 @@ def render_markdown(result: dict[str, Any]) -> str:
     body = "\n".join(lines) + "\n"
     if result.get("targets"):
         body += "## Part 2: absolute targets\n\n" + render_targets(result["targets"]) + "\n"
+    if result.get("targets_not_present"):
+        absent = ", ".join(f"`{n}`" for n in result["targets_not_present"])
+        body += f"Not present in this output root (adoption blocked): {absent}.\n\n"
     return body + render_tables(result.get("tables") or {})
 
 
