@@ -102,11 +102,22 @@ def allele_info(
     unit_bp: int,
     fixed_repeat_count: int,
     h: HybridSettings,
+    *,
+    concordance: float,
 ) -> dict[str, Any]:
     """One allele's record; ``status`` is the sample (selection_status, selection_detail).
 
     ``length`` counts every repeat unit of the motif 1..9 consensus (as the ladder's
     ``length``); ``canonical_repeats`` excludes the reference layout's fixed repeats.
+
+    ``concordance`` (``hybrid.polish.consensus_concordance`` on the final polished
+    consensus and the reads that built it) is the hybrid engine's own read-support
+    evidence and is reported as ``consensus_concordance_fraction``, alongside a
+    ``classification_confidence_status`` marker: the ladder's ``classify.py``
+    ``confidence``/``allele_confidence`` (``repeats.json``, the CLI's printed
+    ``confidence:`` line, and the report's "Allele confidence" tile) is a
+    dictionary-fit heuristic computed identically for both engines and carries no
+    hybrid reconstruction evidence, so it does not apply here.
     """
     units = round(len(seq) / unit_bp)
     depth = depth_status(len(members), h)
@@ -144,4 +155,6 @@ def allele_info(
         "sequence_source": f"hybrid:{name}",
         "contig_name": f"hybrid_{name}",
         "vcf_path": None,
+        "consensus_concordance_fraction": concordance,
+        "classification_confidence_status": "not_applicable_dictionary_fit_heuristic",
     }

@@ -48,6 +48,10 @@ def test_heterozygous_dupc_sample_is_reconstructed(tmp_path: Path) -> None:
         info = result.alleles[key]
         assert info["engine"] == "hybrid" and info["depth_status"] == "adequate"
         assert info["selection_status"] == "resolved" and info["split_basis"] == "length"
+        # Real hybrid read-support evidence, additive alongside (not replacing) the
+        # ladder's dictionary-fit classify.py confidence -- see allele_fields.py.
+        assert 0.0 <= info["consensus_concordance_fraction"] <= 1.0
+        assert info["classification_confidence_status"] == "not_applicable_dictionary_fit_heuristic"
         fixed = DEFAULT_SETTINGS.reference_layout.fixed_repeat_count
         assert info["length"] == info["canonical_repeats"] + fixed
     assert result.block["read_categories"]["spanning"] == 210

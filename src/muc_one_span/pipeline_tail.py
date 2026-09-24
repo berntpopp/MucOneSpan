@@ -64,6 +64,13 @@ def finish_run(
         click.echo(f"  {allele_key}: {result['structure']}")
         if result.get("allele_confidence") is not None:
             click.echo(f"    confidence: {result['allele_confidence']:.2f}")
+        # The line above is the ladder's classify.py dictionary-fit heuristic (fed the
+        # same way for both engines, see allele_fields.py::allele_info); for the hybrid
+        # engine it carries no reconstruction evidence, so its own real read-support
+        # evidence is echoed alongside it rather than in place of it.
+        concordance = alleles_result.get(allele_key, {}).get("consensus_concordance_fraction")
+        if concordance is not None:
+            click.echo(f"    consensus concordance (hybrid read support): {concordance:.2f}")
 
     (out / "alleles.json").write_text(json.dumps(alleles_result, indent=2) + "\n")
 

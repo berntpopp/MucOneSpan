@@ -40,7 +40,7 @@ from muc_one_span.hybrid.evidence import event_read_support, residual_sites
 from muc_one_span.hybrid.lengths import LengthModel, fit_length_model
 from muc_one_span.hybrid.phase import split_by_linked_sites
 from muc_one_span.hybrid.poa import PoaBackend, get_backend
-from muc_one_span.hybrid.polish import draft_consensus, polish
+from muc_one_span.hybrid.polish import consensus_concordance, draft_consensus, polish
 from muc_one_span.hybrid.reads_io import extra_versions, read_input
 from muc_one_span.hybrid.spans import Anchors, SpanRead, categorize_reads
 from muc_one_span.run_status import InsufficientEvidenceError
@@ -181,15 +181,21 @@ def reconstruct_alleles(
             trim_to_draft(r, refs[name], h.assign_flank_bp, len(group.draft))
             for r in _cap(extra[name], h.polish_max_reads, rng)
         ]
+        full_reads = [m.seq for m in _cap(group.members, h.polish_max_reads, rng)]
+        partial_reads = [p for p in partial if len(p) >= h.polish_partial_min_units * unit_bp]
         cons, info = polish(
             group.draft,
-            [m.seq for m in _cap(group.members, h.polish_max_reads, rng)],
-            [p for p in partial if len(p) >= h.polish_partial_min_units * unit_bp],
+            full_reads,
+            partial_reads,
             rounds=h.polish_rounds,
             hp_vote=h.hp_vote,
             insertion_majority_frac=h.polish_insertion_majority_frac,
             hp_min_run=h.hp_vote_min_run,
         )
+        # Real hybrid read-support evidence: reuses the exact reads that built/polished
+        # ``cons`` (no extra rng.sample draws, which would disturb downstream
+        # determinism) rather than the ladder's dictionary-fit classify.py confidence.
+        concordance = consensus_concordance(cons, full_reads, partial_reads)
         qc_reads = [m.seq for m in _cap(group.members, h.qc_residual_max_reads, rng)]
         residual = residual_sites(cons, qc_reads, h.qc_residual_af, min_run=h.qc_residual_min_run)
         alleles[name] = allele_info(
@@ -203,6 +209,7 @@ def reconstruct_alleles(
             unit_bp,
             fixed,
             h,
+            concordance=round(concordance, FRACTION_DECIMALS),
         )
         alleles[name]["polish"] = info
         members[name] = [(m.seq, m.strand) for m in group.members]

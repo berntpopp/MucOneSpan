@@ -76,11 +76,41 @@ def test_depth_status_follows_settings() -> None:
 def test_allele_info_lengths_come_from_unit_and_layout() -> None:
     members = [SpanRead("r", "A" * 10, 20.0, "+", 0, "motif")]
     seq = "A" * (UNIT * 12)
-    info = allele_info("allele_1", seq, members, 0, "length", [], (RESOLVED, ""), UNIT, 4, H)
+    info = allele_info(
+        "allele_1", seq, members, 0, "length", [], (RESOLVED, ""), UNIT, 4, H, concordance=0.75
+    )
     assert (info["length"], info["canonical_repeats"]) == (12, 8)
     assert info["depth_status"] == "insufficient" and info["phase_status"] == "phased"
     assert info["allele_genotype_status"] == "not_applicable_read_consensus"
     residual = [{"pos": 1, "ref": "A", "alt": "C", "af": 0.4, "n": 10}]
-    info = allele_info("allele_1", seq, members, 0, "none", residual, (RESOLVED, ""), UNIT, 4, H)
+    info = allele_info(
+        "allele_1",
+        seq,
+        members,
+        0,
+        "none",
+        residual,
+        (RESOLVED, ""),
+        UNIT,
+        4,
+        H,
+        concordance=1.0,
+    )
     assert info["allele_genotype_status"] == "residual_heterogeneity"
     assert info["independent_haplotype_evidence"] is False
+
+
+def test_allele_info_reports_real_hybrid_evidence_alongside_the_dictionary_confidence() -> None:
+    """The ladder's classify.py ``confidence``/``allele_confidence`` is a dictionary-fit
+    heuristic fed identically regardless of engine (see pipeline_tail.py), so it is not
+    meaningful hybrid evidence. ``allele_info`` additively reports the hybrid engine's own
+    read-support evidence (``consensus_concordance_fraction``) plus an explicit marker
+    that the ladder confidence does not apply to hybrid reconstruction quality.
+    """
+    members = [SpanRead("r", "A" * 10, 20.0, "+", 0, "motif")]
+    seq = "A" * (UNIT * 3)
+    info = allele_info(
+        "allele_1", seq, members, 0, "length", [], (RESOLVED, ""), UNIT, 0, H, concordance=0.6
+    )
+    assert info["consensus_concordance_fraction"] == 0.6
+    assert info["classification_confidence_status"] == "not_applicable_dictionary_fit_heuristic"

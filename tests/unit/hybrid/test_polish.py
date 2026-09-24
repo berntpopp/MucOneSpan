@@ -8,7 +8,13 @@ import sys
 import pytest
 
 from muc_one_span.hybrid.poa import get_backend
-from muc_one_span.hybrid.polish import draft_consensus, homopolymer_vote, pileup_polish, polish
+from muc_one_span.hybrid.polish import (
+    consensus_concordance,
+    draft_consensus,
+    homopolymer_vote,
+    pileup_polish,
+    polish,
+)
 from muc_one_span.hybrid.spans import Anchors, SpanRead, categorize_reads
 from muc_one_span.settings import DEFAULT_SETTINGS, HybridSettings
 from tests.unit.hybrid import synth
@@ -150,6 +156,49 @@ def test_draft_consensus_sample_window_settings_control_selected_members() -> No
         sample_window_frac=0.0,
     )
     assert len(wide.seqs) == 5  # outlier included: tolerance 40bp >= 30bp distance
+
+
+# --- consensus_concordance: real hybrid read-support evidence for the per-allele
+# "confidence" concern (the ladder's classify.py confidence is a dictionary-fit
+# heuristic fed the same way for both engines and says nothing about how well hybrid's
+# own reads support the consensus it built; this is the meaningful alternative). A
+# per-position *mean* concordance is used rather than a per-unit unanimity requirement:
+# at real hybrid read depths (dozens to thousands of spanning reads), requiring every
+# single covering read to agree on every base of a unit collapses to ~0 almost
+# everywhere once realistic per-base noise is present, however good the consensus
+# actually is -- confirmed on real reconstructed alleles during this fix.
+
+
+def test_consensus_concordance_is_one_when_every_read_matches_consensus_exactly() -> None:
+    cons = "ACGTAC" * 3
+    reads = [cons] * 8
+    assert consensus_concordance(cons, reads, None) == 1.0
+
+
+def test_consensus_concordance_is_the_mean_per_base_agreement_rate() -> None:
+    unit = 10
+    cons = "A" * unit + "C" * unit
+    agreeing = "A" * unit + "C" * unit
+    disagreeing = "A" * unit + "G" * unit  # mismatches the consensus in the second half
+    full = [agreeing] * 5 + [disagreeing] * 1  # 5/6 reads agree wherever they disagree
+    # First half: 6/6 agree at every position (score 1.0). Second half: 5/6 agree at
+    # every position (score 5/6). Mean over all 20 positions:
+    expected = (unit * 1.0 + unit * (5 / 6)) / (2 * unit)
+    assert consensus_concordance(cons, full, None) == pytest.approx(expected)
+
+
+def test_consensus_concordance_treats_an_uncovered_region_as_zero_there() -> None:
+    unit = 10
+    cons = "A" * unit + "C" * unit
+    partial = ["A" * unit]  # an infix/partial read covering only the first half
+    # First half: fully covered and unanimous (score 1.0 at each position). Second
+    # half: no coverage at all, so it contributes 0 (fail-closed) -- mean is 0.5.
+    assert consensus_concordance(cons, [], partial) == 0.5
+
+
+def test_consensus_concordance_is_zero_with_no_covering_reads() -> None:
+    cons = "A" * 10 + "C" * 10
+    assert consensus_concordance(cons, [], None) == 0.0
 
 
 def test_polish_rounds_come_from_the_caller() -> None:

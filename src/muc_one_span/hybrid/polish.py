@@ -143,6 +143,41 @@ def homopolymer_vote(
     return "".join(out), changes
 
 
+def consensus_concordance(cons: str, full: list[str], partial: list[str] | None) -> float:
+    """Mean per-base concordance between the final consensus and its covering reads.
+
+    For every consensus position, this is the fraction of covering reads whose base
+    there agrees with the consensus; the returned value is that fraction averaged over
+    every position of ``cons``. This is real hybrid read-support evidence -- how well,
+    on average, the polished consensus is backed by the reads that built/polished it --
+    unlike the ladder's ``classify.py`` per-repeat ``confidence``, which only scores
+    structural fit against the repeat dictionary, is fed the same way regardless of
+    engine, and so says nothing about the hybrid engine's own reconstruction evidence
+    (see ``hybrid/allele_fields.py::allele_info``, which reports this alongside a
+    ``classification_confidence_status`` marker).
+
+    An earlier version of this evidence required *unanimous* per-``unit_bp``-block
+    agreement; at the read depths the hybrid engine routinely reconstructs from
+    (dozens to thousands of spanning reads), realistic per-base sequencing noise means
+    at least one covering read disagrees somewhere in nearly every block, collapsing
+    that stricter definition to ~0 regardless of how good the consensus actually is
+    (confirmed on real reconstructed alleles). A per-position mean does not have that
+    problem: it stays informative at any depth. A position with no covering read
+    contributes 0 (fail-closed), matching the rest of this project's evidence handling.
+    """
+    n = len(cons)
+    if n == 0:
+        return 1.0
+    match = [0] * n
+    cover = [0] * n
+    for _read, proj, _is_partial in _projections(cons, full, partial or []):
+        for pos in range(proj.first, proj.last):
+            cover[pos] += 1
+            if proj.cols[pos] == cons[pos]:
+                match[pos] += 1
+    return sum(match[i] / cover[i] if cover[i] else 0.0 for i in range(n)) / n
+
+
 def polish(
     cons: str,
     full: list[str],
