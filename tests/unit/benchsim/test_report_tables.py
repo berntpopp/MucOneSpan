@@ -94,3 +94,9 @@ def test_build_tables_has_all_metrics_and_failure_atlas() -> None:
     text = render_engine_tables(tables)
     assert "cluster bootstrap" in text and "metric 3" in text and "metric 4" in text
     assert "failure atlas: pcr" in text
+
+
+def test_failure_atlas_is_stratified_by_event() -> None:
+    assert "event" in STRATA
+    atlas = build_tables(ROWS, n_boot=10)["stratified"]["failure atlas: event"]
+    assert {t["stratum"]["event"] for t in atlas} >= {"dupC"}

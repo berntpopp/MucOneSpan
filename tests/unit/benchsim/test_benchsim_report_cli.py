@@ -273,3 +273,24 @@ def test_realism_profile_without_targets(tmp_path: Path, monkeypatch: pytest.Mon
     assert cli.main(["realism", "--split", "dev", "--out-root", str(tmp_path / "data")]) == 0
     out = json.loads((tmp_path / "data" / "dev" / "realism.json").read_text())
     assert out["profiles"]["ont_amplicon_r10"]["compare"] is None
+
+
+def test_realism_test_split_needs_preregistration_and_marks_first_evaluation(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    cli = _cli(tmp_path, monkeypatch)
+    _split(tmp_path, "test")
+    monkeypatch.setattr(cli, "case_metrics", lambda *a, **k: {})
+    monkeypatch.setattr(cli, "realism_aggregate", lambda cases: {"n_cases": len(cases)})
+    monkeypatch.setattr(cli, "realism_compare", lambda m, t, p: {})
+    monkeypatch.setattr(cli, "load_targets", lambda: {})
+    argv = ["realism", "--split", "test", "--out-root", str(tmp_path / "data")]
+    with pytest.raises(SystemExit, match="pre-regist"):
+        cli.main(argv)
+    marker = tmp_path / "data" / "test" / "first_evaluation.json"
+    assert not marker.exists()
+    cli.main(["preregister", "--out-root", str(tmp_path / "data")])
+    assert cli.main(argv) == 0
+    assert marker.is_file()  # realism reads test truth, so it unseals test too
+    with pytest.raises(SystemExit, match="already evaluated"):
+        cli.main(["preregister", "--out-root", str(tmp_path / "data")])

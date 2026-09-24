@@ -260,7 +260,7 @@ def cmd_evaluate(args: argparse.Namespace) -> int:
     """Score each engine's results with ``scripts/evaluate.py`` into ``evaluation.json``."""
     root = out_root(args)
     audit = _guard_sealed(args.split, root)  # before any truth is read
-    if audit is not None:
+    if audit is not None:  # marked before scoring starts (conservative: a failed run counts)
         audit["test_first_evaluated_at"] = mark_first_evaluation(_prereg_path(root))
     results, split_dir = _results_root(args, root), root / args.split
     run = evaluate_run or _load_evaluate().run
@@ -326,7 +326,8 @@ def cmd_report(args: argparse.Namespace) -> int:
 def cmd_realism(args: argparse.Namespace) -> int:
     """Task 9 realism metrics over a split, aggregated and compared per profile."""
     root = out_root(args)
-    _guard_sealed(args.split, root)
+    if _guard_sealed(args.split, root) is not None:
+        mark_first_evaluation(_prereg_path(root))  # realism reads test truth: unseals
     split_dir = root / args.split
     per_profile: dict[str, list[dict[str, Any]]] = {}
     failures = []

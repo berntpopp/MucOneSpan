@@ -67,7 +67,17 @@ FALSE_NEGATIVE_DECISIONS = frozenset({"NO_PATHOGENIC_VARIANT_DETECTED", "NO_CALL
 NI_MARGIN = 0.005
 ALPHA = 0.05
 HOLM_FAMILY = ("allele_exact", "false_positive", "critical_false_negative")
-STRATA = ("profile", "delta_class", "depth", "composition", "pcr", "smear", "chimera", "error")
+STRATA = (
+    "profile",
+    "event",
+    "delta_class",
+    "depth",
+    "composition",
+    "pcr",
+    "smear",
+    "chimera",
+    "error",
+)
 ALLELE_UNIT = ("sample", "allele")
 
 RULE_TEXT = (

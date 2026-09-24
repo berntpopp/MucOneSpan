@@ -5,7 +5,9 @@
 ever appended, under an exclusive lock and fsync. The first scoring of ``test``
 writes ``first_evaluation.json`` beside it (exclusive create, never rewritten);
 from then on a new pre-registration is refused, so a rule cannot be registered
-after the test truth has been seen.
+after the test truth has been seen. The marker is written *before* the scoring
+(``evaluate``) or truth reading (``realism``) starts, so an evaluation that later
+fails still counts as unsealing: conservative by design.
 """
 
 from __future__ import annotations
