@@ -175,3 +175,79 @@ regular matching loop; arbitrary noncanonical layout reconstruction is not
 scientifically validated. An explicit FASTA must match its generating dictionary
 and flank configuration; the pipeline does not yet prove complete reference
 compatibility from the FASTA alone.
+
+## Hybrid Engine (Experimental)
+
+`--engine hybrid` is **experimental and not the default engine**; `ladder`
+remains the default until the benchmark decision rule is met on the sealed
+test split. Every `hybrid.*` default (see the
+[configuration guide](../guides/configuration.md#hybrid-engine-experimental))
+is provisional and tuned on development/validation splits only. The numbers
+below come from internal regression runs on a development branch (frozen
+simulated panels, PRJEB92208, and in-house genomic data whose outputs stay
+outside the repository); they are not part of the automated test suite and
+are not a calibration or release claim.
+
+### Detection limits
+
+- **Equal-length heterozygotes near the `het_af_min` floor.** A minor allele
+  fraction below `hybrid.het_af_min` (default 0.2, valid range [0.01, 0.5])
+  never forms a phase-split candidate site. At the default, a minor allele at
+  roughly 15-20% of an equal-length pair produces a silent `none` split (no
+  flag), because `het_af_min` is set above `het_min_group` (0.15) by design.
+  Detecting or at least flagging that edge needs either a lower `het_af_min`
+  (calibration) or an explicit low-AF flag rule.
+- **True dupC mixtures with high deletion stutter.** `hybrid.event_max_alternative_frac`
+  (default 0.25) rejects a homopolymer event whose no-event mixture weight
+  exceeds it. On simulated HiFi data with unusually high C7 deletion stutter
+  at the true C8 run (about 31-32% of reads showing C7, against only 7-8%
+  deletion stutter at background C7 runs of the same sample), the true dupC
+  event's estimated alternative share reached 0.263-0.284 and became
+  `discordant` (INCONCLUSIVE) rather than `supported` (PATHOGENIC) at the
+  default threshold -- a safe direction (no wrong call), but a sensitivity
+  cost. On real ONT amplicon reads (PRJEB92208 dupC positives), the same
+  mixture fit stayed well inside the default margin (alternative share
+  0.08-0.13). Run-length-dependent stutter cannot be told apart from a true
+  mixture using run length alone; `event_max_alternative_frac` is a
+  calibration trade-off, not yet tuned against a sealed evaluation.
+- **Residual single-base HiFi consensus misses.** On a 40-case frozen
+  simulated panel (`simpanel`), 77/80 alleles were sequence-exact at commit
+  `ca81a97` (see "Validation numbers" below); every mutation event and every
+  allele count was still correct, and each inexact allele carried its own
+  `residual_sites` flag. The misses are single-base indels in
+  homopolymer-adjacent contexts
+  (`GCG CCC G CA`, `GCG C5 A`) where the simulated reads' own majority differs
+  from the simulator's ground truth by one base (a data property, not a
+  decision error), plus one case where a substituted base and its neighbouring
+  insertion slot are split across two separate pileup-vote columns. Neither
+  failure mode changed a clinical call.
+- **PRJEB92208 ONT amplicon negatives.** Most amplicon runs on that dataset
+  produce several length peaks below `hybrid.min_peak_reads`/
+  `far_peak_min_frac`/`near_peak_min_frac` from PCR-smear reads, so sample
+  `selection_status` is usually `unresolved_rejected_peak`. That correctly
+  blocks a NEGATIVE result (no false reassurance) but also means most
+  amplicon runs without a pathogenic event end up INCONCLUSIVE rather than
+  NEGATIVE: internally, about 6 of 9 amplicon runs reached a callable
+  (non-`unresolved_rejected_peak`) primary-amplicon selection. No pathogenic
+  call was produced on a known-negative sample.
+
+### Validation numbers
+
+Two internal validation passes describe this engine, both on branch
+`feat/hybrid-engine`: one at commit `2b0072b` (before the Task 13b evidence
+fix) and one after it, at commit `ca81a97`. The numbers below are the
+after-fix (`ca81a97`) state.
+
+| Check | Result |
+| --- | --- |
+| Frozen simulated dev panel, alleles sequence-exact | 77/80 (mutations detected 24/24). One case names an extra, read-support-`discordant` variant alongside the correct causative event from a residual 1-base consensus error; the clinical decision (PATHOGENIC on the true event) is unaffected, but the panel's by-name mutation scorer counts it as a false positive. |
+| Frozen simulated held-out panel, alleles sequence-exact | 77/80 (mutations detected 28/28) |
+| PRJEB92208 known dupC-positive controls | PATHOGENIC with `read_support.status == "supported"` on all of them |
+| PRJEB92208 HG002 vs. an independent full-sequence assembly | both alleles literal sequence-exact |
+| PRJEB92208 non-dupC samples | none reached PATHOGENIC |
+| In-house ONT genomic samples | no phantom fragment alleles; a low-spanning-depth dupC sample reported INCONCLUSIVE (insufficient depth), not PATHOGENIC or NEGATIVE |
+
+These are development-branch regression runs, not a release validation: the
+frozen-panel gate for this engine (>=80/80 sequence-exact) was not met, the
+public PRJEB92208 benchmark record was not refreshed after the Task 13b
+evidence fix, and the sealed test split was never used to tune a default.

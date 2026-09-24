@@ -133,6 +133,82 @@ The **allele confidence** is the mean of all per-repeat confidences. VCF cross-v
 
 ---
 
+## Hybrid Engine (Experimental)
+
+`muconespan run --engine hybrid` replaces stages 2-5 above with a read-centric
+reconstruction that never invokes minimap2, Clair3 or bcftools for FASTQ input
+(a BAM input still needs `samtools` to extract primary reads). It is
+**experimental and not the default**: `ladder` remains the default engine until
+the benchmark decision rule is met on the sealed test split, and
+`--report-igv` is unavailable with `--engine hybrid` because a hybrid run
+produces no BAM alignment tracks.
+
+!!! warning "Experimental, not the default"
+    `--engine hybrid` is opt-in. Every `hybrid.*` setting default is
+    provisional (prototype-derived) and tuned on development/validation splits
+    only -- never on the sealed test split. See the
+    [configuration guide](../guides/configuration.md#hybrid-engine-experimental)
+    for every setting and the
+    [known limitations](../reference/limitations.md#hybrid-engine-experimental)
+    for measured detection limits.
+
+### Stages
+
+```mermaid
+graph TD
+    A["Input reads<br/>(FASTQ/.gz, or BAM primary reads)"] --> S1["S1 Anchor + categorize<br/>motif-1/motif-9 edlib search,<br/>flank-anchor fallback"]
+    S1 --> S2["S2 Length model<br/>KDE over spanning-read lengths;<br/>smear test; rejected peaks"]
+    S2 --> S3["S3 Draft consensus<br/>POA (pyabpoa/pyspoa) on a<br/>random near-modal sample"]
+    S3 --> S4["S4 Phase split<br/>linked, strand-consistent sites<br/>(majority vote, not EM)"]
+    S4 --> S5["S5/S6 Hybrid reference + assignment<br/>ladder-flanked draft; every read<br/>assigned by edit-distance margin"]
+    S5 --> S7["S7 Polish<br/>pileup majority vote +<br/>homopolymer median vote"]
+    S7 --> S8["S8 Residual QC<br/>minor-allele consensus columns"]
+    S7 --> S9["S9 Classify<br/>existing classify_sequence,<br/>unchanged"]
+    S9 --> S10["S10 Event read support<br/>per-event competition or<br/>stutter-aware mixture fit"]
+    S8 --> S11["S11 Outputs<br/>alleles.json, consensus_*.fa,<br/>hybrid_reads.json, summary['hybrid']"]
+    S10 --> S11
+```
+
+This implementation deviates from the original design in a few recorded ways
+(`hybrid/engine.py`'s module docstring):
+
+- no ladder-assisted length prior and no ladder-seeded consensus for
+  low-depth peaks (S2/S3);
+- `depth_status` is judged on spanning reads only (assigned-but-not-spanning
+  reads are not yet an alternative depth basis);
+- per-event read-level support (S10) uses the spanning members assigned to an
+  allele, not every assigned read;
+- the phase split (S4) uses a majority vote over linked sites, not the
+  prototype's EM read-phasing;
+- there is no optional Clair3-on-own-consensus QC step.
+
+### Evidence, not a silent call
+
+Every stage that discards or cannot resolve something records why, instead of
+staying silent:
+
+- **Per sample** (`summary["hybrid"]`): `read_categories` (`spanning`,
+  `left_anchored`, `right_anchored`, `internal_or_offtarget`), `rejected_peaks`
+  (each candidate length peak that did not become an allele, with its reason:
+  `noise`, `smear`, `smear_ambiguous`, `support_below_threshold`,
+  `max_alleles`), `undecided_reads`, `off_target_reads`,
+  `unassigned_spanning_fraction`, `short_product_fraction`,
+  `selection_status`, `poa_backend`.
+- **Per allele**: `spanning_reads`, `assigned_reads`, `depth_status`
+  (`adequate`/`low`/`insufficient`), `selection_status`
+  (`resolved` or an `unresolved_*` reason), `split_basis`, `phase_status`,
+  `residual_sites`, `consensus_concordance_fraction`.
+- **Per event**: `read_support` -- read-level counts and a status
+  (`supported`/`insufficient_depth`/`discordant`/`not_supported`/
+  `not_localized`) computed directly from the reads assigned to that allele.
+
+The [configuration guide](../guides/configuration.md#hybrid-engine-experimental)
+describes every field and setting; the
+[limitations page](../reference/limitations.md#hybrid-engine-experimental)
+describes measured detection limits and validation numbers.
+
+---
+
 ## Next Steps
 
 - **[Differences from the Published Method](deviations.md)** -- What changed and why

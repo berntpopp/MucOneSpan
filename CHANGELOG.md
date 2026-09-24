@@ -7,6 +7,39 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+### Added
+
+- `--engine hybrid` (experimental) and `--assay {amplicon,genomic}` for
+  `muconespan run`: a read-centric allele reconstruction path (motif
+  anchoring, a length model, partial-order-alignment consensus, linked-site
+  phase splitting, all-read assignment, polishing, and per-event read-level
+  support) that runs no minimap2, Clair3 or bcftools for FASTQ input. `ladder`
+  stays the default engine until the benchmark decision rule is met on the
+  sealed test split; `--report-igv` is rejected with `--engine hybrid`.
+- Optional extra `hybrid` (`edlib`, `pyabpoa`, `pyspoa`) and its settings
+  section (`hybrid.*`, `HybridSettings`); see the configuration guide.
+- Additive hybrid evidence fields: per-allele `spanning_reads`,
+  `assigned_reads`, `depth_status`, `depth_basis`, `selection_status`,
+  `selection_detail`, `split_basis`, `phase_status`,
+  `consensus_concordance_fraction`, `classification_confidence_status`;
+  per-sample `summary["hybrid"]` (read categories, rejected length peaks,
+  `undecided_reads`, `off_target_reads`, unassigned/short-product fractions,
+  POA backend and package versions); per-mutation `read_support` (kind,
+  counts, fractions, `alternative_frac`, status).
+
+### Fixed
+
+- `depth_status` values other than `"adequate"` (including `"insufficient"`,
+  previously ungated), `allele_genotype_status ==
+  "residual_heterogeneity"`, and a `read_support.status` other than
+  `"supported"` now gate the clinical decision through the shared evidence
+  gates in `clinical_gates.py`.
+
+### Changed
+
+- The `run` command moved from `cli.py` to `cli_run.py`; `from
+  muc_one_span.cli import run` keeps working.
+
 ## [0.16.0] - 2026-09-24
 
 ### Fixed

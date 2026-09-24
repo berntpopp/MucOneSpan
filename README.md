@@ -28,6 +28,8 @@ muconespan run \
 
 For Oxford Nanopore reads, add `--platform ont` and use a matching Clair3 model.
 
+Add `--engine hybrid` (needs the optional `hybrid` extra) for the experimental read-centric reconstruction engine; it is not the default, see the [configuration guide](https://berntpopp.github.io/MucOneSpan/guides/configuration/#hybrid-engine-experimental).
+
 ## Acknowledgment
 
 MucOneSpan draws on some ideas from [Vrbacka et al. (2025)](https://doi.org/10.1101/2025.09.06.673538).
