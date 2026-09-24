@@ -334,7 +334,12 @@ def test_preflight_runs_create_report_on_a_synthetic_locus(tmp_path: Path) -> No
         preflight_igv_report(REPORT_IGV_EMBEDDED, tmp_path)
     assert seen["mode"] == REPORT_IGV_EMBEDDED
     assert seen["fasta"].startswith(">probe\n")
-    assert "probe\t150\t.\tC\tT" in seen["vcf"]
+    assert "probe\t550\t.\tC\tA" in seen["vcf"]
+    assert "probe\t600\t.\tT\tA" in seen["vcf"]
+    # The igv-reports 1.16.x header-concatenation defect is only reproduced
+    # with 2+ VCF records; a single-record probe does not trigger it.
+    data_records = [line for line in seen["vcf"].splitlines() if line and not line.startswith("#")]
+    assert len(data_records) >= 2
     assert list(tmp_path.iterdir()) == []
 
 

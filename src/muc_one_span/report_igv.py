@@ -259,9 +259,11 @@ def run_igv_report(
 def preflight_igv_report(report_igv: str, work_dir: Path) -> None:
     """Fail before analysis when the requested IGV report cannot be produced.
 
-    Runs ``create_report`` once on a synthetic one-record locus in a temporary
-    directory, reusing :func:`run_igv_report` validation. A missing executable or
-    a version that corrupts VCF tracks (observed with igv-reports 1.16.x) then
+    Runs ``create_report`` once on a synthetic locus with two VCF records in a
+    temporary directory, reusing :func:`run_igv_report` validation. A missing
+    executable, or a version that concatenates the first variant record into
+    the VCF column header when embedding it (observed with igv-reports
+    1.16.x; reproduced only with 2+ records, not a single-record VCF), then
     stops the run before mapping instead of after the analysis has completed.
 
     The probe locus is built with :func:`create_locus_bed` so it respects the
@@ -281,10 +283,16 @@ def preflight_igv_report(report_igv: str, work_dir: Path) -> None:
         bed_path = create_locus_bed(
             fasta_path, root / "probe.bed", contig_names=["probe"], locus_name="probe"
         )
+        # Two records, well inside the 501-700 margin-respecting locus: a
+        # single-record VCF does not reproduce the header-concatenation defect.
+        records = []
+        for pos in (550, 600):
+            ref = sequence[pos - 1]
+            alt = next(base for base in "ACGT" if base != ref)
+            records.append(f"probe\t{pos}\t.\t{ref}\t{alt}\t30\tPASS\t.\n")
         (root / "probe.vcf").write_text(
             "##fileformat=VCFv4.2\n##contig=<ID=probe,length=1200>\n"
-            "#CHROM\tPOS\tID\tREF\tALT\tQUAL\tFILTER\tINFO\n"
-            f"probe\t150\t.\t{sequence[149]}\tT\t30\tPASS\t.\n",
+            "#CHROM\tPOS\tID\tREF\tALT\tQUAL\tFILTER\tINFO\n" + "".join(records),
             encoding="utf-8",
         )
         try:
