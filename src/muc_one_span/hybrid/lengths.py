@@ -107,7 +107,7 @@ def _region_background(
 def _smear_zone(bg: _Background, n_total: int, settings: HybridSettings) -> str:
     """Where the candidate's excess over the expected smear count falls, normalised by
     total depth (not top-peak support, which itself shrinks with smear_frac -- N1)."""
-    excess_frac = (bg.inside - bg.expected) / max(n_total, settings.smear_background_floor)
+    excess_frac = (bg.inside - bg.expected) / n_total
     if excess_frac < settings.smear_explained_frac:
         return "explained"
     if excess_frac < settings.smear_confident_frac:
@@ -126,13 +126,18 @@ def _reason(
 ) -> str | None:
     """None when the candidate is accepted, else the rejection reason.
 
-    One smear model (C4.2 round 2) decides every below-top outcome from the observed
+    One smear model (C4.2, rounds 2-3) decides every below-top outcome from the observed
     background density, normalised by total depth: a candidate explained by smear, or
     with too little background to judge *and* too little support to matter either way,
     stays silent 'smear'; a candidate that clears the allele-support threshold despite
-    that (real signal, or too little background but real support) is accepted; short of
-    it is support_below_threshold (gate-relevant, this is F2); the residual uncertain
-    band between explained and confident is smear_ambiguous (gate-relevant).
+    that (real signal, or too little background to judge at all but real support -- R1,
+    fix round 3) is accepted; short of it is support_below_threshold (gate-relevant,
+    this is F2); the residual uncertain band between explained and confident is
+    smear_ambiguous (gate-relevant). A candidate with ``support >= min_peak_reads`` and
+    a positive excess over the expected smear count is never silently 'smear' regardless
+    of that band (R2, fix round 3): partly-explained becomes smear_ambiguous instead.
+    The allele-support threshold is ``max(min_peak_reads, frac * n_total)`` -- total
+    depth, not the top peak's own support (spec S2: "n_min, f_far/near * N").
     """
     if support <= settings.rejected_peak_noise_reads:
         return "noise"
@@ -146,11 +151,15 @@ def _reason(
         bg = _region_background(c, top, lengths, settings, unit_bp)
         if bg.expected >= settings.smear_min_expected:
             zone = _smear_zone(bg, n_total, settings)
-            explained, ambiguous = zone == "explained", zone == "ambiguous"
+            never_smear = support >= settings.min_peak_reads and support > bg.expected  # R2
+            explained = zone == "explained" and not never_smear
+            ambiguous = zone == "ambiguous" or (zone == "explained" and never_smear)
         elif support < settings.smear_low_background_min_support:
             explained = True
-        elif support >= allele_threshold:
-            ambiguous = True
+        # else: too little background anywhere near `c` to judge explainability at all;
+        # fall through to the ordinary support/accept decision below (R1) -- a clean,
+        # isolated candidate that already clears the allele threshold is accepted, not
+        # marked ambiguous merely for having no background to compare against.
     if explained:
         return "smear"
     if ambiguous:

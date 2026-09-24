@@ -325,7 +325,6 @@ class HybridSettings:
     min_peak_reads: int = 8
     far_peak_min_frac: float = 0.03
     near_peak_min_frac: float = 0.20
-    smear_min_prominence: float = 3.0
     rejected_peak_noise_reads: int = 2
     n_poa: int = 40
     poa_backend: str = "pyabpoa"
@@ -399,7 +398,6 @@ class HybridSettings:
         _integer("hybrid.flank_anchor_edit_floor", self.flank_anchor_edit_floor, 0)
         _number("hybrid.peak_window_base_bp", self.peak_window_base_bp, 1)
         _number("hybrid.peak_window_per_unit_bp", self.peak_window_per_unit_bp)
-        _number("hybrid.smear_min_prominence", self.smear_min_prominence, 1)
         for name in (
             "far_peak_min_frac",
             "near_peak_min_frac",

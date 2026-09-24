@@ -29,11 +29,7 @@ def test_hybrid_defaults() -> None:
         0.15,
         0.2,
     )
-    assert (h.smear_min_prominence, h.rejected_peak_noise_reads, h.hp_min_strand_reads) == (
-        3.0,
-        2,
-        5,
-    )
+    assert (h.rejected_peak_noise_reads, h.hp_min_strand_reads) == (2, 5)
     assert (DEFAULT_SETTINGS.run.engine, DEFAULT_SETTINGS.run.assay) == ("ladder", "amplicon")
 
 
@@ -79,7 +75,6 @@ def test_hybrid_smear_model_defaults_unchanged() -> None:
         ("het_af_min", 0.9),
         ("poa_backend", "medaka"),
         ("assign_max_error_rate", 1.5),
-        ("smear_min_prominence", 0.5),
         ("max_span_units", 10),
         ("depth_adequate_spanning", 5),
         ("hp_vote", 1),
