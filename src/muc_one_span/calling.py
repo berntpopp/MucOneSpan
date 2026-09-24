@@ -333,7 +333,7 @@ def disambiguate_same_length_alleles(
         if split_result is not None:
             hp1_bam, hp2_bam, hp1_count, hp2_count = split_result
             per_allele_threads = max(1, threads // 2)
-            hp_filter, _ = _haploid_filter(min_qual, settings)
+            hp_filter, hp_provenance = _haploid_filter(min_qual, settings)
 
             def _call_hp(hp_key: str, hp_bam: Path) -> tuple[str, Path]:
                 hp_dir = merged_dir / hp_key
@@ -370,38 +370,36 @@ def disambiguate_same_length_alleles(
             calls_2 = {(v["chrom"], v["pos"], v["ref"], v["alt"]): v["genotype"] for v in v_2}
             is_distinct = calls_1 != calls_2
 
+            identity = "resolved_distinct" if is_distinct else "unresolved"
             alleles["homozygous"] = not is_distinct
-            alleles["sequence_identity_status"] = (
-                "resolved_distinct" if is_distinct else "unresolved"
-            )
+            alleles["sequence_identity_status"] = identity
             alleles["phase_status"] = "phased"
-
-            ev_1 = phase_evidence(v_1)
-            s_1 = v_1[0].get("sample") if v_1 else None
-            annotate_consensus_candidate(
-                alleles["allele_1"], ev_1, 1, s_1, str(hp_results["allele_1"])
-            )
-            alleles["allele_1"]["read_phasing"] = read_phasing
-            alleles["allele_1"]["reads"] = hp1_count
-            alleles["allele_1"]["independent_haplotype_evidence"] = True
-            alleles["allele_1"]["sequence_identity_status"] = (
-                "resolved_distinct" if is_distinct else "unresolved"
-            )
 
             if "allele_2" not in alleles:
                 alleles["allele_2"] = copy.deepcopy(allele_info)
             alleles["allele_2"].pop("candidate_duplicate_of", None)
-            ev_2 = phase_evidence(v_2)
-            s_2 = v_2[0].get("sample") if v_2 else None
-            annotate_consensus_candidate(
-                alleles["allele_2"], ev_2, 1, s_2, str(hp_results["allele_2"])
-            )
-            alleles["allele_2"]["read_phasing"] = read_phasing
-            alleles["allele_2"]["reads"] = hp2_count
-            alleles["allele_2"]["independent_haplotype_evidence"] = True
-            alleles["allele_2"]["sequence_identity_status"] = (
-                "resolved_distinct" if is_distinct else "unresolved"
-            )
+            for key, hp_variants, hp_count in (
+                ("allele_1", v_1, hp1_count),
+                ("allele_2", v_2, hp2_count),
+            ):
+                # Each haplotag partition holds one haplotype: apply the same
+                # length-partition selection as distinct-length calling (#53).
+                hp_evidence = phase_evidence(hp_variants)
+                hp_sample = hp_variants[0].get("sample") if hp_variants else None
+                selector, genotype_status, heterozygous = length_partition_selection(
+                    hp_variants, hp_evidence
+                )
+                allele = alleles[key]
+                annotate_consensus_candidate(
+                    allele, hp_evidence, selector, hp_sample, str(hp_results[key])
+                )
+                allele["read_phasing"] = read_phasing
+                allele["reads"] = hp_count
+                allele["allele_genotype_status"] = genotype_status
+                allele["heterozygous_sites"] = heterozygous
+                allele["independent_haplotype_evidence"] = selector == 1
+                allele["variant_filter"] = hp_provenance
+                allele["sequence_identity_status"] = identity
 
             return hp_results
 

@@ -132,10 +132,10 @@ rule can still apply `boundary_penalty` to a terminal repeat.
 | --- | --- | --- |
 | `calling.sample_name` | `"sample"` | VCF sample name; nonempty, without whitespace or control characters. |
 | `calling.read_phase` | `false` | Explicit opt-in to experimental same-length read phasing. |
-| `calling.haploid_majority` | `true` | Apply the allele-fraction genotype rule to length-partitioned (and haplotagged) calls. With `false`, diploid genotypes are kept, and any heterozygous record then leaves the allele unresolved. |
-| `calling.haploid_min_qual` | `4.0` | QUAL threshold for length-partitioned calls; number >=0 or `null`. `null` applies `run.min_qual`/`--min-qual`. A non-default `--min-qual` that this value overrides is logged. The applied value is recorded in `alleles.json` as `variant_filter`. |
+| `calling.haploid_majority` | `true` | Apply the allele-fraction genotype rule to length-partitioned calls and to read-phased (haplotagged) haplotype calls. With `false`, diploid genotypes are kept on both paths, and any heterozygous record then leaves that allele unresolved (IUPAC candidate, no independent haplotype credit). |
+| `calling.haploid_min_qual` | `4.0` | QUAL threshold for length-partitioned and read-phased haplotype calls; number >=0 or `null`. `null` applies `run.min_qual`/`--min-qual`. A non-default `--min-qual` that this value overrides is logged. The applied value is recorded in `alleles.json` as `variant_filter`. |
 | `calling.haploid_alt_fraction` | `0.5` | Length-partitioned and read-phased haploid calls: the ALT fraction of allele-specific reads (`FORMAT/AD`) at or above which the genotype becomes ALT. Number in [0,1]. |
-| `calling.haploid_ref_fraction` | `0.2` | Length-partitioned and read-phased haploid calls: ALT fraction below which the genotype becomes REF (`0/0`). Values in between keep the heterozygous call, which stays unresolved. Must be below `haploid_alt_fraction`. |
+| `calling.haploid_ref_fraction` | `0.2` | Length-partitioned and read-phased haploid calls: ALT fraction below which the genotype becomes REF (`0/0`). Values in between keep the heterozygous call, which leaves that allele unresolved on both paths. Must be below `haploid_alt_fraction`. |
 | `read_phasing.internal_downsampling` | `null` | Optional WhatsHap internal downsampling override; integer >=1. |
 | `read_phasing.mapping_quality` | `null` | Optional WhatsHap mapping-quality override; integer >=0. |
 

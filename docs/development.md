@@ -233,7 +233,8 @@ Single-site heterozygosity permits an unordered pair; multiple heterozygous loci
 require one common phase set before genotype-index haplotypes are emitted. This
 implements the [bcftools consensus selectors](https://samtools.github.io/bcftools/bcftools.html#consensus)
 with additional phase checks; bcftools selectors alone do not establish phase.
-Distinct-length candidates are length-partitioned haplotypes. After the
+Distinct-length candidates, and the two haplotag partitions of experimental
+read-backed phase, are length-partitioned haplotypes. After the
 allele-fraction rule, any remaining heterozygous record (single-site, phased or
 multi-site) or any conflicting record selects `I`. The allele records
 `allele_genotype_status` (`heterozygous_within_length_partition` or
