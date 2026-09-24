@@ -229,23 +229,32 @@ are not a calibration or release claim.
   amplicon runs without a pathogenic event end up INCONCLUSIVE rather than
   NEGATIVE: internally, about 6 of 9 amplicon runs reached a callable
   (non-`unresolved_rejected_peak`) primary-amplicon selection (measured at
-  commit `2b0072b`, before the Task 13b evidence fix; that fix only changed
-  read-support scoring, not length-peak or selection-status logic, but this
-  figure itself was not re-run at `ca81a97`). No pathogenic call was produced
-  on a known-negative sample.
+  commit `2b0072b`, before the Task 13b fix; that fix (`git diff
+  2b0072b..ca81a97`) touched only `hybrid/evidence.py`,
+  `hybrid/polish.py` (the homopolymer consensus vote) and
+  `settings_hybrid.py` (two new settings) -- not `hybrid/lengths.py`
+  (length-peak selection) or `hybrid/allele_fields.py` (`selection_status`)
+  -- but this figure itself was not re-run at `ca81a97`). No pathogenic call
+  was produced on a known-negative sample.
 
 ### Validation numbers
 
 Two internal validation passes describe this engine, both on branch
-`feat/hybrid-engine`: one at commit `2b0072b` (before the Task 13b read-support
-evidence fix) and one after it, at commit `ca81a97`. The Task 13b fix only
-changed `hybrid/evidence.py` (per-event read-level support); the frozen
-simulated panels and the 9-library PRJEB92208 **amplicon** run were
-re-executed afterward and are reported at `ca81a97` below. The PRJEB92208
-**genomic/WGS** invocations, the in-house genomic runs, and the
-`clinical_benchmark.py`-scored sequence-exactness check were run once, at
-`2b0072b`, and were **not** re-run after the fix -- each row below states
-which commit it was measured on.
+`feat/hybrid-engine`: one at commit `2b0072b` (before the Task 13b fix) and
+one after it, at commit `ca81a97`. The Task 13b fix (`git diff
+2b0072b..ca81a97`) changed `hybrid/evidence.py` (per-event read-level
+support: the event vs. no-event vs. read-derived-alternative comparison and
+the homopolymer stutter mixture fit), `hybrid/polish.py` (the homopolymer
+consensus vote counts only reads that observe a run cleanly, so a read that
+merges the run with its neighbour no longer votes) and `settings_hybrid.py`
+(`event_context_units`, `event_max_alternative_frac`); it did not touch
+`hybrid/lengths.py` (length-peak selection) or `hybrid/allele_fields.py`
+(sample `selection_status`). The frozen simulated panels and the 9-library
+PRJEB92208 **amplicon** run were re-executed afterward and are reported at
+`ca81a97` below. The PRJEB92208 **genomic/WGS** invocations, the in-house
+genomic runs, and the `clinical_benchmark.py`-scored sequence-exactness
+check were run once, at `2b0072b`, and were **not** re-run after the fix --
+each row below states which commit it was measured on.
 
 **Re-verified after the fix (commit `ca81a97`):**
 
