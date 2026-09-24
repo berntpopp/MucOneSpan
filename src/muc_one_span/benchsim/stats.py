@@ -214,16 +214,19 @@ def cluster_bootstrap(
     n: int = 2000,
     seed: int = 0,
 ) -> tuple[float, float, float]:
-    """Two-stage cluster bootstrap: point estimate plus (2.5th, 97.5th) percentile CI.
+    """Cluster bootstrap: point estimate plus (2.5th, 97.5th) percentile CI.
 
     Point estimate is the plain mean of `value(row)` over all `rows`. Each of
     the `n` bootstrap replicates resamples cluster keys with replacement
-    (`len(groups)` draws), then, for every selected cluster occurrence,
-    resamples that cluster's own rows with replacement too — a within-cluster
-    resample is required so that clusters with mixed-but-balanced composition
-    (e.g. every cluster containing one 0 and one 1) still yield a
-    non-degenerate bootstrap distribution instead of a point mass at the
-    cluster mean.
+    (`len(groups)` draws from `random.Random(seed)`) and recomputes the
+    statistic over every row of the resampled clusters — each selected
+    cluster's own rows are used intact, not themselves resampled, since the
+    cluster (not the row) is the exchangeable unit. Clusters with identical
+    composition (e.g. every cluster contributing the same multiset of
+    values) therefore give a degenerate CI (`lo == hi == point`): resampling
+    which cluster is picked cannot change the pooled composition. That is
+    correct cluster-bootstrap behaviour, not a bug — see
+    `test_cluster_bootstrap_identical_clusters_is_degenerate`.
     """
     groups: dict[Any, list[dict[str, Any]]] = {}
     for row in rows:
@@ -233,11 +236,11 @@ def cluster_bootstrap(
     rng = random.Random(seed)
     estimates = []
     for _ in range(n):
-        values: list[float] = []
-        for chosen_key in rng.choices(keys, k=len(keys)):
-            cluster_rows = groups[chosen_key]
-            resampled = rng.choices(cluster_rows, k=len(cluster_rows))
-            values.extend(value(row) for row in resampled)
+        values = [
+            value(row)
+            for chosen_key in rng.choices(keys, k=len(keys))
+            for row in groups[chosen_key]
+        ]
         estimates.append(statistics.fmean(values))
     estimates.sort()
     return point, _percentile(estimates, 2.5), _percentile(estimates, 97.5)

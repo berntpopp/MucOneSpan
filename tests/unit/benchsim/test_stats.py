@@ -49,10 +49,22 @@ def test_noninferiority_alpha_widens_or_narrows_bound() -> None:
     assert default["noninferior"] is True
 
 
-def test_cluster_bootstrap_groups() -> None:
-    rows = [{"g": i // 2, "ok": i % 2} for i in range(40)]
+def test_cluster_bootstrap_heterogeneous_clusters() -> None:
+    # 20 clusters, each internally homogeneous (all-0 or all-1); which clusters
+    # get resampled varies the pooled mean, so the CI is non-degenerate.
+    rows = [{"g": g, "ok": 1 if g % 2 else 0} for g in range(20) for _ in range(2)]
     mean, lo, hi = cluster_bootstrap(rows, "g", lambda r: r["ok"], n=500, seed=1)
     assert mean == 0.5 and lo < 0.5 < hi
+
+
+def test_cluster_bootstrap_identical_clusters_is_degenerate() -> None:
+    # Every cluster has the same composition (one 0, one 1), so no matter
+    # which clusters a cluster-only bootstrap draws, the pooled mean is
+    # always exactly 0.5 -- a point-mass CI is the correct behaviour here.
+    rows = [{"g": i // 2, "ok": i % 2} for i in range(40)]
+    mean, lo, hi = cluster_bootstrap(rows, "g", lambda r: r["ok"], n=500, seed=1)
+    assert mean == 0.5
+    assert lo == hi == 0.5
 
 
 def test_cluster_bootstrap_single_replicate() -> None:
