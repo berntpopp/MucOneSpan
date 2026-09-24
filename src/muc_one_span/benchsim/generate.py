@@ -110,12 +110,12 @@ def validate_events(truth: TruthSample, design: Design) -> list[list[int]]:
     if design.event is None:
         if found:
             raise DesignInvalidError(f"normal design but truth has events {found}")
-        return []
-    hap = design.targets[0][0]
-    if [(h, n) for h, _, n in found] != [(hap, design.event)]:
-        raise DesignInvalidError(
-            f"truth events {found} != design event {design.event} on hap {hap}"
-        )
+    else:
+        hap = design.targets[0][0]
+        if [(h, n) for h, _, n in found] != [(hap, design.event)]:
+            raise DesignInvalidError(
+                f"truth events {found} != design event {design.event} on hap {hap}"
+            )
     if design.delta_class == "0_identical":
         # MucOneUp may convert the target unit to an allowed repeat; mask event positions
         masked = {r for _, r, _ in found}
@@ -252,7 +252,8 @@ def _reads(
     case["requested_amount"] = amount
     case["amount_unit"] = "reads" if genomic else "templates"
     truth_fa = _one(truth_dir, "*.simulated.fa")
-    assert truth_fa is not None
+    if truth_fa is None:  # _one(required=True) raises first; explicit for type narrowing
+        raise ValueError(f"no *.simulated.fa in {truth_dir}")
     reads_dir = case_dir / "reads"
     run_tool(
         reads_args(

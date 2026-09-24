@@ -307,3 +307,16 @@ def test_identical_design_masks_event_positions_only() -> None:
     )
     with pytest.raises(DesignInvalidError, match="differ"):
         validate_events(differ, design)
+
+
+def test_identical_normal_design_checks_structures() -> None:
+    from muc_one_span.benchsim.generate import DesignInvalidError, validate_events
+
+    design = replace(_plain(DEV, event=False), delta_class="0_identical")
+    haps = (
+        TruthHaplotype("haplotype_1", "A", ("1", "X", "9")),
+        TruthHaplotype("haplotype_2", "A", ("1", "A", "9")),
+    )
+    with pytest.raises(DesignInvalidError, match="differ"):
+        validate_events(TruthSample("x", haps), design)
+    assert validate_events(TruthSample("x", (haps[0], haps[0])), design) == []

@@ -1,4 +1,4 @@
-"""scripts/benchsim.py `design` and `generate` subcommands."""
+"""scripts/benchsim.py `design` and `generate` subcommands (Git mocked)."""
 
 import json
 from importlib.util import module_from_spec, spec_from_file_location
@@ -11,51 +11,98 @@ import pytest
 SCRIPT = Path(__file__).resolve().parents[3] / "scripts" / "benchsim.py"
 
 
-def _cli() -> ModuleType:
+def _cli(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> ModuleType:
+    """Load the script with a fake worktree ``tmp/wt`` whose main checkout is ``tmp/main``."""
     spec = spec_from_file_location("benchsim_cli", SCRIPT)
     assert spec and spec.loader
     module = module_from_spec(spec)
     spec.loader.exec_module(module)
+    for name in ("wt", "main", "data"):
+        (tmp_path / name).mkdir(exist_ok=True)
+
+    def fake_git(args: list[str], cwd: str | None = None) -> str:
+        assert args[:2] == ["git", "rev-parse"]
+        if args[2] == "--show-toplevel":
+            return f"{tmp_path / 'wt'}\n"
+        return f"{tmp_path / 'main' / '.git'}\n"
+
+    monkeypatch.setattr(module, "run_tool", fake_git)
     return module
 
 
-def test_requires_subcommand() -> None:
+def test_requires_subcommand(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
     with pytest.raises(SystemExit) as error:
-        _cli().main([])
+        _cli(tmp_path, monkeypatch).main([])
     assert error.value.code == 2
 
 
-def test_design_writes_jsonl(tmp_path: Path) -> None:
-    rc = _cli().main(
-        ["design", "--split", "dev", "--n", "4", "--mutations", "dupC", "--out-root", str(tmp_path)]
+def test_design_writes_jsonl(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    out = tmp_path / "data"
+    rc = _cli(tmp_path, monkeypatch).main(
+        ["design", "--split", "dev", "--n", "4", "--mutations", "dupC", "--out-root", str(out)]
     )
-    rows = [json.loads(x) for x in (tmp_path / "designs_dev.jsonl").read_text().splitlines()]
+    rows = [json.loads(x) for x in (out / "designs_dev.jsonl").read_text().splitlines()]
     assert rc == 0 and len(rows) == 12 and {r["split"] for r in rows} == {"dev"}
 
 
-def test_test_split_needs_salt_file_outside_repo(tmp_path: Path) -> None:
-    cli = _cli()
-    base = ["design", "--split", "test", "--n", "2", "--out-root", str(tmp_path)]
+def test_default_out_root_is_beside_the_repository(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    cli = _cli(tmp_path, monkeypatch)
+    monkeypatch.chdir(tmp_path / "wt")
+    assert cli.main(["design", "--split", "dev", "--n", "1", "--mutations", "dupC"]) == 0
+    assert (tmp_path / "MucOneSpan-bench-data" / "designs_dev.jsonl").is_file()
+
+
+@pytest.mark.parametrize("where", ["wt", "main", "wt/sub"])
+@pytest.mark.parametrize("flag", ["--out-root", "--output"])
+def test_outputs_inside_repository_or_worktrees_are_refused(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch, where: str, flag: str
+) -> None:
+    cli = _cli(tmp_path, monkeypatch)
+    target = tmp_path / where / ("x.jsonl" if flag == "--output" else "data")
+    args = ["design", "--split", "dev", "--n", "1", "--mutations", "dupC", flag, str(target)]
+    with pytest.raises(SystemExit, match="outside the repository"):
+        cli.main(args)
+    assert not target.exists()
+    gen = ["generate", "--designs", "d", "--muconeup-config", "c", "--out-root", str(target)]
+    if flag == "--out-root":  # refused before designs are read or MucOneUp is called
+        with pytest.raises(SystemExit, match="outside the repository"):
+            cli.main(gen)
+
+
+def test_test_split_needs_salt_file_outside_repo(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    cli = _cli(tmp_path, monkeypatch)
+    out = tmp_path / "data"
+    base = ["design", "--split", "test", "--n", "2", "--out-root", str(out)]
     with pytest.raises(SystemExit):
         cli.main(base)
-    inside = SCRIPT.parent / "benchsim.py"  # any file inside the repository
-    with pytest.raises(SystemExit):
-        cli.main([*base, "--salt-file", str(inside)])
+    for where in ("wt", "main"):
+        inside = tmp_path / where / "salt.txt"
+        inside.write_text("secret\n")
+        with pytest.raises(SystemExit, match="outside the repository"):
+            cli.main([*base, "--salt-file", str(inside)])
     salt = tmp_path / "salt.txt"
     salt.write_text("secret\n")
     assert cli.main([*base, "--salt-file", str(salt), "--mutations", "dupC"]) == 0
-    first = (tmp_path / "designs_test.jsonl").read_text()
+    first = (out / "designs_test.jsonl").read_text()
     salt.write_text("other\n")
     cli.main([*base, "--salt-file", str(salt), "--mutations", "dupC"])
-    assert (tmp_path / "designs_test.jsonl").read_text() != first
+    assert (out / "designs_test.jsonl").read_text() != first
+    salt.write_text("\n")
+    with pytest.raises(SystemExit, match="empty"):
+        cli.main([*base, "--salt-file", str(salt)])
 
 
 def test_generate_writes_manifest_and_fails_on_generation_failure(
     tmp_path: Path, monkeypatch: pytest.MonkeyPatch
 ) -> None:
-    cli = _cli()
+    cli = _cli(tmp_path, monkeypatch)
+    out = tmp_path / "data"
     cli.main(
-        ["design", "--split", "dev", "--n", "2", "--mutations", "dupC", "--out-root", str(tmp_path)]
+        ["design", "--split", "dev", "--n", "2", "--mutations", "dupC", "--out-root", str(out)]
     )
     seen: list[Any] = []
 
@@ -73,15 +120,15 @@ def test_generate_writes_manifest_and_fails_on_generation_failure(
         [
             "generate",
             "--designs",
-            str(tmp_path / "designs_dev.jsonl"),
+            str(out / "designs_dev.jsonl"),
             "--muconeup-config",
             str(tmp_path / "c.json"),
             "--muconeup-profiles",
             str(profiles),
             "--out-root",
-            str(tmp_path),
+            str(out),
         ]
     )
-    manifest = (tmp_path / "dev" / "manifest.jsonl").read_text().splitlines()
+    manifest = (out / "dev" / "manifest.jsonl").read_text().splitlines()
     assert rc == 1 and len(manifest) == 6 and len(seen) == 6
     assert seen[0].muconeup_version == "0.45.0" and seen[0].profile_dir == profiles
