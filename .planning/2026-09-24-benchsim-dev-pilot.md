@@ -350,3 +350,164 @@ These mappings follow `2026-09-23-hybrid-engine-spec.md`.
 | Missing allele / unresolved alias, allele selection unresolved, reported length ≠ contig length | S2 smear-aware length model with recorded `rejected_peaks`. The length comes from the consensus itself. |
 | Variant localization ambiguous / no explicit support / event identity | S10 per-event read-level support (`read_support.status`), classified on an ACGT consensus. |
 | Depth below the gate (expected cases) | Not addressed by design. These stay INCONCLUSIVE (`depth_status` low or insufficient). |
+
+## v0.16.0 on standard / clean / stress (Task 12c)
+
+The owner asked for a realistic headline benchmark rather than one built from
+edge cases. The benchmark now has named **sets** (see `docs/benchmark.md`,
+"Benchmark sets"):
+
+- `standard` (headline): ONT amplicon at 500/1000/2000 reads, HiFi at
+  200/500/1000, genomic at 30/60/100; calibrated error; PCR bias none or
+  calibrated; amplicon smear 0.24 and chimera 0.023 (the calibrated MucOneUp
+  profile rates, about the real median).
+- `clean` (control): the same haplotypes at the top standard depth, with no PCR
+  bias, smear or chimera.
+- `stress`: the harsh mix. The dev v2 data are reused as stress (v2 ≈ stress:
+  the same factor mix, without the smear 0.5 level).
+
+The caller is ladder v0.16.0 throughout. Aggregates only.
+
+### Setup
+
+- Out-roots: `../MucOneSpan-bench-data/v3/{standard,clean}`, both fresh, with
+  dev n = 30 per profile (90 cases per set). Stress is `v2`, re-reported with
+  the set-aware report (legacy designs map to `sets.legacy` = stress; the
+  numbers are identical to Task 12b).
+- Generation ran at `11755cc`; settings SHA-256 `0ef978d8…`, generation hash
+  `8fed16a7…`. Realism, run, evaluate and report ran at `35849d3`, whose
+  report settings hash `7543ea45…` differs only by `profiles.simulator_threads`,
+  added after generation. v3 generation therefore used MucOneUp's
+  config-default 8 simulator threads per case.
+- Both sets generated in parallel with `--jobs 6` each. The later steps ran one
+  set at a time, as the controller required after the machine load reached
+  about 160: `run --threads 3 --jobs 4`.
+- `standard` generation took 45 min 05 s. One HiFi case (1000 reads, alleles
+  62/122 units, calibrated PCR) needed about 27,000 templates because of the
+  minor-share floor, and spent about 40 min in `ccs`. `clean` generation took
+  33 min 42 s. Depth was not lowered. All 180 cases were `ok`. Realism took
+  4 min 20 s (standard) and 6 min 23 s (clean), with 0 failures. `run` took
+  26 min 44 s (standard) and 31 min 13 s (clean), with 90/90 completed in
+  each set.
+
+### Results per set (ladder v0.16.0, dev, 90 cases per set)
+
+| Set | Per-allele exact | Case exact | Event recall | FP on normals | INCONCLUSIVE | expected / resolvable / depth unknown |
+| --- | --- | --- | --- | --- | --- | --- |
+| **standard** | 12/180 = 0.067 [0.033, 0.106] | 0/90 | 11/57 | 0/33 | 86/90 | 5 / 81 / 0 |
+| clean | 23/180 = 0.128 [0.067, 0.194] | 10/90 | 15/57 | 0/33 | 81/90 | 0 / 81 / 0 |
+| stress (v2) | 22/180 = 0.122 [0.067, 0.178] | 5/90 | 12/57 | 0/33 | 81/90 | 43 / 38 / 0 |
+
+Intervals are 95% cluster-bootstrap intervals from `report.json`.
+
+| Set / profile | Per-allele exact | Event recall | PATHOGENIC on pathogenic truths | INCONCLUSIVE | NEGATIVE on normals |
+| --- | --- | --- | --- | --- | --- |
+| standard ONT amplicon | 4/60 | 3/19 | 1/19 | 29/30 | 0/11 |
+| standard HiFi amplicon | 7/60 | 5/19 | 2/19 | 27/30 | 1/11 |
+| standard ONT genomic | 1/60 | 3/19 | 0/19 | 30/30 | 0/11 |
+| clean ONT amplicon | 14/60 | 6/19 | 3/19 | 26/30 | 1/11 |
+| clean HiFi amplicon | 9/60 | 6/19 | 1/19 | 26/30 | 3/11 |
+| clean ONT genomic | 0/60 | 3/19 | 1/19 | 29/30 | 0/11 |
+| stress ONT amplicon | 8/60 | 2/19 | 0/19 | 28/30 | 1/11 |
+| stress HiFi amplicon | 7/60 | 7/19 | 0/19 | 28/30 | 0/11 |
+| stress ONT genomic | 7/60 | 3/19 | 2/19 | 25/30 | 0/11 |
+
+There were no critical false negatives in standard or clean (stress: 6, all
+`insufficient_evidence` at design depth 3-5), and no false PATHOGENIC calls in
+any set.
+
+**Standard vs clean, paired.** Both sets simulate the same haplotypes, so their
+truth alleles pair. Per-allele exact, as discordant pairs (standard-only /
+clean-only):
+- ONT amplicon 1 / 11 (exact McNemar p = 0.006);
+- HiFi 2 / 4;
+- genomic 1 / 0;
+- all profiles 4 / 15 (p = 0.019).
+
+The typical-level artefacts (smear, chimera, PCR bias) and the lower standard
+depths together cost the ladder most of its ONT amplicon exact alleles. Depth
+and artefacts are confounded in this contrast. Two-thirds of standard cases
+are below the clean depth, and genomic, which has no artefacts, barely
+changes.
+
+### Top INCONCLUSIVE causes (reason atlas, cases)
+
+| Reason key | standard (86) | clean (81) | stress (81) |
+| --- | --- | --- | --- |
+| `evaluator: ambiguous_reconstruction` | 84 | 76 | 75 |
+| `evaluator: iupac_bases` | 82 | 74 | 71 |
+| `gate: heterozygous call left within the length-partitioned allele; consensus uses unresolved (iupac) selection` | 77 | 57 | 46 |
+| `gate: reported length # differs from the consensus contig length #` | 76 | 34 | 31 |
+| `gate: high number of ambiguous consensus bases (#) detected` | 69 | 62 | 60 |
+| `gate: allele selection unresolved (unresolved_secondary_mode; secondary mode fraction #)` | 62 | 33 | 24 |
+| `gate: observed sequence variant (<variant>) is inconclusive: localization ambiguous` | 57 | 42 | 49 |
+| `gate: # primary alignments, below the per-allele depth gate (#)` | 29 | 27 | 50 |
+
+At realistic depth, almost every INCONCLUSIVE is **resolvable**: 81/86 in
+standard and 81/81 in clean, against 38/81 in stress. Sample depth no longer
+explains them. The per-allele depth-gate reason still appears (29 standard and
+27 clean cases), but it comes from called alleles with few primary records. One
+example is a 7-read allele at 96 units in a 73/73-unit case with about 1000
+reads per allele. It is not a lack of sample reads. What explains the
+INCONCLUSIVE calls is the reconstruction:
+IUPAC consensus, secondary length modes and length-selection disagreement. The
+secondary-mode and length-disagreement gates roughly double from clean to
+standard. Smear and chimera products at the real median rate form extra
+clusters that the ladder cannot set aside:
+- in the standard ONT amplicon set, 24/30 cases have a selection-unresolved
+  reason and 26/30 a length disagreement;
+- in the ONT genomic profile, 27/30 standard cases are selection-unresolved.
+  That profile has no molecule artefacts, so the cause there is partial-read
+  and depth behaviour, not PCR artefacts.
+
+Per-allele exact does not rise with depth in any set: stress ONT amplicon at
+>= 150 reads is 1/20 exact alleles, and standard ONT amplicon at 1000 reads is
+0/20.
+
+### Standard ONT amplicon vs real PRJEB92208 (v0.16.0)
+
+| | Real PRJEB92208 amplicons | standard ONT amplicon | clean ONT amplicon |
+| --- | --- | --- | --- |
+| PATHOGENIC on pathogenic truths | 3/5 = 0.60 [0.15, 0.95] | 1/19 = 0.05 [0.00, 0.26] | 3/19 = 0.16 [0.03, 0.40] |
+| INCONCLUSIVE | 6/11 = 0.55 [0.23, 0.83] | 29/30 = 0.97 [0.83, 1.00] | 26/30 = 0.87 [0.69, 0.96] |
+| FP PATHOGENIC on normals | 0 | 0/11 | 0/11 |
+
+(Clopper-Pearson 95% intervals.)
+
+**The simulation is not in the same range as the real data.** It is now
+harsher than real. The INCONCLUSIVE intervals of the real data and the standard
+set do not overlap, and the PATHOGENIC rate is lower (the intervals overlap
+only at the edges). The v2/stress data showed the same gap: 0/19 PATHOGENIC and
+28/30 INCONCLUSIVE.
+
+Known differences, which remain unresolved:
+1. The event mix: 13 dictionary events with about 1-2 dupC per profile,
+   against mostly the classic dupC in real MPs.
+2. Depth: 500-2000 reads, against 10k-48k in real libraries.
+3. The simulator's span-shape and strand-error gaps (below). Simulated spans
+   are too narrow and shifted short, and the >= +53 bp tail from
+   concatemers/chimeras is 3× the real share, a likely source of the spurious
+   longer clusters seen in selection-unresolved cases.
+
+Nothing was tuned to close the gap. PRJEB92208 is a check, not the target.
+
+### Realism (indicative)
+
+| Check | standard | clean | stress (v2) |
+| --- | --- | --- | --- |
+| ONT amplicon checks passed | 14/21 | 12/21 | 10/21 |
+| ONT amplicon total error vs target 0.02138 | 0.02231 (+4%) | 0.02232 (+4%) | 0.02653 (+24%) |
+| ONT amplicon deletion - strand vs 0.00485 | 0.00743 (+53%) | 0.00743 | 0.00783 |
+| ONT amplicon mismatch + strand vs 0.00811 | 0.00570 (-30%) | 0.00570 | 0.00731 |
+| Span-offset JS < 55 u / >= 55 u (limit 0.1) | 0.232 / 0.270 | 0.462 / 0.450 | 0.209 / 0.247 |
+| Off by > 1 unit, median (real 0.2695) | 0.2686 | 0.0244 | 0.2054 |
+| ONT genomic checks passed (2 HG002 WGS libraries; not targeted enrichment) | 11/15 | 10/15 | 10/15 |
+
+**Correction to the premise.** The "calibrated error about 25% above target"
+figure came from v2, where half of the cases use `error: poor` (×1.5). With
+calibrated error only, the total ONT amplicon error is +4% of target and passes
+the check. The remaining error gap is strand-specific: minus-strand deletions
+are +53% and plus-strand mismatches -30%. The span-offset JS distance
+(0.23-0.27) is the real outstanding realism gap. The standard smear setting
+reproduces the real median off-peak share (0.2686 vs 0.2695). The upstream
+draft is `.planning/2026-09-25-muconeup-realism-issue.md`.
