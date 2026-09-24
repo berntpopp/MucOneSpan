@@ -256,6 +256,60 @@ def run_igv_report(
     return output_path
 
 
+def preflight_igv_report(report_igv: str, work_dir: Path) -> None:
+    """Fail before analysis when the requested IGV report cannot be produced.
+
+    Runs ``create_report`` once on a synthetic locus with two VCF records in a
+    temporary directory, reusing :func:`run_igv_report` validation. A missing
+    executable, or a version that concatenates the first variant record into
+    the VCF column header when embedding it (observed with igv-reports
+    1.16.x; reproduced only with 2+ records, not a single-record VCF), then
+    stops the run before mapping instead of after the analysis has completed.
+
+    The probe locus is built with :func:`create_locus_bed` so it respects the
+    same igv-reports ``-500`` region-expansion margin as real loci (contigs
+    over 600 bp need a BED start >= 501); a hand-picked start close to 0
+    triggers a coordinate artefact in igv-reports unrelated to the defect
+    this preflight targets, which could wrongly reject a working install.
+    """
+    if report_igv == REPORT_IGV_OFF:
+        return
+    work_dir.mkdir(parents=True, exist_ok=True)
+    with tempfile.TemporaryDirectory(prefix="igv-preflight-", dir=work_dir) as tmp:
+        root = Path(tmp)
+        sequence = "ACGT" * 300
+        fasta_path = root / "probe.fa"
+        fasta_path.write_text(f">probe\n{sequence}\n", encoding="utf-8")
+        bed_path = create_locus_bed(
+            fasta_path, root / "probe.bed", contig_names=["probe"], locus_name="probe"
+        )
+        # Two records, well inside the 501-700 margin-respecting locus: a
+        # single-record VCF does not reproduce the header-concatenation defect.
+        records = []
+        for pos in (550, 600):
+            ref = sequence[pos - 1]
+            alt = next(base for base in "ACGT" if base != ref)
+            records.append(f"probe\t{pos}\t.\t{ref}\t{alt}\t30\tPASS\t.\n")
+        (root / "probe.vcf").write_text(
+            "##fileformat=VCFv4.2\n##contig=<ID=probe,length=1200>\n"
+            "#CHROM\tPOS\tID\tREF\tALT\tQUAL\tFILTER\tINFO\n" + "".join(records),
+            encoding="utf-8",
+        )
+        try:
+            run_igv_report(
+                bed_path,
+                fasta_path,
+                root / "probe.html",
+                report_igv=report_igv,
+                vcf_paths={"probe": root / "probe.vcf"},
+            )
+        except (OSError, RuntimeError, ValueError) as exc:
+            raise RuntimeError(
+                f"IGV report preflight failed for --report-igv {report_igv}: {exc}. "
+                "Use a working igv-reports create_report (1.13.0 verified) or --report-igv off."
+            ) from exc
+
+
 def build_igv_context(
     output_dir: Path,
     fasta_path: Path,

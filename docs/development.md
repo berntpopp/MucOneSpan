@@ -235,13 +235,29 @@ Single-site heterozygosity permits an unordered pair; multiple heterozygous loci
 require one common phase set before genotype-index haplotypes are emitted. This
 implements the [bcftools consensus selectors](https://samtools.github.io/bcftools/bcftools.html#consensus)
 with additional phase checks; bcftools selectors alone do not establish phase.
+Distinct-length candidates, and the two haplotag partitions of experimental
+read-backed phase, are length-partitioned haplotypes. After the
+allele-fraction rule, any remaining heterozygous record (single-site, phased or
+multi-site) or any conflicting record selects `I`. The allele records
+`allele_genotype_status` (`heterozygous_within_length_partition` or
+`unresolved_genotype_records`) and `heterozygous_sites`, and it receives no
+independent haplotype credit. Only candidates without remaining heterozygosity
+use genotype index 1 (`allele_specific_resolved`). `variant_filter` records the
+filter applied to that allele's calls, including the QUAL threshold used.
 Experimental read-backed phase is available through the Python library's explicit
 `read_phase=True` or JSON `calling.read_phase: true`. It remains disabled by default
 after failing the development false-positive gate; there is no dedicated CLI flag. `consensus_context` records the
 actual reference, full consensus, selected sample/haplotype and half-open trim
 interval. VCF support verifies replay, then exact event reversion in sequence
 context. It describes concordance with the same VCF used to make consensus,
-not independent experimental support. Unprojectable indels remain unresolved.
+not independent experimental support.
+Under `-H I`, bcftools writes IUPAC codes for heterozygous SNVs but applies the
+ALT allele of a heterozygous REF/ALT indel. Replay mirrors this, and such an
+event gets `vcf_support_status=heterozygous_genotype_unresolved` (not
+supported). Other events on the allele keep their own status.
+`vcf_projection.unresolved_genotype_edits` counts every heterozygous edit
+replayed under `-H I`: IUPAC SNVs and applied indels. Multi-ALT
+heterozygous indels remain unprojectable (`ambiguous_genotype_selection`).
 
 Classifier `allele_confidence` and `exact_match_pct` describe dictionary fit among
 candidate windows; neither is a calibrated probability. Use reconstruction status,
@@ -318,6 +334,25 @@ sidecar JSON is an error. Legacy inputs without status retain established
 decision behavior with an unavailable-status label. Failed, interrupted,
 insufficient and running execution cannot produce a reassuring negative banner.
 Recorded mutation evidence is retained with execution warnings.
+
+Clinical gates run before the banner is chosen (`clinical_gates.py`). A mutation
+supports PATHOGENIC only when all of these hold:
+
+- it is a frameshift;
+- it is an exact dictionary template (`template_match` and `mutation_name`);
+- its localization is not ambiguous;
+- it has explicit support (exact VCF concordance or `read_support.status=supported`);
+- its allele's `depth_status` is not `low`.
+
+NEGATIVE additionally requires:
+
+- resolved allele selection (`selection_status`);
+- reported length equal to the consensus contig length (`length`/`reference_length`);
+- no unresolved length-partition genotype (`allele_genotype_status`);
+- adequate per-allele depth.
+
+Summaries without per-allele depth fall back to the 30-read total. The gates can
+only lower certainty; PATHOGENIC lists remaining problems as quality caveats.
 
 The full pipeline passes an `analysis_completed` rendering context after all
 analysis stages succeed. This means analysis completed and the report is being

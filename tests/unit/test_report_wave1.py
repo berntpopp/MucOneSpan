@@ -95,7 +95,14 @@ def test_successful_explicit_status_overrides_stale_failure(tmp_path, status):
 def test_mutation_evidence_remains_visible_with_execution_warning(tmp_path, status):
     data = summary()
     data["classifications"]["allele_1"]["mutations"] = [
-        {"mutation_name": "dupC", "repeat_index": 8, "frameshift": True}
+        {
+            "mutation_name": "dupC",
+            "repeat_index": 8,
+            "frameshift": True,
+            "template_match": True,
+            "vcf_support": True,
+            "vcf_support_status": "exact_sequence_concordance",
+        }
     ]
     html = generate_report(
         data, tmp_path / "report.html", execution_status={"status": status}

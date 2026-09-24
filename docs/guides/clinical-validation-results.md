@@ -216,6 +216,33 @@ before changing calling thresholds. For
 competing haplotypes and reference-only regions. These observations do not select
 POA, a new threshold, or a clinical tier change.
 
+## v0.16.0 clinical-safety rerun (PRJEB92208)
+
+The cohort was rerun with the Phase 0 clinical-safety changes (caller commit
+`90de0b4`). The decision is `compute_clinical_decision` applied to each
+`summary.json`; gate reasons are truncated to 300 characters.
+
+| Library | Sample | Decision | Events (allele:name@repeat:support) | Gate reasons |
+| --- | --- | --- | --- | --- |
+| ERR15277552 | HG002 WGS | INCONCLUSIVE | allele_2:7@75:localization_ambiguous | Allele 2: Observed sequence variant (Unknown variant at repeat 75) is inconclusive (frameshift not established; event identity not established (no exact dictionary template); localization ambiguous; no explicit sequence-level support (localization_ambiguous); carrying allele is below the per-allele  |
+| ERR15277553 | WGS (identity unresolved) | INCONCLUSIVE | - | Allele 1: allele selection unresolved (unresolved_unselected_clusters; secondary mode fraction 0.0).; Allele 1: 17 primary alignments, below the per-allele depth gate (30).; Allele 2: allele selection unresolved (unresolved_secondary_mode; secondary mode fraction 0.25).; Allele 2: 7 primary alignmen |
+| ERR15277562 | HG001 | NO_PATHOGENIC_VARIANT_DETECTED | - | Allele 1: 40 repeats (31 canonical units) - 46915 reads; Allele 2: 72 repeats (63 canonical units) - 10166 reads |
+| ERR15277563 | HG002 PCR | INCONCLUSIVE | allele_2:7@75:localization_ambiguous | Allele 2: Observed sequence variant (Unknown variant at repeat 75) is inconclusive (frameshift not established; event identity not established (no exact dictionary template); localization ambiguous; no explicit sequence-level support (localization_ambiguous)). |
+| ERR15277564 | HG003 | NO_PATHOGENIC_VARIANT_DETECTED | - | Allele 1: 44 repeats (35 canonical units) - 47980 reads; Allele 2: 65 repeats (56 canonical units) - 14680 reads |
+| ERR15277565 | HG004 | INCONCLUSIVE | allele_2:7@75:localization_ambiguous | Allele 2: Observed sequence variant (Unknown variant at repeat 75) is inconclusive (frameshift not established; event identity not established (no exact dictionary template); localization ambiguous; no explicit sequence-level support (localization_ambiguous)). |
+| ERR15277566 | MP1 | PATHOGENIC | allele_2:dupC@17:exact_sequence_concordance | Allele 2: dupC at repeat unit 17; Quality caveat: Allele 1: reported length 39 differs from the consensus contig length 44. |
+| ERR15277567 | MP2 | PATHOGENIC | allele_2:dupC@17:exact_sequence_concordance | Allele 2: dupC at repeat unit 17 |
+| ERR15277568 | MP3 | INCONCLUSIVE | allele_1:dupC@7:heterozygous_genotype_unresolved; allele_2:X@35:localization_ambiguous; allele_2:dupC@80:localization_ambiguous | Allele 1: Observed sequence variant (dupC at repeat 7) is inconclusive (heterozygous genotype unresolved within its allele).; Allele 2: Observed sequence variant (Unknown variant at repeat 35) is inconclusive (event identity not established (no exact dictionary template); localization ambiguous; no  |
+| ERR15277569 | MP4 | PATHOGENIC | allele_2:dupC@49:exact_sequence_concordance | Allele 2: dupC at repeat unit 49 |
+| ERR15277570 | MP5 | INCONCLUSIVE | allele_2:X@35:exact_sequence_concordance | Allele 2: Observed sequence variant (Unknown variant at repeat 35) is inconclusive (event identity not established (no exact dictionary template)).; Allele 1: allele selection unresolved (unresolved_secondary_mode; secondary mode fraction 0.276).; Allele 1: reported length 69 differs from the consen |
+
+The positives are publication-reported known controls from three families; this
+rerun claims no sensitivity or specificity. Compared with cohort-v3, only MP4
+changes at the scorer level (dupC recovered on allele 2); no control gains an event.
+
+Frozen tools: minimap2 2.28-r1209, samtools 1.15.1, bcftools 1.17 and Clair3
+1.0.10 with model `r1041_e82_400bps_sup_v500`, Python 3.12.9.
+
 ## Reproduction
 
 The additive command is `scripts/clinical_benchmark.py`. Use Python 3.10 or newer,

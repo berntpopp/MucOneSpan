@@ -6,9 +6,14 @@ import copy
 import logging
 from concurrent.futures import ThreadPoolExecutor
 from pathlib import Path
+from typing import Any
 
 from muc_one_span.mapping import DEFAULT_MINIMAP2_PRESET
-from muc_one_span.phasing import annotate_consensus_candidate, phase_evidence
+from muc_one_span.phasing import (
+    annotate_consensus_candidate,
+    length_partition_selection,
+    phase_evidence,
+)
 from muc_one_span.read_phasing import haplotag_and_split_reads, phase_same_length_reads
 from muc_one_span.settings import DEFAULT_SETTINGS, CallingSettings, ReadPhasingSettings
 from muc_one_span.tools import run_tool
@@ -27,10 +32,46 @@ __all__ = [
 logger = logging.getLogger(__name__)
 
 
+def _haploid_filter(
+    min_qual: float, settings: CallingSettings
+) -> tuple[dict[str, Any], dict[str, Any]]:
+    """Return length-partitioned VCF filter options and their explicit provenance.
+
+    ``calling.haploid_min_qual`` (default 4.0) applies to haploid, length-partitioned
+    calls; ``null`` makes them follow ``run.min_qual``/``--min-qual``. An explicit
+    non-default ``--min-qual`` that is overridden is logged, never silently dropped.
+    """
+    if settings.haploid_min_qual is None:
+        qual, source = float(min_qual), "run.min_qual"
+    else:
+        qual, source = float(settings.haploid_min_qual), "calling.haploid_min_qual"
+        if min_qual != DEFAULT_SETTINGS.run.min_qual:
+            logger.warning(
+                "--min-qual %s is not applied to length-partitioned calls; "
+                "calling.haploid_min_qual=%s is used. Set it to null to follow --min-qual.",
+                min_qual,
+                qual,
+            )
+    options = {
+        "haploid_majority": settings.haploid_majority,
+        "haploid_min_qual": qual,
+        "haploid_alt_fraction": settings.haploid_alt_fraction,
+        "haploid_ref_fraction": settings.haploid_ref_fraction,
+    }
+    provenance = {
+        "min_qual": qual,
+        "min_qual_source": source,
+        "haploid_majority": settings.haploid_majority,
+    }
+    return options, provenance
+
+
 def extract_allele_reads(
     bam_path: Path,
     contig_names: str | list[str],
     output_dir: Path,
+    *,
+    output_name: str = "allele_reads.bam",
 ) -> Path:
     """Extract reads mapped to one or more contigs from a BAM file.
 
@@ -41,6 +82,7 @@ def extract_allele_reads(
         bam_path: Path to the full mapping BAM.
         contig_names: Single contig name or list of contig names to extract.
         output_dir: Directory for output files.
+        output_name: File name of the extracted BAM inside ``output_dir``.
 
     Returns:
         Path to the extracted, indexed BAM file.
@@ -49,7 +91,7 @@ def extract_allele_reads(
         contig_names = [contig_names]
 
     output_dir.mkdir(parents=True, exist_ok=True)
-    out_bam = output_dir / "allele_reads.bam"
+    out_bam = output_dir / output_name
 
     run_tool(
         [
@@ -98,13 +140,18 @@ def _extract_and_remap_reads(
     """
     output_dir.mkdir(parents=True, exist_ok=True)
 
-    # 1. Extract reads from all cluster contigs
-    cluster_bam = extract_allele_reads(bam_path, cluster_contigs, output_dir)
+    # 1. Extract reads from all cluster contigs (ladder coordinates; intermediate)
+    cluster_bam = extract_allele_reads(
+        bam_path, cluster_contigs, output_dir, output_name="cluster_reads.bam"
+    )
 
-    # 2. Convert to FASTQ
+    # 2. Convert to FASTQ, then drop the cluster BAM so allele_reads.bam is only
+    #    ever the remapped single-contig BAM.
     fastq_path = output_dir / "cluster_reads.fq"
     stdout = run_tool(["samtools", "fastq", str(cluster_bam)])
     fastq_path.write_text(stdout)
+    cluster_bam.unlink(missing_ok=True)
+    Path(f"{cluster_bam}.bai").unlink(missing_ok=True)
 
     # 3. Extract peak contig as mini-reference
     contig_ref = output_dir / f"{peak_contig}.fa"
@@ -286,6 +333,7 @@ def disambiguate_same_length_alleles(
         if split_result is not None:
             hp1_bam, hp2_bam, hp1_count, hp2_count = split_result
             per_allele_threads = max(1, threads // 2)
+            hp_filter, hp_provenance = _haploid_filter(min_qual, settings)
 
             def _call_hp(hp_key: str, hp_bam: Path) -> tuple[str, Path]:
                 hp_dir = merged_dir / hp_key
@@ -304,7 +352,7 @@ def disambiguate_same_length_alleles(
                     hp_dir,
                     min_qual=min_qual,
                     min_dp=min_dp,
-                    haploid_majority=True,
+                    **hp_filter,
                 )
                 return hp_key, vcf_filtered
 
@@ -322,38 +370,36 @@ def disambiguate_same_length_alleles(
             calls_2 = {(v["chrom"], v["pos"], v["ref"], v["alt"]): v["genotype"] for v in v_2}
             is_distinct = calls_1 != calls_2
 
+            identity = "resolved_distinct" if is_distinct else "unresolved"
             alleles["homozygous"] = not is_distinct
-            alleles["sequence_identity_status"] = (
-                "resolved_distinct" if is_distinct else "unresolved"
-            )
+            alleles["sequence_identity_status"] = identity
             alleles["phase_status"] = "phased"
-
-            ev_1 = phase_evidence(v_1)
-            s_1 = v_1[0].get("sample") if v_1 else None
-            annotate_consensus_candidate(
-                alleles["allele_1"], ev_1, 1, s_1, str(hp_results["allele_1"])
-            )
-            alleles["allele_1"]["read_phasing"] = read_phasing
-            alleles["allele_1"]["reads"] = hp1_count
-            alleles["allele_1"]["independent_haplotype_evidence"] = True
-            alleles["allele_1"]["sequence_identity_status"] = (
-                "resolved_distinct" if is_distinct else "unresolved"
-            )
 
             if "allele_2" not in alleles:
                 alleles["allele_2"] = copy.deepcopy(allele_info)
             alleles["allele_2"].pop("candidate_duplicate_of", None)
-            ev_2 = phase_evidence(v_2)
-            s_2 = v_2[0].get("sample") if v_2 else None
-            annotate_consensus_candidate(
-                alleles["allele_2"], ev_2, 1, s_2, str(hp_results["allele_2"])
-            )
-            alleles["allele_2"]["read_phasing"] = read_phasing
-            alleles["allele_2"]["reads"] = hp2_count
-            alleles["allele_2"]["independent_haplotype_evidence"] = True
-            alleles["allele_2"]["sequence_identity_status"] = (
-                "resolved_distinct" if is_distinct else "unresolved"
-            )
+            for key, hp_variants, hp_count in (
+                ("allele_1", v_1, hp1_count),
+                ("allele_2", v_2, hp2_count),
+            ):
+                # Each haplotag partition holds one haplotype: apply the same
+                # length-partition selection as distinct-length calling (#53).
+                hp_evidence = phase_evidence(hp_variants)
+                hp_sample = hp_variants[0].get("sample") if hp_variants else None
+                selector, genotype_status, heterozygous = length_partition_selection(
+                    hp_variants, hp_evidence
+                )
+                allele = alleles[key]
+                annotate_consensus_candidate(
+                    allele, hp_evidence, selector, hp_sample, str(hp_results[key])
+                )
+                allele["read_phasing"] = read_phasing
+                allele["reads"] = hp_count
+                allele["allele_genotype_status"] = genotype_status
+                allele["heterozygous_sites"] = heterozygous
+                allele["independent_haplotype_evidence"] = selector == 1
+                allele["variant_filter"] = hp_provenance
+                allele["sequence_identity_status"] = identity
 
             return hp_results
 
@@ -471,6 +517,8 @@ def call_variants_per_allele(
         if k in alleles and not (alleles.get("homozygous") and k == "allele_2")
     ]
 
+    filter_options, filter_provenance = _haploid_filter(min_qual, settings)
+
     def _process_allele(allele_key: str) -> tuple[str, Path]:
         allele_info = alleles[allele_key]
         # Use the peak contig name from allele detection (contig_N where N is
@@ -511,32 +559,18 @@ def call_variants_per_allele(
             settings=settings,
         )
 
-        # Filter VCF
-        hap_min_qual = getattr(settings, "haploid_min_qual", 4.0)
         filtered = filter_vcf(
-            vcf,
-            contig_ref,
-            allele_dir,
-            min_qual=min_qual,
-            min_dp=min_dp,
-            haploid_majority=True,
-            haploid_min_qual=hap_min_qual,
+            vcf, contig_ref, allele_dir, min_qual=min_qual, min_dp=min_dp, **filter_options
         )
         variants = parse_vcf_genotypes(filtered)
         evidence = phase_evidence(variants)
         sample = variants[0].get("sample") if variants else None
-        is_unphased = evidence["phase_status"] in (
-            "unphased",
-            "missing_phase_set",
-            "disconnected_phase_sets",
-            "conflicting_variant_records",
-            "missing_genotype",
-            "non_diploid",
-        )
-        haplotype: int | str = "I" if is_unphased else 1
+        haplotype, genotype_status, heterozygous = length_partition_selection(variants, evidence)
         annotate_consensus_candidate(allele_info, evidence, haplotype, sample, str(filtered))
-        if len(allele_keys) > 1 and not is_unphased:
-            allele_info["independent_haplotype_evidence"] = True
+        allele_info["allele_genotype_status"] = genotype_status
+        allele_info["heterozygous_sites"] = heterozygous
+        allele_info["independent_haplotype_evidence"] = len(allele_keys) > 1 and haplotype == 1
+        allele_info["variant_filter"] = filter_provenance
         return allele_key, filtered
 
     # Process both alleles in parallel when they are independent

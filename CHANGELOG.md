@@ -28,6 +28,54 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
   `design_invalid`.
 - MucSim-Bench guide (`docs/benchmark.md`).
 
+## [0.16.0] - 2026-09-24
+
+### Fixed
+
+- Distinct-length candidates no longer resolve a heterozygous genotype to the
+  reference allele. Remaining heterozygous, phased or conflicting records use the
+  IUPAC candidate with `allele_genotype_status` and no independent haplotype
+  credit. This fixes the PRJEB92208 MP4 dupC false negative (#53). The same
+  selection applies to each haplotype of experimental read-backed phase.
+- Haploid genotypes on length-partitioned alleles use the allele-specific AD
+  fraction instead of FORMAT/AF. The 0.5/0.2 cut-offs are now configurable (#65).
+- VCF concordance mirrors `bcftools consensus -H I` for heterozygous indels and
+  is judged per event. The new status `heterozygous_genotype_unresolved` is
+  never support (#64).
+- Clinical decisions require explicit support, a frameshift, exact template
+  identity, resolved localization and adequate carrier-allele depth for
+  PATHOGENIC. NEGATIVE additionally requires resolved allele selection,
+  consistent length and adequate per-allele primary depth (#55, #63).
+- `--min-qual`, `calling.haploid_majority` and `calling.haploid_min_qual` are
+  honoured and the applied threshold is recorded. `consensus.haploid_*` are
+  deprecated no-ops (#66).
+- A requested IGV report is preflighted before mapping (#67). Cluster and
+  remapped BAMs no longer share `allele_reads.bam` (#68).
+
+### Added
+
+- Settings `calling.haploid_alt_fraction`, `calling.haploid_ref_fraction`,
+  `allele_selection.secondary_mode_min_fraction` and
+  `allele_selection.min_allele_primary_records`.
+- Additive output fields:
+  - `alleles[*]`: `allele_genotype_status`, `heterozygous_sites`,
+    `variant_filter`, `selection_status`, `secondary_mode_fraction`,
+    `depth_status`, `depth_basis`, `depth_threshold`, `length_status`;
+  - `vcf_projection.unresolved_genotype_edits`.
+
+### Changed
+
+- Untemplated (novel) frameshifts, and events on alleles below the per-allele
+  depth gate, are reported INCONCLUSIVE with reasons instead of PATHOGENIC.
+  Summaries without `vcf_support` no longer count as supported.
+- Re-rendering summaries written before 0.16.0 that lack `template_match` or
+  `mutation_name` yields INCONCLUSIVE instead of PATHOGENIC.
+- Direct API callers of `filter_vcf(haploid_majority=True)` without
+  `haploid_min_qual` no longer get an implied `min(min_qual, 4.0)`; `min_qual`
+  is applied. Pass `haploid_min_qual=4.0` to keep the previous default threshold.
+- Deprecated `consensus.haploid_*` settings are reported with a logged warning,
+  which the CLI shows, instead of a hidden `DeprecationWarning`.
+
 ## [0.15.1] - 2026-09-23
 
 ### Changed

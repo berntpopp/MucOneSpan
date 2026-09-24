@@ -252,7 +252,7 @@ def alleles(input_path: str, min_coverage: int, output_dir: str) -> None:
     "--min-qual",
     type=float,
     default=DEFAULT_SETTINGS.run.min_qual,
-    help="Minimum QUAL score for VCF filtering (default 5.0).",
+    help="Minimum VCF QUAL (default 5.0); see calling.haploid_min_qual for length-split calls.",
 )
 @click.option(
     "--platform",
@@ -476,7 +476,7 @@ def classify(
     "--min-qual",
     type=float,
     default=DEFAULT_SETTINGS.run.min_qual,
-    help="Minimum QUAL score for VCF filtering (default 5.0).",
+    help="Minimum VCF QUAL (default 5.0); see calling.haploid_min_qual for length-split calls.",
 )
 @click.option(
     "--report/--no-report",
