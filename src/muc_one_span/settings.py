@@ -3,12 +3,14 @@
 from __future__ import annotations
 
 import json
+import logging
 import math
-import warnings
 from collections.abc import Mapping
 from dataclasses import asdict, dataclass, field, fields
 from pathlib import Path
 from typing import Any
+
+logger = logging.getLogger(__name__)
 
 
 def _integer(name: str, value: object, minimum: int = 0) -> None:
@@ -399,12 +401,15 @@ def load_settings(path: Path | None) -> RuntimeSettings:
                 values[key] = tuple(value)
         data[name] = constructor(**values)
     settings = RuntimeSettings(**data)
-    if (settings.consensus.haploid_majority, settings.consensus.haploid_min_qual) != (True, 4.0):
-        warnings.warn(
-            "consensus.haploid_majority and consensus.haploid_min_qual have no effect; "
-            "use calling.haploid_majority and calling.haploid_min_qual.",
-            DeprecationWarning,
-            stacklevel=2,
+    consensus, legacy = settings.consensus, ConsensusSettings()
+    if (consensus.haploid_majority, consensus.haploid_min_qual) != (
+        legacy.haploid_majority,
+        legacy.haploid_min_qual,
+    ):
+        # Logged rather than a DeprecationWarning, which default filters hide from CLI users.
+        logger.warning(
+            "Deprecated: consensus.haploid_majority and consensus.haploid_min_qual have no "
+            "effect; use calling.haploid_majority and calling.haploid_min_qual."
         )
     # Validate raw string types before converting paths, so coercion never hides errors.
     run = asdict(settings.run)

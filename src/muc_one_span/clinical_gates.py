@@ -50,7 +50,7 @@ def mutation_blockers(mutation: dict[str, Any]) -> list[str]:
     if not mutation_supported(mutation):
         status = mutation.get("vcf_support_status")
         blockers.append(
-            "heterozygous genotype unresolved within its allele"
+            "heterozygous genotype not resolved to one allele"
             if status == "heterozygous_genotype_unresolved"
             else f"no explicit sequence-level support ({status or 'status unavailable'})"
         )
@@ -69,7 +69,14 @@ def allele_gate_reasons(info: Any, label: str) -> list[str]:
             f"{info.get('secondary_mode_fraction')})."
         )
     length, reference_length = info.get("length"), info.get("reference_length")
-    if isinstance(length, int) and isinstance(reference_length, int) and length != reference_length:
+    length_status = info.get("length_status")
+    if length_status is None:  # Legacy summary without selection_qc: compare conservatively.
+        differs = (
+            isinstance(length, int) and isinstance(reference_length, int)
+        ) and length != reference_length
+    else:
+        differs = length_status == "cluster_center_differs_from_consensus_contig"
+    if differs:
         reasons.append(
             f"{label}: reported length {length} differs from the consensus contig length "
             f"{reference_length}."

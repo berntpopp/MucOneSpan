@@ -1,6 +1,7 @@
 """Strict runtime settings preserve defaults and reject invalid scientific inputs."""
 
 import json
+import logging
 import warnings
 from dataclasses import FrozenInstanceError
 from pathlib import Path
@@ -305,12 +306,29 @@ def test_null_haploid_min_qual_roundtrips(tmp_path: Path) -> None:
     assert load_settings(path) == settings
 
 
-def test_deprecated_consensus_haploid_settings_warn_only_when_changed(tmp_path: Path) -> None:
+@pytest.mark.parametrize("consensus", ['{"haploid_min_qual": 3.0}', '{"haploid_majority": false}'])
+def test_deprecated_consensus_haploid_settings_are_logged_when_changed(
+    tmp_path: Path, caplog: pytest.LogCaptureFixture, consensus: str
+) -> None:
+    """The deprecation reaches CLI users: logged, not a filtered DeprecationWarning."""
     path = tmp_path / "settings.json"
-    path.write_text('{"schema_version": 1, "consensus": {"haploid_min_qual": 3.0}}')
-    with pytest.warns(DeprecationWarning, match="consensus.haploid"):
+    path.write_text(f'{{"schema_version": 1, "consensus": {consensus}}}')
+    with caplog.at_level(logging.WARNING, logger="muc_one_span.settings"):
         load_settings(path)
-    path.write_text(json.dumps(settings_as_dict(DEFAULT_SETTINGS)))
-    with warnings.catch_warnings():
-        warnings.simplefilter("error", DeprecationWarning)
-        load_settings(path)
+    assert [r.levelno for r in caplog.records] == [logging.WARNING]
+    assert "consensus.haploid" in caplog.text
+
+
+def test_deprecated_consensus_haploid_settings_silent_at_defaults(
+    tmp_path: Path, caplog: pytest.LogCaptureFixture
+) -> None:
+    path = tmp_path / "settings.json"
+    for config in (
+        settings_as_dict(DEFAULT_SETTINGS),
+        {"schema_version": 1, "consensus": {"flank_length": 200}},
+    ):
+        path.write_text(json.dumps(config))
+        with caplog.at_level(logging.WARNING), warnings.catch_warnings():
+            warnings.simplefilter("error")
+            load_settings(path)
+    assert "consensus.haploid" not in caplog.text

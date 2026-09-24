@@ -14,7 +14,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 - Distinct-length candidates no longer resolve a heterozygous genotype to the
   reference allele. Remaining heterozygous, phased or conflicting records use the
   IUPAC candidate with `allele_genotype_status` and no independent haplotype
-  credit. This fixes the PRJEB92208 MP4 dupC false negative (#53).
+  credit. This fixes the PRJEB92208 MP4 dupC false negative (#53). The same
+  selection applies to each haplotype of experimental read-backed phase.
 - Haploid genotypes on length-partitioned alleles use the allele-specific AD
   fraction instead of FORMAT/AF. The 0.5/0.2 cut-offs are now configurable (#65).
 - VCF concordance mirrors `bcftools consensus -H I` for heterozygous indels and
@@ -46,6 +47,13 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 - Untemplated (novel) frameshifts, and events on alleles below the per-allele
   depth gate, are reported INCONCLUSIVE with reasons instead of PATHOGENIC.
   Summaries without `vcf_support` no longer count as supported.
+- Re-rendering summaries written before 0.16.0 that lack `template_match` or
+  `mutation_name` yields INCONCLUSIVE instead of PATHOGENIC.
+- Direct API callers of `filter_vcf(haploid_majority=True)` without
+  `haploid_min_qual` no longer get an implied `min(min_qual, 4.0)`; `min_qual`
+  is applied. Pass `haploid_min_qual=4.0` to keep the previous default threshold.
+- Deprecated `consensus.haploid_*` settings are reported with a logged warning,
+  which the CLI shows, instead of a hidden `DeprecationWarning`.
 
 ## [0.15.1] - 2026-09-23
 

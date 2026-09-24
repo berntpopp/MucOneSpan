@@ -28,6 +28,10 @@ Clair3 has reduced sensitivity for detecting 1bp insertions within very long tan
 - `sample_dupc_100_120`: dupC mutation in 100-repeat allele not detected
 - `sample_long_120_140`: mutations in 120+ repeat alleles not detected
 
+### Haploid allele-fraction rule without a depth floor
+
+The AD-fraction haploid rule (`calling.haploid_alt_fraction`/`haploid_ref_fraction`) has no minimum informative depth yet, so a genotype on very few allele-specific reads can still be set to ALT or REF (tracked in #70).
+
 ### Boundary Repeat Mutations
 
 Mutations detected in the last 3 repeat units of an allele receive a boundary penalty (0.5x confidence multiplier) because these positions are prone to alignment artifacts at the VNTR boundary.

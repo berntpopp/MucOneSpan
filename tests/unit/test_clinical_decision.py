@@ -273,7 +273,11 @@ def test_untemplated_frameshift_is_not_pathogenic() -> None:
 def test_length_contig_mismatch_blocks_negative() -> None:
     """MP1-shaped allele 1: reported 39 units, consensus from the 44-unit contig."""
     summary = _gated_summary()
-    summary["alleles"]["allele_1"].update(length=39, reference_length=44)
+    summary["alleles"]["allele_1"].update(
+        length=39,
+        reference_length=44,
+        length_status="cluster_center_differs_from_consensus_contig",
+    )
     decision = compute_clinical_decision(summary)
     assert decision["state"] == "INCONCLUSIVE"
     assert any(

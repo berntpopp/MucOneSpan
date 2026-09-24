@@ -98,8 +98,8 @@ scientific defaults, not recommendations to tune against a validation sample.
 | `consensus.anchor_tolerance` | `50` | Inclusive displacement from the expected VNTR boundary in bases; integer >=0. |
 
 `consensus.haploid_majority` and `consensus.haploid_min_qual` are deprecated and
-have no effect. Configurations that set non-default values load with a
-`DeprecationWarning`; use the `calling.*` fields.
+have no effect. Configurations that set non-default values load with a logged
+deprecation warning, which the CLI shows; use the `calling.*` fields.
 
 ### Confidence weights
 
