@@ -64,6 +64,36 @@ def test_poa_plus_polish_recovers_exact_allele_with_dupc() -> None:
     assert cons == DUPC_ALLELE, info
 
 
+def test_polish_corrects_a_substitution_and_a_homopolymer_error_given_realistic_reads() -> None:
+    """polish() must not be a no-op: given a deliberately corrupted draft (one
+    substitution and one shortened homopolymer run, injected far from the dupC
+    template so they cannot be confused with it) and error-realistic reads generated
+    from the true allele (the same noise model used throughout this suite), polish()
+    must recover the true allele exactly and its round log must show real work done.
+
+    This is the direct test for benchmark "Concerns" item 3 (polish changed only ~3%
+    of rounds on real data): it distinguishes a genuinely low change rate driven by
+    already-good POA drafts from a silently broken/no-op polish step. ``hp_changes``
+    can legitimately stay 0 here -- the ordinary pileup vote (substitution/column and
+    insertion-slot voting) already resolves this single-base homopolymer shortening on
+    its own at this coverage and error rate; ``homopolymer_vote`` earns its keep on
+    harder, more ambiguous runs, not every homopolymer edit.
+    """
+    truth = DUPC_ALLELE
+    sub_pos = 50  # inside the leading PRE repeats, far from the dupC unit (~600-661bp)
+    hp_start, hp_end = 559, 563  # a plain "C"*4 run, also well clear of the dupC unit
+    assert truth[hp_start:hp_end] == "CCCC"
+    new_base = "A" if truth[sub_pos] != "A" else "T"
+    corrupted = truth[:sub_pos] + new_base + truth[sub_pos + 1 : hp_start] + "CCC" + truth[hp_end:]
+    assert corrupted != truth
+
+    members = _members(truth, 60, 31)
+    cons, info = polish(corrupted, [m.seq for m in members], **POLISH)
+
+    assert cons == truth, info
+    assert sum(r["changes"] for r in info["rounds"]) > 0  # not a no-op
+
+
 def test_pyspoa_backend_is_selectable() -> None:
     pytest.importorskip("spoa", reason="pyspoa (extra 'hybrid') is not installed")
     backend = get_backend("pyspoa")
