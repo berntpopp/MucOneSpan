@@ -263,6 +263,12 @@ def preflight_igv_report(report_igv: str, work_dir: Path) -> None:
     directory, reusing :func:`run_igv_report` validation. A missing executable or
     a version that corrupts VCF tracks (observed with igv-reports 1.16.x) then
     stops the run before mapping instead of after the analysis has completed.
+
+    The probe locus is built with :func:`create_locus_bed` so it respects the
+    same igv-reports ``-500`` region-expansion margin as real loci (contigs
+    over 600 bp need a BED start >= 501); a hand-picked start close to 0
+    triggers a coordinate artefact in igv-reports unrelated to the defect
+    this preflight targets, which could wrongly reject a working install.
     """
     if report_igv == REPORT_IGV_OFF:
         return
@@ -270,8 +276,11 @@ def preflight_igv_report(report_igv: str, work_dir: Path) -> None:
     with tempfile.TemporaryDirectory(prefix="igv-preflight-", dir=work_dir) as tmp:
         root = Path(tmp)
         sequence = "ACGT" * 300
-        (root / "probe.fa").write_text(f">probe\n{sequence}\n", encoding="utf-8")
-        (root / "probe.bed").write_text("probe\t100\t200\tprobe\n", encoding="utf-8")
+        fasta_path = root / "probe.fa"
+        fasta_path.write_text(f">probe\n{sequence}\n", encoding="utf-8")
+        bed_path = create_locus_bed(
+            fasta_path, root / "probe.bed", contig_names=["probe"], locus_name="probe"
+        )
         (root / "probe.vcf").write_text(
             "##fileformat=VCFv4.2\n##contig=<ID=probe,length=1200>\n"
             "#CHROM\tPOS\tID\tREF\tALT\tQUAL\tFILTER\tINFO\n"
@@ -280,8 +289,8 @@ def preflight_igv_report(report_igv: str, work_dir: Path) -> None:
         )
         try:
             run_igv_report(
-                root / "probe.bed",
-                root / "probe.fa",
+                bed_path,
+                fasta_path,
                 root / "probe.html",
                 report_igv=report_igv,
                 vcf_paths={"probe": root / "probe.vcf"},
