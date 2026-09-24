@@ -233,6 +233,13 @@ Single-site heterozygosity permits an unordered pair; multiple heterozygous loci
 require one common phase set before genotype-index haplotypes are emitted. This
 implements the [bcftools consensus selectors](https://samtools.github.io/bcftools/bcftools.html#consensus)
 with additional phase checks; bcftools selectors alone do not establish phase.
+Distinct-length candidates are length-partitioned haplotypes. After the
+allele-fraction rule, any remaining heterozygous record (single-site, phased or
+multi-site) or any conflicting record selects `I`. The allele records
+`allele_genotype_status` (`heterozygous_within_length_partition` or
+`unresolved_genotype_records`) and `heterozygous_sites`, and it receives no
+independent haplotype credit. Only candidates without remaining heterozygosity
+use genotype index 1 (`allele_specific_resolved`).
 Experimental read-backed phase is available through the Python library's explicit
 `read_phase=True` or JSON `calling.read_phase: true`. It remains disabled by default
 after failing the development false-positive gate; there is no dedicated CLI flag. `consensus_context` records the

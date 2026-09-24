@@ -8,7 +8,11 @@ from concurrent.futures import ThreadPoolExecutor
 from pathlib import Path
 
 from muc_one_span.mapping import DEFAULT_MINIMAP2_PRESET
-from muc_one_span.phasing import annotate_consensus_candidate, phase_evidence
+from muc_one_span.phasing import (
+    annotate_consensus_candidate,
+    length_partition_selection,
+    phase_evidence,
+)
 from muc_one_span.read_phasing import haplotag_and_split_reads, phase_same_length_reads
 from muc_one_span.settings import DEFAULT_SETTINGS, CallingSettings, ReadPhasingSettings
 from muc_one_span.tools import run_tool
@@ -525,18 +529,11 @@ def call_variants_per_allele(
         variants = parse_vcf_genotypes(filtered)
         evidence = phase_evidence(variants)
         sample = variants[0].get("sample") if variants else None
-        is_unphased = evidence["phase_status"] in (
-            "unphased",
-            "missing_phase_set",
-            "disconnected_phase_sets",
-            "conflicting_variant_records",
-            "missing_genotype",
-            "non_diploid",
-        )
-        haplotype: int | str = "I" if is_unphased else 1
+        haplotype, genotype_status, heterozygous = length_partition_selection(variants, evidence)
         annotate_consensus_candidate(allele_info, evidence, haplotype, sample, str(filtered))
-        if len(allele_keys) > 1 and not is_unphased:
-            allele_info["independent_haplotype_evidence"] = True
+        allele_info["allele_genotype_status"] = genotype_status
+        allele_info["heterozygous_sites"] = heterozygous
+        allele_info["independent_haplotype_evidence"] = len(allele_keys) > 1 and haplotype == 1
         return allele_key, filtered
 
     # Process both alleles in parallel when they are independent

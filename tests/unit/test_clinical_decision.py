@@ -122,3 +122,15 @@ def test_resolved_negative_yields_no_pathogenic_variant_detected():
     summary = _resolved_diploid_summary()
     decision = compute_clinical_decision(summary)
     assert decision["state"] == "NO_PATHOGENIC_VARIANT_DETECTED"
+
+
+def test_heterozygous_length_partition_is_never_negative():
+    """A length-partitioned allele with an unresolved heterozygous call is not NEGATIVE."""
+    summary = _resolved_diploid_summary()
+    summary["alleles"]["allele_2"].update(
+        phase_status="single_heterozygous_unordered",
+        allele_genotype_status="heterozygous_within_length_partition",
+        consensus_haplotype="I",
+        independent_haplotype_evidence=False,
+    )
+    assert compute_clinical_decision(summary)["state"] == "INCONCLUSIVE"
