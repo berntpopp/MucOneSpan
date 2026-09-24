@@ -204,3 +204,19 @@ def test_invalid_execution_sidecar_cannot_fall_back_to_negative(tmp_path, value)
     assert result.exit_code != 0
     assert "execution status" in result.output
     assert not output.exists()
+
+
+def test_invalid_recorded_clinical_decision_section_is_a_clean_error(tmp_path):
+    """M2: a bad recorded clinical_decision section must not raise a raw traceback."""
+    source = summary_file(tmp_path)
+    summary = json.loads(source.read_text())
+    summary["configuration"] = {"settings": {"clinical_decision": {"bogus_field": 1}}}
+    source.write_text(json.dumps(summary))
+    output = tmp_path / "report.html"
+    result = CliRunner().invoke(main, ["report", "-i", str(source), "-o", str(output)])
+    assert result.exit_code != 0
+    assert not isinstance(result.exception, ValueError)
+    assert "clinical_decision" in result.output
+    assert "bogus_field" in result.output
+    assert "Traceback" not in result.output
+    assert not output.exists()

@@ -204,11 +204,18 @@ def _stage_record(info: Any) -> dict | None:
     return record if isinstance(record, dict) else None
 
 
+_UNKNOWN = "unknown"
+
+
 def stage_concordance_reasons(info: Any, label: str) -> list[str]:
     """Return the report reason for a discordant allele, or ``[]`` otherwise.
 
     A discordant status without records (for example a hand-edited summary) still
-    blocks a reassuring negative; it only omits the first-record detail.
+    blocks a reassuring negative; it only omits the first-record detail. A
+    hand-edited record or first pileup row missing ``min_af``/``min_depth`` or a
+    row field (or not even a mapping) still blocks the negative; the missing
+    values fall back to ``"unknown"`` in the reason text instead of raising
+    ``KeyError`` (M1).
     """
     record = _stage_record(info)
     if record is None or record.get("status") != STATUS_DISCORDANT:
@@ -219,12 +226,20 @@ def stage_concordance_reasons(info: Any, label: str) -> list[str]:
             f"{label}: caller-stage discordance: status {STATUS_DISCORDANT} is recorded "
             "without pileup records; absence of a frameshift is not established."
         ]
-    first = records[0]
+    first = records[0] if isinstance(records[0], dict) else {}
+    min_af = record.get("min_af", _UNKNOWN)
+    min_depth = record.get("min_depth", _UNKNOWN)
+    chrom = first.get("chrom", _UNKNOWN)
+    pos = first.get("pos", _UNKNOWN)
+    ref = first.get("ref", _UNKNOWN)
+    alt = first.get("alt", _UNKNOWN)
+    af = first.get("af", _UNKNOWN)
+    dp = first.get("dp", _UNKNOWN)
     return [
         f"{label}: caller-stage discordance: {len(records)} frameshift indel(s) called by "
-        f"the Clair3 pileup stage at allele fraction >= {record['min_af']} and depth >= "
-        f"{record['min_depth']} are not in the applied calls (first: {first['chrom']}:"
-        f"{first['pos']} {first['ref']}>{first['alt']}, AF {first['af']}, DP {first['dp']}); "
+        f"the Clair3 pileup stage at allele fraction >= {min_af} and depth >= "
+        f"{min_depth} are not in the applied calls (first: {chrom}:"
+        f"{pos} {ref}>{alt}, AF {af}, DP {dp}); "
         "absence of a frameshift is not established."
     ]
 

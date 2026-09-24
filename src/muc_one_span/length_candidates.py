@@ -145,12 +145,15 @@ def validate_candidates_with_dominance(
     if not read_scores:
         return False, None
 
+    resolved = settings or DEFAULT_SETTINGS.allele_selection
     dom_score = evaluate_candidate_pair_dominance(
         read_scores,
         c1_name,
         c2_name,
         platform=platform,
         c2_primary_records=candidate_2.primary_reads,
+        close_candidate_repeats=resolved.dominance_close_candidate_repeats,
+        zero_primary_extra_reads=resolved.dominance_zero_primary_extra_reads,
     )
 
     return dom_score.is_valid_second_allele, dom_score

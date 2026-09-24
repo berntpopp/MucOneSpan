@@ -240,6 +240,38 @@ def test_discordant_status_without_records_still_blocks() -> None:
     assert reasons[0].endswith("absence of a frameshift is not established.")
 
 
+def test_discordant_status_with_incomplete_record_still_blocks() -> None:
+    """A hand-edited summary.json can omit min_af/min_depth or a row's own keys (M1).
+
+    The gate must still block NEGATIVE without raising KeyError; missing values
+    fall back to "unknown" in the reason text.
+    """
+    info = {
+        "stage_concordance": {
+            "status": "discordant_frameshift",
+            "records": [{"chrom": "contig_1"}],
+        }
+    }
+    reasons = sc.stage_concordance_reasons(info, "Allele 1")
+    assert len(reasons) == 1
+    assert reasons[0].startswith("Allele 1: caller-stage discordance:")
+    assert "unknown" in reasons[0]
+    assert reasons[0].endswith("absence of a frameshift is not established.")
+
+
+def test_discordant_status_with_non_mapping_first_record_still_blocks() -> None:
+    """A hand-edited ``records`` entry that is not even an object must not raise."""
+    info = {
+        "stage_concordance": {
+            "status": "discordant_frameshift",
+            "records": ["not-a-mapping"],
+        }
+    }
+    reasons = sc.stage_concordance_reasons(info, "Allele 1")
+    assert len(reasons) == 1
+    assert "unknown" in reasons[0]
+
+
 @pytest.mark.parametrize("reason", ["pileup_vcf_unavailable", "final_vcf_unavailable"])
 def test_not_assessed_yields_quality_caveat(reason: str) -> None:
     info = {"stage_concordance": {"status": "not_assessed", "reason": reason}}

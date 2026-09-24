@@ -37,6 +37,10 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
   Library callers who previously relied on passing a non-default `min_dp` to change the
   haplotag split must set `read_phasing.min_haplotype_reads` instead; default behaviour is
   unchanged (#74).
+- When an allele's Clair3 partition has no `pileup.vcf.gz` (`stage_concordance.status =
+  "not_assessed"`), a NEGATIVE report now carries an extra detail, `Quality caveat: Allele N:
+  caller-stage concordance not assessed (...); Clair3 pileup-stage frameshift calls were not
+  compared with the applied calls.`. The decision itself does not change (#72).
 
 ## [0.16.0] - 2026-09-24
 
