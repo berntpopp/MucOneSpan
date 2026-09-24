@@ -228,26 +228,45 @@ are not a calibration or release claim.
   blocks a NEGATIVE result (no false reassurance) but also means most
   amplicon runs without a pathogenic event end up INCONCLUSIVE rather than
   NEGATIVE: internally, about 6 of 9 amplicon runs reached a callable
-  (non-`unresolved_rejected_peak`) primary-amplicon selection. No pathogenic
-  call was produced on a known-negative sample.
+  (non-`unresolved_rejected_peak`) primary-amplicon selection (measured at
+  commit `2b0072b`, before the Task 13b evidence fix; that fix only changed
+  read-support scoring, not length-peak or selection-status logic, but this
+  figure itself was not re-run at `ca81a97`). No pathogenic call was produced
+  on a known-negative sample.
 
 ### Validation numbers
 
 Two internal validation passes describe this engine, both on branch
-`feat/hybrid-engine`: one at commit `2b0072b` (before the Task 13b evidence
-fix) and one after it, at commit `ca81a97`. The numbers below are the
-after-fix (`ca81a97`) state.
+`feat/hybrid-engine`: one at commit `2b0072b` (before the Task 13b read-support
+evidence fix) and one after it, at commit `ca81a97`. The Task 13b fix only
+changed `hybrid/evidence.py` (per-event read-level support); the frozen
+simulated panels and the 9-library PRJEB92208 **amplicon** run were
+re-executed afterward and are reported at `ca81a97` below. The PRJEB92208
+**genomic/WGS** invocations, the in-house genomic runs, and the
+`clinical_benchmark.py`-scored sequence-exactness check were run once, at
+`2b0072b`, and were **not** re-run after the fix -- each row below states
+which commit it was measured on.
+
+**Re-verified after the fix (commit `ca81a97`):**
 
 | Check | Result |
 | --- | --- |
 | Frozen simulated dev panel, alleles sequence-exact | 77/80 (mutations detected 24/24). One case names an extra, read-support-`discordant` variant alongside the correct causative event from a residual 1-base consensus error; the clinical decision (PATHOGENIC on the true event) is unaffected, but the panel's by-name mutation scorer counts it as a false positive. |
 | Frozen simulated held-out panel, alleles sequence-exact | 77/80 (mutations detected 28/28) |
-| PRJEB92208 known dupC-positive controls | PATHOGENIC with `read_support.status == "supported"` on all of them |
-| PRJEB92208 HG002 vs. an independent full-sequence assembly | both alleles literal sequence-exact |
-| PRJEB92208 non-dupC samples | none reached PATHOGENIC |
-| In-house ONT genomic samples | no phantom fragment alleles; a low-spanning-depth dupC sample reported INCONCLUSIVE (insufficient depth), not PATHOGENIC or NEGATIVE |
+| PRJEB92208 amplicon dupC-positive controls (4 libraries) | PATHOGENIC with `read_support.status == "supported"` on all of them |
+| PRJEB92208 amplicon non-dupC samples (5 libraries) | none reached PATHOGENIC (all INCONCLUSIVE) |
+
+**Measured once, before the fix (commit `2b0072b`, Task 13) -- not re-run
+afterward:**
+
+| Check | Result |
+| --- | --- |
+| PRJEB92208 HG002 vs. an independent full-sequence assembly (`clinical_benchmark.py`-scored, the amplicon library and the genomic WGS invocation) | both literal sequence-exact |
+| PRJEB92208 genomic/WGS invocations (2 libraries) | both INCONCLUSIVE, on insufficient/low spanning depth |
+| In-house ONT genomic samples (5 libraries, local only) | no phantom fragment alleles; a low-spanning-depth dupC sample reported INCONCLUSIVE (insufficient depth), not PATHOGENIC or NEGATIVE |
 
 These are development-branch regression runs, not a release validation: the
 frozen-panel gate for this engine (>=80/80 sequence-exact) was not met, the
 public PRJEB92208 benchmark record was not refreshed after the Task 13b
-evidence fix, and the sealed test split was never used to tune a default.
+evidence fix, several checks above were never re-run after that fix, and the
+sealed test split was never used to tune a default.
