@@ -23,13 +23,29 @@ from collections import Counter
 from collections.abc import Sequence
 from concurrent.futures import ProcessPoolExecutor
 from functools import partial
+from importlib.util import module_from_spec, spec_from_file_location
 from pathlib import Path
+from types import ModuleType
 from typing import Any
 
 from muc_one_span.benchsim.design import Design, build_split
 from muc_one_span.benchsim.generate import GenerateContext, generate_case, write_manifest
 from muc_one_span.benchsim.muconeup import BUILTIN_PROFILE, require_muconeup
 from muc_one_span.benchsim.profiles import builtin_profile_dir, write_variant
+from muc_one_span.benchsim.realism import aggregate as realism_aggregate
+from muc_one_span.benchsim.realism import case_metrics
+from muc_one_span.benchsim.realism_targets import compare as realism_compare
+from muc_one_span.benchsim.realism_targets import load_targets
+from muc_one_span.benchsim.report import (
+    RULE_TEXT,
+    decide,
+    normalize_rows,
+    preregister,
+    render_markdown,
+    render_tables,
+    require_preregistered,
+    stratified_table,
+)
 from muc_one_span.benchsim.run_cases import run_split
 from muc_one_span.config import load_repeat_dictionary
 from muc_one_span.tools import run_tool
@@ -38,6 +54,20 @@ DATA_DIR_NAME = "MucOneSpan-bench-data"
 DEFAULT_N = {"dev": 300, "val": 300, "test": 800, "stress": 100}
 DEFAULT_SALT = "mucsim-bench-v1"
 HERE = Path(__file__).resolve().parent
+TABLE_STRATA = (("profile",), ("profile", "delta_class"), ("profile", "depth"))
+TABLE_METRICS = ("allele_exact", "critical_false_negative", "inconclusive", "no_call")
+
+
+def _load_evaluate() -> ModuleType:
+    """``scripts/evaluate.py`` (a script, not a package module)."""
+    spec = spec_from_file_location("benchsim_evaluate", HERE / "evaluate.py")
+    assert spec and spec.loader
+    module = module_from_spec(spec)
+    spec.loader.exec_module(module)
+    return module
+
+
+evaluate_run = _load_evaluate().run
 
 
 def _git_path(flag: str) -> Path | None:
@@ -183,6 +213,154 @@ def cmd_run(args: argparse.Namespace) -> int:
     return 0
 
 
+def _prereg_path(root: Path) -> Path:
+    return root / "test" / "preregistration.jsonl"
+
+
+def _guard_sealed(split: str, root: Path) -> None:
+    """``test`` truth stays sealed until the decision rule is pre-registered."""
+    if split != "test":
+        return
+    try:
+        require_preregistered(_prereg_path(root), RULE_TEXT)
+    except PermissionError as exc:
+        raise SystemExit(f"test split is sealed: {exc}") from exc
+
+
+def _results_root(args: argparse.Namespace, root: Path) -> Path:
+    return ensure_outside(args.results_root or root / "results" / args.split, "--results-root")
+
+
+def _engines(text: str) -> list[str]:
+    engines = [e.strip() for e in text.split(",") if e.strip()]
+    if not engines:
+        raise SystemExit("--engines must name at least one engine")
+    return engines
+
+
+def _write(path: Path, data: dict[str, Any]) -> None:
+    path.write_text(json.dumps(data, indent=2, allow_nan=False) + "\n")
+
+
+def cmd_preregister(args: argparse.Namespace) -> int:
+    """Append the decision rule to ``<out-root>/test/preregistration.jsonl``."""
+    path = _prereg_path(out_root(args))
+    print(f"pre-registered rule sha256 {preregister(RULE_TEXT, path)} in {path}")
+    return 0
+
+
+def cmd_evaluate(args: argparse.Namespace) -> int:
+    """Score each engine's results with ``scripts/evaluate.py`` into ``evaluation.json``."""
+    root = out_root(args)
+    _guard_sealed(args.split, root)  # before any truth is read
+    results, split_dir = _results_root(args, root), root / args.split
+    code = 0
+    for engine in _engines(args.engines):
+        engine_dir = results / engine
+        ns = argparse.Namespace(
+            result_root=engine_dir,
+            truth_root=split_dir,
+            expected_samples=engine_dir / f"inventory_{args.split}.json",
+        )
+        report, rc = evaluate_run(ns)
+        _write(engine_dir / "evaluation.json", report)
+        print(f"{engine}: {engine_dir / 'evaluation.json'} (exit {rc})")
+        code = max(code, rc)
+    return code
+
+
+def _cases(split_dir: Path) -> dict[str, dict[str, Any]]:
+    manifest = split_dir / "manifest.jsonl"
+    if not manifest.is_file():
+        raise SystemExit(f"manifest not found: {manifest}")
+    rows = [json.loads(line) for line in manifest.read_text().splitlines() if line.strip()]
+    return {row["design_id"]: row for row in rows}
+
+
+def _tables(rows: list[dict[str, Any]]) -> dict[str, list[dict[str, Any]]]:
+    tables = {}
+    for by in TABLE_STRATA:
+        for metric in TABLE_METRICS:
+            tables[f"{metric} by {' x '.join(by)}"] = stratified_table(rows, by, metric)
+        normals = [r for r in rows if r["normal"] or r["benign"]]
+        tables[f"false_positive (normal+benign) by {' x '.join(by)}"] = stratified_table(
+            normals, by, "false_positive"
+        )
+    return tables
+
+
+def cmd_report(args: argparse.Namespace) -> int:
+    """Stratified tables per engine and the decision rule: ``report.json`` + ``report.md``."""
+    root = out_root(args)
+    _guard_sealed(args.split, root)
+    results, cases = _results_root(args, root), _cases(root / args.split)
+    engines = [args.baseline] + ([args.candidate] if args.candidate else [])
+    rows: dict[str, list[dict[str, Any]]] = {}
+    for engine in engines:
+        path = results / engine / "evaluation.json"
+        if not path.is_file():
+            raise SystemExit(f"missing {path}; run `benchsim evaluate` first")
+        rows[engine] = normalize_rows(json.loads(path.read_text()), cases)
+    decision = decide(rows, args.baseline, args.candidate) if args.candidate else None
+    tables = {engine: _tables(r) for engine, r in rows.items()}
+    report = {
+        "split": args.split,
+        "decision": decision,
+        "tables": tables,
+        "engines": {engine: {"rows": r} for engine, r in rows.items()},
+    }
+    _write(results / "report.json", report)
+    parts = [render_markdown(decision or {"profiles": {}, "adopt": False})]
+    parts += [f"## Engine `{e}`\n\n{render_tables(t)}" for e, t in tables.items()]
+    (results / "report.md").write_text("\n".join(parts))
+    print(f"report: {results / 'report.json'}")
+    return 0
+
+
+def cmd_realism(args: argparse.Namespace) -> int:
+    """Task 9 realism metrics over a split, aggregated and compared per profile."""
+    root = out_root(args)
+    _guard_sealed(args.split, root)
+    split_dir = root / args.split
+    per_profile: dict[str, list[dict[str, Any]]] = {}
+    failures = []
+    for design_id, case in sorted(_cases(split_dir).items()):
+        if case.get("status") != "ok":
+            failures.append({"design_id": design_id, "error": f"status {case.get('status')}"})
+            continue
+        try:
+            metrics = case_metrics(split_dir / design_id, args.muconeup_config, args.flank_fasta)
+        except (OSError, ValueError, KeyError) as exc:
+            failures.append({"design_id": design_id, "error": f"{type(exc).__name__}: {exc}"})
+            continue
+        per_profile.setdefault(case["profile"], []).append(metrics)
+    targets = load_targets()
+    profiles: dict[str, Any] = {}
+    for profile, cases in sorted(per_profile.items()):
+        agg = realism_aggregate(cases)
+        try:
+            checks = realism_compare(agg, targets, profile)
+        except KeyError:
+            checks = None  # no public target section for this profile
+        profiles[profile] = {"n_cases": len(cases), "aggregate": agg, "compare": checks}
+    _write(
+        split_dir / "realism.json",
+        {"split": args.split, "profiles": profiles, "failures": failures},
+    )
+    lines = [f"# Realism: {args.split}", ""]
+    for profile, res in profiles.items():
+        lines += [f"## {profile} ({res['n_cases']} cases)", ""]
+        if res["compare"] is None:
+            lines += ["No public target section.", ""]
+            continue
+        lines += ["| check | pass |", "|---|---|"]
+        lines += [f"| {k} | {v['pass']} |" for k, v in res["compare"].items()] + [""]
+    lines += [f"Failures: {len(failures)}"]
+    (split_dir / "realism.md").write_text("\n".join(lines) + "\n")
+    print(f"realism: {split_dir / 'realism.json'} ({len(failures)} failures)")
+    return 0
+
+
 def parser() -> argparse.ArgumentParser:
     """Command-line interface."""
     result = argparse.ArgumentParser(description=__doc__.splitlines()[0])
@@ -219,6 +397,28 @@ def parser() -> argparse.ArgumentParser:
         "--jobs", type=int, default=1, help="parallel (engine, case) pairs (process pool)"
     )
     run_cmd.set_defaults(func=cmd_run)
+    prereg = commands.add_parser("preregister", help="pre-register the decision rule for test")
+    prereg.add_argument("--out-root", type=Path, help=f"default: <repo parent>/{DATA_DIR_NAME}")
+    prereg.set_defaults(func=cmd_preregister)
+    for name, func, text in (
+        ("evaluate", cmd_evaluate, "score engine results into <engine>/evaluation.json"),
+        ("report", cmd_report, "stratified tables and decision rule: report.json + report.md"),
+        ("realism", cmd_realism, "realism metrics vs targets: realism.json + realism.md"),
+    ):
+        sp = commands.add_parser(name, help=text)
+        sp.add_argument("--split", choices=sorted(DEFAULT_N), required=True)
+        sp.add_argument("--out-root", type=Path, help=f"default: <repo parent>/{DATA_DIR_NAME}")
+        sp.set_defaults(func=func)
+        if name == "evaluate":
+            sp.add_argument("--engines", default="ladder", help="comma-separated engines")
+        if name == "report":
+            sp.add_argument("--baseline", default="ladder")
+            sp.add_argument("--candidate", help="engine to decide on (omit: tables only)")
+        if name in ("evaluate", "report"):
+            sp.add_argument("--results-root", type=Path, help="default: <out-root>/results/<split>")
+        if name == "realism":
+            sp.add_argument("--muconeup-config", type=Path, help="only for cases without geometry")
+            sp.add_argument("--flank-fasta", type=Path, help="flanks used at generation (genomic)")
     return result
 
 
