@@ -58,6 +58,7 @@
 ---
 
 ### Task 1: Explicit-support clinical decision (safety prerequisite)
+Status: implemented in P0 (v0.16.0, .planning/2026-09-24-p0-clinical-safety-plan.md Task 4); helper lives in clinical_gates.mutation_supported.
 
 Both engines need this. Today a mutation with no `vcf_support` key counts as supported (`report.py:91-98`).
 
