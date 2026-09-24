@@ -222,6 +222,8 @@ def test_report_single_engine_has_no_decision(
     assert cli.main(["report", "--split", "dev", "--out-root", str(tmp_path / "data")]) == 0
     report = json.loads((tmp_path / "data" / "results" / "dev" / "report.json").read_text())
     assert report["decision"] is None and "ladder" in report["engines"]
+    text = (tmp_path / "data" / "results" / "dev" / "report.md").read_text()
+    assert "ADOPT" not in text and "no candidate" in text
 
 
 def test_report_missing_evaluation_errors(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:

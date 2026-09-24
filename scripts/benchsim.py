@@ -316,7 +316,10 @@ def cmd_report(args: argparse.Namespace) -> int:
         "engines": {engine: {"rows": r} for engine, r in rows.items()},
     }
     _write(results / "report.json", report)
-    parts = [render_markdown(decision or {"profiles": {}, "adopt": False})]
+    if decision is None:
+        parts = ["# MucSim-Bench report\n\nDecision: not evaluated (no candidate; tables only).\n"]
+    else:
+        parts = [render_markdown(decision)]
     parts += [f"## Engine `{e}`\n\n{render_engine_tables(t)}" for e, t in tables.items()]
     (results / "report.md").write_text("\n".join(parts))
     print(f"report: {results / 'report.json'}")
