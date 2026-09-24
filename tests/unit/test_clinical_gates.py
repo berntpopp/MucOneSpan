@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+import pytest
+
 from muc_one_span.clinical_gates import allele_gate_reasons, depth_gate_failure, mutation_blockers
 
 _MISMATCH = "differs from the consensus contig length"
@@ -82,3 +84,19 @@ def test_depth_gate_fails_closed_on_unrecognised_status_with_a_basis() -> None:
         "Allele 2: per-allele depth status 'bogus' (spanning reads) is not 'adequate'; "
         "the depth gate fails closed."
     ]
+
+
+@pytest.mark.parametrize("basis", [["spanning_reads"], {"x": 1}, 7])
+def test_non_string_depth_basis_fails_closed_with_a_reason(basis: object) -> None:
+    info = {"depth_status": "adequate", "depth_basis": basis}
+    assert depth_gate_failure(info, assessed=False) == "invalid_depth_basis"
+    reasons = allele_gate_reasons(info, "Allele 1")
+    assert reasons == [
+        "Allele 1: per-allele depth status 'invalid_depth_basis' (unrecognised depth basis) "
+        "is not 'adequate'; the depth gate fails closed."
+    ]
+
+
+def test_unhashable_depth_status_fails_closed() -> None:
+    info = {"depth_status": ["low"], "depth_basis": "spanning_reads"}
+    assert depth_gate_failure(info) == "['low']"

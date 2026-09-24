@@ -150,8 +150,11 @@ def homopolymer_event_run(
     else:
         return None
     pos = start + offset
-    for rs, re_, b in _runs(cons[start:end], s.hp_event_min_run):
-        run_start, run_end = rs + start, re_ + start
+    # Runs are found in the whole consensus so a run that crosses the unit boundary is
+    # measured whole; only runs that intersect the unit and contain the event count.
+    for run_start, run_end, b in _runs(cons, s.hp_event_min_run):
+        if run_end <= start or run_start >= end:
+            continue
         if b == base and run_start <= pos <= run_end:
             if max(run_end - run_start, run_end - run_start - shift) >= s.hp_max_run_len:
                 return None
@@ -167,8 +170,11 @@ def hp_status(
     strand_n: dict[str, int],
     s: HybridSettings,
 ) -> str:
-    """Status of a homopolymer event (spec §5 thresholds plus strand consistency)."""
-    if n < s.hp_min_reads:
+    """Status of a homopolymer event (spec §5 thresholds plus strand consistency).
+
+    Zero reads is always ``insufficient_depth``, whatever the configured minimum.
+    """
+    if n <= 0 or n < s.hp_min_reads:
         return "insufficient_depth"
     if llr < s.hp_llr_min or alt_frac < s.hp_min_alt_frac:
         return "not_supported"
@@ -179,8 +185,8 @@ def hp_status(
 
 
 def competition_status(n: int, alt: int, ref: int, s: HybridSettings) -> str:
-    """Status of a parent-vs-template competition event (C8.3)."""
-    if n < s.hp_min_reads:
+    """Status of a parent-vs-template competition event (C8.3); zero reads is blocked."""
+    if n <= 0 or n < s.hp_min_reads:
         return "insufficient_depth"
     if alt / n >= s.hp_min_alt_frac and alt > ref:
         return "supported"

@@ -162,6 +162,9 @@ def test_hybrid_phase_tunables_default_unchanged() -> None:
         ("hp_background_pseudocount", 0.0),
         ("hp_background_pseudocount", -0.5),
         ("qc_residual_min_run", 1),
+        ("hp_min_reads", 0),
+        ("hp_llr_min", 0.0),
+        ("hp_llr_min", -1.0),
     ],
 )
 def test_hybrid_rejects_invalid(field: str, value: object) -> None:

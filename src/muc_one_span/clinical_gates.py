@@ -16,6 +16,9 @@ ADEQUATE_DEPTH = "adequate"
 # defers to the legacy total-read gate only while no allele carries an assessed status.
 DEPTH_NOT_ASSESSED = "not_assessed"
 ASSESSED_DEPTH_STATUSES = frozenset({ADEQUATE_DEPTH, *LOW_DEPTH_STATUSES})
+# A depth_basis that is not a string cannot name a read count: the gate fails closed.
+INVALID_DEPTH_BASIS = "invalid_depth_basis"
+UNRECOGNISED_BASIS = "unrecognised depth basis"
 # read_support.status values a producer may emit; only "supported" is support.
 READ_SUPPORT_STATUSES = frozenset(
     {"supported", "insufficient_depth", "discordant", "not_supported", "not_localized"}
@@ -84,7 +87,9 @@ def mutation_blockers(mutation: dict[str, Any]) -> list[str]:
 def depth_assessed(alleles: list[Any]) -> bool:
     """True when any allele carries an assessed per-allele depth status."""
     return any(
-        isinstance(info, dict) and info.get("depth_status") in ASSESSED_DEPTH_STATUSES
+        isinstance(info, dict)
+        and isinstance(info.get("depth_status"), str)
+        and info["depth_status"] in ASSESSED_DEPTH_STATUSES
         for info in alleles
     )
 
@@ -95,15 +100,18 @@ def depth_gate_failure(info: Any, *, assessed: bool = True) -> str | None:
     Low statuses always fail. When ``depth_basis`` is present the gate fails closed on
     any status other than ``"adequate"`` (a typo, a missing value or an unknown
     producer value), except ``"not_assessed"`` while no allele is ``assessed`` (the
-    legacy total-read fallback then applies). Legacy summaries without a basis keep
-    their historical behaviour.
+    legacy total-read fallback then applies). A non-string ``depth_basis`` fails as
+    ``"invalid_depth_basis"``. Legacy summaries without a basis keep their historical
+    behaviour.
     """
     if not isinstance(info, dict):
         return None
-    status = info.get("depth_status")
-    if status in LOW_DEPTH_STATUSES:
-        return str(status)
-    if not info.get("depth_basis") or status == ADEQUATE_DEPTH:
+    status, basis = info.get("depth_status"), info.get("depth_basis")
+    if basis is not None and not isinstance(basis, str):
+        return INVALID_DEPTH_BASIS
+    if isinstance(status, str) and status in LOW_DEPTH_STATUSES:
+        return status
+    if not basis or status == ADEQUATE_DEPTH:
         return None
     if status == DEPTH_NOT_ASSESSED and not assessed:
         return None
@@ -140,7 +148,8 @@ def allele_gate_reasons(info: Any, label: str, *, assessed: bool = True) -> list
         )
     failed = depth_gate_failure(info, assessed=assessed)
     basis = info.get("depth_basis") or "primary_alignment_records"
-    basis_label = _DEPTH_BASIS_LABELS.get(basis, basis)
+    basis_ok = isinstance(basis, str)
+    basis_label = _DEPTH_BASIS_LABELS.get(basis, basis) if basis_ok else UNRECOGNISED_BASIS
     if failed in LOW_DEPTH_STATUSES:
         reasons.append(
             f"{label}: {info.get(basis)} {basis_label}, below the "

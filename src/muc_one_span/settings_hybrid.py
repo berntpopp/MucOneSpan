@@ -134,7 +134,6 @@ class HybridSettings:
             "min_fragment_bp",
             "assign_margin",
             "depth_low_spanning",
-            "hp_min_reads",
             "hp_min_strand_reads",
             "seed",
         ):
@@ -173,7 +172,10 @@ class HybridSettings:
         ):
             _number(f"hybrid.{name}", getattr(self, name), 0, 1)
         _number("hybrid.het_af_min", self.het_af_min, 0.01, 0.5)
+        _integer("hybrid.hp_min_reads", self.hp_min_reads, 1)
         _number("hybrid.hp_llr_min", self.hp_llr_min)
+        if self.hp_llr_min == 0:
+            raise ValueError("hybrid.hp_llr_min must be > 0")
         _boolean("hybrid.hp_vote", self.hp_vote)
         _choice("hybrid.poa_backend", self.poa_backend, ("pyabpoa", "pyspoa"))
         _number("hybrid.kde_bandwidth_base_bp", self.kde_bandwidth_base_bp, 1.0)

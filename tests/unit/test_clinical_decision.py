@@ -408,14 +408,14 @@ def test_unknown_depth_status_fails_closed_when_other_allele_is_adequate() -> No
 def test_not_assessed_depth_beside_an_assessed_allele_fails_closed() -> None:
     negative = _hybrid_summary(depth_status="not_assessed")
     assert compute_clinical_decision(negative)["state"] == "INCONCLUSIVE"
-    positive = _hybrid_summary()
-    positive["classifications"]["allele_1"]["mutations"] = [dict(SUPPORTED)]
-    positive["alleles"]["allele_1"]["depth_status"] = "bogus"
-    decision = compute_clinical_decision(positive)
-    assert decision["state"] == "INCONCLUSIVE"
-    assert any(
-        "carrying allele depth status 'bogus' is not adequate" in d for d in decision["details"]
-    )
+    for status in ("not_assessed", "bogus"):
+        positive = _hybrid_summary()
+        positive["classifications"]["allele_1"]["mutations"] = [dict(SUPPORTED)]
+        positive["alleles"]["allele_1"]["depth_status"] = status
+        decision = compute_clinical_decision(positive)
+        assert decision["state"] == "INCONCLUSIVE"
+        expected = f"carrying allele depth status {status!r} is not adequate"
+        assert any(expected in d for d in decision["details"])
 
 
 def test_ladder_not_assessed_on_both_alleles_keeps_legacy_fallback() -> None:
@@ -426,3 +426,10 @@ def test_ladder_not_assessed_on_both_alleles_keeps_legacy_fallback() -> None:
             depth_status="not_assessed", depth_basis="primary_alignment_records", reads=40
         )
     assert compute_clinical_decision(summary)["state"] == "NO_PATHOGENIC_VARIANT_DETECTED"
+
+
+def test_non_string_depth_basis_fails_closed() -> None:
+    summary = _hybrid_summary(depth_basis=["spanning_reads"])
+    decision = compute_clinical_decision(summary)
+    assert decision["state"] == "INCONCLUSIVE"
+    assert any("Allele 2" in d and "invalid_depth_basis" in d for d in decision["details"])

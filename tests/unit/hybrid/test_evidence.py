@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import random
 from dataclasses import replace
+from types import SimpleNamespace
 from typing import Any
 
 import pytest
@@ -175,13 +176,32 @@ def test_competition_status_clauses() -> None:
 
 
 def _random_settings(rng: random.Random) -> HybridSettings:
+    # Every other draw uses the most permissive valid configuration (boundaries).
+    if rng.random() < 0.5:
+        return replace(
+            S, hp_min_reads=1, hp_llr_min=1e-9, hp_min_alt_frac=0.0, hp_min_strand_reads=0
+        )
     return replace(
         S,
         hp_min_reads=rng.randint(1, 40),
-        hp_llr_min=rng.uniform(0, 30),
+        hp_llr_min=rng.uniform(1e-9, 30),
         hp_min_alt_frac=rng.uniform(0, 1),
         hp_min_strand_reads=rng.randint(0, 10),
     )
+
+
+def test_zero_reads_are_never_supported_even_at_permissive_settings() -> None:
+    loose = replace(S, hp_min_reads=1, hp_llr_min=1e-9, hp_min_alt_frac=0.0)
+    zero = {"+": 0, "-": 0}
+    assert hp_status(0, 50.0, 1.0, {"+": 1.0, "-": 1.0}, zero, loose) == "insufficient_depth"
+    assert competition_status(0, 0, 0, loose) == "insufficient_depth"
+    # The guard holds even for a settings object that bypassed validation.
+    unchecked = SimpleNamespace(
+        hp_min_reads=0, hp_llr_min=0.0, hp_min_alt_frac=0.0, hp_min_strand_reads=0
+    )
+    got = hp_status(0, 0.0, 0.0, {"+": 0.0, "-": 0.0}, zero, unchecked)  # type: ignore[arg-type]
+    assert got == "insufficient_depth"
+    assert competition_status(0, 0, 0, unchecked) == "insufficient_depth"  # type: ignore[arg-type]
 
 
 def test_property_status_set_and_thresholds() -> None:
@@ -195,9 +215,11 @@ def test_property_status_set_and_thresholds() -> None:
         strand_llr = {"+": rng.uniform(-20, 20), "-": rng.uniform(-20, 20)}
         status = hp_status(n, llr, frac, strand_llr, strand_n, s)
         assert status in READ_SUPPORT_STATUSES
-        assert (status == "insufficient_depth") == (n < s.hp_min_reads)
+        assert (status == "insufficient_depth") == (n < max(s.hp_min_reads, 1))
         if status == "supported":
-            assert n >= s.hp_min_reads and llr >= s.hp_llr_min and frac >= s.hp_min_alt_frac
+            assert (
+                n >= 1 and n >= s.hp_min_reads and llr >= s.hp_llr_min and frac >= s.hp_min_alt_frac
+            )
             assert not any(
                 strand_n[st] >= s.hp_min_strand_reads and strand_n[st] > 0 and strand_llr[st] < 0
                 for st in strand_n
@@ -206,9 +228,9 @@ def test_property_status_set_and_thresholds() -> None:
         ref = rng.randint(0, n - alt)
         status = competition_status(n, alt, ref, s)
         assert status in READ_SUPPORT_STATUSES
-        assert (status == "insufficient_depth") == (n < s.hp_min_reads)
+        assert (status == "insufficient_depth") == (n < max(s.hp_min_reads, 1))
         if status == "supported":
-            assert n >= s.hp_min_reads and alt / n >= s.hp_min_alt_frac and alt > ref
+            assert n >= 1 and n >= s.hp_min_reads and alt / n >= s.hp_min_alt_frac and alt > ref
 
 
 # --- template typing -------------------------------------------------------------------
@@ -249,6 +271,19 @@ def test_single_base_deletion_template_is_typed_from_the_parent() -> None:
     got = homopolymer_event_run(mutation, rd, cons, start, start + UNIT - 1, S)
     assert got == (start + run_start, start + run_start + 6, "C", -1)
     assert homopolymer_event_run(dict(mutation, closest_type=None), rd, cons, 0, 1, S) is None
+
+
+def test_run_crossing_the_unit_boundary_is_measured_whole() -> None:
+    x = synth.RD.repeats["X"]
+    parent = "TT" + x[2:]
+    template = {"changes": [{"type": "insert", "start": 1, "sequence": "T"}]}
+    rd = replace(synth.RD, mutations={**synth.RD.mutations, "insT_test": template})
+    before = x[:-2] + "TT"  # the previous unit ends in the same base
+    cons = synth.allele(["X", before, "T" + parent, "X"])
+    start = (len(synth.PRE) + 2) * UNIT
+    mutation = {"mutation_name": "insT_test", "closest_type": "X"}
+    got = homopolymer_event_run(mutation, rd, cons, start, start + UNIT + 1, S)
+    assert got == (start - 2, start + 3, "T", 1)
 
 
 # --- end-to-end support -----------------------------------------------------------------
