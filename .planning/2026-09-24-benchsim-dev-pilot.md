@@ -1,9 +1,18 @@
 # MucSim-Bench dev pilot (Task 12)
 
-Date: 2026-09-25 (plan dated 2026-09-24). Branch `feat/benchsim`.
+Run on 2026-09-25; the file name keeps the plan date (2026-09-24). Branch `feat/benchsim`.
 Data and results live outside Git in `../MucOneSpan-bench-data` (regenerable).
 This file holds only aggregate numbers: no reads, truth sequences, per-library
 values or patient data.
+
+> **Superseded settings (Task 12 fix round 1).** After this pilot, all
+> benchmark tunables moved to `benchsim.bench_config`. Two defaults changed:
+> - Event targets are now clamped to units 6..L-4, from the bundled reference
+>   layout (head 1-5, tail 6-9), instead of 5..L-5.
+> - Smear 0.5 moved to the `stress` split; dev/val/test now use 0.05 and 0.25.
+>
+> The numbers below come from the earlier settings. The pilot is regenerated
+> in the next round.
 
 ## Engine under test
 

@@ -16,6 +16,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
   a failure atlas and a pre-registered decision rule for a sealed `test` split.
 - Realism report against public PRJEB92208 aggregate targets; the optional
   `bench` extra provides edlib for it.
+- Every benchmark tunable is a validated setting (`benchsim.bench_config`).
+  `--bench-config` overrides it, and the settings hash is recorded per case
+  and report. Regular splits cap smear plus chimera at the real off-peak
+  maximum; smear 0.5 moved to `stress`.
+- Amplicon template sizing floors the minor-allele share at
+  `amount.min_minor_share`. Floored cases record `amount_capped`, and every
+  amplicon case records the floor used (`min_minor_share`).
+- Event targets are clamped off the conserved head (units 1-5) and tail
+  (units 6-9) and recorded as `target_clamped`. Too-short alleles are
+  `design_invalid`.
 - MucSim-Bench guide (`docs/benchmark.md`).
 
 ## [0.15.1] - 2026-09-23

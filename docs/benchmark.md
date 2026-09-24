@@ -34,7 +34,51 @@ rule. Everything is driven by `scripts/benchsim.py`.
 
 Each design layers artefact, error and PCR levels onto the base profile
 (`smear`, `chimera`, `error`, `pcr`); the variant JSON and the SHA-256 of the
-base profile are recorded for every case.
+base profile are recorded for every case. The level values are settings (see
+[Configuration](#configuration)).
+
+## Configuration
+
+Every tunable number of the benchmark is a validated setting in
+`muc_one_span.benchsim.bench_config`. The defaults below apply unless
+`--bench-config FILE` (given before the subcommand) names a JSON file with
+`"schema_version": 1` and any subset of the sections. Unknown sections or fields,
+duplicate keys and out-of-range values are rejected. The SHA-256 of the
+effective settings is written to every `case.json` (`bench_config_sha256`),
+`realism.json` and `report.json`.
+
+```bash
+python scripts/benchsim.py --bench-config my-bench.json design --split dev --n 30
+```
+
+| Setting | Default | Meaning |
+| --- | --- | --- |
+| `design.split_sizes` | dev 300, val 300, test 800, stress 100 | Cases per profile when `--n` is omitted |
+| `design.normal_fraction` | 0.35 | Minimum share of normal cases per profile |
+| `design.length_min` / `length_max` | 20 / 130 | Allele length range (repeat units) |
+| `design.depths` | amplicon 5-2000, genomic 3-80 | Target spanning depth levels per profile |
+| `design.delta_ranges` | `0_identical` ... `>20` (21-90) | Length difference classes |
+| `design.compositions` | markov 0.75, real_derived 0.20, rare_units 0.05 | Structure source weights |
+| `design.position_fraction` | 0.1 | Leading/trailing fraction for `first10` / `last10` |
+| `design.pcr_levels`, `error_levels`, `chimera_levels` | all levels; chimera 0.01, 0.05 | Artefact factor levels |
+| `design.smear_levels` | dev/val/test 0.05, 0.25; stress 0.5 | Smear rate levels per split |
+| `design.offpeak_share_cap` | 0.5369 | Cap on max smear + max chimera for regular splits (real PRJEB92208 maximum of `span_off_gt1unit_frac`) |
+| `design.offpeak_cap_exempt` | stress | Splits allowed above the cap |
+| `amount.pcr_slope_per_unit` | calibrated 0.056, strong 0.112, none 0 | Minor-allele PCR share model |
+| `amount.min_minor_share` | 0.05 | Floor on the minor-allele share when sizing amplicon templates |
+| `amount.genomic_mc_draws` | 20000 | Monte-Carlo draws for genomic read counts |
+| `amount.fragment_length_median` / `sigma` | 5000 / 0.5 | Fallback genomic fragment model (MucOneUp defaults) |
+| `profiles.r10_pcr_alpha`, `strong_pcr_alpha_factor` | 9.27e-5, 2 | Strong PCR bias preset |
+| `profiles.poor_error_scale`, `hifi_poor_accuracy_mean` | 1.5, 0.95 | `poor` error level |
+| `structures.rare_fraction`, `rare_usage_max`, `stationary_steps` | 0.10, 0.01, 2000 | Rare-unit structures |
+| `realism.*` | see the realism section | Metric definitions and tolerances |
+| `report.alpha`, `ni_margin` | 0.05, 0.005 | Decision rule and interval level |
+| `report.bootstrap_replicates`, `bootstrap_seed` | 2000, 0 | Cluster bootstrap |
+| `run.threads` | 4 | Default `run --threads` |
+
+Domain constants are not settings. The repeat-unit length and the conserved
+unit IDs come from the bundled repeat dictionary. The conserved head (units
+1-5) and tail (units 6-9) positions come from the bundled reference layout.
 
 ## Data layout outside Git
 
@@ -66,9 +110,12 @@ MucOneSpan-bench-data/
 | `dev` | 300 | public salt; regenerable, used for development |
 | `val` | 300 | public salt |
 | `test` | 800 | **secret** salt file stored outside the working tree (`--salt-file`) |
-| `stress` | 100 | public salt; reserved for hard corner cases |
+| `stress` | 100 | public salt; hard corners (smear level above the real maximum) |
 
-Every split and profile holds at least 35% normal cases. Biological and read
+Every split and profile holds at least `design.normal_fraction` (35%) normal
+cases. Regular splits use smear levels whose expected off-peak share (smear
+plus chimera) stays within the real maximum; the `stress` split holds the
+smear 0.5 level. Biological and read
 seeds are derived from the salt and the design, so a split is reproducible
 from its salt.
 
@@ -90,8 +137,11 @@ truth alleles, Holm-adjusted across the three primary metrics at alpha 0.05),
 non-inferior on the false-positive `PATHOGENIC` rate among normal and benign
 truths (Newcombe one-sided 95% upper bound of the difference below 0.5
 percentage points), and calls no more pathogenic truths
-`NO_PATHOGENIC_VARIANT_DETECTED` or `NO_CALL` than the baseline. The full text is `RULE_TEXT` in
-`muc_one_span.benchsim.report`; its SHA-256 is what `preregister` records.
+`NO_PATHOGENIC_VARIANT_DETECTED` or `NO_CALL` than the baseline. The numbers
+are `report.alpha` and `report.ni_margin`. The full text is `rule_text()` in
+`muc_one_span.benchsim.report`, built from the report settings; its SHA-256 is
+what `preregister` records, so changing a report setting needs a new
+pre-registration.
 
 ## Subcommands
 
@@ -102,10 +152,13 @@ Examples assume `uv run --locked --all-extras` in front of
 
 Writes `designs_<split>.jsonl` with stratified factors (profile, event,
 length difference class, depth, composition, PCR, smear, chimera, error).
-Event targets never fall on repeat units 1-4 (the conserved head; unit 1 holds
-part of the forward amplicon primer site) or the last five units (the conserved
-6-9 tail). A position stratum that would land there (`first10` or `last10` of a
-short allele) is moved to the nearest allowed unit.
+Event targets never fall on the conserved head (units 1-5; unit 1 holds part
+of the forward amplicon primer site) or the conserved tail (units 6-9, the last
+four units). A drawn target that would land there (`first10` or `last10` of a
+short allele) is clamped to the nearest allowed unit, and the design records
+`target_clamped: true`. Clamping keeps the random draw sequence, so other
+designs do not change. An allele too short to hold an event outside the head
+and tail is `design_invalid`.
 
 ```bash
 python scripts/benchsim.py design --split dev --n 30          # 30 per profile
@@ -117,6 +170,15 @@ python scripts/benchsim.py design --split test --salt-file ~/secrets/benchsim.sa
 Simulates truth and reads for each design with MucOneUp and writes
 `case.json`, `truth/`, `reads/` and the split `manifest.jsonl`. Cases are
 written once; failed cases stay in the manifest with their status.
+
+Amplicon template counts are sized so that the PCR-disadvantaged minor allele
+reaches the design depth. With strong PCR bias and a large length difference
+the minor-allele share can fall so low that the template count would explode.
+The share is therefore floored at `amount.min_minor_share` (0.05). A floored
+case records `amount_capped: true`, and every amplicon case records the floor
+used (`min_minor_share`) in `case.json` and the manifest. The minor allele of
+a floored case gets below-target depth, like real allelic dropout. The case
+also records `target_clamped` from its design.
 
 ```bash
 python scripts/benchsim.py generate --designs "$DATA/designs_dev.jsonl" --jobs 6 \
@@ -189,9 +251,23 @@ Realism metrics are measured on the same scope as the targets: the VNTR
 interval (motif-1 start to motif-9 end) of spanning reads for error rates,
 C7 homopolymer accuracy and span offsets. Each metric is checked against the
 public PRJEB92208 aggregates (`src/muc_one_span/benchsim/targets/prjeb92208_v1.json`)
-with the tolerance listed in `muc_one_span.benchsim.realism_targets`, for
-example error rates within 20% of the real median and the span-offset
-histogram within a Jensen-Shannon distance of 0.1.
+with a tolerance from the `realism` settings:
+
+| Setting | Default | Check |
+| --- | --- | --- |
+| `realism.error_rel_tol` | 0.20 | Error rates within 20% of the real median |
+| `realism.c7_abs_tol` | 0.03 | C7 correct-length fraction, absolute |
+| `realism.range_median_rel_tol` | 0.25 | Median of a range metric within 25% of the real median |
+| `realism.jsd_max` | 0.1 | Span-offset histogram Jensen-Shannon distance |
+| `realism.slope_abs_tol` | 0.01 | Allele-ratio slope per unit, absolute |
+
+The metric definitions are settings as well:
+- span-offset bins: `offset_bin_bp` 15, bins -12 to 4, size split at 55 units;
+- C7: `c7_run_length` 7, `c7_extend_max` 3;
+- peak widths: `on_peak_min_bp` 30, `on_peak_rel` 0.012, `off_peak_units` 1.5.
+
+The bins must match the target file's `bin_lo_bp`, or `realism` fails with an
+error.
 
 A failed check is a known sim-to-real gap, not a reason to tune the caller. Report
 it with the benchmark results. In-house genomic targets can be loaded
