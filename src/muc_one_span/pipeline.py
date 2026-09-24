@@ -88,7 +88,15 @@ def execute_pipeline(
     configuration_record = write_run_configuration(
         settings, configuration, Path(input_path), ref, out
     )
-    check_tools(["minimap2", "samtools", "bcftools", "run_clair3.sh"])
+    igv_requested = settings.run.report_igv != "off"
+    check_tools(
+        ["minimap2", "samtools", "bcftools", "run_clair3.sh"]
+        + (["create_report"] if igv_requested else [])
+    )
+    if igv_requested:
+        from muc_one_span.report_igv import preflight_igv_report
+
+        preflight_igv_report(settings.run.report_igv, out)
     tool_versions = get_tool_versions(["minimap2", "samtools", "bcftools", "run_clair3.sh"])
 
     # Step 1: Map reads

@@ -103,3 +103,27 @@ def test_alleles_json_records_selection_and_depth_gates(tmp_path: Path) -> None:
     assert alleles["allele_2"]["depth_status"] == "adequate"
     assert alleles["allele_2"]["selection_status"] == "resolved"
     assert alleles["allele_2"]["length_status"] == "consistent_with_consensus_contig"
+
+
+def test_failed_igv_preflight_stops_before_mapping(tmp_path: Path) -> None:
+    failing = patch(
+        "muc_one_span.report_igv.preflight_igv_report",
+        side_effect=RuntimeError("IGV report preflight failed for --report-igv embedded"),
+    )
+    result, calls = run_mocked_pipeline(
+        tmp_path, "--report-igv", "embedded", extra_patches=[failing]
+    )
+    assert result.exit_code != 0
+    assert "map" not in calls
+    assert calls == ["check:minimap2,samtools,bcftools,run_clair3.sh,create_report"]
+    status = json.loads((tmp_path / "out" / "run_status.json").read_text())
+    assert status["status"] == "execution_failed"
+
+
+def test_igv_off_skips_preflight_and_create_report(tmp_path: Path) -> None:
+    probe = patch("muc_one_span.report_igv.preflight_igv_report")
+    with probe as preflight:
+        result, calls = run_mocked_pipeline(tmp_path)
+    assert result.exit_code == 0, result.output
+    preflight.assert_not_called()
+    assert calls[0] == "check:minimap2,samtools,bcftools,run_clair3.sh"

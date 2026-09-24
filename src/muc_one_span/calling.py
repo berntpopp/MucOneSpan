@@ -70,6 +70,8 @@ def extract_allele_reads(
     bam_path: Path,
     contig_names: str | list[str],
     output_dir: Path,
+    *,
+    output_name: str = "allele_reads.bam",
 ) -> Path:
     """Extract reads mapped to one or more contigs from a BAM file.
 
@@ -80,6 +82,7 @@ def extract_allele_reads(
         bam_path: Path to the full mapping BAM.
         contig_names: Single contig name or list of contig names to extract.
         output_dir: Directory for output files.
+        output_name: File name of the extracted BAM inside ``output_dir``.
 
     Returns:
         Path to the extracted, indexed BAM file.
@@ -88,7 +91,7 @@ def extract_allele_reads(
         contig_names = [contig_names]
 
     output_dir.mkdir(parents=True, exist_ok=True)
-    out_bam = output_dir / "allele_reads.bam"
+    out_bam = output_dir / output_name
 
     run_tool(
         [
@@ -137,13 +140,18 @@ def _extract_and_remap_reads(
     """
     output_dir.mkdir(parents=True, exist_ok=True)
 
-    # 1. Extract reads from all cluster contigs
-    cluster_bam = extract_allele_reads(bam_path, cluster_contigs, output_dir)
+    # 1. Extract reads from all cluster contigs (ladder coordinates; intermediate)
+    cluster_bam = extract_allele_reads(
+        bam_path, cluster_contigs, output_dir, output_name="cluster_reads.bam"
+    )
 
-    # 2. Convert to FASTQ
+    # 2. Convert to FASTQ, then drop the cluster BAM so allele_reads.bam is only
+    #    ever the remapped single-contig BAM.
     fastq_path = output_dir / "cluster_reads.fq"
     stdout = run_tool(["samtools", "fastq", str(cluster_bam)])
     fastq_path.write_text(stdout)
+    cluster_bam.unlink(missing_ok=True)
+    Path(f"{cluster_bam}.bai").unlink(missing_ok=True)
 
     # 3. Extract peak contig as mini-reference
     contig_ref = output_dir / f"{peak_contig}.fa"
