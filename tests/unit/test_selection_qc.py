@@ -81,3 +81,19 @@ def test_annotate_updates_both_alleles_in_place() -> None:
     assert alleles["allele_1"]["selection_status"] == "resolved"
     assert alleles["allele_2"]["selection_status"] == "unresolved_secondary_mode"
     assert alleles["homozygous"] is False
+
+
+def test_non_ladder_contig_names_are_skipped_not_raised() -> None:
+    """Custom references without ``contig_N`` names must not crash after allele detection."""
+    metrics = {"custom_ref": {"primary_alignment_records": 900}, **CONTROL}
+    assert secondary_mode_fraction(metrics, 5) == pytest.approx(36 / 3510)
+    only_custom = {"chr1:1-100": {"primary_alignment_records": 50}, "contig_x": {}}
+    assert secondary_mode_fraction(only_custom, 5) is None
+    result = assess_allele({"fit_metrics": only_custom}, AlleleSelectionSettings())
+    assert result["selection_status"] == "not_assessed"
+
+
+def test_unselected_clusters_block_even_without_fit_metrics() -> None:
+    info = {"length_selection_evidence": {"unselected_passing_clusters": 2}}
+    status = assess_allele(info, AlleleSelectionSettings())["selection_status"]
+    assert status == "unresolved_unselected_clusters"

@@ -291,3 +291,36 @@ def test_pathogenic_lists_quality_caveats() -> None:
     assert decision["state"] == "PATHOGENIC"
     assert decision["details"][0].startswith("Allele 1: dupC at repeat unit 20")
     assert any(detail.startswith("Quality caveat: Allele 2") for detail in decision["details"])
+
+
+def test_one_low_allele_without_depth_on_other_blocks_negative() -> None:
+    summary = _gated_summary()
+    for key in ("depth_status", "depth_threshold", "primary_alignment_records"):
+        summary["alleles"]["allele_1"].pop(key)
+    summary["alleles"]["allele_2"].update(depth_status="low", primary_alignment_records=12)
+    decision = compute_clinical_decision(summary)
+    assert decision["state"] == "INCONCLUSIVE"
+    assert any("Allele 2: 12 primary alignments" in detail for detail in decision["details"])
+
+
+def test_not_assessed_depth_falls_back_to_legacy_total_reads() -> None:
+    negative = _gated_summary()
+    positive = _gated_summary([dict(SUPPORTED)])
+    for summary in (negative, positive):
+        for key in ("allele_1", "allele_2"):
+            summary["alleles"][key].update(depth_status="not_assessed", reads=10)
+    decision = compute_clinical_decision(negative)
+    assert decision["state"] == "INCONCLUSIVE"
+    assert any("Total read depth (20 reads)" in detail for detail in decision["details"])
+    assert compute_clinical_decision(positive)["state"] == "INCONCLUSIVE"
+
+
+def test_pathogenic_allele_1_with_low_allele_2_keeps_caveat() -> None:
+    summary = _gated_summary([dict(SUPPORTED)])
+    summary["alleles"]["allele_2"].update(depth_status="low", primary_alignment_records=12)
+    decision = compute_clinical_decision(summary)
+    assert decision["state"] == "PATHOGENIC"
+    assert any(
+        detail.startswith("Quality caveat: Allele 2: 12 primary alignments")
+        for detail in decision["details"]
+    )
