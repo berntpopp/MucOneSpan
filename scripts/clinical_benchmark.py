@@ -67,6 +67,8 @@ def parser() -> argparse.ArgumentParser:
     run.add_argument("--timeout", type=float, default=3600)
     run.add_argument("--run", action="append", default=[])
     run.add_argument("--resume", action="store_true")
+    run.add_argument("--engine", choices=("ladder", "hybrid"), default="ladder")
+    run.add_argument("--assay", choices=("amplicon", "genomic"), default=None)
     score = commands.add_parser("score")
     score.add_argument("--manifest", type=Path, required=True)
     score.add_argument("--truth", type=Path, required=True)
@@ -130,6 +132,10 @@ def main(argv: list[str] | None = None) -> int:
                         "environment": environment,
                         "environment_sha256": object_hash(environment),
                         "report_igv": "off",
+                        # Only non-default engine choices enter the hashed settings, so
+                        # existing ladder attempts stay resumable.
+                        **({"engine": args.engine} if args.engine != "ladder" else {}),
+                        **({"assay": args.assay} if args.assay else {}),
                         "repeat_policy": "one observed execution per library",
                         "harness_sha256": {
                             str(p.relative_to(checkout)): sha256_file(p)

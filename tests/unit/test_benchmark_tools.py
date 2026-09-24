@@ -248,3 +248,30 @@ def test_mixed_platform_inventory_rejects_one_shared_model(tmp_path):
     assert len(records) == 2
     assert all(r["status"] == "not_attempted" for r in records)
     assert all("per-sample models" in r["error"] for r in records)
+
+
+def test_engine_is_forwarded_only_when_not_ladder(tmp_path: Path) -> None:
+    from muc_one_span.benchmarking import run_pipeline
+
+    class Result:
+        exit_code = 0
+        output = "ok"
+        exception = None
+
+    class Runner:
+        def invoke(self, command, args):
+            return Result()
+
+    reads = tmp_path / "reads.fastq"
+    reads.touch()
+    default_record = run_pipeline(
+        "sample", reads, tmp_path / "ladder", "ont", "model", 1, runner=Runner()
+    )
+    assert "--engine" not in default_record["cli_args"]
+    assert default_record["engine"] == "ladder"
+
+    hybrid_record = run_pipeline(
+        "sample", reads, tmp_path / "hybrid", "ont", "model", 1, runner=Runner(), engine="hybrid"
+    )
+    assert hybrid_record["cli_args"][-2:] == ["--engine", "hybrid"]
+    assert hybrid_record["engine"] == "hybrid"

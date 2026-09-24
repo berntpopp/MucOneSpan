@@ -246,3 +246,28 @@ def test_environment_rejects_installed_package_drift(monkeypatch):
     monkeypatch.setenv("CUDA_VISIBLE_DEVICES", "")
     with pytest.raises(ValueError, match="installed packages"):
         verify_environment(environment, checkout)
+
+
+def test_engine_and_assay_come_from_hashed_settings(tmp_path: Path, monkeypatch):
+    import contextlib
+    import json
+
+    from muc_one_span.clinical_provenance import sha256_file
+
+    reads = tmp_path / "reads.fastq"
+    reads.write_text("@a\nACGT\n+\nIIII\n")
+    seen: list[list[str]] = []
+
+    def execute(commands, **kwargs):
+        seen.append(json.loads(Path(commands[0][-1]).read_text())["argv"])
+        raise RuntimeError("stop after recording argv")
+
+    monkeypatch.setattr("muc_one_span.clinical_runner.run_tool_pipeline", execute)
+    run = {"run_accession": "ERR1", "arm": "primary_amplicon"}
+    prep = {"run_accession": "ERR1", "output_path": str(reads), "output_sha256": sha256_file(reads)}
+    base = {"threads": 2, "timeout": 10, "model": "unused"}
+    for root, extra in (("ladder", {}), ("hybrid", {"engine": "hybrid", "assay": "genomic"})):
+        with contextlib.suppress(RuntimeError):
+            run_case(run, prep, tmp_path / root, {**base, **extra})
+    assert "--engine" not in seen[0]
+    assert seen[1][-4:] == ["--engine", "hybrid", "--assay", "genomic"]

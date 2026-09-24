@@ -155,6 +155,9 @@ def run_case(
         "--report-igv",
         "off",
     ]
+    for option in ("engine", "assay"):  # hashed settings: --resume cannot mix engines
+        if settings.get(option) is not None:
+            argv += [f"--{option}", str(settings[option])]
     invocation = root / "invocation.json"
     write_json(invocation, {"argv": argv, "output": str(root)})
     command = [sys.executable, "-m", "muc_one_span.clinical_worker", str(invocation)]

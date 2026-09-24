@@ -32,6 +32,9 @@ def parser() -> argparse.ArgumentParser:
         "--clair3-model", default=None, help="Clair3 model (defaults to CLAIR3_MODEL)"
     )
     result.add_argument("--threads", type=int, default=None, help="Threads for every sample")
+    result.add_argument(
+        "--engine", choices=("ladder", "hybrid"), default="ladder", help="Reconstruction engine"
+    )
     return result
 
 
@@ -47,6 +50,7 @@ def main(argv: list[str] | None = None) -> int:
             platform=args.platform,
             model=args.clair3_model if args.clair3_model is not None else os.getenv("CLAIR3_MODEL"),
             threads=args.threads,
+            engine=args.engine,
         )
     except (OSError, ValueError) as exc:
         print(f"Error: {exc}", file=sys.stderr)
