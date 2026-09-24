@@ -511,3 +511,62 @@ are +53% and plus-strand mismatches -30%. The span-offset JS distance
 (0.23-0.27) is the real outstanding realism gap. The standard smear setting
 reproduces the real median off-peak share (0.2686 vs 0.2695). The upstream
 draft is `.planning/2026-09-25-muconeup-realism-issue.md`.
+
+### Fix round 1: artefact-free clean ONT amplicon (`v3/clean2`)
+
+The v3 `clean` set was **not artefact-free**. The profile variant overrode only
+smear and chimera, so the ONT amplicon cases kept the base profile's
+concatemer rate (0.024) and off-target fraction (0.3). Their off-by->1-unit
+median of 0.0244 was the concatemer rate.
+
+Sets now fix `concatemer_levels` and `offtarget_levels` as well. `clean` sets
+both to 0; `standard` and `stress` keep the profile values. I regenerated only
+the 30 clean ONT amplicon cases into a fresh out-root, `v3/clean2`, at commit
+`dfd36b9`. The design IDs, haplotypes and read seeds are the same as in v3
+clean.
+
+| Step | Wall | Result |
+| --- | --- | --- |
+| generate `--jobs 6` (2 simulator threads each) | 2 min 06 s | 30/30 ok |
+| realism | 3 min 42 s | 0 failures; off-by->1-unit median 0.0, off-target 0.0 |
+| run `--threads 3 --jobs 4` | 26 min 33 s | 30/30 completed |
+
+| ONT amplicon | Per-allele exact | Case exact | Event recall | PATHOGENIC on pathogenic truths | INCONCLUSIVE | NEGATIVE on normals | FP |
+| --- | --- | --- | --- | --- | --- | --- | --- |
+| standard | 4/60 | 0/30 | 3/19 | 1/19 | 29/30 | 0/11 | 0/11 |
+| v3 clean (concatemer and off-target left) | 14/60 | 7/30 | 6/19 | 3/19 | 26/30 | 1/11 | 0/11 |
+| **clean2 (artefact-free)** | **21/60 = 0.35 [0.20, 0.50]** | 9/30 | 6/19 | **4/19 = 0.21 [0.06, 0.46]** | **21/30 = 0.70 [0.51, 0.85]** | 5/11 | 0/11 |
+
+- The per-allele interval is the cluster bootstrap from `report.json`. The
+  decision intervals are Clopper-Pearson.
+- The clean2 atlas has 21/21 resolvable cases.
+- Paired per-allele exact, as discordant pairs:
+  - v3 clean-only / clean2-only: 0 / 7 (McNemar p = 0.016);
+  - standard-only / clean2-only: 0 / 17 (p < 0.001).
+- Selection-unresolved reasons fall from 24/30 (standard) and 15/30 (v3 clean)
+  to 3/30. Length disagreements fall from 26 and 3 to 1.
+- The remaining clean2 INCONCLUSIVE calls are IUPAC reconstructions (20/21).
+  18 of them lose an allele (`missing_allele` / `unresolved_allele_alias`).
+
+**Corrected conclusions.**
+- Concatemers and off-target reads alone, at the base profile rates, cost the
+  ladder a third of its clean exact alleles. Together with typical smear and
+  chimera they explain most of the standard-vs-clean drop in the ONT amplicon
+  set. This supports the concatemer-tail explanation for the spurious longer
+  clusters.
+- Against real PRJEB92208, the artefact-free clean2 ONT amplicon set overlaps
+  the real intervals: PATHOGENIC 4/19 [0.06, 0.46] vs 3/5 [0.15, 0.95], and
+  INCONCLUSIVE 21/30 [0.51, 0.85] vs 6/11 [0.23, 0.83].
+- The **standard** headline set is still out of range (29/30 INCONCLUSIVE,
+  [0.83, 1.00]). Real data contain the same artefact classes, so the likely
+  reason is that simulated artefacts are more disruptive to the ladder than
+  real ones. The span-shape and concatemer-tail gaps are in the upstream draft.
+  The event mix and 10-50× lower depth also remain.
+- The earlier "v3 clean" rows above describe a control that still had
+  concatemers. Use clean2 for the ONT amplicon clean control. The HiFi and
+  genomic clean rows are unaffected: HiFi has no base concatemer or off-target
+  rate, and genomic gets no molecule step.
+- The reason atlas now treats `stress`-set cases as expected
+  (`atlas.expected_inconclusive_sets`). Re-reported, stress is 81 expected / 0
+  resolvable; the depth condition alone would have given 43. Standard (5 / 81)
+  and clean (0 / 81) are unchanged.

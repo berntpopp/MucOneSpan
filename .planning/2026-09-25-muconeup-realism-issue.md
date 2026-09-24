@@ -42,7 +42,10 @@ below.
   bias `none` or the profile default, and the profile's own smear 0.24 and
   chimera 0.023. HiFi has no public target.
 - `v3 clean`: the same haplotypes at the top depth, with smear, chimera and
-  PCR bias set to 0.
+  PCR bias set to 0. This run still had the profile's concatemer rate (0.024)
+  and off-target fraction (0.3).
+- `clean2`: the 30 clean ONT amplicon cases regenerated with **no** molecule
+  artefact (smear, chimera, concatemer and off-target all 0, no PCR bias).
 - `v2`: the earlier mix (depth 5-2000; error calibrated or ×1.5 "poor"; PCR
   none, calibrated or strong; smear 0.05/0.25; chimera 0.01/0.05).
 
@@ -50,7 +53,7 @@ below.
 
 ### ONT R10 amplicon (`ont_r10_sup_amplicon_v1`; target: 9 PRJEB92208 amplicon libraries)
 
-| Metric | Real target (median) | v3 standard | v3 clean | v2 (half poor error) |
+| Metric | Real target (median) | v3 standard | v3 clean (concatemers left) | v2 (half poor error) |
 | --- | --- | --- | --- | --- |
 | Total error, all strands | 0.02138 | 0.02231 (+4%) | 0.02232 (+4%) | 0.02653 (+24%) |
 | Total error + / - | 0.02687 / 0.01719 | 0.02556 / 0.01900 | 0.02576 / 0.01896 | 0.02904 / 0.02148 |
@@ -64,10 +67,15 @@ below.
 | Between the alleles (median) | 0.0229 | **0.0** | 0.0 | 0.0 |
 | Below the short allele (median) | 0.2361 | 0.2365 | 0.0 | 0.1220 |
 
-The clean set shows that the JS gap is not caused by the smear model alone:
+The clean sets show that the JS gap is not caused by the smear model alone:
 without smear products it grows to 0.45, because the real histogram includes
-smear products. The strand-specific errors are identical with and without
-molecule artefacts, so they come from the read error model.
+smear products. In `v3 clean`, the remaining off-by->1-unit share (0.0244) is
+about the concatemer rate (0.024), because that run still had concatemers. The
+artefact-free `clean2` run has an off-by->1-unit share of 0.0 and a JS distance
+of 0.473 / 0.457. Its strand-specific rates are the same as in standard:
+deletion + / - 0.01232 / 0.00745, mismatch + / - 0.00568 / 0.00566, total
+0.02235. The strand-specific error gap therefore comes from the read error
+model and not from molecule artefacts.
 
 Normalized span-offset histogram, `v3 standard` vs real (fraction of spanning reads):
 
