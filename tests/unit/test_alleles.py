@@ -9,6 +9,7 @@ from unittest.mock import patch
 
 import pytest
 
+from muc_one_span import alleles, ladder_clusters
 from muc_one_span.alleles import (
     PRE_AFTER_REPEAT_COUNT,
     _build_allele_info,
@@ -87,6 +88,20 @@ class TestParseIdxstats:
         counts = parse_idxstats(IDXSTATS_TWO_PEAKS)
         assert 60 in counts
         assert counts[60] == 245
+
+
+def test_cluster_helpers_are_reexported():
+    """alleles re-exports the pure cluster helpers moved to ladder_clusters.
+
+    Task 4 (#74) relocated ``AlleleInfo``, ``parse_idxstats`` and
+    ``_find_clusters`` to ``ladder_clusters`` without changing behaviour.
+    ``alleles`` must keep exposing the same objects (not copies) so existing
+    imports and monkeypatch targets keep working.
+    """
+    assert alleles.AlleleInfo is ladder_clusters.AlleleInfo
+    assert alleles.AlleleResult is ladder_clusters.AlleleResult
+    assert alleles.parse_idxstats is ladder_clusters.parse_idxstats
+    assert alleles._find_clusters is ladder_clusters._find_clusters
 
 
 class TestDetectAlleles:
