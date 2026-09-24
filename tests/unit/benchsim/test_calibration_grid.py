@@ -6,9 +6,14 @@ from pathlib import Path
 import pytest
 
 from muc_one_span.benchsim.calibration_grid import (
+    DEFAULT_STAGE,
     HARNESS_OWNED,
+    LENGTH_STAGE_KEYS,
+    LENGTHS_STAGE,
+    STAGES,
     base_settings,
     build_points,
+    check_stage_keys,
     expand_values,
     grid_points,
     load_grid,
@@ -155,3 +160,26 @@ def test_loader_type_errors_become_value_errors(monkeypatch: pytest.MonkeyPatch)
 def test_a_non_section_key_is_rejected() -> None:
     with pytest.raises(ValueError, match="not a settings section"):
         build_points({"schema_version.x": [1]}, settings_as_dict(DEFAULT_SETTINGS), "hybrid")
+
+
+def test_stages_and_length_stage_keys_are_all_hybrid_fields() -> None:
+    assert STAGES == (DEFAULT_STAGE, LENGTHS_STAGE)
+    hybrid_fields = set(settings_as_dict(DEFAULT_SETTINGS)["hybrid"])
+    assert LENGTH_STAGE_KEYS
+    for key in LENGTH_STAGE_KEYS:
+        section, name = key.split(".")
+        assert section == "hybrid" and name in hybrid_fields
+
+
+def test_check_stage_keys_is_a_noop_for_the_full_stage() -> None:
+    check_stage_keys({"hybrid.n_poa": [1]}, DEFAULT_STAGE)  # not a length-model key, but allowed
+
+
+@pytest.mark.parametrize("key", sorted(LENGTH_STAGE_KEYS)[:3])
+def test_check_stage_keys_allows_length_model_keys(key: str) -> None:
+    check_stage_keys({key: [1]}, LENGTHS_STAGE)
+
+
+def test_check_stage_keys_refuses_non_length_keys_for_the_lengths_stage() -> None:
+    with pytest.raises(ValueError, match=r"hybrid\.n_poa"):
+        check_stage_keys({"hybrid.n_poa": [1], "hybrid.min_span_units": [15]}, LENGTHS_STAGE)

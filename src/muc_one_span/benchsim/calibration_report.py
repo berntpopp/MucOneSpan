@@ -1,10 +1,11 @@
 """`benchsim calibrate-report`: rank a calibration's points under a declared objective.
 
 Reads ``calibration.json`` and each evaluated point's ``evaluation.json``,
-normalizes the rows with `report.normalize_rows`, computes the objective's
-metrics (`calibration_objective.point_metrics`, cluster-bootstrap CIs) and
-ranks the points (`calibration_objective.rank_points`). Writes, next to
-``calibration.json``:
+normalizes the rows (`report.normalize_rows`, or, for a Task 15d ``lengths``-stage
+calibration, `calibration_lengths.normalize_lengths_rows`), computes the objective's
+metrics (`calibration_objective.point_metrics`, cluster-bootstrap CIs, over the
+matching metric registry) and ranks the points (`calibration_objective.rank_points`,
+unchanged either way). Writes, next to ``calibration.json``:
 
 - ``calibration-report.json`` and ``calibration-report.md``: every point's
   values, metrics and CIs, feasibility, rank and the recommendation;
@@ -42,9 +43,17 @@ from muc_one_span.benchsim.calibration import (
     file_sha256,
     write_atomic,
 )
-from muc_one_span.benchsim.calibration_grid import OVERLAY_FILE, canonical_sha256
+from muc_one_span.benchsim.calibration_grid import LENGTHS_STAGE, OVERLAY_FILE, canonical_sha256
+from muc_one_span.benchsim.calibration_lengths import (
+    LENGTHS_COUNTS,
+    LENGTHS_METRICS,
+    LENGTHS_RATES,
+    normalize_lengths_rows,
+)
 from muc_one_span.benchsim.calibration_objective import (
+    METRICS,
     Objective,
+    load_objective,
     point_metrics,
     rank_points,
 )
@@ -66,6 +75,12 @@ def load_calibration(cal_dir: Path) -> dict[str, Any]:
     return data
 
 
+def _objective_for(stage: str, objective_path: Path) -> Objective:
+    """The full-pipeline or lengths-stage metric registry, by the calibration's own stage."""
+    known = LENGTHS_METRICS if stage == LENGTHS_STAGE else METRICS
+    return load_objective(objective_path, known_metrics=known)
+
+
 def scored_points(
     cal_dir: Path,
     calibration: dict[str, Any],
@@ -73,8 +88,16 @@ def scored_points(
     objective: Objective,
     bench: BenchConfig,
 ) -> tuple[list[dict[str, Any]], list[dict[str, Any]]]:
-    """(evaluated points with metrics, points without an evaluation)."""
+    """(evaluated points with metrics, points without an evaluation).
+
+    Dispatches on ``calibration["inputs"]["stage"]`` (absent: the full pipeline, 15b/15c
+    behaviour unchanged): a ``lengths`` calibration's ``evaluation.json`` is normalized
+    and scored by `calibration_lengths`'s row schema and metric registries instead of
+    `report.normalize_rows`/the built-in `calibration_objective` registries, through the
+    same (now stage-agnostic) `calibration_objective.point_metrics`.
+    """
     engine = calibration["inputs"]["engine"]
+    stage = calibration["inputs"].get("stage", "full")
     scored, missing = [], []
     for entry in calibration["points"]:
         path = cal_dir / entry["sha256"] / RESULTS_DIR / engine / EVALUATION_FILE
@@ -82,10 +105,17 @@ def scored_points(
             missing.append({k: entry[k] for k in ("sha256", "values", "status", "error")})
             continue
         try:
-            rows = normalize_rows(json.loads(path.read_text()), cases, bench.sets.legacy)
+            raw = json.loads(path.read_text())
+            if stage == LENGTHS_STAGE:
+                rows = normalize_lengths_rows(raw, cases, bench.sets.legacy)
+                metrics = point_metrics(
+                    rows, objective, bench.report, LENGTHS_RATES, LENGTHS_COUNTS
+                )
+            else:
+                rows = normalize_rows(raw, cases, bench.sets.legacy)
+                metrics = point_metrics(rows, objective, bench.report)
         except (KeyError, ValueError) as exc:
             raise SystemExit(f"cannot normalize {path}: {exc}") from exc
-        metrics = point_metrics(rows, objective, bench.report)
         scored.append({"sha256": entry["sha256"], "values": entry["values"], "metrics": metrics})
     return scored, missing
 
@@ -121,7 +151,8 @@ def render(report: dict[str, Any], objective: Objective) -> str:
     """Markdown for ``calibration-report.json``."""
     names = objective.metric_names()
     lines = [
-        f"# Calibration `{report['name']}` ({report['split']}, engine `{report['engine']}`)",
+        f"# Calibration `{report['name']}` ({report['split']}, engine `{report['engine']}`, "
+        f"stage `{report['stage']}`)",
         "",
         f"- Objective sha256: `{report['objective_sha256']}`",
         f"- Calibration inputs sha256: `{report['calibration_inputs_sha256']}`",
@@ -200,7 +231,7 @@ def build_report(
     out_root: Path,
     split: str,
     name: str,
-    objective: Objective,
+    objective_path: Path,
     cases: dict[str, dict[str, Any]],
     bench: BenchConfig,
     shift_from: tuple[str, dict[str, dict[str, Any]]] | None = None,
@@ -208,12 +239,20 @@ def build_report(
     """Rank, write the report files and the recommendation; 1 when nothing is feasible.
 
     ``shift_from`` is (calibration name, its split's cases) on the calibration split.
+    The objective is loaded here (after ``calibration.json``, hence by path, not
+    pre-loaded) because a ``lengths``-stage calibration validates it against a
+    different metric registry (`_objective_for`).
     """
     check_split(split)
     if shift_from is not None and split != CONFIRMATION_SPLIT:
         raise SystemExit(f"--shift-from compares with {CALIBRATION_SPLIT}; use --split val")
     cal_dir = calibration_dir(out_root, split, name)
     calibration = load_calibration(cal_dir)
+    stage = calibration["inputs"].get("stage", "full")
+    try:
+        objective = _objective_for(stage, objective_path)
+    except (OSError, ValueError) as exc:
+        raise SystemExit(f"--objective: {exc}") from exc
     scored, missing = scored_points(cal_dir, calibration, cases, objective, bench)
     ranked = rank_points(scored, objective)
     feasible = [p for p in ranked if p["feasible"]]
@@ -230,6 +269,7 @@ def build_report(
         "split": split,
         "name": name,
         "engine": inputs["engine"],
+        "stage": stage,
         "calibration_inputs_sha256": canonical_sha256(inputs),
         "objective": objective.raw,
         "objective_sha256": objective.sha256,

@@ -11,6 +11,8 @@ import argparse
 from collections.abc import Callable, Sequence
 from pathlib import Path
 
+from muc_one_span.benchsim.calibration_grid import DEFAULT_STAGE, STAGES
+
 Command = Callable[[argparse.Namespace], int]
 
 
@@ -28,6 +30,12 @@ def add_calibration_parsers(
     cal.add_argument("--split", choices=splits, required=True, help="dev or val (test is sealed)")
     cal.add_argument("--engine", required=True, help="engine the overlays select (run.engine)")
     cal.add_argument("--grid", type=Path, required=True, help="GRID.json: settings key -> values")
+    cal.add_argument(
+        "--stage",
+        choices=STAGES,
+        default=DEFAULT_STAGE,
+        help="'lengths': fit only the hybrid length model (fast; needs --engine hybrid)",
+    )
     cal.add_argument("--config", type=Path, help="base runtime settings (default: built-in)")
     cal.add_argument("--name", help="calibration name (default: the grid file stem)")
     cal.add_argument("--out-root", type=Path, help=out_root_help)

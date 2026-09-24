@@ -499,10 +499,58 @@ interrupted run) is retried. `calibration.json` records:
 - the MucOneSpan, MucOneUp and Python versions;
 - each point's status and evaluator exit code.
 
-A calibration name is bound to these inputs. Rerunning a name with a different
-grid, base, engine, manifest or version is refused; use a new `--name`
-(default: the grid file's stem). The command exits 1 when any point failed or
-the evaluator reported a nonzero exit.
+A calibration name is bound to these inputs (including `--stage`, below).
+Rerunning a name with a different grid, base, engine, stage, manifest or
+version is refused; use a new `--name` (default: the grid file's stem). The
+command exits 1 when any point failed or the evaluator reported a nonzero
+exit.
+
+### `--stage lengths` (fast length-model calibration)
+
+```bash
+python scripts/benchsim.py calibrate --split dev --engine hybrid --stage lengths \
+  --grid grid.json [--config base.json] [--name NAME]
+```
+
+`--stage lengths` fits only the hybrid length model (`hybrid.spans`'s S1
+anchor search, `hybrid.lengths`'s S2 peak fitting, the `hybrid.smear`
+significance test) on each case's spanning reads: no consensus, phasing or
+calling runs, so a smear/peak threshold sweep takes seconds instead of a full
+pipeline run per point. It needs `--engine hybrid` (the length model is a
+hybrid-engine concept) and is refused otherwise before any point runs.
+
+Only the settings that model actually reads are valid grid keys: the S1
+anchor-search settings (`anchor_max_edits`, `min_span_units`,
+`max_span_units`, `flank_anchor_*`), the S2 peak-fitting settings
+(`peak_window_*`, `kde_*`, `peak_min_separation_units`,
+`rejected_peak_noise_reads`, `smear_short_product_units`,
+`peak_far_near_boundary_units`, `far_peak_min_frac`, `near_peak_min_frac`,
+`min_peak_reads`) and the smear significance-test settings (`smear_test_*`,
+`smear_background_*`) -- `calibration_grid.LENGTH_STAGE_KEYS` is the exact
+list. Any other key (a POA, polish, phase or event-support setting, for
+example) is refused before any point runs.
+
+Each point's `evaluation.json` scores, per case, against the case truth
+(`load_truth`, no observation/caller output involved):
+
+| Metric | Kind | Definition |
+| --- | --- | --- |
+| `allele_count_exact` | rate | cases where the accepted peak count equals the truth's distinct allele-length count |
+| `allele_length_exact` | rate | truth allele lengths matched by an accepted peak, over all truth allele lengths |
+| `case_length_exact` | rate | cases with every truth length matched and no unmatched peaks |
+| `cases`, `not_completed` | count | case counts |
+| `false_alleles`, `missed_alleles` | count | unmatched accepted peaks / unmatched truth lengths, summed over the calibration |
+
+A truth length is matched to a peak within `hybrid.lengths.window_bp` of that
+point's own settings (the same tolerance the engine uses to assign a read to
+a peak), not a hardcoded default. `smear_ambiguous` is not a built-in metric:
+declare it as a `reason_metrics` entry against `reconstruction_flags` in the
+objective, exactly like the full pipeline's `smear_ambiguous_rate` example
+below. `calibrate-report` ranks and recommends a `--stage lengths`
+calibration exactly like a full one (same resume, content addressing,
+ranking and `recommended-config.json`/`.provenance.json`/
+`recommended-grid.json`); only the metric names an objective may reference
+differ.
 
 ### `calibrate-report`
 
@@ -511,7 +559,9 @@ python scripts/benchsim.py calibrate-report --split dev --name NAME --objective 
 ```
 
 `objective.json` declares the selection rule. The code sets no default
-threshold or ranking:
+threshold or ranking. The metric table below is for a full-pipeline
+calibration (the default `--stage full`); a `--stage lengths` calibration's
+objective uses the metrics of the previous section instead.
 
 ```json
 {

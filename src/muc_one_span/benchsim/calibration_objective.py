@@ -157,8 +157,16 @@ def _rank(data: Any, kinds: dict[str, str]) -> tuple[RankTerm, ...]:
     return tuple(terms)
 
 
-def load_objective(path: Path) -> Objective:
-    """Read and validate an objective file (every error names the offending entry)."""
+def load_objective(path: Path, known_metrics: dict[str, str] = METRICS) -> Objective:
+    """Read and validate an objective file (every error names the offending entry).
+
+    ``known_metrics`` is the built-in metric-name -> kind (`RATE`/`COUNT`) registry a
+    constraint, rank term or `reason_metrics` name is checked against; it defaults to
+    the full-pipeline `METRICS` (`point_metrics`'s own default `rates`/`counts`). A
+    calibration stage with a different metric set (for example Task 15d's ``lengths``
+    stage) passes its own registry so an objective can only reference metrics that
+    stage actually computes.
+    """
     data = read_strict_json(path)
     if not isinstance(data, dict):
         raise ValueError("an objective must be a JSON object")
@@ -168,7 +176,7 @@ def load_objective(path: Path) -> Objective:
     if unknown:
         raise ValueError(f"unknown objective fields: {', '.join(sorted(unknown))}")
     reasons = _reasons(data.get("reason_metrics", {}))
-    kinds = {**METRICS, **dict.fromkeys(reasons, RATE)}
+    kinds = {**known_metrics, **dict.fromkeys(reasons, RATE)}
     constraints_data = data.get("constraints", {})
     if not isinstance(constraints_data, dict):
         raise ValueError("constraints must be a JSON object")
@@ -213,13 +221,22 @@ def _has_reason(row: Row, token: str) -> int:
 
 
 def point_metrics(
-    rows: Sequence[Row], objective: Objective, report: ReportConfig
+    rows: Sequence[Row],
+    objective: Objective,
+    report: ReportConfig,
+    rates: dict[str, tuple[Callable[[Sequence[Row]], list[Row]], str]] = _RATES,
+    counts: dict[str, str | None] = _COUNTS,
 ) -> dict[str, dict[str, Any]]:
-    """Every built-in and declared reason metric over the (set-filtered) case rows."""
+    """Every built-in and declared reason metric over the (set-filtered) case rows.
+
+    ``rates``/``counts`` default to the full-pipeline registries (`_RATES`/`_COUNTS`);
+    a calibration stage with its own row schema (Task 15d's ``lengths`` stage) passes
+    its own registries, computed by the same rate/count machinery below.
+    """
     if objective.bench_sets is not None:
         rows = [r for r in rows if r["bench_set"] in objective.bench_sets]
-    out = {name: _rate(cohort(rows), field, report) for name, (cohort, field) in _RATES.items()}
-    for name, count_field in _COUNTS.items():
+    out = {name: _rate(cohort(rows), field, report) for name, (cohort, field) in rates.items()}
+    for name, count_field in counts.items():
         value = len(rows) if count_field is None else sum(int(r[count_field]) for r in rows)
         out[name] = {"kind": COUNT, "value": value, "ci_low": None, "ci_high": None}
     for name, token in objective.reason_metrics.items():

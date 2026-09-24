@@ -199,6 +199,36 @@ def test_rank_is_feasible_first_then_lexicographic_then_hash(tmp_path: Path) -> 
     assert ranked[-1]["violations"] == ["clinical_false_negative: value 1 > max 0"]
 
 
+LENGTHS_RATES = {"allele_count_exact": (lambda rows: list(rows), "allele_count_exact")}
+LENGTHS_COUNTS: dict[str, str | None] = {"cases": None, "false_alleles": "false_alleles"}
+LENGTHS_METRICS = {"allele_count_exact": "rate", "cases": "count", "false_alleles": "count"}
+
+
+def test_load_objective_accepts_an_injected_metric_registry(tmp_path: Path) -> None:
+    data = {"schema_version": 1, "rank": ["allele_count_exact"]}
+    objective = load_objective(_write(tmp_path, data), known_metrics=LENGTHS_METRICS)
+    assert objective.rank[0].metric == "allele_count_exact"
+    with pytest.raises(ValueError, match="unknown metric 'per_allele_exact'"):
+        load_objective(
+            _write(tmp_path, {"schema_version": 1, "rank": ["per_allele_exact"]}),
+            known_metrics=LENGTHS_METRICS,
+        )
+
+
+def test_point_metrics_accepts_injected_rates_and_counts(tmp_path: Path) -> None:
+    data = {"schema_version": 1, "rank": ["allele_count_exact"]}
+    objective = load_objective(_write(tmp_path, data), known_metrics=LENGTHS_METRICS)
+    rows = [
+        {"sample": "c1", "bench_set": HEADLINE, "allele_count_exact": 1, "false_alleles": 0},
+        {"sample": "c2", "bench_set": HEADLINE, "allele_count_exact": 0, "false_alleles": 2},
+    ]
+    metrics = point_metrics(rows, objective, REPORT, rates=LENGTHS_RATES, counts=LENGTHS_COUNTS)
+    assert set(metrics) == set(LENGTHS_METRICS)
+    assert metrics["allele_count_exact"]["value"] == pytest.approx(0.5)
+    assert metrics["cases"]["value"] == 2
+    assert metrics["false_alleles"]["value"] == 2
+
+
 def test_missing_rank_value_sorts_last(tmp_path: Path) -> None:
     objective = load_objective(_write(tmp_path, {"schema_version": 1, "rank": ["-case_exact"]}))
     ranked = rank_points(

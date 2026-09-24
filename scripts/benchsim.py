@@ -33,11 +33,13 @@ from muc_one_span.benchsim.bench_config import DEFAULT_BENCH_CONFIG, load_bench_
 from muc_one_span.benchsim.calibration import (
     CALIBRATION_SPLIT,
     CalibrationRequest,
+    EvaluateFn,
     check_split,
     run_calibration,
 )
 from muc_one_span.benchsim.calibration_cli import add_calibration_parsers
-from muc_one_span.benchsim.calibration_objective import load_objective
+from muc_one_span.benchsim.calibration_grid import LENGTHS_STAGE
+from muc_one_span.benchsim.calibration_lengths import evaluate_lengths_stage, run_lengths_stage
 from muc_one_span.benchsim.calibration_report import build_report
 from muc_one_span.benchsim.design import Design, build_split
 from muc_one_span.benchsim.generate import (
@@ -474,33 +476,51 @@ def cmd_realism(args: argparse.Namespace) -> int:
 
 
 def cmd_calibrate(args: argparse.Namespace) -> int:
-    """Run and score every point of a settings grid (resumable; test refused)."""
-    check_split(args.split)
-    threads = args.threads if args.threads is not None else args.bench.run.threads
-    model_for = partial(_model_lookup, _models(args))
+    """Run and score every point of a settings grid (resumable; test refused).
 
-    def run_point(manifest: Path, results: Path, config: Path) -> Any:
-        return run_split(
-            manifest, [args.engine], results, model_for, threads, args.jobs, config=config
-        )
+    ``--stage lengths`` (Task 15d) fits only the hybrid length model on each case's
+    spanning reads instead of running the full pipeline, so it needs ``--engine
+    hybrid`` (the length model is a hybrid-engine concept; refused otherwise, before
+    any point is run).
+    """
+    check_split(args.split)
+    if args.stage == LENGTHS_STAGE and args.engine != "hybrid":
+        raise SystemExit("--stage lengths requires --engine hybrid")
+    evaluate_fn: EvaluateFn
+    if args.stage == LENGTHS_STAGE:
+        evaluate_fn = evaluate_lengths_stage
+
+        def run_point(manifest: Path, results: Path, config: Path) -> Any:
+            return run_lengths_stage(manifest, results, config, engine=args.engine)
+    else:
+        threads = args.threads if args.threads is not None else args.bench.run.threads
+        model_for = partial(_model_lookup, _models(args))
+        evaluate_fn = evaluate_run or _load_evaluate().run
+
+        def run_point(manifest: Path, results: Path, config: Path) -> Any:
+            return run_split(
+                manifest, [args.engine], results, model_for, threads, args.jobs, config=config
+            )
 
     request = CalibrationRequest(
-        args.split, args.name or args.grid.stem, args.engine, args.grid, args.config, out_root(args)
+        args.split,
+        args.name or args.grid.stem,
+        args.engine,
+        args.grid,
+        args.config,
+        out_root(args),
+        stage=args.stage,
     )
-    return run_calibration(request, run_point, evaluate_run or _load_evaluate().run)
+    return run_calibration(request, run_point, evaluate_fn)
 
 
 def cmd_calibrate_report(args: argparse.Namespace) -> int:
     """Rank a calibration under OBJECTIVE.json and write the recommended config."""
     check_split(args.split)
     root = out_root(args)
-    try:
-        objective = load_objective(args.objective)
-    except (OSError, ValueError) as exc:
-        raise SystemExit(f"--objective: {exc}") from exc
     shift = (args.shift_from, _cases(root / CALIBRATION_SPLIT)) if args.shift_from else None
     cases = _cases(root / args.split)
-    return build_report(root, args.split, args.name, objective, cases, args.bench, shift)
+    return build_report(root, args.split, args.name, args.objective, cases, args.bench, shift)
 
 
 def parser() -> argparse.ArgumentParser:

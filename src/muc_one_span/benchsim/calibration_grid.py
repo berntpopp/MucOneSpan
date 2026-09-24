@@ -38,6 +38,49 @@ RANGE_KEYS = frozenset({"min", "max", "step"})
 KEY_PARTS = 2  # ``section.field``
 OVERLAY_FILE = "config.json"
 
+# ``benchsim calibrate --stage``: "full" runs the whole pipeline (`run_split` +
+# `evaluate`, any `RuntimeSettings` field); "lengths" fits only the hybrid length
+# model (Task 15d) and accepts only the settings that model reads.
+DEFAULT_STAGE = "full"
+LENGTHS_STAGE = "lengths"
+STAGES = (DEFAULT_STAGE, LENGTHS_STAGE)
+
+# The exact `HybridSettings` fields read by `hybrid.spans`, `hybrid.lengths` and
+# `hybrid.smear` (S1 anchor search, S2 length model, smear significance test):
+# everything else cannot change a length-stage result, so a grid over it is
+# refused for ``--stage lengths`` before any point is run.
+LENGTH_STAGE_KEYS = frozenset(
+    f"hybrid.{name}"
+    for name in (
+        "anchor_max_edits",
+        "min_span_units",
+        "max_span_units",
+        "flank_anchor_bp",
+        "flank_anchor_edit_divisor",
+        "flank_anchor_edit_floor",
+        "peak_window_base_bp",
+        "peak_window_per_unit_bp",
+        "kde_bandwidth_base_bp",
+        "kde_bandwidth_per_bp",
+        "kde_kernel_truncation_bw",
+        "kde_grid_step_bp",
+        "kde_grid_margin_bp",
+        "peak_min_separation_units",
+        "rejected_peak_noise_reads",
+        "smear_short_product_units",
+        "peak_far_near_boundary_units",
+        "far_peak_min_frac",
+        "near_peak_min_frac",
+        "min_peak_reads",
+        "smear_test_window_frac",
+        "smear_background_min_reads",
+        "smear_background_flank_units",
+        "smear_test_correction",
+        "smear_test_alpha",
+        "smear_test_borderline_factor",
+    )
+)
+
 
 @dataclass(frozen=True)
 class GridPoint:
@@ -125,6 +168,22 @@ def load_grid(path: Path) -> dict[str, list[Any]]:
         _check_key(key)
         grid[key] = expand_values(key, data[key])
     return grid
+
+
+def check_stage_keys(grid: dict[str, list[Any]], stage: str) -> None:
+    """Refuse a grid key that cannot affect ``stage`` before any point is run.
+
+    The full stage allows any ``RuntimeSettings`` field (unchanged 15b/15c
+    behaviour); the lengths stage allows only `LENGTH_STAGE_KEYS`.
+    """
+    if stage != LENGTHS_STAGE:
+        return
+    bad = sorted(k for k in grid if k not in LENGTH_STAGE_KEYS)
+    if bad:
+        raise ValueError(
+            "--stage lengths calibrates only the hybrid length model "
+            f"(spans/lengths/smear settings); not a length-model key: {', '.join(bad)}"
+        )
 
 
 def grid_points(grid: dict[str, list[Any]]) -> list[dict[str, Any]]:

@@ -16,6 +16,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
   cluster-bootstrap CIs. Write a `recommended-config.json` loadable by
   `--config`, with a provenance sidecar. Confirm on `val` with the dev → val
   shift. `benchsim run --config` forwards a settings file to every run.
+- `benchsim calibrate --stage lengths`: fits only the hybrid length model
+  (anchor search, peak fitting, the smear significance test) on each case's
+  spanning reads and scores the peaks against the case truth (allele count,
+  allele lengths, false/missed alleles, `smear_ambiguous` rate), so a
+  smear/peak threshold sweep takes seconds instead of a full pipeline run per
+  point. Refuses a grid key that cannot affect the length model, and an
+  engine other than `hybrid`, before any point runs. `calibrate-report` ranks
+  and recommends a `--stage lengths` calibration through the same 15b/15c
+  machinery as a full one.
 - `--engine hybrid` (experimental) and `--assay {amplicon,genomic}` for
   `muconespan run`: a read-centric allele reconstruction path (motif
   anchoring, a length model, partial-order-alignment consensus, linked-site

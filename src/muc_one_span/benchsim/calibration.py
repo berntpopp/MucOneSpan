@@ -6,16 +6,25 @@ Layout (outside Git, under the benchsim ``--out-root``)::
         calibration.json           inputs (grid, split, engine, hashes, seeds, versions)
                                    and per-point status
         <point-sha256>/config.json the point's settings overlay (``muconespan --config``)
-        <point-sha256>/results/<engine>/...        `run_split` output
+        <point-sha256>/results/<engine>/...        `run_split` output (or, for
+                                   ``--stage lengths``, `calibration_lengths.run_lengths_stage`)
         <point-sha256>/results/<engine>/evaluation.json
 
-Every point is validated before the first run (`calibration_grid.build_points`).
+Every point is validated before the first run (`calibration_grid.build_points`
+and, for ``--stage lengths`` (Task 15d), `calibration_grid.check_stage_keys`).
 Points are content-addressed and resumable: a point whose status is
 ``evaluated`` and whose ``evaluation.json`` exists is not run again; a
 ``failed`` point is retried. A calibration name is bound to its inputs: a
-rerun with a different grid, base config, engine, manifest or software version
-is refused rather than mixing results. The sealed ``test`` split is refused
-outright; calibration uses ``dev`` and confirms on ``val``.
+rerun with a different grid, base config, engine, stage, manifest or software
+version is refused rather than mixing results. The sealed ``test`` split is
+refused outright; calibration uses ``dev`` and confirms on ``val``.
+
+``stage`` (default ``"full"``, see `calibration_grid.STAGES`) selects the
+``run``/``evaluate`` pair `run_calibration` is given: the full pipeline
+(`run_cases.run_split` + ``scripts/evaluate.py``) or, for ``"lengths"``, the
+`calibration_lengths` module's fast hybrid-length-model-only pair. This module
+does not otherwise know which stage it is running -- both pairs satisfy the
+same `RunFn`/`EvaluateFn` contracts below.
 """
 
 from __future__ import annotations
@@ -30,11 +39,13 @@ from pathlib import Path
 from typing import Any
 
 from muc_one_span.benchsim.calibration_grid import (
+    DEFAULT_STAGE,
     OVERLAY_FILE,
     GridPoint,
     base_settings,
     build_points,
     canonical_sha256,
+    check_stage_keys,
     load_grid,
 )
 from muc_one_span.version import __version__
@@ -64,6 +75,7 @@ class CalibrationRequest:
     grid: Path
     base_config: Path | None
     out_root: Path
+    stage: str = DEFAULT_STAGE
 
 
 def check_split(split: str) -> None:
@@ -121,6 +133,7 @@ def _inputs(
         "split": request.split,
         "name": request.name,
         "engine": request.engine,
+        "stage": request.stage,
         "grid": grid,
         "grid_sha256": canonical_sha256(grid),
         "base_config": str(request.base_config.resolve()) if request.base_config else None,
@@ -209,6 +222,7 @@ def run_calibration(request: CalibrationRequest, run_fn: RunFn, evaluate_fn: Eva
         raise SystemExit(f"manifest not found: {manifest}")
     try:
         grid = load_grid(request.grid)
+        check_stage_keys(grid, request.stage)
         base = base_settings(request.base_config)
         points = build_points(grid, base, request.engine)
     except (OSError, ValueError) as exc:
