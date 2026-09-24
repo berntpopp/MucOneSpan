@@ -87,6 +87,22 @@ def test_json_overlays_defaults_and_coerces_lists(tmp_path: Path) -> None:
         ({"schema_version": 1, "design": {"depths": {"hifi_amplicon": [[5]]}}}, "depths"),
         ({"schema_version": 1, "design": {"split_sizes": {"dev": "x"}}}, "split_sizes"),
         ({"schema_version": 1, "amount": {"pcr_slope_per_unit": {"none": "x"}}}, "pcr_slope"),
+        ({"schema_version": 1, "atlas": {"decisions": ["MAYBE"]}}, r"atlas\.decisions"),
+        ({"schema_version": 1, "atlas": {"decisions": []}}, r"atlas\.decisions"),
+        ({"schema_version": 1, "atlas": {"strata": ["colour"]}}, r"atlas\.strata"),
+        ({"schema_version": 1, "atlas": {"strata": [1]}}, r"atlas\.strata"),
+        ({"schema_version": 1, "atlas": {"min_resolvable_depth": 0}}, "min_resolvable_depth"),
+        ({"schema_version": 1, "atlas": {"min_resolvable_depth": 2.5}}, "min_resolvable_depth"),
+        ({"schema_version": 1, "atlas": {"depth_basis": "median"}}, r"atlas\.depth_basis"),
+        ({"schema_version": 1, "atlas": {"top_reasons": 0}}, r"atlas\.top_reasons"),
+        (
+            {"schema_version": 1, "atlas": {"expected_inconclusive_splits": ["nope"]}},
+            "expected_inconclusive_splits",
+        ),
+        (
+            {"schema_version": 1, "atlas": {"expected_inconclusive_splits": "stress"}},
+            "JSON array",
+        ),
     ],
 )
 def test_invalid_config_is_rejected(tmp_path: Path, data: object, match: str) -> None:
@@ -137,3 +153,29 @@ def test_subset_of_known_names_is_accepted(tmp_path: Path) -> None:
         "1",
         "2",
     ]
+
+
+def test_atlas_depth_gate_defaults_to_the_caller_per_allele_gate() -> None:
+    from muc_one_span.settings import DEFAULT_SETTINGS
+
+    gate = DEFAULT_SETTINGS.allele_selection.min_allele_primary_records
+    assert CFG.atlas.min_resolvable_depth == gate
+    assert "stress" in CFG.atlas.expected_inconclusive_splits
+    assert set(CFG.atlas.expected_inconclusive_splits) <= set(CFG.design.split_sizes)
+
+
+def test_atlas_overlay_accepts_known_names(tmp_path: Path) -> None:
+    data = {
+        "schema_version": 1,
+        "atlas": {
+            "decisions": ["INCONCLUSIVE", "NO_CALL"],
+            "strata": ["depth"],
+            "expected_inconclusive_splits": [],
+            "depth_basis": "design",
+            "min_resolvable_depth": CFG.atlas.min_resolvable_depth + 1,
+        },
+    }
+    cfg = load_bench_config(_write(tmp_path, data))
+    assert cfg.atlas.decisions == ("INCONCLUSIVE", "NO_CALL")
+    assert cfg.atlas.expected_inconclusive_splits == ()
+    assert cfg.atlas.depth_basis == "design" and cfg.sha256() != CFG.sha256()

@@ -20,6 +20,8 @@ from dataclasses import asdict, dataclass, field, fields
 from pathlib import Path
 from typing import Any
 
+from muc_one_span.settings import DEFAULT_SETTINGS
+
 SCHEMA_VERSION = 1
 PERCENT = 100  # probability -> percent (unit conversion)
 PCR_LEVEL_NAMES = ("calibrated", "strong", "none")  # semantics implemented in `profiles`
@@ -28,6 +30,25 @@ ERROR_LEVEL_NAMES = ("calibrated", "poor")
 COMPOSITION_NAMES = ("markov", "real_derived", "rare_units")
 DELTA_CLASS_NAMES = ("0_identical", "0_different", "1", "2", "3-5", "6-20", ">20")
 EQUAL_LENGTH_CLASSES = ("0_identical", "0_different")  # length difference must be 0
+# Clinical decision states (`muc_one_span.report.compute_clinical_decision`, plus the
+# evaluator's NO_CALL for unreadable or failed runs).
+DECISION_NAMES = ("PATHOGENIC", "INCONCLUSIVE", "NO_PATHOGENIC_VARIANT_DETECTED", "NO_CALL")
+# Design factors the reason atlas can stratify by (`report.normalize_rows` row keys).
+ATLAS_STRATUM_NAMES = (
+    "profile",
+    "event",
+    "event_position",
+    "delta_class",
+    "depth",
+    "composition",
+    "pcr",
+    "smear",
+    "chimera",
+    "error",
+)
+# Depth compared with the atlas depth gate: the design target, or the lowest
+# realized spanning depth over the case's alleles (``case.json`` realized_depth).
+DEPTH_BASIS_NAMES = ("design", "realized_min_allele")
 _WEIGHT_SUM_TOL = 1e-9  # float round-off allowed when composition weights sum to 1
 
 
@@ -310,6 +331,37 @@ class ReportConfig:
 
 
 @dataclass(frozen=True)
+class AtlasConfig:
+    """Reason atlas of non-definitive decisions (`atlas`, docs/benchmark.md).
+
+    A case is *expected* non-definitive when its split is listed in
+    ``expected_inconclusive_splits`` or its depth (``depth_basis``) is below
+    ``min_resolvable_depth``; every other atlas case counts as resolvable.
+    """
+
+    decisions: tuple[str, ...] = ("INCONCLUSIVE",)
+    strata: tuple[str, ...] = ("depth", "smear", "chimera", "delta_class", "event_position")
+    expected_inconclusive_splits: tuple[str, ...] = ("stress",)
+    # Default: the caller's per-allele primary-alignment gate for a negative call.
+    min_resolvable_depth: int = DEFAULT_SETTINGS.allele_selection.min_allele_primary_records
+    depth_basis: str = "realized_min_allele"
+    top_reasons: int = 10  # reasons shown per stratum table in report.md (JSON keeps all)
+
+    def __post_init__(self) -> None:
+        _names("atlas.decisions", self.decisions, DECISION_NAMES)
+        _names("atlas.strata", self.strata, ATLAS_STRATUM_NAMES)
+        splits = self.expected_inconclusive_splits
+        if not isinstance(splits, tuple) or not all(isinstance(v, str) for v in splits):
+            raise ValueError("atlas.expected_inconclusive_splits must be a list of split names")
+        if len(set(splits)) != len(splits):
+            raise ValueError("atlas.expected_inconclusive_splits must be distinct")
+        _int("atlas.min_resolvable_depth", self.min_resolvable_depth, 1)
+        if self.depth_basis not in DEPTH_BASIS_NAMES:
+            raise ValueError(f"atlas.depth_basis must be one of {DEPTH_BASIS_NAMES!r}")
+        _int("atlas.top_reasons", self.top_reasons, 1)
+
+
+@dataclass(frozen=True)
 class RunConfig:
     """Engine run defaults (`run`)."""
 
@@ -331,10 +383,17 @@ class BenchConfig:
     realism: RealismConfig = field(default_factory=RealismConfig)
     report: ReportConfig = field(default_factory=ReportConfig)
     run: RunConfig = field(default_factory=RunConfig)
+    atlas: AtlasConfig = field(default_factory=AtlasConfig)
 
     def __post_init__(self) -> None:
         if self.schema_version != SCHEMA_VERSION:
             raise ValueError(f"bench config schema_version must be {SCHEMA_VERSION}")
+        unknown = set(self.atlas.expected_inconclusive_splits) - set(self.design.split_sizes)
+        if unknown:
+            raise ValueError(
+                "atlas.expected_inconclusive_splits must name splits in design.split_sizes "
+                f"(unknown: {', '.join(sorted(unknown))})"
+            )
 
     def to_dict(self) -> dict[str, Any]:
         """JSON-ready settings (tuples become lists)."""
