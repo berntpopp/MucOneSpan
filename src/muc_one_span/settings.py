@@ -357,13 +357,21 @@ class HybridSettings:
     kde_kernel_truncation_bw: float = 4.0
     kde_grid_step_bp: float = 2.0
     kde_grid_margin_bp: float = 100.0
-    smear_shoulder_width_mult: float = 3.0
-    smear_shoulder_floor: float = 1.0
     smear_short_product_units: float = 1.5
     peak_far_near_boundary_units: float = 2.0
     peak_min_separation_units: float = 0.7
-    smear_background_ratio_min: float = 15.0
     smear_background_floor: float = 1.0
+    # C4.2 round 2: one explicit smear model (fix round 2, F2/I1/N1/N2). Below-top support
+    # is judged against the background density smear would explain, normalised by total
+    # depth (not top-peak support, which shrinks with smear_frac itself -- N1). Too little
+    # background to estimate a density at all (smear_min_expected) falls back to the
+    # ordinary support threshold, except when support is also below
+    # smear_low_background_min_support, which stays silent 'smear' (both regimes keep F2's
+    # isolated weak minor as support_below_threshold, not smear).
+    smear_min_expected: float = 0.9
+    smear_explained_frac: float = 0.10
+    smear_confident_frac: float = 0.13
+    smear_low_background_min_support: int = 5
 
     def __post_init__(self) -> None:
         for name in (
@@ -412,15 +420,18 @@ class HybridSettings:
         _number("hybrid.kde_kernel_truncation_bw", self.kde_kernel_truncation_bw, 1.0)
         _number("hybrid.kde_grid_step_bp", self.kde_grid_step_bp, 0.1)
         _number("hybrid.kde_grid_margin_bp", self.kde_grid_margin_bp, 0)
-        _number("hybrid.smear_shoulder_width_mult", self.smear_shoulder_width_mult, 1.0)
-        if self.smear_shoulder_width_mult <= 1.0:
-            raise ValueError("hybrid.smear_shoulder_width_mult must be > 1")
-        _number("hybrid.smear_shoulder_floor", self.smear_shoulder_floor, 0)
         _number("hybrid.smear_short_product_units", self.smear_short_product_units, 0.01)
         _number("hybrid.peak_far_near_boundary_units", self.peak_far_near_boundary_units, 0)
         _number("hybrid.peak_min_separation_units", self.peak_min_separation_units, 0)
-        _number("hybrid.smear_background_ratio_min", self.smear_background_ratio_min, 0)
         _number("hybrid.smear_background_floor", self.smear_background_floor, 0.01)
+        _number("hybrid.smear_min_expected", self.smear_min_expected, 0)
+        _number("hybrid.smear_explained_frac", self.smear_explained_frac, 0, 1)
+        _number("hybrid.smear_confident_frac", self.smear_confident_frac, 0, 1)
+        if self.smear_confident_frac < self.smear_explained_frac:
+            raise ValueError("hybrid.smear_confident_frac must be >= hybrid.smear_explained_frac")
+        _integer(
+            "hybrid.smear_low_background_min_support", self.smear_low_background_min_support, 0
+        )
 
 
 @dataclass(frozen=True)

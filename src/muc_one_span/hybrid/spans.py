@@ -9,6 +9,8 @@ from muc_one_span.config import RepeatDictionary
 from muc_one_span.hybrid.align import infix_hit, rc
 from muc_one_span.settings import HybridSettings
 
+PHRED_OFFSET = 33  # FASTQ Phred+33 quality encoding (format definition, not a tunable)
+
 
 @dataclass(frozen=True)
 class ReadRecord:
@@ -80,7 +82,7 @@ class ReadCategories:
 
 
 def _mean_q(qual: str) -> float:
-    return sum(ord(c) - 33 for c in qual) / len(qual) if qual else 0.0
+    return sum(ord(c) - PHRED_OFFSET for c in qual) / len(qual) if qual else 0.0
 
 
 def _span_in(

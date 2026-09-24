@@ -57,20 +57,26 @@ def reads(
     smear_frac: float = 0.0,
     smear_margin_units: int = 10,
     smear_min_deletion_units: int = 5,
+    smear_margin_cap_divisor: int = 3,
+    smear_min_deletion_cap_divisor: int = 6,
 ) -> list[ReadRecord]:
     """``n`` noisy reads of flank + allele + flank; smear reads lose an internal block.
 
     The smear cut keeps at least ``smear_margin_units`` repeat units untouched at each
-    end and deletes at least ``smear_min_deletion_units`` units; both are capped to a
-    fraction of the allele so a short synthetic allele can never make the deletion
-    window invalid (the historical fixed-bp margins could, for short alleles).
+    end and deletes at least ``smear_min_deletion_units`` units; both are capped to
+    ``len(allele_seq) // smear_margin_cap_divisor`` / ``// smear_min_deletion_cap_divisor``
+    so a short synthetic allele can never make the deletion window invalid (the
+    historical fixed-bp margins could, for short alleles).
     """
     rng = random.Random(seed)
     left = RD.flanking_left[-flank_bp:] if flank_bp else ""
     right = RD.flanking_right[:flank_bp] if flank_bp else ""
     unit_bp = RD.repeat_length_bp
-    margin = min(smear_margin_units * unit_bp, max(1, len(allele_seq) // 3))
-    min_deletion = min(smear_min_deletion_units * unit_bp, max(1, len(allele_seq) // 6))
+    margin = min(smear_margin_units * unit_bp, max(1, len(allele_seq) // smear_margin_cap_divisor))
+    min_deletion = min(
+        smear_min_deletion_units * unit_bp,
+        max(1, len(allele_seq) // smear_min_deletion_cap_divisor),
+    )
     out = []
     for i in range(n):
         template = left + allele_seq + right

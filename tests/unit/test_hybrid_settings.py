@@ -52,10 +52,23 @@ def test_hybrid_length_model_and_anchor_tunables_default_unchanged() -> None:
         4.0,
     )
     assert (h.kde_grid_step_bp, h.kde_grid_margin_bp) == (2.0, 100.0)
-    assert (h.smear_shoulder_width_mult, h.smear_shoulder_floor) == (3.0, 1.0)
     assert (h.smear_short_product_units, h.peak_far_near_boundary_units) == (1.5, 2.0)
     assert h.peak_min_separation_units == 0.7
-    assert (h.smear_background_ratio_min, h.smear_background_floor) == (15.0, 1.0)
+    assert h.smear_background_floor == 1.0
+
+
+def test_hybrid_smear_model_defaults_unchanged() -> None:
+    # Fix round 2 (C4.2): one explicit smear model replaces the round-1 shoulder/ratio
+    # fields (smear_shoulder_width_mult, smear_shoulder_floor, smear_background_ratio_min,
+    # now removed) with these four; defaults are the tuned values from the fix-round-2
+    # simulation sweep (see task-5-report.md).
+    h = DEFAULT_SETTINGS.hybrid
+    assert (h.smear_min_expected, h.smear_explained_frac, h.smear_confident_frac) == (
+        0.9,
+        0.10,
+        0.13,
+    )
+    assert h.smear_low_background_min_support == 5
 
 
 @pytest.mark.parametrize(
@@ -78,18 +91,24 @@ def test_hybrid_length_model_and_anchor_tunables_default_unchanged() -> None:
         ("kde_kernel_truncation_bw", 0.5),
         ("kde_grid_step_bp", 0.0),
         ("kde_grid_margin_bp", -1.0),
-        ("smear_shoulder_width_mult", 1.0),
-        ("smear_shoulder_floor", -1.0),
         ("smear_short_product_units", 0.0),
         ("peak_far_near_boundary_units", -1.0),
         ("peak_min_separation_units", -0.1),
-        ("smear_background_ratio_min", -1.0),
         ("smear_background_floor", 0.0),
+        ("smear_min_expected", -1.0),
+        ("smear_explained_frac", -0.1),
+        ("smear_confident_frac", 1.5),
+        ("smear_low_background_min_support", -1),
     ],
 )
 def test_hybrid_rejects_invalid(field: str, value: object) -> None:
     with pytest.raises(ValueError, match=f"hybrid.{field}"):
         HybridSettings(**{field: value})  # type: ignore[arg-type]
+
+
+def test_hybrid_rejects_confident_frac_below_explained_frac() -> None:
+    with pytest.raises(ValueError, match=r"hybrid\.smear_confident_frac"):
+        HybridSettings(smear_explained_frac=0.2, smear_confident_frac=0.1)
 
 
 @pytest.mark.parametrize(("field", "value"), [("engine", "assembly"), ("assay", "wgs")])

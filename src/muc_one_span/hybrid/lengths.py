@@ -79,47 +79,40 @@ def _count_within(lengths: list[float], c: float, w: float) -> int:
 
 
 class _Background(NamedTuple):
-    """Local window occupancy plus the wider below-top region around a candidate."""
+    """Local window occupancy, the wider below-top region, and the expected smear count."""
 
     inside: int
     window_bp: float
     outside: int
     region_width: float
+    expected: float
 
 
 def _region_background(
     c: float, top: float, lengths: list[float], settings: HybridSettings, unit_bp: int
 ) -> _Background:
     """Read counts inside the candidate's own window versus the rest of the below-top
-    region. ``outside == 0`` means there is no smear/background context at all around
-    this candidate -- it is an isolated cluster, not debris in a smear field (I2)."""
+    region, and the smear count that background rate would predict inside the window."""
     w = window_bp(c, settings, unit_bp)
     inside = _count_within(lengths, c, w)
     region_lo = min(lengths)
     region_hi = top - settings.smear_short_product_units * unit_bp
-    region_width = max(region_hi - region_lo, 1.0)
+    region_width = max(region_hi - region_lo, settings.smear_background_floor)
     total_in_region = sum(1 for x in lengths if region_lo <= x <= region_hi)
     outside = max(total_in_region - inside, 0)
-    return _Background(inside, w, outside, region_width)
+    expected = (outside / region_width) * (2 * w)
+    return _Background(inside, w, outside, region_width, expected)
 
 
-def _is_smear(lengths: list[float], c: float, settings: HybridSettings, bg: _Background) -> bool:
-    """A candidate with background around it is smear unless it has at least
-    ``min_peak_reads`` reads and stands out from its local shoulders."""
-    mult = settings.smear_shoulder_width_mult
-    shoulders = sum(bg.window_bp < abs(x - c) <= mult * bg.window_bp for x in lengths) / (mult - 1)
-    return bg.inside < settings.min_peak_reads or bg.inside < settings.smear_min_prominence * max(
-        shoulders, settings.smear_shoulder_floor
-    )
-
-
-def _is_smear_ambiguous(settings: HybridSettings, bg: _Background) -> bool:
-    """A candidate that clears the local shoulder check can still be a chance density bump
-    in smear debris: this compares it against the *whole* below-top background rate rather
-    than just its narrow shoulders, catching the cases the local check misses."""
-    expected = (bg.outside / bg.region_width) * (2 * bg.window_bp)
-    ratio = bg.inside / max(expected, settings.smear_background_floor)
-    return ratio < settings.smear_background_ratio_min
+def _smear_zone(bg: _Background, n_total: int, settings: HybridSettings) -> str:
+    """Where the candidate's excess over the expected smear count falls, normalised by
+    total depth (not top-peak support, which itself shrinks with smear_frac -- N1)."""
+    excess_frac = (bg.inside - bg.expected) / max(n_total, settings.smear_background_floor)
+    if excess_frac < settings.smear_explained_frac:
+        return "explained"
+    if excess_frac < settings.smear_confident_frac:
+        return "ambiguous"
+    return "confident"
 
 
 def _reason(
@@ -131,20 +124,38 @@ def _reason(
     settings: HybridSettings,
     unit_bp: int,
 ) -> str | None:
-    """None when the candidate is accepted, else the rejection reason."""
-    if c < top - settings.smear_short_product_units * unit_bp:
-        bg = _region_background(c, top, lengths, settings, unit_bp)
-        if bg.outside > 0:
-            if _is_smear(lengths, c, settings, bg):
-                return "smear"
-            if _is_smear_ambiguous(settings, bg):
-                return "smear_ambiguous"
+    """None when the candidate is accepted, else the rejection reason.
+
+    One smear model (C4.2 round 2) decides every below-top outcome from the observed
+    background density, normalised by total depth: a candidate explained by smear, or
+    with too little background to judge *and* too little support to matter either way,
+    stays silent 'smear'; a candidate that clears the allele-support threshold despite
+    that (real signal, or too little background but real support) is accepted; short of
+    it is support_below_threshold (gate-relevant, this is F2); the residual uncertain
+    band between explained and confident is smear_ambiguous (gate-relevant).
+    """
     if support <= settings.rejected_peak_noise_reads:
         return "noise"
+    n_total = len(lengths)
     far = abs(c - top) >= settings.peak_far_near_boundary_units * unit_bp
     frac = settings.far_peak_min_frac if far else settings.near_peak_min_frac
-    top_support = _count_within(lengths, top, window_bp(top, settings, unit_bp))
-    if support < settings.min_peak_reads or support < frac * top_support:
+    allele_threshold = max(settings.min_peak_reads, frac * n_total)
+
+    explained = ambiguous = False
+    if c < top - settings.smear_short_product_units * unit_bp:
+        bg = _region_background(c, top, lengths, settings, unit_bp)
+        if bg.expected >= settings.smear_min_expected:
+            zone = _smear_zone(bg, n_total, settings)
+            explained, ambiguous = zone == "explained", zone == "ambiguous"
+        elif support < settings.smear_low_background_min_support:
+            explained = True
+        elif support >= allele_threshold:
+            ambiguous = True
+    if explained:
+        return "smear"
+    if ambiguous:
+        return "smear_ambiguous"
+    if support < allele_threshold:
         return "support_below_threshold"
     return "max_alleles" if n_kept >= 2 else None
 
