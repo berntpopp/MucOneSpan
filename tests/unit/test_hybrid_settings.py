@@ -83,6 +83,13 @@ def test_hybrid_event_evidence_defaults() -> None:
     assert (h.hp_background_pseudocount, h.qc_residual_min_run) == (0.5, 3)
 
 
+def test_hybrid_event_alternative_defaults() -> None:
+    # Task 13b: an event must beat the read-derived alternative over one repeat unit of
+    # context on each side; see task-13b-report.md for the default's evidence.
+    h = DEFAULT_SETTINGS.hybrid
+    assert (h.event_context_units, h.event_max_alternative_frac) == (1.0, 0.25)
+
+
 def test_hybrid_smear_significance_defaults() -> None:
     # Fix round 4 (C4.2): the smear decision is a one-sided significance test of the
     # candidate's core count against its local below-top background; these defaults
@@ -176,6 +183,9 @@ def test_hybrid_phase_tunables_default_unchanged() -> None:
         ("polish_max_reads", 0),
         ("qc_residual_max_reads", 0),
         ("polish_partial_min_units", -1.0),
+        ("event_context_units", -0.5),
+        ("event_max_alternative_frac", -0.1),
+        ("event_max_alternative_frac", 1.5),
     ],
 )
 def test_hybrid_rejects_invalid(field: str, value: object) -> None:

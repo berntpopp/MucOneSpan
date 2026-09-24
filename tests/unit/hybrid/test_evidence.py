@@ -100,9 +100,9 @@ def _ok_strands() -> tuple[dict[str, float], dict[str, int]]:
 
 def test_hp_supported_when_every_threshold_is_met() -> None:
     llr_s, n_s = _ok_strands()
-    assert hp_status(S.hp_min_reads, S.hp_llr_min, S.hp_min_alt_frac, llr_s, n_s, S) == (
-        "supported"
-    )
+    assert hp_status(
+        S.hp_min_reads, S.hp_llr_min, S.hp_min_alt_frac, llr_s, n_s, S, alternative_frac=0.0
+    ) == ("supported")
 
 
 def test_single_strand_input_is_supported_not_failed() -> None:
@@ -110,18 +110,26 @@ def test_single_strand_input_is_supported_not_failed() -> None:
     llr = homopolymer_llr(obs, BACKGROUND, 1)
     strand = {"+": homopolymer_llr([], BACKGROUND, 1), "-": llr}
     counts = {"+": 0, "-": S.hp_min_reads}
-    assert hp_status(S.hp_min_reads, llr, 1.0, strand, counts, S) == "supported"
+    assert (
+        hp_status(S.hp_min_reads, llr, 1.0, strand, counts, S, alternative_frac=0.0) == "supported"
+    )
 
 
 def test_zero_read_strand_never_fails_even_with_negative_llr() -> None:
     llr_s, n_s = {"+": -5.0, "-": 3.0}, {"+": 0, "-": S.hp_min_reads}
-    assert hp_status(S.hp_min_reads, S.hp_llr_min, 1.0, llr_s, n_s, S) == "supported"
+    assert (
+        hp_status(S.hp_min_reads, S.hp_llr_min, 1.0, llr_s, n_s, S, alternative_frac=0.0)
+        == "supported"
+    )
 
 
 def test_thin_negative_strand_below_strand_minimum_does_not_fail() -> None:
     thin = S.hp_min_strand_reads - 1
     llr_s, n_s = {"+": -2.0, "-": 30.0}, {"+": thin, "-": S.hp_min_reads}
-    assert hp_status(S.hp_min_reads + thin, 30.0, 0.9, llr_s, n_s, S) == "supported"
+    assert (
+        hp_status(S.hp_min_reads + thin, 30.0, 0.9, llr_s, n_s, S, alternative_frac=0.0)
+        == "supported"
+    )
 
 
 def test_negative_well_covered_strand_is_discordant() -> None:
@@ -131,14 +139,23 @@ def test_negative_well_covered_strand_is_discordant() -> None:
     strand = {"+": homopolymer_llr(plus, BACKGROUND, 1), "-": homopolymer_llr(minus, BACKGROUND, 1)}
     counts = {"+": len(plus), "-": len(minus)}
     assert total > S.hp_llr_min and strand["+"] < 0
-    assert hp_status(len(plus + minus), total, 0.8, strand, counts, S) == "discordant"
+    assert (
+        hp_status(len(plus + minus), total, 0.8, strand, counts, S, alternative_frac=0.0)
+        == "discordant"
+    )
 
 
 def test_low_read_count_is_insufficient_depth() -> None:
     n = S.hp_min_reads - 1
     llr_s, n_s = _ok_strands()
-    assert hp_status(n, 10 * S.hp_llr_min, 1.0, llr_s, n_s, S) == "insufficient_depth"
-    assert hp_status(0, 0.0, 0.0, {"+": 0.0, "-": 0.0}, dict(BOTH), S) == "insufficient_depth"
+    assert (
+        hp_status(n, 10 * S.hp_llr_min, 1.0, llr_s, n_s, S, alternative_frac=0.0)
+        == "insufficient_depth"
+    )
+    assert (
+        hp_status(0, 0.0, 0.0, {"+": 0.0, "-": 0.0}, dict(BOTH), S, alternative_frac=0.0)
+        == "insufficient_depth"
+    )
 
 
 @pytest.mark.parametrize("field", ["llr", "alt_frac"])
@@ -146,19 +163,24 @@ def test_hp_below_llr_or_alt_fraction_is_not_supported(field: str) -> None:
     llr_s, n_s = _ok_strands()
     llr = S.hp_llr_min - 0.01 if field == "llr" else S.hp_llr_min
     frac = S.hp_min_alt_frac - 0.01 if field == "alt_frac" else 1.0
-    assert hp_status(S.hp_min_reads, llr, frac, llr_s, n_s, S) == "not_supported"
+    assert (
+        hp_status(S.hp_min_reads, llr, frac, llr_s, n_s, S, alternative_frac=0.0) == "not_supported"
+    )
 
 
 def test_hp_thresholds_follow_settings() -> None:
     strict = replace(S, hp_min_reads=S.hp_min_reads + 5, hp_llr_min=S.hp_llr_min * 2)
     llr_s, n_s = _ok_strands()
-    assert hp_status(S.hp_min_reads, S.hp_llr_min, 1.0, llr_s, n_s, S) == "supported"
-    assert hp_status(S.hp_min_reads, S.hp_llr_min, 1.0, llr_s, n_s, strict) == (
-        "insufficient_depth"
+    assert (
+        hp_status(S.hp_min_reads, S.hp_llr_min, 1.0, llr_s, n_s, S, alternative_frac=0.0)
+        == "supported"
     )
-    assert hp_status(strict.hp_min_reads, S.hp_llr_min, 1.0, llr_s, n_s, strict) == (
-        "not_supported"
-    )
+    assert hp_status(
+        S.hp_min_reads, S.hp_llr_min, 1.0, llr_s, n_s, strict, alternative_frac=0.0
+    ) == ("insufficient_depth")
+    assert hp_status(
+        strict.hp_min_reads, S.hp_llr_min, 1.0, llr_s, n_s, strict, alternative_frac=0.0
+    ) == ("not_supported")
 
 
 # --- competition producer contract ------------------------------------------------------
@@ -179,7 +201,12 @@ def _random_settings(rng: random.Random) -> HybridSettings:
     # Every other draw uses the most permissive valid configuration (boundaries).
     if rng.random() < 0.5:
         return replace(
-            S, hp_min_reads=1, hp_llr_min=1e-9, hp_min_alt_frac=0.0, hp_min_strand_reads=0
+            S,
+            hp_min_reads=1,
+            hp_llr_min=1e-9,
+            hp_min_alt_frac=0.0,
+            hp_min_strand_reads=0,
+            event_max_alternative_frac=1.0,
         )
     return replace(
         S,
@@ -187,19 +214,23 @@ def _random_settings(rng: random.Random) -> HybridSettings:
         hp_llr_min=rng.uniform(1e-9, 30),
         hp_min_alt_frac=rng.uniform(0, 1),
         hp_min_strand_reads=rng.randint(0, 10),
+        event_max_alternative_frac=rng.uniform(0, 1),
     )
 
 
 def test_zero_reads_are_never_supported_even_at_permissive_settings() -> None:
     loose = replace(S, hp_min_reads=1, hp_llr_min=1e-9, hp_min_alt_frac=0.0)
     zero = {"+": 0, "-": 0}
-    assert hp_status(0, 50.0, 1.0, {"+": 1.0, "-": 1.0}, zero, loose) == "insufficient_depth"
+    assert (
+        hp_status(0, 50.0, 1.0, {"+": 1.0, "-": 1.0}, zero, loose, alternative_frac=0.0)
+        == "insufficient_depth"
+    )
     assert competition_status(0, 0, 0, loose) == "insufficient_depth"
     # The guard holds even for a settings object that bypassed validation.
     unchecked = SimpleNamespace(
         hp_min_reads=0, hp_llr_min=0.0, hp_min_alt_frac=0.0, hp_min_strand_reads=0
     )
-    got = hp_status(0, 0.0, 0.0, {"+": 0.0, "-": 0.0}, zero, unchecked)  # type: ignore[arg-type]
+    got = hp_status(0, 0.0, 0.0, {"+": 0.0, "-": 0.0}, zero, unchecked, alternative_frac=0.0)  # type: ignore[arg-type]
     assert got == "insufficient_depth"
     assert competition_status(0, 0, 0, unchecked) == "insufficient_depth"  # type: ignore[arg-type]
 
@@ -213,13 +244,15 @@ def test_property_status_set_and_thresholds() -> None:
         frac = rng.uniform(0, 1)
         strand_n = {"+": rng.randint(0, n), "-": rng.randint(0, n)}
         strand_llr = {"+": rng.uniform(-20, 20), "-": rng.uniform(-20, 20)}
-        status = hp_status(n, llr, frac, strand_llr, strand_n, s)
+        mix = rng.uniform(0, 1)
+        status = hp_status(n, llr, frac, strand_llr, strand_n, s, alternative_frac=mix)
         assert status in READ_SUPPORT_STATUSES
         assert (status == "insufficient_depth") == (n < max(s.hp_min_reads, 1))
         if status == "supported":
             assert (
                 n >= 1 and n >= s.hp_min_reads and llr >= s.hp_llr_min and frac >= s.hp_min_alt_frac
             )
+            assert mix <= s.event_max_alternative_frac
             assert not any(
                 strand_n[st] >= s.hp_min_strand_reads and strand_n[st] > 0 and strand_llr[st] < 0
                 for st in strand_n
@@ -231,6 +264,7 @@ def test_property_status_set_and_thresholds() -> None:
         assert (status == "insufficient_depth") == (n < max(s.hp_min_reads, 1))
         if status == "supported":
             assert n >= 1 and n >= s.hp_min_reads and alt / n >= s.hp_min_alt_frac and alt > ref
+            assert ref / n <= s.event_max_alternative_frac
 
 
 # --- template typing -------------------------------------------------------------------

@@ -77,6 +77,16 @@ class HybridSettings:
     hp_max_run_len: int = 16
     hp_background_pseudocount: float = 0.5
     qc_residual_min_run: int = 3
+    # Task 13b: an event must beat the read-derived alternative at its site. Reads are
+    # compared over the event unit extended by event_context_units repeat units on each
+    # side (unit length from the repeat dictionary) against the event allele, the
+    # no-event allele (unit reverted to its parent) and the most frequent read-derived
+    # alternative; a tie is not support. An event is not ``supported`` when its
+    # estimated alternative share exceeds event_max_alternative_frac: the share of reads
+    # favouring an alternative (competition events) or 1 - the maximum-likelihood event
+    # weight of the event/no-event stutter mixture (homopolymer events).
+    event_context_units: float = 1.0
+    event_max_alternative_frac: float = 0.25
     seed: int = 1
     # S1 anchor-search tunables (flank-anchor fallback when a motif is mutated).
     flank_anchor_bp: int = 30
@@ -218,3 +228,5 @@ class HybridSettings:
         _integer("hybrid.polish_max_reads", self.polish_max_reads, 1)
         _integer("hybrid.qc_residual_max_reads", self.qc_residual_max_reads, 1)
         _number("hybrid.polish_partial_min_units", self.polish_partial_min_units, 0)
+        _number("hybrid.event_context_units", self.event_context_units, 0)
+        _number("hybrid.event_max_alternative_frac", self.event_max_alternative_frac, 0, 1)
