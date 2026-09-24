@@ -112,6 +112,7 @@ python scripts/benchsim.py --bench-config my-bench.json design --split dev --n 3
 | `amount.fragment_length_median` / `sigma` | 5000 / 0.5 | Fallback genomic fragment model (MucOneUp defaults) |
 | `profiles.r10_pcr_alpha`, `strong_pcr_alpha_factor` | 9.27e-5, 2 | Strong PCR bias preset |
 | `profiles.poor_error_scale`, `hifi_poor_accuracy_mean` | 1.5, 0.95 | `poor` error level |
+| `profiles.simulator_threads` | 2 | Threads per case for MucOneUp's simulator tools (written to each profile variant as `pacbio_params.threads` or `ont_amplicon_params.threads`); `generate --jobs` times this is the approximate core use |
 | `structures.rare_fraction`, `rare_usage_max`, `stationary_steps` | 0.10, 0.01, 2000 | Rare-unit structures |
 | `realism.*` | see the realism section | Metric definitions and tolerances |
 | `report.alpha`, `ni_margin` | 0.05, 0.005 | Decision rule and interval level |

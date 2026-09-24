@@ -174,12 +174,17 @@ class ProfileConfig:
     strong_pcr_alpha_factor: float = 2.0
     poor_error_scale: float = 1.5
     hifi_poor_accuracy_mean: float = 0.95
+    # Threads per case for MucOneUp's simulator tools (pbsim3, ccs, samtools,
+    # minimap2), written into every profile variant; generate --jobs times this
+    # is the approximate core use of a generate run.
+    simulator_threads: int = 2
 
     def __post_init__(self) -> None:
         _num("profiles.r10_pcr_alpha", self.r10_pcr_alpha, 0, open_lo=True)
         _num("profiles.strong_pcr_alpha_factor", self.strong_pcr_alpha_factor, 1)
         _num("profiles.poor_error_scale", self.poor_error_scale, 1)
         _num("profiles.hifi_poor_accuracy_mean", self.hifi_poor_accuracy_mean, 0, 1, open_lo=True)
+        _int("profiles.simulator_threads", self.simulator_threads, 1)
 
 
 @dataclass(frozen=True)

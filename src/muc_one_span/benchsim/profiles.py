@@ -12,6 +12,10 @@ Rules for transforming base profiles:
   amplicon_params.pcr_bias = {"preset": "madritsch2025_r10", "alpha":
   ``strong_pcr_alpha_factor`` x ``r10_pcr_alpha``}; pcr="none" sets
   {"preset": "no_bias"}. Calibrated levels leave the base untouched.
+- Simulator threads: every variant sets ``threads`` =
+  ``profiles.simulator_threads`` in the MucOneUp section its platform reads
+  (``pacbio_params`` for pacbio, ``ont_amplicon_params`` for ont, which the
+  ONT amplicon and genomic fragment pipelines both use).
 - All numbers come from `bench_config.ProfileConfig`.
 - Variant name: Encodes profile base name and all levels (smear/chimera omitted for
   genomic). Provenance records base profile name and SHA256. The file is
@@ -35,6 +39,8 @@ from .muconeup import BUILTIN_PROFILE
 
 PCR_PRESET_R10 = "madritsch2025_r10"  # MucOneUp pcr_bias preset names
 PCR_PRESET_NONE = "no_bias"
+# MucOneUp config section holding the simulator thread count, per profile platform.
+THREAD_SECTIONS = {"pacbio": "pacbio_params", "ont": "ont_amplicon_params"}
 
 
 def builtin_profile_dir(explicit: Path | None) -> Path:
@@ -60,6 +66,10 @@ def variant_name(design: Design) -> str:
 
 
 def _apply(data: dict[str, Any], design: Design, cfg: ProfileConfig) -> None:
+    section = THREAD_SECTIONS[data["platform"]]
+    data.setdefault("config_overrides", {}).setdefault(section, {})["threads"] = (
+        cfg.simulator_threads
+    )
     mol = data.setdefault("molecules", {})
     if design.profile != "ont_genomic_targeted":
         mol["smear_rate"] = design.smear

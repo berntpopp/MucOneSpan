@@ -45,6 +45,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
   first), and the decision rule (now v3) applies to the headline set only.
   Realism results are labelled indicative. The per-split smear levels and the
   `design` depth, PCR, error and chimera levels moved into the sets.
+- `profiles.simulator_threads` bounds the threads of MucOneUp's simulator tools
+  per generated case (written into every profile variant), so `generate --jobs`
+  sets a predictable core budget.
   `bench_config_sha256` stays the full provenance hash.
 
 ## [0.16.0] - 2026-09-24

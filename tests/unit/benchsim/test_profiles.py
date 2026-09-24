@@ -65,7 +65,8 @@ def test_calibrated_levels_keep_base_values(tmp_path: Path) -> None:
     d = replace(_design(), smear=0.24, chimera=0.023, pcr="calibrated", error="calibrated")
     data = json.loads(write_variant(base, d, tmp_path / "v")[0].read_text())
     assert data["errors"] == BASE["errors"]
-    assert data["config_overrides"] == BASE["config_overrides"]
+    threads = {"ont_amplicon_params": {"threads": P.simulator_threads}}
+    assert data["config_overrides"] == BASE["config_overrides"] | threads
 
 
 def test_builtin_profile_dir_explicit(tmp_path: Path) -> None:
@@ -175,3 +176,25 @@ def test_variants_are_content_addressed_across_configs(tmp_path: Path) -> None:
     assert json.loads(path_a.read_text())["errors"]["mismatch_rate"] == 0.007 * P.poor_error_scale
     assert json.loads(path_b.read_text())["name"] == variant_name(_design())
     assert write_variant(base, _design(), out, P) == (path_a, sha_a)
+
+
+@pytest.mark.parametrize(
+    ("platform", "section"), [("ont", "ont_amplicon_params"), ("pacbio", "pacbio_params")]
+)
+def test_variant_bounds_simulator_threads(tmp_path: Path, platform: str, section: str) -> None:
+    base = tmp_path / "base.json"
+    base.write_text(json.dumps(BASE | {"platform": platform}))
+    path, sha = write_variant(base, _design(), tmp_path / "v")
+    data = json.loads(path.read_text())
+    assert data["config_overrides"][section]["threads"] == P.simulator_threads
+    more = replace(P, simulator_threads=P.simulator_threads + 1)
+    other, other_sha = write_variant(base, _design(), tmp_path / "v", more)
+    assert json.loads(other.read_text())["config_overrides"][section]["threads"] == (
+        P.simulator_threads + 1
+    )
+    assert other_sha != sha
+
+
+def test_simulator_threads_must_be_positive() -> None:
+    with pytest.raises(ValueError, match="simulator_threads"):
+        replace(P, simulator_threads=0)
