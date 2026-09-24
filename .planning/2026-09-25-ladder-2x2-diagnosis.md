@@ -28,14 +28,21 @@ turn most of the remaining mixed-allele detections into INCONCLUSIVE.**
    - old test set (47 samples; MucOneUp 0.44.2 legacy HiFi, ~165 reads):
      per-allele exact v0.8.0 42/94, v0.14.0 71/94, v0.15.1 69/94, **v0.16.0 71/94**
      (v0.8.0 vs v0.16.0 discordant alleles 1/30, McNemar p = 3e-8);
-   - issue #49 baseline (6 samples): v0.14.0 and v0.16.0 both 9/12 alleles exact,
-     5/5 events, PATHOGENIC 5/5 (the recorded baseline was 9/12, 5/5);
+   - issue #49 baseline, 6 samples (sample_bench_5000, sample_close_51_58,
+     sample_del_60_80, sample_dupa_100_120, sample_dupc_100_120,
+     sample_normal_100_120; the list is from `MucOneSpan/results/issue49/inventory.json`):
+     v0.14.0 and v0.16.0 both 9/12 alleles exact, 5/5 events, PATHOGENIC 5/5.
+     The recorded baseline in `results/issue49/baseline/evaluation.json`
+     (v0.14.0) was 9/12 and 5/5. Our figures are from `score.py` on
+     `runs/oldtest/<caller>/scored.jsonl`, aggregated in
+     `diag12d/aggregates/issue49_baseline_subset.json`;
    - manuscript experiment 1, PacBio subset (78 samples, original inputs):
      v0.8.0 77/156, **v0.16.0 111/156** (1/35, p = 1e-9); exact events 29 vs 32/39;
    - v3 clean designs, all four read sets: v0.16.0 ≥ v0.8.0 in every cell
      (e.g. legacy ONT 19 vs 9/60, p = 0.002). v0.14.0 vs v0.16.0: no cell differs
      by more than 3 alleles.
-2. **Read simulation: no effect at the same depth.** Same designs, same caller
+2. **Read simulation: no effect at the same depth** (for the bundle of factors
+   that differ between legacy and new reads; see Limitations). Same designs, same caller
    (v0.16.0), legacy vs new clean reads: HiFi 10 vs 9/60 alleles exact, ONT 19 vs
    21/60; exact events 4 vs 6/19 and 6 vs 6/19; no paired difference is
    significant. The same holds for v0.8.0 and v0.14.0 on HiFi. On ONT, v0.8.0
@@ -52,12 +59,18 @@ turn most of the remaining mixed-allele detections into INCONCLUSIVE.**
    (≥ 5 unit) length errors in 22/30 cases at 4000 reads. The mechanism is an
    absolute-count threshold:
    - At depth, secondary and supplementary alignments of repeat reads onto short
-     ladder contigs form a spurious short cluster. Example: a 73/73 design called
-     73/31, whose phantom allele has 232 alignment records but 4 primary
-     alignments.
+     ladder contigs form a spurious short cluster. Example: legacy ONT design
+     dev-clean-ont_amplicon_r10-0002, 73/73, called 73/31. Its phantom allele_2
+     has `reads` 232 and `primary_alignment_records` 4 in
+     `diag12d/runs/leg_ont/v0.16.0/dev-clean-ont_amplicon_r10-0002/summary.json`
+     (v0.14.0 is identical; v0.8.0 also reports 31 units from 232 reads).
    - This happens with legacy reads at clean depth in every caller version:
      phantom short alleles in 11–17/30 legacy ONT and 4/30 legacy HiFi cases. It
      never happens at 200 templates, and it happens in 1 case with the new reads.
+     The per-case list, with called lengths, read and primary-alignment counts
+     and the source `summary.json` of each case, is
+     `diag12d/aggregates/phantom_alleles.json`. A phantom is a called allele
+     shorter than 0.6 × the shorter truth allele.
    - v0.16.0 flags these cases (depth gate, selection unresolved: legacy ONT
      1 → 20/30) instead of reporting a wrong length, so its allele exactness does
      not drop.
@@ -125,6 +138,15 @@ turn most of the remaining mixed-allele detections into INCONCLUSIVE.**
     config.json settings: pcr_bias `default`; HiFi pbsim3 ERRHMM-SEQUEL,
     pass 10 + CCS (about 1690 reads); ONT QSHMM-ONT-HQ, accuracy 0.95. Model
     paths are absolute, and threads are 3.
+  - The legacy and new read sets differ in several factors at once, not just
+    "the read layer":
+    - PCR bias: legacy `default` (length-biased allele split; minor template
+      share down to 0.06) vs new `no_bias`.
+    - Strand: legacy is forward-strand only; new reads mix both strands
+      (`forward_frac` 0.5).
+    - ONT error model: legacy QSHMM-ONT-HQ vs new calibrated R10.
+    - HiFi: both use pbsim3 + CCS; the new profile is not separately calibrated.
+    - Per-read truth tracking (new only) does not change the reads.
   - `leg200_*`: the same at 200 templates, the old test-set condition (about
     170 HiFi reads).
   - Old test set: `MucOneSpan/tests/data/generated`, 44 HiFi and 3 ONT samples,
@@ -213,8 +235,8 @@ The table counts cases on v3 clean HiFi new reads / legacy ONT (4000 reads).
 
 | Failure mode | v0.8.0 | v0.14.0 | v0.16.0 | Verdict |
 | --- | --- | --- | --- | --- |
-| IUPAC consensus (mixed alleles in one length partition) | 28 / 26 | 15 / 4 | 24 / 18 | Present in v0.8.0 in every data set: old test set 35/47, manuscript PacBio 321/440. v0.13/v0.14 hid it with forced haploid consensus (`bcftools consensus -H 1`); allele exactness did not change (old test set 71/94 both), but v0.14 lost ONT alarms (legacy ONT 5/19). v0.15.1 re-exposed it (old test set 16/47). |
-| Lost/phantom allele (a short second allele built from secondary alignments, 0–4 primary; e.g. 113/113 → 113/19, 73/73 → 73/31, 121/127 → 124/32) | legacy HiFi 4, legacy ONT 17, new HiFi 1, new ONT 0 | 4 / 11 / 1 / 0 | 4 / 11 / 1 / 0 | Present in all versions, and depth-driven: it never occurs at 200 templates. v0.8.0 reports it as a real allele (a gross length error); v0.16.0 marks it with the depth gate. |
+| IUPAC consensus (mixed alleles in one length partition) | 28 / 26 | 15 / 4 | 24 / 18 | Present in v0.8.0 in every data set: old test set 35/47, manuscript PacBio 321/440. v0.14.0 hid it (IUPAC in 1/47 old-test cases). By the CHANGELOG this is the forced haploid consensus (`bcftools consensus -H 1`) introduced in v0.13.0; v0.13.0 itself was not run, so this attribution is inferred. Measured: v0.14.0 and v0.16.0 have the same allele exactness (old test set 71/94 both), but v0.14.0 lost ONT alarms (legacy ONT 5/19). v0.15.1 shows IUPAC again (old test set 16/47). |
+| Lost/phantom allele (a short second allele built from secondary alignments, 0–4 primary; e.g. 113/113 → 113/19, 73/73 → 73/31, 121/127 → 124/32; per-case counts and source files in `diag12d/aggregates/phantom_alleles.json`) | legacy HiFi 4, legacy ONT 17, new HiFi 1, new ONT 0 | 4 / 11 / 1 / 0 | 4 / 11 / 1 / 0 | Present in all versions, and depth-driven: it never occurs at 200 templates. v0.8.0 reports it as a real allele (a gross length error); v0.16.0 marks it with the depth gate. |
 | Length error (≥ 1 unit; ≥ 5 units) | 23 (1) / 26 (22) | 13 (3) / 21 (18) | 13 (3) / 18 (16) | Present in v0.8.0 and more frequent. Gross errors grow with depth on legacy ONT for every version. The genomic 142-vs-77 doubling was not re-run here: no legacy genomic arm, and v0.8.0 has no genomic mode. |
 | Selection unresolved (secondary mode) | no such gate | no such gate | 3 / 20 | The gate is new in v0.16. The underlying multi-cluster state exists in all versions and produces the length errors above. |
 | Per-allele depth gate (< 30 primary alignments) | min-coverage 10 only | min-coverage only | 4 / 16; legacy HiFi 9; manuscript PacBio 17/78 | The gate is new in v0.16. It fires on real read loss: Δ = 1–2 alleles keep 1–15 primary alignments of about 800 reads, and at 200 templates (about 170 reads in total) the long allele under default PCR bias keeps 9–29. |
@@ -257,6 +279,12 @@ The table counts cases on v3 clean HiFi new reads / legacy ONT (4000 reads).
 
 ## Limitations
 
+- **The "simulation" arm is a bundle of factors.** Legacy vs new reads change
+  the PCR bias (`default` vs `no_bias`), the strand mix (forward-only vs both)
+  and, for ONT, the error model, all at once. Conclusion 2 ("no read-simulation
+  effect") therefore compares two bundles of factors, not a single factor. A
+  null result for the bundle does not exclude single-factor effects that cancel,
+  and these factors were not varied one at a time.
 - Each arm has n = 30 designs (19 pathogenic). Most clinical-decision
   differences are not significant; the allele-level caller effects are.
 - ONT arms use the R10 Clair3 model for legacy (R9-like QSHMM) reads, so the ONT
@@ -277,3 +305,7 @@ The table counts cases on v3 clean HiFi new reads / legacy ONT (4000 reads).
 - `samples/*.json`, and `runs/<set>/<caller>/` holding the caller outputs,
   `scored.jsonl`, `scored_summary.json` and `evaluation_v014.json`.
 - `analysis.json` and `analysis.md`: all cells, pairs and per-delta tables.
+- `aggregates/phantom_alleles.json`: per-case phantom-allele counts with source
+  `summary.json` paths.
+- `aggregates/issue49_baseline_subset.json`: the 6-sample issue #49 list,
+  per-caller scores and the scoring source.
