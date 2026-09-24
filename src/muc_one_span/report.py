@@ -19,6 +19,7 @@ except ImportError:
 
 from typing import Any
 
+from muc_one_span.clinical_gates import mutation_supported as _mutation_supported
 from muc_one_span.nomenclature import enrich_mutation_record
 from muc_one_span.report_assets import (
     REPORT_IGV_MODES,
@@ -90,10 +91,7 @@ def compute_clinical_decision(
                     mut_copy["allele"] = allele_key
                     frameshift = mut.get("frameshift") is True
                     loc_ok = mut.get("localization_status") != "ambiguous"
-                    supp_ok = (
-                        mut.get("vcf_support") is not False
-                        and mut.get("vcf_support_status") != "absent"
-                    )
+                    supp_ok = _mutation_supported(mut)
                     if frameshift and loc_ok and supp_ok:
                         pathogenic_mutations.append(mut_copy)
                     else:

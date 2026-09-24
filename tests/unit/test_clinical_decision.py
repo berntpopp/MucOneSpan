@@ -134,3 +134,66 @@ def test_heterozygous_length_partition_is_never_negative():
         independent_haplotype_evidence=False,
     )
     assert compute_clinical_decision(summary)["state"] == "INCONCLUSIVE"
+
+
+def _summary(mut: dict) -> dict:
+    allele = {
+        "length": 50,
+        "canonical_repeats": 41,
+        "reads": 200,
+        "phase_status": "phased",
+        "independent_haplotype_evidence": True,
+    }
+    return {
+        "alleles": {
+            "allele_1": dict(allele),
+            "allele_2": dict(allele, length=60, canonical_repeats=51),
+            "homozygous": False,
+        },
+        "classifications": {
+            "allele_1": {
+                "mutations": [mut],
+                "ambiguous_bases": 0,
+                "reconstruction_status": "complete_segmentation",
+            },
+            "allele_2": {
+                "mutations": [],
+                "ambiguous_bases": 0,
+                "reconstruction_status": "complete_segmentation",
+            },
+        },
+    }
+
+
+BASE = {
+    "repeat_index": 20,
+    "mutation_name": "dupC",
+    "frameshift": True,
+    "localization_status": "exact",
+    "template_match": True,
+}
+
+
+def test_missing_support_fields_are_not_pathogenic() -> None:
+    decision = compute_clinical_decision(_summary(dict(BASE)))
+    assert decision["state"] != "PATHOGENIC"
+
+
+def test_read_support_is_accepted_as_explicit_support() -> None:
+    mut = dict(
+        BASE,
+        vcf_support=False,
+        vcf_support_status="not_applicable_read_consensus",
+        read_support={"status": "supported", "alt": 180, "ref": 10, "other": 10},
+    )
+    assert compute_clinical_decision(_summary(mut))["state"] == "PATHOGENIC"
+
+
+def test_vcf_exact_concordance_still_pathogenic() -> None:
+    mut = dict(BASE, vcf_support=True, vcf_support_status="exact_sequence_concordance")
+    assert compute_clinical_decision(_summary(mut))["state"] == "PATHOGENIC"
+
+
+def test_unresolved_heterozygous_event_is_not_pathogenic() -> None:
+    mut = dict(BASE, vcf_support=False, vcf_support_status="heterozygous_genotype_unresolved")
+    assert compute_clinical_decision(_summary(mut))["state"] == "INCONCLUSIVE"
