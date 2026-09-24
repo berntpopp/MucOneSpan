@@ -250,11 +250,21 @@ alleles applied by genotype in the filtered VCF. Its fields are `status`
 unapplied pileup frameshift with `chrom`, `pos`, `ref`, `alt`, `af` and `dp`)
 and, for `not_assessed`, a `reason` (`pileup_vcf_unavailable` or
 `final_vcf_unavailable`). Every allele with its own Clair3 partition carries
-the record; an unphased same-length alias shares `allele_1`'s. "Applied" means
-after MucOneSpan's own QUAL filter, so a low-QUAL pileup frameshift that the
-filter removes is also discordant. A discordant allele blocks NEGATIVE and is a
-quality caveat on PATHOGENIC; `not_assessed` is logged and reported as a quality
-caveat without blocking NEGATIVE. The gate never creates, removes or edits a call.
+the record; an unphased same-length alias shares `allele_1`'s. In that
+same-length unphased path a single Clair3 run covers both alleles, so the
+record belongs to the whole run: the reported reason always reads "Allele 1",
+even when the discordant frameshift is on the sample's second called
+haplotype. Pileup rows are read from `clair3/pileup.vcf.gz` without applying
+its own `FILTER` column. "Applied" means after MucOneSpan's own QUAL filter,
+so a low-QUAL pileup frameshift that Clair3's own final stage still reports
+but that MucOneSpan's filter removes is also discordant; this is the safe
+direction, since it only ever adds a caveat or blocks a negative result on a
+call that is itself of marginal quality. A discordant allele blocks NEGATIVE
+and is a quality caveat on PATHOGENIC; `not_assessed` is logged and reported
+as a quality caveat without blocking NEGATIVE. Missing `pileup.vcf.gz`
+(`not_assessed`, reason `pileup_vcf_unavailable`) changes the NEGATIVE reason
+text for that run to include the quality caveat rather than a clean NEGATIVE
+banner. The gate never creates, removes or edits a call.
 Experimental read-backed phase is available through the Python library's explicit
 `read_phase=True` or JSON `calling.read_phase: true`. It remains disabled by default
 after failing the development false-positive gate; there is no dedicated CLI flag. `consensus_context` records the

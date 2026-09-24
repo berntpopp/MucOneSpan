@@ -2,6 +2,18 @@
 
 This guide documents empirical validation across historical cohorts and the comprehensive 200-dataset simulation benchmark.
 
+## Validation evidence for 0.16.1
+
+On the diag12d `ms_ont_sub` benchmark set (78 older simulated ONT amplicon
+samples called with the R9 Clair3 model: 39 pathogenic, 39 normal), the
+v0.16.1 caller-stage discordance gate reduces NEGATIVE on pathogenic samples
+from **12/39 to 1/39**. NEGATIVE on normal samples is unchanged at 25/39, and
+no PATHOGENIC decision and no other benchmark set (PRJEB92208 cohort-p0,
+v3/standard, v3/clean, v3/clean2, v2 stress, ms_pacbio_sub, oldtest, leg_ont,
+leg_hifi, leg200_ont, leg200_hifi) changed. The one residual NEGATIVE on this
+set (`pair_5178`) is an accepted, documented limitation; see
+[limitations](../reference/limitations.md).
+
 ## Validation evidence for 0.14.0
 
 MucOneSpan 0.14.0 was evaluated on the 500-dataset stratified simulation benchmark (250 distinct diploid biological designs × 2 sequencing modes: PacBio HiFi amplicons and genomic Oxford Nanopore). The cohort was partitioned under strict pre-registration discipline into Development (300 datasets), Validation (100 datasets), and held-out Test (100 datasets), governed by cryptographic ledger seals (`tests/data/experiment_500/ledger_sealed.jsonl`).

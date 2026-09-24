@@ -243,6 +243,38 @@ changes at the scorer level (dupC recovered on allele 2); no control gains an ev
 Frozen tools: minimap2 2.28-r1209, samtools 1.15.1, bcftools 1.17 and Clair3
 1.0.10 with model `r1041_e82_400bps_sup_v500`, Python 3.12.9.
 
+## v0.16.1 ladder bug-fix rerun (PRJEB92208)
+
+The cohort was rerun with the v0.16.1 ladder bug-fix changes (caller commit
+`c560949`: Fix A caller-stage discordance gate, Fix B configurable clinical
+decision thresholds, Fix C allele-selection settings). The decision is
+`compute_clinical_decision` applied to each `summary.json`; gate reasons are
+truncated. `stage_concordance (a1/a2)` reads
+`alleles[*].stage_concordance.status` for each allele.
+
+| Library | Sample | Decision | Events (allele:name@repeat:support) | stage_concordance (a1/a2) | Gate reasons (truncated) |
+| --- | --- | --- | --- | --- | --- |
+| ERR15277552 | HG002 WGS | INCONCLUSIVE | allele_2:7@75:localization_ambiguous | concordant/concordant | Allele 2: inconclusive observed variant; below per-allele depth gate |
+| ERR15277553 | WGS (identity unresolved) | INCONCLUSIVE | - | concordant/concordant | Allele 1/2: selection unresolved, below depth gate |
+| ERR15277562 | HG001 | NO_PATHOGENIC_VARIANT_DETECTED | - | concordant/concordant | Allele 1: 40 repeats, 46915 reads; Allele 2: 72 repeats, 10166 reads |
+| ERR15277563 | HG002 PCR | INCONCLUSIVE | allele_2:7@75:localization_ambiguous | concordant/concordant | Allele 2: inconclusive observed variant (localization ambiguous) |
+| ERR15277564 | HG003 | NO_PATHOGENIC_VARIANT_DETECTED | - | concordant/concordant | Allele 1: 44 repeats, 47980 reads; Allele 2: 65 repeats, 14680 reads |
+| ERR15277565 | HG004 | INCONCLUSIVE | allele_2:7@75:localization_ambiguous | concordant/concordant | Allele 2: inconclusive observed variant (localization ambiguous) |
+| ERR15277566 | MP1 | **PATHOGENIC** | allele_2:dupC@17:exact_sequence_concordance | concordant/concordant | Allele 2: dupC at repeat 17; caveat: allele 1 length 39 vs contig 44 |
+| ERR15277567 | MP2 | **PATHOGENIC** | allele_2:dupC@17:exact_sequence_concordance | concordant/concordant | Allele 2: dupC at repeat 17 |
+| ERR15277568 | MP3 | INCONCLUSIVE | allele_1:dupC@7:heterozygous_genotype_unresolved; allele_2:X@35 / dupC@80:localization_ambiguous | concordant/concordant | Allele 1: heterozygous genotype not resolved; Allele 2: localization ambiguous |
+| ERR15277569 | MP4 | **PATHOGENIC** | allele_2:dupC@49:exact_sequence_concordance | concordant/concordant | Allele 2: dupC at repeat 49 |
+| ERR15277570 | MP5 | INCONCLUSIVE | allele_2:X@35:exact_sequence_concordance | concordant/concordant | Allele 1: selection unresolved (secondary mode 0.276); length 69 vs 61 |
+
+Every decision, event and gate reason is identical to the v0.16.0 rerun above;
+the new caller-stage discordance veto never fires on this cohort (all 22
+alleles across the 11 libraries are `concordant`, including the 18 alleles of
+the 9 amplicon libraries). The positives are publication-reported known
+controls from three families; this rerun claims no sensitivity or specificity.
+
+Frozen tools: minimap2 2.28-r1209, samtools 1.15.1, bcftools 1.17 and Clair3
+1.0.10 with model `r1041_e82_400bps_sup_v500`, Python 3.12.9.
+
 ## Reproduction
 
 The additive command is `scripts/clinical_benchmark.py`. Use Python 3.10 or newer,
