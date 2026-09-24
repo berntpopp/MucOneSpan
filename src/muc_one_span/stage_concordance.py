@@ -22,6 +22,7 @@ which is the safe direction for this gate.
 from __future__ import annotations
 
 import contextlib
+import logging
 import math
 import re
 from pathlib import Path
@@ -46,6 +47,8 @@ _SEQUENCE_ALLELE = re.compile(r"[ACGTNacgtn]+")
 _GENOTYPE_SEPARATOR = re.compile(r"[/|]")
 
 Allele = tuple[str, int, str, str]
+
+logger = logging.getLogger(__name__)
 
 
 def is_frameshift(ref: str, alt: str) -> bool:
@@ -157,7 +160,13 @@ def read_pileup(pileup_vcf: Path, reference: Path, work_dir: Path) -> list[dict]
     return rows
 
 
-def _not_assessed(reason: str, settings: CallingSettings) -> dict[str, Any]:
+def _not_assessed(reason: str, pileup_vcf: Path, settings: CallingSettings) -> dict[str, Any]:
+    logger.warning(
+        "Caller-stage concordance not assessed for %s (%s); a NEGATIVE result carries "
+        "a quality caveat.",
+        pileup_vcf.parent,
+        reason,
+    )
     return {
         "status": STATUS_NOT_ASSESSED,
         "reason": reason,
@@ -183,19 +192,33 @@ def annotate_stage_concordance(
     """
     settings = settings or CallingSettings()
     if not pileup_vcf.is_file():
-        return _not_assessed(REASON_PILEUP_UNAVAILABLE, settings)
+        return _not_assessed(REASON_PILEUP_UNAVAILABLE, pileup_vcf, settings)
     if not final_vcf.is_file():
-        return _not_assessed(REASON_FINAL_UNAVAILABLE, settings)
+        return _not_assessed(REASON_FINAL_UNAVAILABLE, pileup_vcf, settings)
     pileup = read_pileup(pileup_vcf, reference, work_dir or pileup_vcf.parent)
     return assess(pileup, applied_alleles(parse_vcf_variants(final_vcf)), settings)
 
 
-def stage_concordance_reasons(info: Any, label: str) -> list[str]:
-    """Return the report reason for a discordant allele, or ``[]`` otherwise."""
+def _stage_record(info: Any) -> dict | None:
     record = info.get("stage_concordance") if isinstance(info, dict) else None
-    if not isinstance(record, dict) or record.get("status") != STATUS_DISCORDANT:
+    return record if isinstance(record, dict) else None
+
+
+def stage_concordance_reasons(info: Any, label: str) -> list[str]:
+    """Return the report reason for a discordant allele, or ``[]`` otherwise.
+
+    A discordant status without records (for example a hand-edited summary) still
+    blocks a reassuring negative; it only omits the first-record detail.
+    """
+    record = _stage_record(info)
+    if record is None or record.get("status") != STATUS_DISCORDANT:
         return []
-    records = record["records"]
+    records = record.get("records") or []
+    if not records:
+        return [
+            f"{label}: caller-stage discordance: status {STATUS_DISCORDANT} is recorded "
+            "without pileup records; absence of a frameshift is not established."
+        ]
     first = records[0]
     return [
         f"{label}: caller-stage discordance: {len(records)} frameshift indel(s) called by "
@@ -203,4 +226,19 @@ def stage_concordance_reasons(info: Any, label: str) -> list[str]:
         f"{record['min_depth']} are not in the applied calls (first: {first['chrom']}:"
         f"{first['pos']} {first['ref']}>{first['alt']}, AF {first['af']}, DP {first['dp']}); "
         "absence of a frameshift is not established."
+    ]
+
+
+def stage_concordance_caveats(info: Any, label: str) -> list[str]:
+    """Return a quality caveat for a ``not_assessed`` allele, or ``[]`` otherwise.
+
+    A missing pileup or final VCF must not pass silently, but it is not evidence of
+    a frameshift, so it is a caveat rather than a NEGATIVE blocker.
+    """
+    record = _stage_record(info)
+    if record is None or record.get("status") != STATUS_NOT_ASSESSED:
+        return []
+    return [
+        f"{label}: caller-stage concordance not assessed ({record.get('reason', 'unknown')}); "
+        "Clair3 pileup-stage frameshift calls were not compared with the applied calls."
     ]

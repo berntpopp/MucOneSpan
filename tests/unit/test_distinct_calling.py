@@ -249,3 +249,86 @@ def test_overridden_explicit_min_qual_is_logged(
     _, filter_calls = _run_distinct(tmp_path, [], min_qual=12.0)
     assert {call["haploid_min_qual"] for call in filter_calls} == {4.0}
     assert "not applied to length-partitioned calls" in caplog.text
+
+
+_CONCORDANT = {"status": "concordant"}
+
+
+def test_distinct_path_records_stage_concordance_per_allele(tmp_path: Path) -> None:
+    """Each length partition compares its own Clair3 pileup VCF with its applied calls (#72)."""
+    alleles = _make_alleles()
+    settings = CallingSettings()
+
+    def fake_filter(vcf: Path, reference: Path, out_dir: Path, **kwargs: Any) -> Path:
+        return out_dir / "variants.vcf.gz"
+
+    with (
+        patch("muc_one_span.calling._extract_and_remap_reads", return_value=tmp_path / "m.bam"),
+        patch("muc_one_span.calling.run_clair3", return_value=tmp_path / "raw.vcf.gz"),
+        patch("muc_one_span.calling.filter_vcf", side_effect=fake_filter),
+        patch("muc_one_span.calling.parse_vcf_genotypes", return_value=[]),
+        patch(
+            "muc_one_span.calling.annotate_stage_concordance", return_value=_CONCORDANT
+        ) as annotate,
+    ):
+        call_variants_per_allele(
+            tmp_path / "in.bam", tmp_path / "ref.fa", alleles, tmp_path, settings=settings
+        )
+
+    assert annotate.call_count == 2
+    expected = {
+        (
+            tmp_path / key / "clair3" / "pileup.vcf.gz",
+            tmp_path / key / "variants.vcf.gz",
+            tmp_path / key / f"{alleles[key]['contig_name']}.fa",
+            settings,
+        )
+        for key in ("allele_1", "allele_2")
+    }
+    assert {call.args for call in annotate.call_args_list} == expected
+    for key in ("allele_1", "allele_2"):
+        assert alleles[key]["stage_concordance"] == _CONCORDANT
+
+
+def test_same_length_unphased_records_stage_concordance_on_allele_1_only(
+    tmp_path: Path,
+) -> None:
+    """The unphased alias shares allele_1's single Clair3 partition and gets no own record."""
+    alleles = {
+        "same_length": True,
+        "allele_1": {"contig_name": "contig_51", "cluster_contigs": ["contig_51"]},
+        "allele_2": {"contig_name": "contig_51", "cluster_contigs": ["contig_51"]},
+    }
+    settings = CallingSettings(read_phase=False)
+    merged = tmp_path / "merged"
+    with (
+        patch("muc_one_span.calling._extract_and_remap_reads", return_value=tmp_path / "m.bam"),
+        patch("muc_one_span.calling.run_clair3", return_value=tmp_path / "raw.vcf.gz"),
+        patch("muc_one_span.calling.filter_vcf", return_value=merged / "variants.vcf.gz"),
+        patch("muc_one_span.calling.parse_vcf_genotypes", return_value=[]),
+        patch(
+            "muc_one_span.calling.annotate_stage_concordance", return_value=_CONCORDANT
+        ) as annotate,
+    ):
+        call_variants_per_allele(
+            tmp_path / "in.bam", tmp_path / "ref.fa", alleles, tmp_path, settings=settings
+        )
+
+    annotate.assert_called_once_with(
+        merged / "clair3" / "pileup.vcf.gz",
+        merged / "variants.vcf.gz",
+        merged / "contig_51.fa",
+        settings,
+    )
+    assert alleles["allele_1"]["stage_concordance"] == _CONCORDANT
+    assert alleles["allele_2"]["candidate_duplicate_of"] == "allele_1"
+    assert "stage_concordance" not in alleles["allele_2"]
+
+
+def test_unpatched_calling_without_pileup_is_not_assessed(tmp_path: Path) -> None:
+    """Mocked Clair3 writes no pileup VCF: the record is not_assessed and no tool runs."""
+    alleles, _ = _run_distinct(tmp_path, [])
+    for key in ("allele_1", "allele_2"):
+        record = alleles[key]["stage_concordance"]
+        assert record["status"] == "not_assessed"
+        assert record["reason"] == "pileup_vcf_unavailable"

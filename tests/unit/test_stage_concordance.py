@@ -229,3 +229,43 @@ def test_stage_concordance_reason_text_is_exact() -> None:
         "calls (first: contig_82:2833 C>CG, AF 0.719, DP 121); absence of a frameshift "
         "is not established."
     ]
+
+
+def test_discordant_status_without_records_still_blocks() -> None:
+    """A hand-edited discordant record with no rows must not raise and must still block."""
+    info = {"stage_concordance": {"status": "discordant_frameshift", "records": []}}
+    reasons = sc.stage_concordance_reasons(info, "Allele 1")
+    assert len(reasons) == 1
+    assert reasons[0].startswith("Allele 1: caller-stage discordance:")
+    assert reasons[0].endswith("absence of a frameshift is not established.")
+
+
+@pytest.mark.parametrize("reason", ["pileup_vcf_unavailable", "final_vcf_unavailable"])
+def test_not_assessed_yields_quality_caveat(reason: str) -> None:
+    info = {"stage_concordance": {"status": "not_assessed", "reason": reason}}
+    assert sc.stage_concordance_caveats(info, "Allele 2") == [
+        f"Allele 2: caller-stage concordance not assessed ({reason}); Clair3 pileup-stage "
+        "frameshift calls were not compared with the applied calls."
+    ]
+
+
+@pytest.mark.parametrize(
+    "info",
+    [
+        {"stage_concordance": {"status": "concordant", "records": []}},
+        {"stage_concordance": {"status": "discordant_frameshift", "records": [R9_ROW]}},
+        {},
+        None,
+    ],
+)
+def test_stage_concordance_caveats_only_for_not_assessed(info: Any) -> None:
+    assert sc.stage_concordance_caveats(info, "Allele 1") == []
+
+
+def test_missing_pileup_logs_warning(tmp_path: Path, caplog: pytest.LogCaptureFixture) -> None:
+    record = sc.annotate_stage_concordance(
+        tmp_path / sc.PILEUP_VCF_NAME, tmp_path / "final.vcf.gz", tmp_path / "ref.fa"
+    )
+    assert record["status"] == sc.STATUS_NOT_ASSESSED
+    assert "pileup_vcf_unavailable" in caplog.text
+    assert caplog.records[-1].levelname == "WARNING"

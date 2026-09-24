@@ -31,6 +31,7 @@ from muc_one_span.report_assets import (
     igv_payload,
     igv_provenance,
 )
+from muc_one_span.stage_concordance import stage_concordance_caveats, stage_concordance_reasons
 from muc_one_span.version import __version__
 
 
@@ -152,7 +153,17 @@ def compute_clinical_decision(
                     f"{a_key}: Candidate reconstruction not separately resolved."
                 )
 
-    selection_reasons = allele_gate_reasons(a1, "Allele 1") + allele_gate_reasons(a2, "Allele 2")
+    selection_reasons = (
+        allele_gate_reasons(a1, "Allele 1")
+        + allele_gate_reasons(a2, "Allele 2")
+        + stage_concordance_reasons(a1, "Allele 1")
+        + stage_concordance_reasons(a2, "Allele 2")
+    )
+    stage_caveats = [
+        f"Quality caveat: {caveat}"
+        for caveat in stage_concordance_caveats(a1, "Allele 1")
+        + stage_concordance_caveats(a2, "Allele 2")
+    ]
 
     if pathogenic_mutations:
         state = "PATHOGENIC"
@@ -186,6 +197,7 @@ def compute_clinical_decision(
         details.extend(
             f"Quality caveat: {reason}" for reason in selection_reasons + reconstruction_reasons
         )
+        details.extend(stage_caveats)
         summary_text = (
             "A pathogenic frameshift variant was identified in the MUC1 VNTR region. "
             "This finding is consistent with autosomal dominant tubulointerstitial "
@@ -234,6 +246,7 @@ def compute_clinical_decision(
         reasons.extend(selection_reasons)
         if not reasons:
             reasons.append("Quality control metrics did not meet validation standards.")
+        reasons.extend(stage_caveats)
         summary_text = (
             "The test result is inconclusive due to execution, quality or coverage limitations. "
             "No definitive clinical call can be rendered."
@@ -256,6 +269,7 @@ def compute_clinical_decision(
         details = [
             f"Allele 1: {a1.get('length', 'N/A')} repeats ({a1.get('canonical_repeats', 'N/A')} canonical units) - {a1.get('reads', 0)} reads",
             f"Allele 2: {a2.get('length', 'N/A')} repeats ({a2.get('canonical_repeats', 'N/A')} canonical units) - {a2.get('reads', 0)} reads",
+            *stage_caveats,
         ]
         recommendations = (
             "A negative result significantly reduces the likelihood of ADTKD-MUC1 caused by "

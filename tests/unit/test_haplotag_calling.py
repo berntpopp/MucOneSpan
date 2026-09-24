@@ -154,3 +154,35 @@ def test_haplotag_diploid_genotypes_kept_by_configuration_are_unresolved(tmp_pat
     for key in ("allele_1", "allele_2"):
         assert alleles[key]["consensus_haplotype"] == "I"
         assert alleles[key]["independent_haplotype_evidence"] is False
+
+
+def test_haplotag_path_records_stage_concordance_per_haplotype(tmp_path: Path) -> None:
+    """Each haplotag partition compares its own Clair3 pileup VCF with its applied calls."""
+    settings = CallingSettings()
+    records = {
+        "allele_1": {"status": "concordant"},
+        "allele_2": {"status": "discordant_frameshift", "records": []},
+    }
+
+    def fake_annotate(pileup: Path, final: Path, reference: Path, _settings: Any) -> dict:
+        return records[pileup.parent.parent.name]
+
+    with patch(
+        "muc_one_span.calling.annotate_stage_concordance", side_effect=fake_annotate
+    ) as annotate:
+        alleles, _ = _run_haplotagged(tmp_path, [], [], settings=settings)
+
+    merged = tmp_path / "out" / "merged"
+    expected = {
+        (
+            merged / key / "clair3" / "pileup.vcf.gz",
+            merged / key / "variants.vcf.gz",
+            merged / "contig_60.fa",
+            settings,
+        )
+        for key in ("allele_1", "allele_2")
+    }
+    assert {call.args for call in annotate.call_args_list} == expected
+    assert annotate.call_count == 2
+    for key in ("allele_1", "allele_2"):
+        assert alleles[key]["stage_concordance"] == records[key]
