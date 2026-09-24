@@ -393,12 +393,16 @@ class HybridSettings:
     smear_background_flank_units: float = 2.0
     smear_background_min_reads: int = 5
     # S4 (Task 8) linked-site phase split: site-table read cap, homopolymer-run site
-    # length and background window, minor alleles per site and their read floor, run
-    # background multiplier (D6), gap-allele AF factor and pairwise-linkage read floor.
+    # length and background window, minor-allele read floor, run background multiplier
+    # (D6), gap-allele AF factor and pairwise-linkage read floor. Strand consistency
+    # reuses hp_min_strand_reads (reads a strand needs before its AF is trusted).
+    # phase_run_min_len (3) < hp_vote_min_run (4) on purpose (prototype values): the
+    # split must treat a 3-run as one run-length site, since a run indel is ambiguous
+    # per column; the polish median vote only needs to rewrite runs >= 4, where the
+    # column-wise pileup vote is unreliable, and leaves shorter runs to that vote.
     phase_max_site_reads: int = 300
     phase_run_min_len: int = 3
     phase_run_bg_window: int = 3
-    phase_max_minor_alleles: int = 3
     phase_min_minor_reads: int = 5
     phase_run_bg_multiplier: float = 4.0
     phase_gap_af_factor: float = 1.5
@@ -472,7 +476,6 @@ class HybridSettings:
             ("phase_max_site_reads", 1),
             ("phase_run_min_len", 2),
             ("phase_run_bg_window", 1),
-            ("phase_max_minor_alleles", 1),
             ("phase_min_minor_reads", 1),
             ("phase_min_pair_reads", 2),
         ):

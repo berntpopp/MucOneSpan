@@ -88,12 +88,13 @@ def test_hybrid_smear_significance_defaults() -> None:
 
 def test_hybrid_phase_tunables_default_unchanged() -> None:
     # Task 8 (S4): replace the literals of the prototype linked-site split (hetsplit.py):
-    # site-read cap 300, run min length 3, background window +-3, top-4 alleles (3
-    # minors), minor floor 5 reads, run background multiplier 4 (D6), gap AF factor 1.5
-    # and a 10-read floor for pairwise linkage.
+    # site-read cap 300, run min length 3, background window +-3, minor floor 5 reads,
+    # run background multiplier 4 (D6), gap AF factor 1.5 and a 10-read floor for
+    # pairwise linkage. Fix round 1 removed phase_max_minor_alleles: run sites scan all
+    # alleles (as the prototype does) and other sites use only the top minor.
     h = DEFAULT_SETTINGS.hybrid
     assert (h.phase_max_site_reads, h.phase_run_min_len, h.phase_run_bg_window) == (300, 3, 3)
-    assert (h.phase_max_minor_alleles, h.phase_min_minor_reads) == (3, 5)
+    assert h.phase_min_minor_reads == 5 and not hasattr(h, "phase_max_minor_alleles")
     assert (h.phase_run_bg_multiplier, h.phase_gap_af_factor) == (4.0, 1.5)
     assert h.phase_min_pair_reads == 10
 
@@ -104,7 +105,6 @@ def test_hybrid_phase_tunables_default_unchanged() -> None:
         ("phase_max_site_reads", 0),
         ("phase_run_min_len", 1),
         ("phase_run_bg_window", 0),
-        ("phase_max_minor_alleles", 0),
         ("phase_min_minor_reads", 0),
         ("phase_run_bg_multiplier", -0.5),
         ("phase_gap_af_factor", 0.5),
