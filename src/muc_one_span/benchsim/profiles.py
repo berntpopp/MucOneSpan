@@ -1,4 +1,18 @@
-"""Profile variants: artefact, error and PCR levels layered on a built-in MucOneUp profile."""
+"""Profile variants: artefact, error and PCR levels layered on a built-in MucOneUp profile.
+
+Rules for transforming base profiles:
+- Smear/Chimera (artefact levels): Set molecules.smear_rate and molecules.chimera_rate;
+  not applied to ont_genomic_targeted.
+- Error levels: For profiles with "errors" dict, error="poor" scales mismatch_rate,
+  insertion_rate, and deletion_rate by 1.5 (stutter unchanged); for profiles without
+  "errors" (HiFi), sets config_overrides.pacbio_params.accuracy_mean = 0.95.
+  Calibrated levels leave the base untouched.
+- PCR levels: For amplicon profiles (not ont_genomic_targeted), pcr="strong" sets
+  amplicon_params.pcr_bias = {"preset": "madritsch2025_r10", "alpha": 2 x 9.27e-5};
+  pcr="none" sets {"preset": "no_bias"}. Calibrated levels leave the base untouched.
+- Variant name: Encodes profile base name and all levels (smear/chimera omitted for
+  genomic). Provenance records base profile name and SHA256.
+"""
 
 from __future__ import annotations
 
