@@ -247,3 +247,20 @@ def test_polish_rounds_come_from_the_caller() -> None:
     assert len(info["rounds"]) == S.polish_rounds
     _cons, more = polish(DUPC_ALLELE, [m.seq for m in members], **{**POLISH, "rounds": 3})
     assert len(more["rounds"]) == 3
+
+
+def test_homopolymer_vote_ignores_reads_whose_run_boundary_base_differs() -> None:
+    """Task 13b root cause (M3_hifi): a separator base lost or substituted in a read
+    merges two runs (unit I ``GCG C5 A`` -> ``G C7 A``); that merged length is not a
+    run-length observation and must not vote, or the median lands on a length present
+    in neither read population (C6) and a correct consensus is rewritten wrongly.
+    """
+    unit_i = synth.RD.repeats["I"]
+    run5 = "G" + "C" * 5 + "A"
+    assert run5 in unit_i  # fixture: dictionary unit I ends GCG C5 A
+    cons = synth.allele(["X", "I", "X"])
+    stutter = cons.replace("GCG" + "C" * 5 + "A", "GCG" + "C" * 6 + "A")
+    merged = cons.replace("GCG" + "C" * 5 + "A", "GCC" + "C" * 5 + "A")  # separator G -> C
+    reads = [cons] * 10 + [stutter] * 6 + [merged] * 8
+    new, changes = homopolymer_vote(cons, reads, min_len=S.hp_vote_min_run)
+    assert new == cons and changes == 0

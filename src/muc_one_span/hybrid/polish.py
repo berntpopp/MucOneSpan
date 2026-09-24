@@ -112,6 +112,19 @@ def read_run_length(read: str, t2q: list[int], start: int, end: int, base: str) 
     return max((len(m) for m in seg.split()), default=0)
 
 
+def run_bounded(proj: Columns, cons: str, start: int, end: int) -> bool:
+    """True when the read keeps the consensus bases that bound the run ``[start, end)``.
+
+    A read that lost or substituted a bounding base (for example the separator G of
+    ``GCG C5 A`` read as ``GCC C5 A``) merges the run with a neighbouring stretch of
+    the same base, so its observed "run length" measures that merge, not the run. A
+    run at either end of the consensus has no bounding base on that side.
+    """
+    left_ok = start == 0 or proj.cols[start - 1] == cons[start - 1]
+    right_ok = end == len(cons) or proj.cols[end] == cons[end]
+    return left_ok and right_ok
+
+
 def homopolymer_vote(
     cons: str,
     full: list[str],
@@ -119,7 +132,11 @@ def homopolymer_vote(
     *,
     min_len: int,
 ) -> tuple[str, int]:
-    """Set each run (>= min_len) to the median run length of the reads covering it."""
+    """Set each run (>= min_len) to the median run length of the reads covering it.
+
+    Only reads that cover the run and keep both bounding bases vote (``run_bounded``);
+    a run with no such read keeps its length.
+    """
     runs = _runs(cons, min_len)
     if not runs or not (full or partial):
         return cons, 0
@@ -129,7 +146,7 @@ def homopolymer_vote(
         lengths = [
             read_run_length(r, p.t2q, start, end, base)
             for r, p, _ in projections
-            if p.covers(start, end)
+            if p.covers(start, end) and run_bounded(p, cons, start, end)
         ]
         # +0.5 before truncating to int is the standard round-half-up rule (a format
         # definition, not a tunable); the result is floored at 1 base since a run cannot
