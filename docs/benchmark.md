@@ -45,14 +45,18 @@ Every tunable number of the benchmark is a validated setting in
 `"schema_version": 1` and any subset of the sections. Unknown sections or fields,
 duplicate keys and out-of-range values are rejected. The SHA-256 of the
 effective settings is written to every `case.json` (`bench_config_sha256`),
-`realism.json` and `report.json`.
+`realism.json` and `report.json` for provenance. `case.json` also records
+`bench_generation_sha256`, the hash of the sections that shape generated cases
+(`design`, `amount`, `profiles`, `structures`).
 
 Names in the semantic maps must be known: compositions `markov`,
 `real_derived` and `rare_units` (finite weights >= 0, at least one > 0, sum 1);
 delta classes `0_identical`, `0_different` (both `[0, 0]`), `1`, `2`, `3-5`,
 `6-20` and `>20`. `generate` reuses a completed case only if its design and
-settings hash match; otherwise it stops and asks for a fresh `--out-root` or
-removal of the case.
+generation hash match. Changes to `report`, `realism`, `run` or `atlas` alone
+keep cases reusable. A case written before the generation hash existed is reused
+only when its full `bench_config_sha256` matches. Otherwise `generate` stops and
+asks for a fresh `--out-root` or removal of the case.
 
 ```bash
 python scripts/benchsim.py --bench-config my-bench.json design --split dev --n 30
@@ -238,7 +242,8 @@ python scripts/benchsim.py evaluate --split dev --engines ladder
 ```
 
 Each sample row keeps the caller's reason list in `clinical.reasons` (the
-INCONCLUSIVE banner details; empty for other decisions) and the evaluator's
+banner details of the clinical decision, for every decision; empty only when the
+summary is unreadable) and the evaluator's
 `reconstruction_flags`: the run status when it is not `completed` (for example
 `ambiguous_reconstruction`, `insufficient_evidence`), `iupac_bases`,
 `unresolved_allele_alias`, `producer_status_unresolved`, `missing_allele`,
@@ -263,19 +268,34 @@ and counts each case once per reason key:
   and `None` replaced by `#`, lowercased, with whitespace collapsed and a
   trailing period dropped. An uncertain-variant reason
   (`... is inconclusive (<blocker>; <blocker>)`) gives one key per blocker
-  (`... is inconclusive: <blocker>`).
+  (`... is inconclusive: <blocker>`). Blockers are split on `; ` outside
+  parentheses only, so a blocker's own `(...; ...)` stays whole.
 - `evaluator: <flag>` for each evaluator reconstruction flag.
-- `unrecorded` when a case has neither (evaluations written before the atlas).
+- `no reasons recorded` when reasons were recorded but both lists are empty.
+- `unrecorded` when the evaluation was written before reasons were recorded.
 
-A case is **expected** INCONCLUSIVE when its split is in
-`atlas.expected_inconclusive_splits` or its `atlas.depth_basis` depth is below
-`atlas.min_resolvable_depth`. The default gate is the caller's per-allele depth
-gate for a negative call, so no engine can resolve such a case without relaxing
-a clinical gate. Every other atlas case is **resolvable**. The atlas reports:
+Each atlas case is in exactly one class:
 
-- the expected / resolvable split per profile, with the matching conditions;
+- **expected**: its split is in `atlas.expected_inconclusive_splits`, or its
+  `atlas.depth_basis` depth is below `atlas.min_resolvable_depth`;
+- **depth unknown**: no split condition holds and the `atlas.depth_basis` depth
+  is not recorded (for example a case without realized depth), so the depth
+  condition cannot be decided;
+- **resolvable**: every other case.
+
+The default gate equals the caller's per-allele depth gate for a negative call.
+The default basis, however, is the simulator's per-allele spanning depth (truth),
+not the caller's own count. A resolvable case therefore had enough reads in
+the sample. The caller's primary-record count can still fall below the gate,
+because reads are lost while alleles are split, so a resolvable case may still
+show the depth-gate reason. Such a case is resolvable by a better
+reconstruction, not by relaxing the gate. `atlas.depth_basis: design` compares
+the design target instead. The atlas reports:
+
+- the expected / resolvable / depth-unknown split per profile, with the
+  matching conditions;
 - the reason table with counts, the share of atlas cases, the rate over all cases, and
-  expected / resolvable counts;
+  expected / resolvable / depth-unknown counts;
 - reason x profile x stratum tables for each factor in `atlas.strata`.
 
 ```bash

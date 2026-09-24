@@ -56,7 +56,8 @@ def test_cli_accounting_and_output_parent(tmp_path):
     assert report["totals"]["sequence_accuracy"]["value"] == 0
     assert [s["sample"] for s in report["samples"]] == ["good", "missing"]
     good_row, missing_row = report["samples"]
-    assert good_row["clinical"]["reasons"] == []
+    assert good_row["clinical"]["reasons"]  # banner details are kept for every decision
+    assert missing_row["clinical"]["reasons"] == []
     assert good_row["reconstruction_flags"] == []
     assert missing_row["status"] == "not_attempted"
     assert missing_row["reconstruction_flags"] == ["not_attempted", "missing_allele"]

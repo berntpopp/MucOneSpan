@@ -179,3 +179,20 @@ def test_atlas_overlay_accepts_known_names(tmp_path: Path) -> None:
     assert cfg.atlas.decisions == ("INCONCLUSIVE", "NO_CALL")
     assert cfg.atlas.expected_inconclusive_splits == ()
     assert cfg.atlas.depth_basis == "design" and cfg.sha256() != CFG.sha256()
+
+
+def test_generation_hash_covers_only_generation_sections() -> None:
+    from muc_one_span.benchsim.bench_config import GENERATION_SECTIONS
+
+    assert set(GENERATION_SECTIONS) == {"design", "amount", "profiles", "structures"}
+    same = replace(
+        CFG,
+        atlas=replace(CFG.atlas, top_reasons=CFG.atlas.top_reasons + 1),
+        realism=replace(CFG.realism, jsd_max=CFG.realism.jsd_max / 2),
+        run=replace(CFG.run, threads=CFG.run.threads + 1),
+    )
+    assert same.generation_sha256() == CFG.generation_sha256()
+    assert same.sha256() != CFG.sha256()
+    floor = CFG.amount.min_minor_share / 2
+    changed = replace(CFG, amount=replace(CFG.amount, min_minor_share=floor))
+    assert changed.generation_sha256() != CFG.generation_sha256()

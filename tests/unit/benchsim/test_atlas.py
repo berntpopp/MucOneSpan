@@ -9,6 +9,7 @@ import pytest
 
 from muc_one_span.benchsim.atlas import (
     ANY_REASON,
+    NO_REASONS,
     UNRECORDED,
     build_atlas,
     case_reason_keys,
@@ -97,7 +98,8 @@ def test_case_reason_keys_are_unique_prefixed_and_unrecorded_is_explicit() -> No
         "gate: # primary alignments, below the per-allele depth gate (#)",
     ]
     assert case_reason_keys(_row(1, reasons_recorded=False)) == [UNRECORDED]
-    assert case_reason_keys(_row(2)) == [UNRECORDED]
+    assert case_reason_keys(_row(2)) == [NO_REASONS]
+    assert NO_REASONS != UNRECORDED
 
 
 def test_expected_conditions_follow_the_config() -> None:
@@ -139,6 +141,7 @@ def test_build_atlas_counts_reasons_split_and_strata() -> None:
         "atlas": 3,
         "expected": 1,
         "resolvable": 2,
+        "depth_unknown": 0,
         "conditions": None,
     }
     assert summary["all"]["conditions"] == {"depth": 1}
@@ -176,3 +179,32 @@ def test_variant_blockers_become_one_key_each() -> None:
         prefix + "event identity not established (no exact dictionary template)",
         prefix + "localization ambiguous",
     ]
+
+
+def test_blockers_split_only_at_top_level() -> None:
+    text = (
+        "Allele 1: Observed sequence variant (dupC at repeat 12) is inconclusive (event "
+        "identity not established (no template; no name); localization ambiguous)."
+    )
+    prefix = "gate: observed sequence variant (<variant>) is inconclusive: "
+    assert case_reason_keys(_row(0, clinical_reasons=[text])) == [
+        prefix + "event identity not established (no template; no name)",
+        prefix + "localization ambiguous",
+    ]
+
+
+def test_unknown_depth_is_its_own_class() -> None:
+    rows = [
+        _row(0, realized_min_allele_depth=None, reconstruction_flags=["iupac_bases"]),
+        _row(1, reconstruction_flags=["iupac_bases"]),
+        _row(2, realized_min_allele_depth=GATE - 1, reconstruction_flags=["iupac_bases"]),
+    ]
+    atlas = build_atlas(rows, "dev", A)
+    total = atlas["split_summary"][-1]
+    assert (total["expected"], total["resolvable"], total["depth_unknown"]) == (1, 1, 1)
+    (iupac,) = atlas["reasons"]
+    assert (iupac["expected"], iupac["resolvable"], iupac["depth_unknown"]) == (1, 1, 1)
+    stress = build_atlas(rows, "stress", A)["split_summary"][-1]
+    assert (stress["expected"], stress["depth_unknown"]) == (3, 0)  # the split decides
+    text = render_atlas(atlas, A)
+    assert "depth unknown" in text

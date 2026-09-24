@@ -42,12 +42,13 @@ def test_predicted_clinical_keeps_the_inconclusive_reason_list(tmp_path: Path) -
     assert any("per-allele depth gate" in r for r in result["reasons"])
 
 
-def test_predicted_clinical_negative_and_unreadable_have_no_reasons(tmp_path: Path) -> None:
+def test_predicted_clinical_keeps_details_for_every_decision(tmp_path: Path) -> None:
     assert predicted_clinical(tmp_path) == {"decision": "NO_CALL", "reasons": []}
-    (tmp_path / "summary.json").write_text(json.dumps(_summary(GATE)))
+    summary = _summary(GATE)
+    (tmp_path / "summary.json").write_text(json.dumps(summary))
     assert predicted_clinical(tmp_path) == {
         "decision": "NO_PATHOGENIC_VARIANT_DETECTED",
-        "reasons": [],
+        "reasons": compute_clinical_decision(summary)["details"],
     }
 
 

@@ -337,9 +337,10 @@ def test_report_writes_the_reason_atlas_with_config_thresholds(
     atlas = report["atlas"]["ladder"]
     assert (atlas["n_cases"], atlas["n_atlas"]) == (2, 2)
     keys = {r["reason"]: r["k"] for r in atlas["reasons"]}
-    assert keys["evaluator: iupac_bases"] == 1 and keys["unrecorded"] == 1
+    assert keys["evaluator: iupac_bases"] == 1 and keys["unrecorded"] == 1  # legacy c2
     assert keys["gate: # primary alignments, below the per-allele depth gate (#)"] == 1
-    assert atlas["split_summary"][-1]["resolvable"] == 2  # no realized depth recorded
+    total = atlas["split_summary"][-1]  # the fixture records no realized depth
+    assert (total["expected"], total["resolvable"], total["depth_unknown"]) == (0, 0, 2)
     text = (tmp_path / "data" / "results" / "dev" / "report.md").read_text()
     assert "Reason atlas (INCONCLUSIVE)" in text and "evaluator: iupac_bases" in text
     config = tmp_path / "bench.json"

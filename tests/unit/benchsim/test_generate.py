@@ -409,3 +409,46 @@ def test_resume_refuses_a_case_made_under_other_settings(tmp_path: Path) -> None
             generate_case(design, _ctx(tmp_path, bench=other))
         with pytest.raises(StaleCaseError, match="design"):
             generate_case(replace(design, depth=design.depth + 1), _ctx(tmp_path))
+
+
+def test_resume_hashes_only_generation_settings(tmp_path: Path) -> None:
+    from muc_one_span.benchsim.bench_config import AtlasConfig, DesignConfig, ReportConfig
+    from muc_one_span.benchsim.generate import StaleCaseError
+
+    design = _plain(DEV, event=False)
+    base = DEFAULT_BENCH_CONFIG
+    with (
+        patch(f"{MOD}.run_tool", side_effect=FakeMucOneUp()),
+        patch(f"{MOD}.load_repeat_dictionary", return_value=_rd()),
+    ):
+        first = generate_case(design, _ctx(tmp_path))
+        assert first["bench_generation_sha256"] == base.generation_sha256()
+        assert first["bench_config_sha256"] == base.sha256()
+        atlas_only = replace(
+            base,
+            atlas=AtlasConfig(min_resolvable_depth=base.atlas.min_resolvable_depth + 1),
+            report=ReportConfig(bootstrap_seed=base.report.bootstrap_seed + 1),
+        )
+        assert generate_case(design, _ctx(tmp_path, bench=atlas_only)) == first
+        levels = base.design.chimera_levels[:1]
+        design_cfg = replace(base, design=DesignConfig(chimera_levels=levels))
+        with pytest.raises(StaleCaseError, match="generation settings"):
+            generate_case(design, _ctx(tmp_path, bench=design_cfg))
+
+
+def test_resume_accepts_a_legacy_case_with_the_same_full_hash(tmp_path: Path) -> None:
+    from muc_one_span.benchsim.generate import StaleCaseError
+
+    design = _plain(DEV, event=False)
+    with (
+        patch(f"{MOD}.run_tool", side_effect=FakeMucOneUp()),
+        patch(f"{MOD}.load_repeat_dictionary", return_value=_rd()),
+    ):
+        first = generate_case(design, _ctx(tmp_path))
+        case_json = tmp_path / "out" / design.split / design.design_id / "case.json"
+        legacy = {k: v for k, v in first.items() if k != "bench_generation_sha256"}
+        case_json.write_text(json.dumps(legacy))
+        assert generate_case(design, _ctx(tmp_path)) == legacy
+        other = BenchConfig(atlas=replace(DEFAULT_BENCH_CONFIG.atlas, top_reasons=1))
+        with pytest.raises(StaleCaseError, match="generation settings"):
+            generate_case(design, _ctx(tmp_path, bench=other))

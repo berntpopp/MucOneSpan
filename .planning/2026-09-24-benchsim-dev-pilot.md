@@ -280,33 +280,36 @@ Atlas settings are the defaults:
 
 Every case counts once per reason.
 
-| Profile | INCONCLUSIVE | Expected (depth) | Resolvable |
-| --- | --- | --- | --- |
-| hifi_amplicon | 28/30 | 14 | 14 |
-| ont_amplicon_r10 | 28/30 | 12 | 16 |
-| ont_genomic_targeted | 25/30 | 17 | 8 |
-| all | 81/90 | 43 | 38 |
+| Profile | INCONCLUSIVE | Expected (depth) | Resolvable | Depth unknown |
+| --- | --- | --- | --- | --- |
+| hifi_amplicon | 28/30 | 14 | 14 | 0 |
+| ont_amplicon_r10 | 28/30 | 12 | 16 | 0 |
+| ont_genomic_targeted | 25/30 | 17 | 8 | 0 |
+| all | 81/90 | 43 | 38 | 0 |
 
 Of the 38 resolvable cases, 22 have a pathogenic truth and 16 a normal truth.
+Every case has a recorded realized depth, so none is depth-unknown.
 
-Top causes (cases out of 81; expected / resolvable):
+Top causes (cases out of 81). Keys are verbatim from `report.json`
+(fix round 1 re-render; the counts did not change):
 
-| # | Reason key | Cases | Expected / resolvable |
+| # | Reason key | Cases | Expected / resolvable / depth unknown |
 | --- | --- | --- | --- |
-| 1 | evaluator: ambiguous_reconstruction | 75 | 39 / 36 |
-| 1 | gate: reconstruction incomplete; independent biological haplotype evidence not established | 75 | 39 / 36 |
-| 3 | evaluator: iupac_bases | 71 | 35 / 36 |
-| 4 | gate: high number of ambiguous consensus bases (#) detected | 60 | 27 / 33 |
-| 5 | gate: # primary alignments, below the per-allele depth gate (#) | 50 | 33 / 17 |
-| 6 | gate: observed sequence variant is inconclusive: localization ambiguous | 49 | 24 / 25 |
-| 7 | gate: observed sequence variant is inconclusive: no explicit sequence-level support (localization_ambiguous) | 47 | 23 / 24 |
-| 8 | gate: heterozygous call left within the length-partitioned allele; consensus uses unresolved (IUPAC) selection | 46 | 19 / 27 |
-| 9 | gate: observed sequence variant is inconclusive: event identity not established | 35 | 18 / 17 |
-| 10 | gate: reported length # differs from the consensus contig length # | 31 | 9 / 22 |
-| 11 | gate: observed sequence variant is inconclusive: carrying allele is below the per-allele depth gate | 30 | 23 / 7 |
-| 12 | evaluator: missing_allele / unresolved_allele_alias | 28 each | 20 / 8 |
-| 13 | gate: allele selection unresolved (unresolved_secondary_mode) | 24 | 7 / 17 |
-| 14 | gate: allele selection unresolved (unresolved_unselected_clusters) | 13 | 6 / 7 |
+| 1 | `evaluator: ambiguous_reconstruction` | 75 | 39 / 36 / 0 |
+| 1 | `gate: reconstruction incomplete; independent biological haplotype evidence not established` | 75 | 39 / 36 / 0 |
+| 3 | `evaluator: iupac_bases` | 71 | 35 / 36 / 0 |
+| 4 | `gate: high number of ambiguous consensus bases (#) detected` | 60 | 27 / 33 / 0 |
+| 5 | `gate: # primary alignments, below the per-allele depth gate (#)` | 50 | 33 / 17 / 0 |
+| 6 | `gate: observed sequence variant (<variant>) is inconclusive: localization ambiguous` | 49 | 24 / 25 / 0 |
+| 7 | `gate: observed sequence variant (<variant>) is inconclusive: no explicit sequence-level support (localization_ambiguous)` | 47 | 23 / 24 / 0 |
+| 8 | `gate: heterozygous call left within the length-partitioned allele; consensus uses unresolved (iupac) selection` | 46 | 19 / 27 / 0 |
+| 9 | `gate: observed sequence variant (<variant>) is inconclusive: event identity not established (no exact dictionary template)` | 35 | 18 / 17 / 0 |
+| 10 | `gate: reported length # differs from the consensus contig length #` | 31 | 9 / 22 / 0 |
+| 11 | `gate: observed sequence variant (<variant>) is inconclusive: carrying allele is below the per-allele depth gate` | 30 | 23 / 7 / 0 |
+| 12 | `evaluator: missing_allele` | 28 | 20 / 8 / 0 |
+| 12 | `evaluator: unresolved_allele_alias` | 28 | 20 / 8 / 0 |
+| 14 | `gate: allele selection unresolved (unresolved_secondary_mode; secondary mode fraction #)` | 24 | 7 / 17 / 0 |
+| 15 | `gate: allele selection unresolved (unresolved_unselected_clusters; secondary mode fraction #)` | 13 | 6 / 7 / 0 |
 
 Readings:
 
@@ -314,6 +317,8 @@ Readings:
   consensus and are `ambiguous_reconstruction`. The other 2 fail only the
   per-allele depth gate.
 - **The per-allele depth gate hits resolvable cases with high realized depth.**
+  "Resolvable" uses the simulator's per-allele spanning depth (truth), not the
+  caller's primary-record count.
   17 resolvable cases have fewer than 30 primary alignments on an allele,
   even though their lowest realized spanning depth is 30-1984. The ladder
   loses reads during allele partitioning or selection; the sample itself has

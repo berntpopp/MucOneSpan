@@ -32,6 +32,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
   normalised reasons by profile and design stratum and splits INCONCLUSIVE
   cases into resolvable and expected (split or depth below the caller's
   per-allele gate), with every threshold in the `atlas` bench-config section.
+  Cases without a recorded depth are counted as `depth_unknown`.
+- `generate` reuse is checked against `bench_generation_sha256` (design,
+  amount, profiles and structures settings only), so report-, realism-, run- or
+  atlas-only changes no longer invalidate generated cases.
+  `bench_config_sha256` stays the full provenance hash.
 
 ## [0.16.0] - 2026-09-24
 

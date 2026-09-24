@@ -4,12 +4,12 @@ Input is ``report.normalize_rows`` output. Atlas cases are those whose
 decision is in ``AtlasConfig.decisions`` (default INCONCLUSIVE). Each atlas
 case contributes each of its reason keys once:
 
-- ``gate: <key>``: one per caller reason in ``clinical_reasons`` (the
-  INCONCLUSIVE banner details of ``compute_clinical_decision``), normalised
-  by `reason_keys`;
+- ``gate: <key>``: one per caller reason in ``clinical_reasons`` (the banner
+  details of ``compute_clinical_decision``), normalised by `reason_keys`;
 - ``evaluator: <flag>``: one per ``reconstruction_flags`` entry
   (``evaluation.reasons.reconstruction_flags``);
-- `UNRECORDED` when the case has neither (or its evaluation predates reasons).
+- `NO_REASONS` when reasons were recorded (``reasons_recorded``) but both lists
+  are empty, and `UNRECORDED` when the evaluation predates reason recording.
 
 `reason_key` rule, applied in order: drop a leading allele label (``Allele 1:``
 or ``allele_1:``); replace a variant descriptor ``(<name> at repeat <index>)``
@@ -18,13 +18,20 @@ numeric field) with ``#``; lowercase, collapse whitespace and drop a trailing
 period. Numbers inside identifiers (``r1041``) are kept. `reason_keys` then
 splits an uncertain-variant reason (``... is inconclusive (<b1>; <b2>)``) into
 one key per blocker, ``... is inconclusive: <b1>``, so each blocker is counted
-on its own rather than once per blocker combination.
+on its own rather than once per blocker combination. Blockers are split on
+``; `` at parenthesis depth 0 only, so a blocker's own ``(... ; ...)`` stays whole.
 
-A case is *expected* non-definitive when `expected_conditions` is nonempty:
-``split`` (its split is in ``expected_inconclusive_splits``) and/or ``depth``
-(its ``depth_basis`` depth is below ``min_resolvable_depth``). Other atlas
-cases are *resolvable*: an engine could turn them definitive without relaxing
-any clinical gate.
+Each atlas case gets one class (`atlas_class`):
+
+- *expected* when `expected_conditions` is nonempty: ``split`` (its split is in
+  ``expected_inconclusive_splits``) and/or ``depth`` (its ``depth_basis`` depth
+  is below ``min_resolvable_depth``);
+- *depth_unknown* when no split condition holds and the ``depth_basis`` depth is
+  not recorded, so the depth condition cannot be decided;
+- *resolvable* otherwise: the recorded depth reaches the gate. With the default
+  basis this is simulator (truth) spanning depth per allele; the caller's own
+  primary-record count can still fall below the gate when reads are lost while
+  alleles are split.
 """
 
 from __future__ import annotations
@@ -38,13 +45,16 @@ from muc_one_span.benchsim.bench_config import AtlasConfig
 from muc_one_span.benchsim.report import fmt_value
 
 ANY_REASON = "(any)"  # stratum row counting every atlas case
-UNRECORDED = "unrecorded"
+UNRECORDED = "unrecorded"  # evaluation written before reasons were recorded
+NO_REASONS = "no reasons recorded"  # reasons recorded, but none given
+EXPECTED, RESOLVABLE, DEPTH_UNKNOWN = "expected", "resolvable", "depth_unknown"
+CLASSES = (EXPECTED, RESOLVABLE, DEPTH_UNKNOWN)
 _GATE, _EVALUATOR = "gate: ", "evaluator: "
 _ALLELE_LABEL = re.compile(r"^allele[ _]\d+:\s*", re.IGNORECASE)
 _VARIANT = re.compile(r"\([^()]* at repeat [^()]*\)")
 _NUMBER = re.compile(r"(?<![\w.])[-+]?\d+(?:\.\d+)?(?:[eE][-+]?\d+)?(?![\w.]*\w)|\bNone\b")
 # Uncertain-variant reason after `reason_key`: "<head> is inconclusive (<b1>; <b2>)".
-_BLOCKERS = re.compile(r"^(?P<head>.* is inconclusive) \((?P<blockers>.*)\)$")
+_BLOCKERS = re.compile(r"^(?P<head>.*? is inconclusive) \((?P<blockers>.*)\)$")
 _BLOCKER_SEP = "; "  # separator of decision blockers in the caller's reason text
 _DEPTH_FIELD = {"design": "depth", "realized_min_allele": "realized_min_allele_depth"}
 
@@ -63,14 +73,29 @@ def reason_keys(text: str) -> list[str]:
     match = _BLOCKERS.match(key)
     if match is None:
         return [key]
-    return [f"{match['head']}: {b}" for b in match["blockers"].split(_BLOCKER_SEP)]
+    return [f"{match['head']}: {b}" for b in _split_top_level(match["blockers"])]
+
+
+def _split_top_level(text: str) -> list[str]:
+    """Split on `_BLOCKER_SEP` outside parentheses."""
+    parts, depth, start, i = [], 0, 0, 0
+    while i < len(text):
+        char = text[i]
+        depth += (char == "(") - (char == ")")
+        if depth == 0 and text.startswith(_BLOCKER_SEP, i):
+            parts.append(text[start:i])
+            i += len(_BLOCKER_SEP)
+            start = i
+            continue
+        i += 1
+    return [*parts, text[start:]]
 
 
 def case_reason_keys(row: dict[str, Any]) -> list[str]:
-    """Sorted unique reason keys of one case row (`UNRECORDED` when there are none)."""
+    """Sorted unique reason keys of one case row (`NO_REASONS` / `UNRECORDED` if none)."""
     keys = {_GATE + k for r in row.get("clinical_reasons") or [] for k in reason_keys(r)}
     keys |= {_EVALUATOR + f for f in row.get("reconstruction_flags") or []}
-    return sorted(keys) or [UNRECORDED]
+    return sorted(keys) or [NO_REASONS if row.get("reasons_recorded") else UNRECORDED]
 
 
 def expected_conditions(row: dict[str, Any], split: str, cfg: AtlasConfig) -> list[str]:
@@ -84,17 +109,25 @@ def expected_conditions(row: dict[str, Any], split: str, cfg: AtlasConfig) -> li
     return out
 
 
+def atlas_class(row: dict[str, Any], split: str, cfg: AtlasConfig) -> str:
+    """`EXPECTED`, `DEPTH_UNKNOWN` or `RESOLVABLE` (module doc)."""
+    if expected_conditions(row, split, cfg):
+        return EXPECTED
+    if row.get(_DEPTH_FIELD[cfg.depth_basis]) is None:
+        return DEPTH_UNKNOWN
+    return RESOLVABLE
+
+
 def _summary(
     profile: str, rows: Sequence[dict[str, Any]], atlas: Sequence[dict[str, Any]]
 ) -> dict[str, Any]:
     conditions: Counter[str] = Counter(c for r in atlas for c in r["_expected"])
-    expected = sum(bool(r["_expected"]) for r in atlas)
+    classes = Counter(r["_class"] for r in atlas)
     return {
         "profile": profile,
         "cases": len(rows),
         "atlas": len(atlas),
-        "expected": expected,
-        "resolvable": len(atlas) - expected,
+        **{c: classes[c] for c in CLASSES},
         "conditions": dict(sorted(conditions.items())),
     }
 
@@ -123,21 +156,27 @@ def _stratum(
 def build_atlas(rows: Sequence[dict[str, Any]], split: str, cfg: AtlasConfig) -> dict[str, Any]:
     """Reason counts, the expected/resolvable split and reason x profile x stratum cells."""
     atlas = [
-        r | {"_keys": case_reason_keys(r), "_expected": expected_conditions(r, split, cfg)}
+        r
+        | {
+            "_keys": case_reason_keys(r),
+            "_expected": expected_conditions(r, split, cfg),
+            "_class": atlas_class(r, split, cfg),
+        }
         for r in rows
         if r.get("decision") in cfg.decisions
     ]
     n_cases, n_atlas = len(rows), len(atlas)
     counts: Counter[str] = Counter(k for a in atlas for k in a["_keys"])
-    expected: Counter[str] = Counter(k for a in atlas if a["_expected"] for k in a["_keys"])
+    by_class = {
+        c: Counter(k for a in atlas if a["_class"] == c for k in a["_keys"]) for c in CLASSES
+    }
     reasons = [
         {
             "reason": key,
             "k": k,
             "share": k / n_atlas,
             "rate": k / n_cases,
-            "expected": expected[key],
-            "resolvable": k - expected[key],
+            **{c: by_class[c][key] for c in CLASSES},
         }
         for key, k in sorted(counts.items(), key=lambda kv: (-kv[1], kv[0]))
     ]
@@ -177,15 +216,17 @@ def render_atlas(atlas: dict[str, Any], cfg: AtlasConfig) -> str:
     splits = ", ".join(atlas["expected_inconclusive_splits"]) or "none"
     lines += [
         f"Expected {label}: split in [{splits}] or {atlas['depth_basis']} depth below "
-        f"{atlas['min_resolvable_depth']}; every other {label} case is resolvable.",
+        f"{atlas['min_resolvable_depth']}. Depth unknown: no split condition and no "
+        f"{atlas['depth_basis']} depth recorded. Every other {label} case is resolvable.",
         "",
-        f"| profile | cases | {label} | expected | resolvable | expected by condition |",
-        "|---|---|---|---|---|---|",
+        f"| profile | cases | {label} | expected | resolvable | depth unknown | "
+        "expected by condition |",
+        "|---|---|---|---|---|---|---|",
     ]
     for s in atlas["split_summary"]:
         lines.append(
-            f"| {s['profile']} | {s['cases']} | {s['atlas']} | {s['expected']} | "
-            f"{s['resolvable']} | {s['conditions'] or '-'} |"
+            f"| {s['profile']} | {s['cases']} | {s['atlas']} | {s[EXPECTED]} | "
+            f"{s[RESOLVABLE]} | {s[DEPTH_UNKNOWN]} | {s['conditions'] or '-'} |"
         )
     top = atlas["reasons"][: cfg.top_reasons]
     ids = {r["reason"]: f"R{i}" for i, r in enumerate(top, start=1)}
@@ -193,13 +234,13 @@ def render_atlas(atlas: dict[str, Any], cfg: AtlasConfig) -> str:
         "",
         f"Reasons (a case counts once per reason; share of {label} cases, rate of all cases):",
         "",
-        "| id | reason | cases | share | rate | expected | resolvable |",
-        "|---|---|---|---|---|---|---|",
+        "| id | reason | cases | share | rate | expected | resolvable | depth unknown |",
+        "|---|---|---|---|---|---|---|---|",
     ]
     for r in atlas["reasons"]:
         lines.append(
             f"| {ids.get(r['reason'], '')} | {r['reason']} | {r['k']} | {fmt_value(r['share'])} | "
-            f"{fmt_value(r['rate'])} | {r['expected']} | {r['resolvable']} |"
+            f"{fmt_value(r['rate'])} | {r[EXPECTED]} | {r[RESOLVABLE]} | {r[DEPTH_UNKNOWN]} |"
         )
     for factor, cells in atlas["by_stratum"].items():
         grid: dict[tuple[str, Any], dict[str, dict[str, Any]]] = {}

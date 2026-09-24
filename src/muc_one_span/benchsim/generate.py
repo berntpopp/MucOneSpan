@@ -357,15 +357,22 @@ def _commit(
 def _check_reusable(
     saved: dict[str, Any], design: Design, ctx: GenerateContext, case_dir: Path
 ) -> None:
-    """Refuse to reuse a completed case made from another design or other settings."""
+    """Refuse to reuse a completed case made from another design or generation settings.
+
+    Only `BenchConfig.generation_sha256` is compared, so report-, realism-, run- or
+    atlas-only changes keep cases reusable. A case written before that hash existed
+    is reused only when its full ``bench_config_sha256`` matches.
+    """
     current = json.loads(json.dumps(design.to_dict()))
     problems = []
     if saved.get("design") != current:
         problems.append("design differs")
-    if saved.get("bench_config_sha256") != ctx.bench.sha256():
-        problems.append(
-            f"bench config sha256 {saved.get('bench_config_sha256')} != {ctx.bench.sha256()}"
-        )
+    if "bench_generation_sha256" in saved:
+        saved_hash, current_hash = saved["bench_generation_sha256"], ctx.bench.generation_sha256()
+    else:  # case written before the generation hash: the full settings hash must match
+        saved_hash, current_hash = saved.get("bench_config_sha256"), ctx.bench.sha256()
+    if saved_hash != current_hash:
+        problems.append(f"generation settings sha256 {saved_hash} != {current_hash}")
     if problems:
         raise StaleCaseError(
             f"{case_dir} was generated under other inputs ({'; '.join(problems)}); "
@@ -376,8 +383,8 @@ def _check_reusable(
 def generate_case(design: Design, ctx: GenerateContext) -> dict[str, Any]:
     """Generate, validate and record one case; returns the ``case.json`` dict.
 
-    A verified-complete case is reused only if its design and bench settings
-    match; otherwise `StaleCaseError` is raised and nothing is overwritten.
+    A verified-complete case is reused only if its design and generation
+    settings match (`_check_reusable`); otherwise `StaleCaseError` is raised and nothing is overwritten.
     """
     split_dir = (ctx.out_root / design.split).resolve()
     case_dir = split_dir / design.design_id
@@ -399,6 +406,7 @@ def generate_case(design: Design, ctx: GenerateContext) -> dict[str, Any]:
         "design": design.to_dict(),
         "muconeup_version": ctx.muconeup_version,
         "bench_config_sha256": ctx.bench.sha256(),
+        "bench_generation_sha256": ctx.bench.generation_sha256(),
         "target_clamped": design.target_clamped,
         "status": "generation_failed",
         "error": None,

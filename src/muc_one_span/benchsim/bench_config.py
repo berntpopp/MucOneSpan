@@ -49,6 +49,10 @@ ATLAS_STRATUM_NAMES = (
 # Depth compared with the atlas depth gate: the design target, or the lowest
 # realized spanning depth over the case's alleles (``case.json`` realized_depth).
 DEPTH_BASIS_NAMES = ("design", "realized_min_allele")
+# Sections that shape generated cases (designs, amounts, read profiles, structures).
+# Their hash decides whether `generate` may reuse a case; report, realism, run and
+# atlas settings only change how finished cases are scored or run.
+GENERATION_SECTIONS = ("design", "amount", "profiles", "structures")
 _WEIGHT_SUM_TOL = 1e-9  # float round-off allowed when composition weights sum to 1
 
 
@@ -401,9 +405,18 @@ class BenchConfig:
         return data
 
     def sha256(self) -> str:
-        """SHA-256 of the canonical JSON of the effective settings."""
-        text = json.dumps(self.to_dict(), sort_keys=True, separators=(",", ":"))
-        return hashlib.sha256(text.encode()).hexdigest()
+        """SHA-256 of the canonical JSON of the effective settings (provenance)."""
+        return _digest(self.to_dict())
+
+    def generation_sha256(self) -> str:
+        """SHA-256 of the `GENERATION_SECTIONS` only (the `generate` reuse check)."""
+        data = self.to_dict()
+        return _digest({k: data[k] for k in ("schema_version", *GENERATION_SECTIONS)})
+
+
+def _digest(data: dict[str, Any]) -> str:
+    text = json.dumps(data, sort_keys=True, separators=(",", ":"))
+    return hashlib.sha256(text.encode()).hexdigest()
 
 
 DEFAULT_BENCH_CONFIG = BenchConfig()
