@@ -108,8 +108,15 @@ def run_pipeline(
     threads: int,
     *,
     runner: Runner | None = None,
+    engine: str = "ladder",
 ) -> dict[str, Any]:
-    """Run the real full CLI while timing its five scientific stages."""
+    """Run the real full CLI while timing its five scientific stages.
+
+    ``engine`` is appended to ``cli_args`` as ``--engine <engine>`` only when it
+    is not the default ``"ladder"`` (the current CLI has no ``--engine`` flag;
+    it arrives with the hybrid engine), and is always recorded in the returned
+    record and ``measurement.json``.
+    """
     from muc_one_span.cli import main
 
     output_dir.mkdir(parents=True, exist_ok=True)
@@ -126,6 +133,8 @@ def run_pipeline(
         "--platform",
         platform,
     ]
+    if engine != "ladder":
+        cli_args += ["--engine", engine]
     timings: dict[str, float] = {}
     started = time.perf_counter()
     with ExitStack() as stack:
@@ -152,6 +161,7 @@ def run_pipeline(
         "cli_args": cli_args,
         "exit_code": int(result.exit_code),
         "timings": timings,
+        "engine": engine,
     }
     if error:
         record["error"] = error

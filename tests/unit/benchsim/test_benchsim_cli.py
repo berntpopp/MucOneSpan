@@ -1,4 +1,4 @@
-"""scripts/benchsim.py `design` and `generate` subcommands (Git mocked)."""
+"""scripts/benchsim.py `design`, `generate` and `run` subcommands (Git mocked)."""
 
 import json
 from importlib.util import module_from_spec, spec_from_file_location
@@ -132,3 +132,111 @@ def test_generate_writes_manifest_and_fails_on_generation_failure(
     manifest = (out / "dev" / "manifest.jsonl").read_text().splitlines()
     assert rc == 1 and len(manifest) == 6 and len(seen) == 6
     assert seen[0].muconeup_version == "0.45.0" and seen[0].profile_dir == profiles
+
+
+def _manifest(tmp_path: Path) -> Path:
+    path = tmp_path / "data" / "dev" / "manifest.jsonl"
+    path.parent.mkdir(parents=True, exist_ok=True)
+    path.write_text('{"design_id": "dev-a", "profile": "ont_amplicon_r10", "status": "ok"}\n')
+    return path
+
+
+def test_run_derives_engines_results_root_and_models(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    cli = _cli(tmp_path, monkeypatch)
+    manifest = _manifest(tmp_path)
+    calls: list[Any] = []
+
+    def fake_run_split(manifest_arg, engines, results_root, model_for, threads, jobs):
+        calls.append((manifest_arg, list(engines), results_root, threads, jobs))
+        assert model_for("ont") == "model-ont" and model_for("hifi") == "model-hifi"
+        return [{"engine": e, "status": "completed"} for e in engines]
+
+    monkeypatch.setattr(cli, "run_split", fake_run_split)
+    rc = cli.main(
+        [
+            "run",
+            "--manifest",
+            str(manifest),
+            "--model-ont",
+            "model-ont",
+            "--model-hifi",
+            "model-hifi",
+        ]
+    )
+    assert rc == 0 and len(calls) == 1
+    _, engines, results_root, threads, jobs = calls[0]
+    assert engines == ["ladder"] and threads == 4 and jobs == 1
+    assert results_root == tmp_path / "data" / "results" / "dev"
+
+
+def test_run_accepts_multiple_engines_and_explicit_results_root(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    cli = _cli(tmp_path, monkeypatch)
+    manifest = _manifest(tmp_path)
+    explicit_root = tmp_path / "data" / "custom_results"
+    calls: list[Any] = []
+    monkeypatch.setattr(
+        cli,
+        "run_split",
+        lambda manifest_arg, engines, results_root, model_for, threads, jobs: (
+            calls.append((list(engines), results_root)) or []
+        ),
+    )
+    rc = cli.main(
+        [
+            "run",
+            "--manifest",
+            str(manifest),
+            "--engines",
+            "ladder,hybrid",
+            "--results-root",
+            str(explicit_root),
+            "--model-ont",
+            "m",
+            "--model-hifi",
+            "m",
+        ]
+    )
+    assert rc == 0
+    assert calls == [(["ladder", "hybrid"], explicit_root)]
+
+
+def test_run_results_root_inside_repository_is_refused(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    cli = _cli(tmp_path, monkeypatch)
+    manifest = _manifest(tmp_path)
+    with pytest.raises(SystemExit, match="outside the repository"):
+        cli.main(
+            [
+                "run",
+                "--manifest",
+                str(manifest),
+                "--results-root",
+                str(tmp_path / "wt" / "res"),
+            ]
+        )
+
+
+def test_run_missing_manifest_errors(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    cli = _cli(tmp_path, monkeypatch)
+    with pytest.raises(SystemExit, match="manifest not found"):
+        cli.main(["run", "--manifest", str(tmp_path / "missing.jsonl")])
+
+
+def test_run_without_a_model_fails_only_when_a_case_needs_it(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
+    cli = _cli(tmp_path, monkeypatch)
+    manifest = _manifest(tmp_path)
+
+    def fake_run_split(manifest_arg, engines, results_root, model_for, threads, jobs):
+        with pytest.raises(SystemExit, match="model-hifi"):
+            model_for("hifi")
+        return []
+
+    monkeypatch.setattr(cli, "run_split", fake_run_split)
+    assert cli.main(["run", "--manifest", str(manifest), "--model-ont", "m"]) == 0

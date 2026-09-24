@@ -176,6 +176,33 @@ def test_pipeline_controls_are_forwarded_and_recorded(tmp_path: Path) -> None:
     ]
 
 
+def test_engine_is_forwarded_only_when_not_ladder(tmp_path: Path) -> None:
+    from muc_one_span.benchmarking import run_pipeline
+
+    class Result:
+        exit_code = 0
+        output = "ok"
+        exception = None
+
+    class Runner:
+        def invoke(self, command, args):
+            return Result()
+
+    reads = tmp_path / "reads.fastq"
+    reads.touch()
+    default_record = run_pipeline(
+        "sample", reads, tmp_path / "ladder", "ont", "model", 1, runner=Runner()
+    )
+    assert "--engine" not in default_record["cli_args"]
+    assert default_record["engine"] == "ladder"
+
+    hybrid_record = run_pipeline(
+        "sample", reads, tmp_path / "hybrid", "ont", "model", 1, runner=Runner(), engine="hybrid"
+    )
+    assert hybrid_record["cli_args"][-2:] == ["--engine", "hybrid"]
+    assert hybrid_record["engine"] == "hybrid"
+
+
 def test_ambiguous_input_is_an_explicit_failure(tmp_path: Path) -> None:
     from muc_one_span.benchmarking import run_inventory
 

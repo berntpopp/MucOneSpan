@@ -22,6 +22,7 @@ import sys
 from collections import Counter
 from collections.abc import Sequence
 from concurrent.futures import ProcessPoolExecutor
+from functools import partial
 from pathlib import Path
 from typing import Any
 
@@ -29,6 +30,7 @@ from muc_one_span.benchsim.design import Design, build_split
 from muc_one_span.benchsim.generate import GenerateContext, generate_case, write_manifest
 from muc_one_span.benchsim.muconeup import BUILTIN_PROFILE, require_muconeup
 from muc_one_span.benchsim.profiles import builtin_profile_dir, write_variant
+from muc_one_span.benchsim.run_cases import run_split
 from muc_one_span.config import load_repeat_dictionary
 from muc_one_span.tools import run_tool
 
@@ -145,6 +147,42 @@ def cmd_generate(args: argparse.Namespace) -> int:
     return 1 if counts.get("generation_failed") else 0
 
 
+def _model_lookup(models: dict[str, str | None], platform: str) -> str:
+    """Picklable ``model_for`` (a bound closure is not, and breaks ``--jobs`` > 1)."""
+    model = models.get(platform)
+    if not model:
+        raise SystemExit(
+            f"no --model-{platform} (or $CLAIR3_MODEL_{platform.upper()}) for platform {platform!r}"
+        )
+    return model
+
+
+def cmd_run(args: argparse.Namespace) -> int:
+    """Run every engine over a split's manifest, keeping every case's denominator."""
+    manifest = Path(args.manifest)
+    if not manifest.is_file():
+        raise SystemExit(f"manifest not found: {manifest}")
+    engines = [e.strip() for e in args.engines.split(",") if e.strip()]
+    if not engines:
+        raise SystemExit("--engines must name at least one engine")
+    split = manifest.resolve().parent.name
+    default_results = manifest.resolve().parent.parent / "results" / split
+    results_root = ensure_outside(args.results_root or default_results, "--results-root")
+    models: dict[str, str | None] = {
+        "ont": args.model_ont or os.environ.get("CLAIR3_MODEL_ONT"),
+        "hifi": args.model_hifi or os.environ.get("CLAIR3_MODEL_HIFI"),
+    }
+    records = run_split(
+        manifest, engines, results_root, partial(_model_lookup, models), args.threads, args.jobs
+    )
+    counts = Counter((r["engine"], r["status"]) for r in records)
+    for engine in engines:
+        line = ", ".join(f"{k}={v}" for (e, k), v in sorted(counts.items()) if e == engine)
+        print(f"{engine}: {line}")
+    print(f"results: {results_root}")
+    return 0
+
+
 def parser() -> argparse.ArgumentParser:
     """Command-line interface."""
     result = argparse.ArgumentParser(description=__doc__.splitlines()[0])
@@ -168,6 +206,19 @@ def parser() -> argparse.ArgumentParser:
     gen.add_argument("--structure-pool", type=Path, help="local real-derived structures")
     gen.add_argument("--out-root", type=Path, help=f"default: <repo parent>/{DATA_DIR_NAME}")
     gen.set_defaults(func=cmd_generate)
+    run_cmd = commands.add_parser("run", help="run caller engines over a split's manifest")
+    run_cmd.add_argument(
+        "--manifest", type=Path, required=True, help="<out-root>/<split>/manifest.jsonl"
+    )
+    run_cmd.add_argument("--engines", default="ladder", help="comma-separated (default: ladder)")
+    run_cmd.add_argument("--results-root", type=Path, help="default: <out-root>/results/<split>")
+    run_cmd.add_argument("--model-ont", help="caller model for ont (default: $CLAIR3_MODEL_ONT)")
+    run_cmd.add_argument("--model-hifi", help="caller model for hifi (default: $CLAIR3_MODEL_HIFI)")
+    run_cmd.add_argument("--threads", type=int, default=4)
+    run_cmd.add_argument(
+        "--jobs", type=int, default=1, help="parallel (engine, case) pairs (process pool)"
+    )
+    run_cmd.set_defaults(func=cmd_run)
     return result
 
 
