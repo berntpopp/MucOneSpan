@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 from muc_one_span.report import compute_clinical_decision
+from muc_one_span.settings import ClinicalDecisionSettings
 
 
 def _resolved_diploid_summary():
@@ -328,3 +329,157 @@ def test_pathogenic_allele_1_with_low_allele_2_keeps_caveat() -> None:
         detail.startswith("Quality caveat: Allele 2: 12 primary alignments")
         for detail in decision["details"]
     )
+
+
+_R9_DISCORDANCE = {
+    "status": "discordant_frameshift",
+    "min_af": 0.5,
+    "min_depth": 10,
+    "records": [
+        {"chrom": "contig_82", "pos": 2833, "ref": "C", "alt": "CG", "af": 0.719, "dp": 121}
+    ],
+}
+
+
+def test_stage_discordance_blocks_negative() -> None:
+    summary = _resolved_diploid_summary()
+    summary["alleles"]["allele_2"]["stage_concordance"] = dict(_R9_DISCORDANCE)
+    decision = compute_clinical_decision(summary)
+    assert decision["state"] == "INCONCLUSIVE"
+    assert any(d.startswith("Allele 2: caller-stage discordance:") for d in decision["details"])
+
+
+def test_stage_discordance_is_caveat_on_pathogenic() -> None:
+    summary = _resolved_diploid_summary()
+    summary["alleles"]["allele_2"]["stage_concordance"] = dict(_R9_DISCORDANCE)
+    summary["classifications"]["allele_1"]["mutations"] = [
+        {
+            "mutation_name": "dupC",
+            "repeat_index": 17,
+            "frameshift": True,
+            "template_match": True,
+            "vcf_support": True,
+            "vcf_support_status": "exact_sequence_concordance",
+            "localization_status": "resolved",
+        }
+    ]
+    decision = compute_clinical_decision(summary)
+    assert decision["state"] == "PATHOGENIC"
+    assert any(
+        d.startswith("Quality caveat: Allele 2: caller-stage discordance:")
+        for d in decision["details"]
+    )
+
+
+def test_concordant_or_missing_stage_record_keeps_v0160_negative() -> None:
+    baseline = compute_clinical_decision(_resolved_diploid_summary())
+    assert baseline["state"] == "NO_PATHOGENIC_VARIANT_DETECTED"
+    summary = _resolved_diploid_summary()
+    for key in ("allele_1", "allele_2"):
+        summary["alleles"][key]["stage_concordance"] = {"status": "concordant", "records": []}
+    decision = compute_clinical_decision(summary)
+    assert decision["state"] == "NO_PATHOGENIC_VARIANT_DETECTED"
+    assert decision["details"] == baseline["details"]
+
+
+def test_not_assessed_stage_record_keeps_negative_with_caveat() -> None:
+    """A missing pileup VCF is not silent (R16) but does not block NEGATIVE."""
+    baseline = compute_clinical_decision(_resolved_diploid_summary())
+    summary = _resolved_diploid_summary()
+    summary["alleles"]["allele_1"]["stage_concordance"] = {
+        "status": "not_assessed",
+        "reason": "pileup_vcf_unavailable",
+        "records": [],
+    }
+    decision = compute_clinical_decision(summary)
+    assert decision["state"] == "NO_PATHOGENIC_VARIANT_DETECTED"
+    assert decision["details"][: len(baseline["details"])] == baseline["details"]
+    assert decision["details"][len(baseline["details"]) :] == [
+        "Quality caveat: Allele 1: caller-stage concordance not assessed "
+        "(pileup_vcf_unavailable); Clair3 pileup-stage frameshift calls were not compared "
+        "with the applied calls."
+    ]
+
+
+def test_not_assessed_stage_record_is_caveat_on_inconclusive() -> None:
+    summary = _resolved_diploid_summary()
+    summary["alleles"]["allele_1"]["stage_concordance"] = {
+        "status": "not_assessed",
+        "reason": "pileup_vcf_unavailable",
+    }
+    summary["alleles"]["allele_2"]["stage_concordance"] = dict(_R9_DISCORDANCE)
+    decision = compute_clinical_decision(summary)
+    assert decision["state"] == "INCONCLUSIVE"
+    assert decision["details"][-1].startswith(
+        "Quality caveat: Allele 1: caller-stage concordance not assessed"
+    )
+
+
+def test_ambiguous_bases_at_default_threshold_stays_negative() -> None:
+    """Summed ambiguous bases at the v0.16.0 default (10) must not block NEGATIVE."""
+    summary = _gated_summary()
+    summary["classifications"]["allele_1"]["ambiguous_bases"] = 6
+    summary["classifications"]["allele_2"]["ambiguous_bases"] = 4
+    decision = compute_clinical_decision(summary)
+    assert decision["state"] == "NO_PATHOGENIC_VARIANT_DETECTED"
+    assert decision["thresholds"] == {
+        "max_ambiguous_bases": 10,
+        "legacy_min_total_reads": 30,
+        "source": "default",
+    }
+
+
+def test_ambiguous_bases_above_default_threshold_is_inconclusive() -> None:
+    """Byte-identical to the v0.16.0 wording at the default threshold."""
+    summary = _gated_summary()
+    summary["classifications"]["allele_1"]["ambiguous_bases"] = 6
+    summary["classifications"]["allele_2"]["ambiguous_bases"] = 5
+    decision = compute_clinical_decision(summary)
+    assert decision["state"] == "INCONCLUSIVE"
+    assert "High number of ambiguous consensus bases (11) detected." in decision["details"]
+
+
+def test_recorded_max_ambiguous_bases_raises_the_threshold() -> None:
+    summary = _gated_summary()
+    summary["classifications"]["allele_1"]["ambiguous_bases"] = 15
+    summary["configuration"] = {
+        "settings": {"clinical_decision": {"max_ambiguous_bases": 20, "legacy_min_total_reads": 30}}
+    }
+    decision = compute_clinical_decision(summary)
+    assert decision["state"] == "NO_PATHOGENIC_VARIANT_DETECTED"
+    assert decision["thresholds"]["source"] == "recorded_configuration"
+
+
+def test_explicit_settings_override_recorded_configuration() -> None:
+    summary = _gated_summary()
+    summary["classifications"]["allele_1"]["ambiguous_bases"] = 15
+    summary["configuration"] = {
+        "settings": {"clinical_decision": {"max_ambiguous_bases": 20, "legacy_min_total_reads": 30}}
+    }
+    decision = compute_clinical_decision(
+        summary, settings=ClinicalDecisionSettings(max_ambiguous_bases=5)
+    )
+    assert decision["state"] == "INCONCLUSIVE"
+    assert decision["thresholds"]["source"] == "explicit"
+
+
+def test_legacy_low_total_reads_detail_text_is_byte_identical() -> None:
+    summary = _summary(dict(SUPPORTED))
+    summary["alleles"]["allele_1"]["reads"] = 20
+    summary["alleles"]["allele_2"]["reads"] = 5
+    decision = compute_clinical_decision(summary)
+    assert decision["state"] == "INCONCLUSIVE"
+    assert (
+        "Total read depth (25 reads) is below diagnostic threshold (30 reads)."
+        in decision["details"]
+    )
+
+
+def test_recorded_legacy_min_total_reads_avoids_low_coverage() -> None:
+    summary = _summary(dict(SUPPORTED))
+    summary["alleles"]["allele_1"]["reads"] = 20
+    summary["alleles"]["allele_2"]["reads"] = 5
+    summary["configuration"] = {"settings": {"clinical_decision": {"legacy_min_total_reads": 20}}}
+    decision = compute_clinical_decision(summary)
+    assert decision["state"] == "PATHOGENIC"
+    assert not any("below diagnostic threshold" in detail for detail in decision["details"])

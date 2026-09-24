@@ -18,6 +18,17 @@ In PCR amplicon mode with highly asymmetric allele pairs (e.g., 25/140, 20/90, 3
 
 In whole-genome sequencing (without targeted PCR amplicons), sequencing reads are randomly sheared across the genome with read-length distributions typically capped below 8–10 kb (e.g., 7.5 kb in standard NanoSim simulation profiles). Because real-world *MUC1* VNTR alleles span 3,000–7,000 bp and require several hundred base pairs of unique flank sequence on both sides to anchor assembly, the vast majority of whole-genome ONT reads start or terminate inside the VNTR array. Consequently, while whole-genome ONT demonstrates 100% normal control specificity (zero false alarms), its sensitivity to detect pathogenic variants in long alleles is constrained (~12–23% event recall) unless ultra-long reads (>20 kb) or targeted amplicon enrichment are employed.
 
+On non-spanning whole-genome ONT reads, allele detection collapses reads across
+the whole reference ladder into one cluster in 23/30 and 26/30 simulated
+designs, and the reported length is more than 20 repeat units too long in
+25/30 and 29/30 designs (0 false positives, 0 false negatives; every affected
+case is reported INCONCLUSIVE, never a false PATHOGENIC or NEGATIVE). The
+ladder caller is built and validated as a targeted amplicon caller. On
+non-spanning genomic reads, its INCONCLUSIVE result on these designs is the
+expected, correct outcome, not a defect: interpreting a genomic MUC1 VNTR
+result requires either an amplicon assay or a purpose-built genomic mode,
+neither of which this release provides.
+
 ## Variant Calling
 
 ### Long VNTR Alleles (>100 repeats)
@@ -91,6 +102,27 @@ ONT development evidence includes three original simulated samples. That small
 panel cannot establish general sensitivity or specificity. Report ONT separately
 from HiFi, including normal controls, failures, ambiguity and uncalled alleles;
 do not transfer HiFi accuracy estimates to ONT.
+
+### NEGATIVE from R9-model ONT runs is not validated
+
+The v0.16.1 caller-stage discordance gate (`calling.stage_discordance_min_af`,
+`calling.stage_discordance_min_depth`) turns most Clair3 pileup-vs-applied
+disagreements into INCONCLUSIVE instead of NEGATIVE, but it only covers
+frameshifts that at least the pileup stage called. On older simulated ONT
+amplicon reads called with the R9 Clair3 model (benchmark set `ms_ont_sub`),
+one simulated pathogenic sample (`pair_5178`) still reports
+NO_PATHOGENIC_VARIANT_DETECTED: its delGCCCA event is missed by every Clair3
+stage, including the pileup stage, so there is no pileup-only call for the
+gate to compare against. This residual false negative is a known, accepted
+limitation of this release, not a regression; a caller-side remedy for events
+that no Clair3 stage reports is deferred to a later engine change.
+
+Two further pre-existing false negatives are unchanged by v0.16.1 and remain
+open: `ms_pacbio_sub pair_5190` and the same simulated design reproduced on
+both `leg_ont` and `leg200_ont` (`dev-clean-ont_amplicon_r10-0016`). In all
+three cases both alleles are stage-concordant, so the v0.16.1 gate has no
+discordant pileup evidence to act on; these are not caller-stage discordance
+failures and are listed here as open, unresolved false negatives.
 
 ## Evidence status and reference fill
 

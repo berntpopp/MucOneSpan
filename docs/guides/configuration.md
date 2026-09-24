@@ -82,6 +82,20 @@ scientific defaults, not recommendations to tune against a validation sample.
 | `allele_selection.refinement_max_shift` | `1` | Maximum refinement shift in repeat counts; integer >=0. |
 | `allele_selection.secondary_mode_min_fraction` | `0.2` | Clinical gate. Allele selection is unresolved when a cluster's primary-alignment count at least `min_gap` units from its peak reaches this fraction of the peak. Number in (0,1]. Blocks a negative result; never creates a call. |
 | `allele_selection.min_allele_primary_records` | `30` | Clinical gate. Minimum primary alignment records (a molecule proxy) per selected allele. Below it, `depth_status` is `low`, which blocks NEGATIVE and PATHOGENIC. Integer >=1. |
+| `allele_selection.refinement_min_supported_records` | `3` | Peak refinement: minimum alignment records for a cluster contig to be a best-contig candidate. Formerly the literal `3` in `alleles.py` (`refine_peak_contig`). Integer >=1. |
+| `allele_selection.refinement_supported_fraction` | `0.25` | Peak refinement: a candidate also needs this fraction of the best-covered contig's records (the larger of the two floors applies). Formerly the literal `0.25` in `alleles.py`. Number in (0,1]. |
+| `allele_selection.refinement_min_shift_ont` | `2` | ONT only: the refined contig may move the cluster centre by up to the larger of this value and `refinement_max_shift`. Formerly the literal `2` in `alleles.py` (`_build_allele_info`). Integer >=0. |
+| `allele_selection.valley_min_canonical_repeats` | `10` | Indel-valley splitter: valleys at or above this canonical repeat count are preferred when at least two exist. Formerly the literal `10` in `alleles.py` (`_split_cluster_by_indel`). Integer >=1. |
+| `allele_selection.minority_min_alignment_records` | `3` | Minority-allele search: minimum alignment records per contig and per minority cluster. Formerly the literal `3` (both sites) in `alleles.py` (`detect_alleles`). Integer >=1. |
+| `allele_selection.dominance_close_candidate_repeats` | `6` | Read dominance: a read aligned to only one of two candidates closer than this many repeats is ambiguous rather than dominant. Formerly the literal `6` in `read_dominance.py`. Integer >=1. |
+| `allele_selection.dominance_zero_primary_extra_reads` | `2` | Read dominance: extra dominant reads required when the second candidate has no primary alignment. Formerly the literal `2` in `read_dominance.py`. Integer >=1. |
+| `allele_selection.read_length_split_min_reads` | `5` | Read-length splitter: minimum reads per mode (twice this in total). Formerly the literal `5` in `length_candidates.py` (`split_cluster_by_read_length`). Integer >=1. |
+| `allele_selection.read_length_split_min_fraction` | `0.15` | Read-length splitter: a mode needs this fraction of all reads. Formerly the literal `0.15` in `length_candidates.py`. Number in (0,1]. |
+| `allele_selection.read_length_split_bin_bp` | `5` | Read-length splitter: histogram bin width in bases; a peak must dominate the two neighbouring bins on each side (structural). Formerly the literal `5` in `length_candidates.py`. Integer >=1. |
+| `allele_selection.read_length_split_min_delta_bp` | `45` | Read-length splitter: minimum distance between the two modes in bases. Formerly the literal `45` in `length_candidates.py`. Integer >=1. |
+| `allele_selection.read_length_split_max_delta_bp` | `320` | Read-length splitter: maximum distance between the two modes in bases. Formerly the literal `320` in `length_candidates.py`. Integer greater than `read_length_split_min_delta_bp`. |
+| `allele_selection.read_length_split_unit_tolerance_bp` | `15` | Read-length splitter: the mode distance must lie within this many bases of a whole number of repeat units. Formerly the literals `15`/`45` in `length_candidates.py`. Integer >=0; at run time twice the value must be below the dictionary `repeat_length_bp`, otherwise a `ValueError` is raised. |
+| `allele_selection.read_length_split_offset_bp` | `30` | Read-length splitter: non-repeat bases subtracted from a mode before conversion to repeat units. Formerly the literal `30` in `length_candidates.py`. Integer >=0. The unit length (formerly `60`) now comes from the repeat dictionary and the fixed repeat count (formerly `9`) from `reference_layout`. |
 
 ### Classification and consensus
 
@@ -136,8 +150,11 @@ rule can still apply `boundary_penalty` to a terminal repeat.
 | `calling.haploid_min_qual` | `4.0` | QUAL threshold for length-partitioned and read-phased haplotype calls; number >=0 or `null`. `null` applies `run.min_qual`/`--min-qual`. A non-default `--min-qual` that this value overrides is logged. The applied value is recorded in `alleles.json` as `variant_filter`. |
 | `calling.haploid_alt_fraction` | `0.5` | Length-partitioned and read-phased haploid calls: the ALT fraction of allele-specific reads (`FORMAT/AD`) at or above which the genotype becomes ALT. Number in [0,1]. |
 | `calling.haploid_ref_fraction` | `0.2` | Length-partitioned and read-phased haploid calls: ALT fraction below which the genotype becomes REF (`0/0`). Values in between keep the heterozygous call, which leaves that allele unresolved on both paths. Must be below `haploid_alt_fraction`. |
+| `calling.stage_discordance_min_af` | `0.5` | Clair3 pileup FORMAT/AF (ALT reads / DP) at or above which a frameshift missing from the applied calls blocks NEGATIVE (`stage_concordance`). Chosen equal to `calling.haploid_alt_fraction`, the partition's haploid ALT cut-off. Measured: missed frameshifts at AF 0.68-0.85; the highest AF among unflagged NEGATIVE results was 0.156. Number in (0, 1]. |
+| `calling.stage_discordance_min_depth` | `10` | Minimum pileup FORMAT/DP for such a record. Chosen equal to the `run.min_coverage` default. Measured: missed frameshifts at DP 33-408; a flank artefact at DP 2 must be excluded, and every value from 3 to 33 gave identical decisions. Integer >=1; a lower value is the conservative direction for this veto. |
 | `read_phasing.internal_downsampling` | `null` | Optional WhatsHap internal downsampling override; integer >=1. |
 | `read_phasing.mapping_quality` | `null` | Optional WhatsHap mapping-quality override; integer >=0. |
+| `read_phasing.min_haplotype_reads` | `5` | Experimental read-phased path: minimum reads per haplotype for the haplotag split. Formerly `min_dp` (fixed at `5`) in `calling.py`. Integer >=1. |
 
 Read phasing remains disabled by default. There is no dedicated read-phasing CLI
 flag; an explicit configuration can enable `calling.read_phase`. Enabling it is
@@ -152,6 +169,22 @@ version and overrides. Missing tooling and
 unresolved phase evidence have explicit statuses; execution failures from an
 available tool remain visible. The helper preserves its genotype and common
 phase-set checks. It does not introduce a read-count support floor.
+
+### Clinical decision
+
+| Section.field | Default | Meaning and validation |
+| --- | --- | --- |
+| `clinical_decision.max_ambiguous_bases` | `10` | Summed classification `ambiguous_bases` across both alleles above which the report banner becomes INCONCLUSIVE; integer >=0. |
+| `clinical_decision.legacy_min_total_reads` | `30` | Total-read fallback for a summary without per-allele `depth_status` (see the per-allele gates above); below it, the banner becomes INCONCLUSIVE. Integer >=1. |
+
+These thresholds are resolved by `report.compute_clinical_decision`: an
+explicit `settings` argument overrides a `clinical_decision` section recorded
+under a summary's `configuration.settings` (written by a prior `run`), which
+overrides these central defaults. The resolved values and their source
+(`explicit`, `recorded_configuration`, or `default`) are returned under the
+decision's `"thresholds"` key. A recorded section with an unknown field or an
+out-of-range value raises the same `ValueError` as an invalid configuration
+file; it is never silently ignored or defaulted.
 
 ### Dictionary, selected layout and ladder range
 

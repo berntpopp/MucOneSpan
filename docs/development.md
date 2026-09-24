@@ -242,6 +242,29 @@ multi-site) or any conflicting record selects `I`. The allele records
 independent haplotype credit. Only candidates without remaining heterozygosity
 use genotype index 1 (`allele_specific_resolved`). `variant_filter` records the
 filter applied to that allele's calls, including the QUAL threshold used.
+`stage_concordance` compares that Clair3 partition's pileup-stage VCF
+(`clair3/pileup.vcf.gz`, split and left-aligned with `bcftools norm`) with the
+alleles applied by genotype in the filtered VCF. Its fields are `status`
+(`concordant`, `discordant_frameshift` or `not_assessed`), `source`
+(`clair3_pileup`), the applied `min_af` and `min_depth`, `records` (each
+unapplied pileup frameshift with `chrom`, `pos`, `ref`, `alt`, `af` and `dp`)
+and, for `not_assessed`, a `reason` (`pileup_vcf_unavailable` or
+`final_vcf_unavailable`). Every allele with its own Clair3 partition carries
+the record; an unphased same-length alias shares `allele_1`'s. In that
+same-length unphased path a single Clair3 run covers both alleles, so the
+record belongs to the whole run: the reported reason always reads "Allele 1",
+even when the discordant frameshift is on the sample's second called
+haplotype. Pileup rows are read from `clair3/pileup.vcf.gz` without applying
+its own `FILTER` column. "Applied" means after MucOneSpan's own QUAL filter,
+so a low-QUAL pileup frameshift that Clair3's own final stage still reports
+but that MucOneSpan's filter removes is also discordant; this is the safe
+direction, since it only ever adds a caveat or blocks a negative result on a
+call that is itself of marginal quality. A discordant allele blocks NEGATIVE
+and is a quality caveat on PATHOGENIC; `not_assessed` is logged and reported
+as a quality caveat without blocking NEGATIVE. Missing `pileup.vcf.gz`
+(`not_assessed`, reason `pileup_vcf_unavailable`) changes the NEGATIVE reason
+text for that run to include the quality caveat rather than a clean NEGATIVE
+banner. The gate never creates, removes or edits a call.
 Experimental read-backed phase is available through the Python library's explicit
 `read_phase=True` or JSON `calling.read_phase: true`. It remains disabled by default
 after failing the development false-positive gate; there is no dedicated CLI flag. `consensus_context` records the
@@ -348,9 +371,11 @@ NEGATIVE additionally requires:
 - reported length equal to the consensus contig length (`length`/`reference_length`);
 - no unresolved length-partition genotype (`allele_genotype_status`);
 - adequate per-allele depth.
+- no caller-stage discordance (`stage_concordance.status` is not `discordant_frameshift`).
 
-Summaries without per-allele depth fall back to the 30-read total. The gates can
-only lower certainty; PATHOGENIC lists remaining problems as quality caveats.
+Summaries without per-allele depth fall back to `clinical_decision.legacy_min_total_reads`
+(default 30). The gates can only lower certainty; PATHOGENIC lists remaining
+problems as quality caveats.
 
 The full pipeline passes an `analysis_completed` rendering context after all
 analysis stages succeed. This means analysis completed and the report is being

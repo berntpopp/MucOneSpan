@@ -79,16 +79,21 @@ def execute_report(
                     vcf_paths = {}
                 vcf_paths[key] = path
 
-    out_path = generate_report(
-        summary,
-        Path(output),
-        sample_name=name,
-        detailed_repeats=detailed,
-        report_igv=report_igv,
-        fasta_path=Path(fasta) if fasta else None,
-        bam_path=Path(bam) if bam else None,
-        vcf_path=Path(vcf) if vcf else None,
-        vcf_paths=vcf_paths,
-        execution_status=execution_status,
-    )
+    try:
+        out_path = generate_report(
+            summary,
+            Path(output),
+            sample_name=name,
+            detailed_repeats=detailed,
+            report_igv=report_igv,
+            fasta_path=Path(fasta) if fasta else None,
+            bam_path=Path(bam) if bam else None,
+            vcf_path=Path(vcf) if vcf else None,
+            vcf_paths=vcf_paths,
+            execution_status=execution_status,
+        )
+    except ValueError as error:
+        # A bad or unknown recorded clinical_decision section
+        # (decision_settings.resolve_decision_settings) must fail cleanly.
+        raise click.ClickException(str(error)) from error
     click.echo(f"Report written to {out_path}")

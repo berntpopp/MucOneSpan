@@ -16,6 +16,7 @@ from muc_one_span.phasing import (
 )
 from muc_one_span.read_phasing import haplotag_and_split_reads, phase_same_length_reads
 from muc_one_span.settings import DEFAULT_SETTINGS, CallingSettings, ReadPhasingSettings
+from muc_one_span.stage_concordance import PILEUP_VCF_NAME, annotate_stage_concordance
 from muc_one_span.tools import run_tool
 from muc_one_span.vcf import filter_vcf, parse_vcf_genotypes, parse_vcf_variants
 
@@ -328,7 +329,7 @@ def disambiguate_same_length_alleles(
             merged_bam,
             contig_ref,
             merged_dir / "haplotag",
-            min_reads=min_dp,
+            min_reads=(read_phasing_settings or DEFAULT_SETTINGS.read_phasing).min_haplotype_reads,
         )
         if split_result is not None:
             hp1_bam, hp2_bam, hp1_count, hp2_count = split_result
@@ -400,6 +401,12 @@ def disambiguate_same_length_alleles(
                 allele["independent_haplotype_evidence"] = selector == 1
                 allele["variant_filter"] = hp_provenance
                 allele["sequence_identity_status"] = identity
+                allele["stage_concordance"] = annotate_stage_concordance(
+                    merged_dir / key / "clair3" / PILEUP_VCF_NAME,
+                    hp_results[key],
+                    contig_ref,
+                    settings,
+                )
 
             return hp_results
 
@@ -420,6 +427,10 @@ def disambiguate_same_length_alleles(
         annotate_consensus_candidate(alleles[key], evidence, haplotype, sample, str(filtered_vcf))
         alleles[key]["read_phasing"] = read_phasing
         results[key] = filtered_vcf
+    # One Clair3 partition: an unphased allele_2 alias shares allele_1's record.
+    alleles["allele_1"]["stage_concordance"] = annotate_stage_concordance(
+        clair3_dir / PILEUP_VCF_NAME, filtered_vcf, contig_ref, settings
+    )
     if "allele_2" in alleles and "allele_2" not in results:
         alias = alleles["allele_2"]
         alias.update({key: value for key, value in evidence.items() if key != "haplotypes"})
@@ -571,6 +582,9 @@ def call_variants_per_allele(
         allele_info["heterozygous_sites"] = heterozygous
         allele_info["independent_haplotype_evidence"] = len(allele_keys) > 1 and haplotype == 1
         allele_info["variant_filter"] = filter_provenance
+        allele_info["stage_concordance"] = annotate_stage_concordance(
+            clair3_dir / PILEUP_VCF_NAME, filtered, contig_ref, settings
+        )
         return allele_key, filtered
 
     # Process both alleles in parallel when they are independent

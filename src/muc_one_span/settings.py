@@ -5,7 +5,7 @@ from __future__ import annotations
 import json
 import logging
 import math
-from collections.abc import Mapping
+from collections.abc import Callable, Mapping
 from dataclasses import asdict, dataclass, field, fields
 from pathlib import Path
 from typing import Any
@@ -99,8 +99,24 @@ class AlleleSelectionSettings:
     min_dominance_ratio: float = 0.01
     secondary_mode_min_fraction: float = 0.2
     min_allele_primary_records: int = 30
+    # Ladder heuristics formerly hardcoded (#74); defaults reproduce v0.16.0.
+    refinement_min_supported_records: int = 3
+    refinement_supported_fraction: float = 0.25
+    refinement_min_shift_ont: int = 2
+    valley_min_canonical_repeats: int = 10
+    minority_min_alignment_records: int = 3
+    dominance_close_candidate_repeats: int = 6
+    dominance_zero_primary_extra_reads: int = 2
+    read_length_split_min_reads: int = 5
+    read_length_split_min_fraction: float = 0.15
+    read_length_split_bin_bp: int = 5
+    read_length_split_min_delta_bp: int = 45
+    read_length_split_max_delta_bp: int = 320
+    read_length_split_unit_tolerance_bp: int = 15
+    read_length_split_offset_bp: int = 30
 
     def __post_init__(self) -> None:
+        self._validate_ladder_heuristics()
         _integer("allele_selection.min_gap", self.min_gap, 1)
         _integer("allele_selection.valley_min_points", self.valley_min_points, 3)
         _integer("allele_selection.valley_min_separation", self.valley_min_separation, 1)
@@ -122,6 +138,36 @@ class AlleleSelectionSettings:
         if self.secondary_mode_min_fraction == 0:
             raise ValueError("allele_selection.secondary_mode_min_fraction must be > 0")
         _integer("allele_selection.min_allele_primary_records", self.min_allele_primary_records, 1)
+
+    def _validate_ladder_heuristics(self) -> None:
+        """Integers >= their minimum, fractions in (0, 1], and an ordered delta window."""
+        for name, minimum in _LADDER_INTEGER_MINIMUMS:
+            _integer(f"allele_selection.{name}", getattr(self, name), minimum)
+        for name in ("refinement_supported_fraction", "read_length_split_min_fraction"):
+            _number(f"allele_selection.{name}", getattr(self, name), 0.0, 1.0)
+            if getattr(self, name) == 0:
+                raise ValueError(f"allele_selection.{name} must be > 0")
+        if self.read_length_split_max_delta_bp <= self.read_length_split_min_delta_bp:
+            raise ValueError(
+                "allele_selection.read_length_split_max_delta_bp must be greater than "
+                "read_length_split_min_delta_bp"
+            )
+
+
+_LADDER_INTEGER_MINIMUMS = (
+    ("refinement_min_supported_records", 1),
+    ("refinement_min_shift_ont", 0),
+    ("valley_min_canonical_repeats", 1),
+    ("minority_min_alignment_records", 1),
+    ("dominance_close_candidate_repeats", 1),
+    ("dominance_zero_primary_extra_reads", 1),
+    ("read_length_split_min_reads", 1),
+    ("read_length_split_bin_bp", 1),
+    ("read_length_split_min_delta_bp", 1),
+    ("read_length_split_max_delta_bp", 1),
+    ("read_length_split_unit_tolerance_bp", 0),
+    ("read_length_split_offset_bp", 0),
+)
 
 
 @dataclass(frozen=True)
@@ -226,6 +272,8 @@ class CallingSettings:
     haploid_min_qual: float | None = 4.0
     haploid_alt_fraction: float = 0.5
     haploid_ref_fraction: float = 0.2
+    stage_discordance_min_af: float = 0.5
+    stage_discordance_min_depth: int = 10
 
     def __post_init__(self) -> None:
         _string("calling.sample_name", self.sample_name)
@@ -243,6 +291,10 @@ class CallingSettings:
             raise ValueError(
                 "calling.haploid_ref_fraction must be below calling.haploid_alt_fraction"
             )
+        _number("calling.stage_discordance_min_af", self.stage_discordance_min_af, 0.0, 1.0)
+        if self.stage_discordance_min_af == 0:
+            raise ValueError("calling.stage_discordance_min_af must be > 0")
+        _integer("calling.stage_discordance_min_depth", self.stage_discordance_min_depth, 1)
 
 
 @dataclass(frozen=True)
@@ -251,8 +303,11 @@ class ReadPhasingSettings:
 
     internal_downsampling: int | None = None
     mapping_quality: int | None = None
+    # Haplotag split: minimum reads per haplotype (formerly ``min_dp``, fixed at 5).
+    min_haplotype_reads: int = 5
 
     def __post_init__(self) -> None:
+        _integer("read_phasing.min_haplotype_reads", self.min_haplotype_reads, 1)
         if self.internal_downsampling is not None:
             _integer("read_phasing.internal_downsampling", self.internal_downsampling, 1)
         if self.mapping_quality is not None:
@@ -306,6 +361,23 @@ class ReferenceLayoutSettings:
 
 
 @dataclass(frozen=True)
+class ClinicalDecisionSettings:
+    """Thresholds for the report's final clinical decision banner (``report.py``).
+
+    Defaults reproduce v0.16.0 exactly: a summed ambiguous-base count above
+    ``max_ambiguous_bases`` and, for legacy summaries without per-allele depth,
+    a total read count below ``legacy_min_total_reads`` each block NEGATIVE.
+    """
+
+    max_ambiguous_bases: int = 10
+    legacy_min_total_reads: int = 30
+
+    def __post_init__(self) -> None:
+        _integer("clinical_decision.max_ambiguous_bases", self.max_ambiguous_bases, 0)
+        _integer("clinical_decision.legacy_min_total_reads", self.legacy_min_total_reads, 1)
+
+
+@dataclass(frozen=True)
 class RuntimeSettings:
     """Complete schema-one settings; sections remain immutable when passed to workers."""
 
@@ -318,6 +390,7 @@ class RuntimeSettings:
     calling: CallingSettings = field(default_factory=CallingSettings)
     read_phasing: ReadPhasingSettings = field(default_factory=ReadPhasingSettings)
     reference_layout: ReferenceLayoutSettings = field(default_factory=ReferenceLayoutSettings)
+    clinical_decision: ClinicalDecisionSettings = field(default_factory=ClinicalDecisionSettings)
     repeat_dictionary: str | None = None
 
     def __post_init__(self) -> None:
@@ -338,6 +411,7 @@ _SECTIONS = {
     "calling": CallingSettings,
     "read_phasing": ReadPhasingSettings,
     "reference_layout": ReferenceLayoutSettings,
+    "clinical_decision": ClinicalDecisionSettings,
 }
 DEFAULT_SETTINGS = RuntimeSettings()
 DEFAULT_LAYOUT = DEFAULT_SETTINGS.reference_layout
@@ -363,6 +437,42 @@ def _resolve_path(value: str | None, folder: Path) -> str | None:
     return str((folder / path).resolve())
 
 
+def _coerce_reference_layout_lists(values: dict[str, Any]) -> None:
+    """Turn JSON arrays into the hashable tuples ``ReferenceLayoutSettings`` requires."""
+    for key in ("pre", "after"):
+        if key not in values:
+            continue
+        value = values[key]
+        if not isinstance(value, list):
+            raise ValueError(f"reference_layout.{key} must be a JSON array")
+        values[key] = tuple(value)
+
+
+def build_settings_section(
+    name: str,
+    constructor: type,
+    values: object,
+    *,
+    preprocess: Callable[[dict[str, Any]], None] | None = None,
+) -> Any:
+    """Build one settings section from a JSON object: shared by a configuration file's
+    sections (``load_settings``) and a recorded ``configuration.settings`` section
+    (``decision_settings.resolve_decision_settings``).
+
+    A field missing from *values* keeps the dataclass default. An unrecognised
+    field always raises ``ValueError`` (never a bare ``TypeError`` from unpacking
+    a non-mapping, and never silently ignored or defaulted).
+    """
+    if not isinstance(values, dict):
+        raise ValueError(f"{name} must be a JSON object")
+    unknown = values.keys() - {f.name for f in fields(constructor)}
+    if unknown:
+        raise ValueError(f"Unknown {name} fields: {', '.join(sorted(unknown))}")
+    if preprocess is not None:
+        preprocess(values)
+    return constructor(**values)
+
+
 def load_settings(path: Path | None) -> RuntimeSettings:
     """Load strict schema-one JSON, resolving resource paths relative to its location.
 
@@ -385,21 +495,8 @@ def load_settings(path: Path | None) -> RuntimeSettings:
     for name, constructor in _SECTIONS.items():
         if name not in data:
             continue
-        values = data[name]
-        if not isinstance(values, dict):
-            raise ValueError(f"{name} must be a JSON object")
-        unknown = values.keys() - {f.name for f in fields(constructor)}
-        if unknown:
-            raise ValueError(f"Unknown {name} fields: {', '.join(sorted(unknown))}")
-        if name == "reference_layout":
-            for key in ("pre", "after"):
-                if key not in values:
-                    continue
-                value = values[key]
-                if not isinstance(value, list):
-                    raise ValueError(f"reference_layout.{key} must be a JSON array")
-                values[key] = tuple(value)
-        data[name] = constructor(**values)
+        preprocess = _coerce_reference_layout_lists if name == "reference_layout" else None
+        data[name] = build_settings_section(name, constructor, data[name], preprocess=preprocess)
     settings = RuntimeSettings(**data)
     consensus, legacy = settings.consensus, ConsensusSettings()
     if (consensus.haploid_majority, consensus.haploid_min_qual) != (
