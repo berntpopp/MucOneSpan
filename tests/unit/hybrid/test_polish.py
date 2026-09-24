@@ -264,3 +264,21 @@ def test_homopolymer_vote_ignores_reads_whose_run_boundary_base_differs() -> Non
     reads = [cons] * 10 + [stutter] * 6 + [merged] * 8
     new, changes = homopolymer_vote(cons, reads, min_len=S.hp_vote_min_run)
     assert new == cons and changes == 0
+
+
+def test_homopolymer_vote_ignores_reads_that_interrupt_a_merged_draft_run() -> None:
+    """Task 13b (D2_hifi): the draft lost unit A's separator G (``GCG CCC G`` drafted
+    as ``G C5 G``). Reads that carry the G interrupt the drafted run; their longest C
+    stretch (3) is not a length of that run, so they must not vote it down to C3 (the
+    pileup round, not the vote, restores the G). The full polish recovers the truth.
+    """
+    unit_a = synth.RD.repeats["A"]
+    truth_tail = "GCG" + "C" * 3 + "GCA"
+    assert unit_a.endswith(truth_tail)  # fixture: dictionary unit A ends GCG CCC GCA
+    truth = synth.allele(["X", "A", "X"])
+    draft = synth.allele(["X", unit_a[: -len(truth_tail)] + "G" + "C" * 5 + "GCA", "X"])
+    reads = [truth] * 14 + [draft] * 4
+    voted, changes = homopolymer_vote(draft, reads, min_len=S.hp_vote_min_run)
+    assert voted == draft and changes == 0
+    polished, _info = polish(draft, reads, **POLISH)
+    assert polished == truth
