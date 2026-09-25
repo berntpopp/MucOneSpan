@@ -110,6 +110,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
   "residual_heterogeneity"`, and a `read_support.status` other than
   `"supported"` now gate the clinical decision through the shared evidence
   gates in `clinical_gates.py`.
+- Hybrid engine: an equal-length heterozygote whose alleles differ at one
+  event (e.g. dupA on one allele, both alleles the same repeat count) could
+  be merged into one wild-type consensus and reported NEGATIVE. Homopolymer-run
+  phase sites now use a stutter-aware strand-bias test (strand-asymmetric ONT
+  stutter was read as strand bias and dropped the only heterozygous site), and
+  a single-peak length model splits on its single length-changing event
+  (new setting `hybrid.phase_single_event_split`, default `"indel"`). A peak
+  left unsplit names its site in `selection_detail` ("unresolved heterozygous
+  site at repeat N") and keeps a negative call blocked. The `--assay` help
+  text now says the option is recorded for provenance only.
 
 ### Changed
 

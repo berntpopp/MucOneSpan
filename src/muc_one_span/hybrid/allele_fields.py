@@ -26,8 +26,11 @@ PHASE_STATUS = {
     "none": "no_informative_heterozygosity",
     "unconfirmed_single_site": "unresolved_single_site",
     "unconfirmed_group_size": "unresolved_group_size",
+    "single_event": "phased_single_event",
 }
-INDEPENDENT_BASES = frozenset({"length", "linked_sites"})
+# A single-event split (Task 15e) separates the reads by their allele at the only
+# heterozygous event, so it is read-level haplotype evidence like a linked-site split.
+INDEPENDENT_BASES = frozenset({"length", "linked_sites", "single_event"})
 # Sample-level selection statuses of the hybrid engine (all but RESOLVED gate).
 RESOLVED = "resolved"
 MAX_ALLELES = "unresolved_max_alleles"
@@ -77,9 +80,18 @@ def selection_status(
 
 
 def selection_detail(
-    model: LengthModel, n_groups: int, unassigned: int, unassigned_fraction: float
+    model: LengthModel,
+    n_groups: int,
+    unassigned: int,
+    unassigned_fraction: float,
+    *,
+    unresolved_sites: list[str],
 ) -> str:
-    """Human-readable reason for the selection status (shown next to the gate reason)."""
+    """Human-readable reason for the selection status (shown next to the gate reason).
+
+    ``unresolved_sites`` locates each heterozygous site that left a peak unsplit
+    (``engine.located_site``), so the gate reason names the repeat to inspect.
+    """
     rejected = ", ".join(
         f"{r['units']} units ({r['reason']}, {r['support']} reads)"
         for r in model.gate_relevant_rejections
@@ -88,6 +100,7 @@ def selection_detail(
         f"{n_groups} allele group(s); gate-relevant rejected length peaks: "
         f"{rejected or 'none'}; {unassigned} spanning read(s) assigned to no allele "
         f"({unassigned_fraction:.1%})."
+        + (f" Unresolved: {'; '.join(unresolved_sites)}." if unresolved_sites else "")
     )
 
 

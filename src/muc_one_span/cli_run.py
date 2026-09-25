@@ -92,7 +92,7 @@ from muc_one_span.settings import DEFAULT_SETTINGS
     "--assay",
     type=click.Choice(["amplicon", "genomic"]),
     default=DEFAULT_SETTINGS.run.assay,
-    help="Library type used by the hybrid engine (default: amplicon).",
+    help="Library type, recorded for provenance only (default: amplicon).",
 )
 @record_run_status
 def run(

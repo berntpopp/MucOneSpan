@@ -64,7 +64,7 @@ def test_every_unresolved_status_blocks_a_negative_call() -> None:
 
 
 def test_detail_names_rejected_peaks_and_unassigned_reads() -> None:
-    text = selection_detail(_model("smear_ambiguous", "smear"), 1, 7, 0.07)
+    text = selection_detail(_model("smear_ambiguous", "smear"), 1, 7, 0.07, unresolved_sites=[])
     assert "smear_ambiguous" in text and "smear," not in text and "7 spanning" in text
 
 

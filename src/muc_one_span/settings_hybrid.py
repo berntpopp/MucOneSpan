@@ -21,6 +21,9 @@ from muc_one_span.settings_validation import (
 # Multiple-candidate corrections for the smear significance test (hybrid.lengths):
 # "bonferroni" multiplies each p value by the number of below-top candidates tested.
 SMEAR_CORRECTIONS = ("bonferroni", "none")
+# Which single heterozygous events may split a length peak (hybrid.single_event):
+# "off" never, "indel" only length-changing events (every frameshift), "all" any event.
+SINGLE_EVENT_SPLIT_MODES = ("off", "indel", "all")
 
 
 @dataclass(frozen=True)
@@ -118,9 +121,10 @@ class HybridSettings:
     # S4 (Task 8) linked-site phase split: site-table read cap, homopolymer-run site
     # length and background window, minor-allele read floor, run background multiplier
     # (D6), gap-allele AF factor and pairwise-linkage read floor. Strand consistency is
-    # a strand-bias test: a site is rejected when a one-sided Fisher exact test finds
-    # its minor allele depleted on either strand at phase_strand_bias_alpha, or when
-    # the minor is absent from a strand with >= hp_min_strand_reads reads.
+    # a strand-bias test: a site is rejected when the minor is absent from a strand with
+    # >= hp_min_strand_reads reads, or when a test at phase_strand_bias_alpha finds it
+    # strand-biased (column/insertion sites: one-sided Fisher exact test; run sites:
+    # a stutter-aware likelihood-ratio test, Task 15e, see phase_single_event_split).
     # phase_run_min_len (3) < hp_vote_min_run (4) on purpose (prototype values): the
     # split must treat a 3-run as one run-length site, since a run indel is ambiguous
     # per column; the polish median vote only needs to rewrite runs >= 4, where the
@@ -133,6 +137,16 @@ class HybridSettings:
     phase_gap_af_factor: float = 1.5
     phase_min_pair_reads: int = 10
     phase_strand_bias_alpha: float = 0.001
+    # Task 15e: when the length model finds a single peak (an equal-length genotype),
+    # a peak whose candidate sites form one heterozygous event (fewer linked events than
+    # min_linked_sites) is split on that event when phase_single_event_split allows it
+    # ("indel": the event changes the sequence length; "all": any event; "off": never).
+    # An unsplit peak stays unconfirmed_single_site, which blocks a negative call and
+    # names the site's repeat. Run sites use a stutter-aware strand-bias test
+    # (per-strand length-error profiles from the other runs of the same base; the
+    # stutter-deconvolved minor weight must reach het_af_min; likelihood ratio at
+    # phase_strand_bias_alpha).
+    phase_single_event_split: str = "indel"
     # Engine orchestration (Task 11). Polishing and residual QC use at most
     # polish_max_reads / qc_residual_max_reads spanning members per allele (sampled with
     # the seeded RNG when a group is larger); an assigned non-spanning fragment joins the
@@ -225,6 +239,11 @@ class HybridSettings:
         _number("hybrid.phase_run_bg_multiplier", self.phase_run_bg_multiplier, 0)
         _number("hybrid.phase_gap_af_factor", self.phase_gap_af_factor, 1)
         _open_unit_interval("hybrid.phase_strand_bias_alpha", self.phase_strand_bias_alpha)
+        _choice(
+            "hybrid.phase_single_event_split",
+            self.phase_single_event_split,
+            SINGLE_EVENT_SPLIT_MODES,
+        )
         _integer("hybrid.polish_max_reads", self.polish_max_reads, 1)
         _integer("hybrid.qc_residual_max_reads", self.qc_residual_max_reads, 1)
         _number("hybrid.polish_partial_min_units", self.polish_partial_min_units, 0)

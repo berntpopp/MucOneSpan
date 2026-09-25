@@ -24,6 +24,8 @@ from muc_one_span.config import RepeatDictionary
 from muc_one_span.hybrid.allele_fields import (
     PLOIDY,
     RESOLVED,
+    SINGLE_SITE,
+    UNCONFIRMED_SPLIT_STATUS,
     allele_info,
     selection_detail,
     selection_status,
@@ -38,10 +40,11 @@ from muc_one_span.hybrid.assign import (
 )
 from muc_one_span.hybrid.evidence import event_read_support, residual_sites
 from muc_one_span.hybrid.lengths import LengthModel, fit_length_model
-from muc_one_span.hybrid.phase import split_by_linked_sites
+from muc_one_span.hybrid.phase import PhaseResult, split_by_linked_sites
 from muc_one_span.hybrid.poa import PoaBackend, get_backend
 from muc_one_span.hybrid.polish import consensus_concordance, draft_consensus, polish
 from muc_one_span.hybrid.reads_io import extra_versions, read_input
+from muc_one_span.hybrid.single_event import SINGLE_EVENT, split_single_event
 from muc_one_span.hybrid.spans import Anchors, SpanRead, categorize_reads
 from muc_one_span.run_status import InsufficientEvidenceError
 from muc_one_span.settings import HybridSettings, RuntimeSettings
@@ -113,25 +116,70 @@ def _reassign(
     return leftover
 
 
+def _single_event(
+    draft: str,
+    members: list[SpanRead],
+    split: PhaseResult,
+    h: HybridSettings,
+    rng: random.Random,
+    backend: PoaBackend,
+) -> tuple[PhaseResult, list[_Group] | None]:
+    """Promote an unconfirmed single-event peak to a split when both drafts differ."""
+    promoted = split_single_event(draft, members, split, h)
+    if promoted is None:
+        return split, None
+    sub = [_Group(g, promoted.basis, _draft(g, h, rng, backend)) for g in promoted.groups]
+    if sub[0].draft == sub[1].draft:
+        return split, None
+    return promoted, sub
+
+
+def located_site(candidate: dict[str, Any], unit_bp: int) -> str:
+    """Gate reason naming an unresolved heterozygous site by its 1-based repeat unit."""
+    kind, pos = candidate["site"]
+    return (
+        f"unresolved heterozygous site at repeat {pos // unit_bp + 1} "
+        f"({kind} {candidate['major']!r}>{candidate['minor']!r}, AF {candidate['af']})"
+    )
+
+
 def _groups(
-    model: LengthModel, h: HybridSettings, rng: random.Random, backend: PoaBackend
-) -> tuple[list[_Group], list[str], list[SpanRead]]:
-    """Split each length peak by linked sites; return groups, split bases, leftovers."""
+    model: LengthModel, h: HybridSettings, rng: random.Random, backend: PoaBackend, unit_bp: int
+) -> tuple[list[_Group], list[str], list[SpanRead], dict[str, list[str]]]:
+    """Split each length peak by linked sites (or its single event).
+
+    Returns the groups, the split basis per peak, the reads no group took and the
+    located sites (``located_site``) keyed by the peak's split basis: the sites of
+    peaks left unconfirmed and of peaks split on their single event.
+
+    A single-event split is tried only when the length model found fewer than
+    ``PLOIDY`` peaks (the equal-length heterozygote): with two length peaks each peak
+    already is one allele, so a within-peak single-site mixture is not a further
+    haplotype, and splitting it would only move stutter or error reads out of an allele
+    and make that allele's read support circular. Such a peak stays unconfirmed.
+    """
     groups: list[_Group] = []
     split_bases: list[str] = []
     leftover: list[SpanRead] = []
+    located: dict[str, list[str]] = {}
     for peak in model.peaks:
         draft = _draft(peak.members, h, rng, backend)
         split = split_by_linked_sites(draft, peak.members, h, rng)
+        sub: list[_Group] | None = None
+        if len(model.peaks) < PLOIDY:
+            split, sub = _single_event(draft, peak.members, split, h, rng, backend)
         split_bases.append(split.basis)
-        if len(split.groups) == 1:
+        if split.candidate is not None and (sub is not None or len(split.groups) == 1):
+            located.setdefault(split.basis, []).append(located_site(split.candidate, unit_bp))
+        if sub is None and len(split.groups) == 1:
             two_peaks = split.basis == "none" and len(model.peaks) == PLOIDY
             groups.append(_Group(split.groups[0], "length" if two_peaks else split.basis, draft))
             continue
-        sub = [_Group(g, split.basis, _draft(g, h, rng, backend)) for g in split.groups if g]
+        if sub is None:
+            sub = [_Group(g, split.basis, _draft(g, h, rng, backend)) for g in split.groups if g]
         leftover.extend(_reassign(split.unassigned, sub, h))
         groups.extend(sub)
-    return groups, split_bases, leftover
+    return groups, split_bases, leftover, located
 
 
 def _write_allele(output_dir: Path, name: str, cons: str, n_reads: int) -> Path:
@@ -157,11 +205,14 @@ def reconstruct_alleles(
     model = fit_length_model(cats.spanning, h, unit_bp)
     if not model.peaks:
         raise InsufficientEvidenceError("hybrid: no allele length peak passed the thresholds")
-    groups, split_bases, phase_leftover = _groups(model, h, rng, backend)
+    groups, split_bases, phase_leftover, located = _groups(model, h, rng, backend, unit_bp)
+    unresolved = [site for basis in UNCONFIRMED_SPLIT_STATUS for site in located.get(basis, [])]
     n_unassigned = len(model.unassigned) + len(phase_leftover)
     unassigned_fraction = n_unassigned / model.total
     selection = selection_status(model, split_bases, len(groups), unassigned_fraction, h)
-    detail = selection_detail(model, len(groups), n_unassigned, unassigned_fraction)
+    detail = selection_detail(
+        model, len(groups), n_unassigned, unassigned_fraction, unresolved_sites=unresolved
+    )
     ranked = sorted(groups, key=lambda g: -len(g.members))
     kept, dropped = ranked[:PLOIDY], ranked[PLOIDY:]
     kept.sort(key=lambda g: statistics.median(m.length for m in g.members))  # allele_1 shorter
@@ -175,6 +226,7 @@ def reconstruct_alleles(
     alleles: dict[str, Any] = {}
     paths: dict[str, Path] = {}
     members: dict[str, list[tuple[str, str]]] = {}
+    seqs: dict[str, str] = {}
     fixed = settings.reference_layout.fixed_repeat_count
     for name, group in zip(names, kept, strict=True):
         partial = [
@@ -214,6 +266,17 @@ def reconstruct_alleles(
         alleles[name]["polish"] = info
         members[name] = [(m.seq, m.strand) for m in group.members]
         paths[name] = _write_allele(output_dir, name, cons, len(group.members))
+        seqs[name] = cons
+    if SINGLE_EVENT in split_bases and len(set(seqs.values())) < len(seqs):
+        # A single-event split whose polished alleles are identical did not separate
+        # the haplotypes: keep the negative call blocked, as for an unsplit site.
+        selection = SINGLE_SITE
+        detail += (
+            " The single-event split gave identical allele sequences. Unresolved: "
+            f"{'; '.join(located[SINGLE_EVENT])}."
+        )
+        for n in names:
+            alleles[n].update(selection_status=selection, selection_detail=detail)
     residual_any = any(alleles[n]["residual_sites"] for n in names)
     homozygous = len(kept) == 1 and selection == RESOLVED and not residual_any
     if len(kept) == 1:

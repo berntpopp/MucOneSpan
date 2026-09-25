@@ -20,6 +20,7 @@ from typing import Any
 
 from muc_one_span.hybrid.align import global_columns
 from muc_one_span.hybrid.polish import _runs, read_run_length
+from muc_one_span.hybrid.run_strand import run_mixture
 from muc_one_span.settings import HybridSettings
 
 AF_DECIMALS = 3  # reporting precision of a site's allele fraction (format, not a tunable)
@@ -50,6 +51,30 @@ def features(
             f[("run", s)] = read_run_length(read, proj.t2q, s, e, b)
         feats.append(f)
     return feats, {("run", s): (b, e - s) for s, e, b in runs}
+
+
+def site_counts(feats: list[dict[Site, Any]]) -> dict[Site, Counter[Any]]:
+    """Per site, how many reads show each allele."""
+    counts: dict[Site, Counter[Any]] = {}
+    for f in feats:
+        for site, allele in f.items():
+            counts.setdefault(site, Counter())[allele] += 1
+    return counts
+
+
+def modal_meta(counts: dict[Site, Counter[Any]], meta: Meta) -> Meta:
+    """Run sites keyed to their most frequently observed length, not the draft's.
+
+    A POA draft can carry a run one base short or long (heavy stutter); taking such a
+    run's draft length as its true length would make its reads look like stutter and
+    poison the background and stutter profiles of every run it is a peer of. The
+    reads' modal length is the run's best length estimate. Runs no read observes keep
+    their draft length.
+    """
+    return {
+        site: (base, counts[site].most_common(1)[0][0] if counts.get(site) else length)
+        for site, (base, length) in meta.items()
+    }
 
 
 def _run_background(
@@ -124,52 +149,85 @@ def _depletion_p(n_minor: int, n_strand: int, minor_total: int, total: int) -> f
     return tail / math.comb(total, n_strand)
 
 
-def _strand_consistent(
-    feats: list[dict[Site, Any]],
-    strands: list[str],
-    site: Site,
-    minor: Any,
-    settings: HybridSettings,
-) -> bool:
-    """False when the minor allele shows strand bias (a likely systematic error).
-
-    Biased means: the minor is absent from a strand with >= hp_min_strand_reads reads,
-    or a one-sided Fisher exact test finds it depleted on a strand at
-    phase_strand_bias_alpha. An unbiased imbalanced heterozygote passes.
-    """
+def _absent_on_a_strand(
+    feats: list[dict[Site, Any]], strands: list[str], site: Site, minor: Any, s: HybridSettings
+) -> tuple[bool, dict[str, list[int]]]:
+    """(minor absent from a strand with >= hp_min_strand_reads reads, strand tally)."""
     tally: dict[str, list[int]] = {}
     for f, strand in zip(feats, strands, strict=True):
         if site in f:
             t = tally.setdefault(strand, [0, 0])
             t[0] += 1
             t[1] += f[site] == minor
+    absent = any(m == 0 and n >= s.hp_min_strand_reads for n, m in tally.values())
+    return absent, tally
+
+
+def _column_consistent(
+    feats: list[dict[Site, Any]], strands: list[str], site: Site, minor: Any, s: HybridSettings
+) -> bool:
+    """False when a column/insertion site's minor allele shows strand bias.
+
+    Biased means: the minor is absent from a strand with >= hp_min_strand_reads reads,
+    or a one-sided Fisher exact test finds it depleted on a strand at
+    phase_strand_bias_alpha. An unbiased imbalanced heterozygote passes.
+    """
+    absent, tally = _absent_on_a_strand(feats, strands, site, minor, s)
     total = sum(t[0] for t in tally.values())
     minor_total = sum(t[1] for t in tally.values())
-    for n_strand, n_minor in tally.values():
-        if n_minor == 0 and n_strand >= settings.hp_min_strand_reads:
-            return False
-        if _depletion_p(n_minor, n_strand, minor_total, total) < settings.phase_strand_bias_alpha:
-            return False
-    return True
+    return not absent and all(
+        _depletion_p(m, n, minor_total, total) >= s.phase_strand_bias_alpha
+        for n, m in tally.values()
+    )
+
+
+def _run_consistent(
+    feats: list[dict[Site, Any]],
+    strands: list[str],
+    meta: Meta,
+    site: Site,
+    pick: tuple[int, int],
+    s: HybridSettings,
+) -> bool:
+    """False when a run site's minor length is stutter or strand-biased (``run_strand``).
+
+    ``pick`` is (major, minor) length. The site is kept only when the minor is observed
+    on every strand with >= hp_min_strand_reads reads, its stutter-deconvolved mixture
+    weight reaches het_af_min, and the stutter-aware strand test is not significant at
+    phase_strand_bias_alpha (strand-asymmetric stutter is not strand bias). A run
+    whose base forms no other run in the consensus has no stutter model and is tested
+    like a column.
+    """
+    base = meta[site][0]
+    if not any(b == base for p, (b, _n) in meta.items() if p != site):
+        # No other run of this base: its stutter cannot be modelled (background 0 in
+        # _run_background), so the column rules apply to the observed lengths.
+        return _column_consistent(feats, strands, site, pick[1], s)
+    if _absent_on_a_strand(feats, strands, site, pick[1], s)[0]:
+        return False
+    weight, p = run_mixture(feats, strands, meta, site, pick, s)
+    return weight >= s.het_af_min and p >= s.phase_strand_bias_alpha
 
 
 def candidates(
     feats: list[dict[Site, Any]], strands: list[str], meta: Meta, settings: HybridSettings
 ) -> list[dict[str, Any]]:
     """Strand-consistent sites whose minor allele clears the run/column noise rules."""
-    counts: dict[Site, Counter[Any]] = {}
-    for f in feats:
-        for site, allele in f.items():
-            counts.setdefault(site, Counter())[allele] += 1
-    bg = _run_background(counts, meta, settings.phase_run_bg_window)
+    counts = site_counts(feats)
+    modal = modal_meta(counts, meta)
+    bg = _run_background(counts, modal, settings.phase_run_bg_window)
     out = []
     for site, c in counts.items():
         major, _ = c.most_common(1)[0]
         if site[0] == "run":
             pick = _run_minor(c, major, bg[site], settings)
+            keep = pick is not None and _run_consistent(
+                feats, strands, modal, site, (major, pick[0]), settings
+            )
         else:
             pick = _column_minor(c, major, settings)
-        if pick is None or not _strand_consistent(feats, strands, site, pick[0], settings):
+            keep = pick is not None and _column_consistent(feats, strands, site, pick[0], settings)
+        if pick is None or not keep:
             continue
         tot = sum(c.values())
         out.append(

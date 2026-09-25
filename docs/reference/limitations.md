@@ -197,6 +197,20 @@ are not a calibration or release claim.
   flag), because `het_af_min` is set above `het_min_group` (0.15) by design.
   Detecting or at least flagging that edge needs either a lower `het_af_min`
   (calibration) or an explicit low-AF flag rule.
+- **Equal-length heterozygotes with a single differing event.** When both
+  alleles have the same repeat count and differ at one event only, the
+  length model finds one peak and the linked-site split needs
+  `min_linked_sites` (2) events. With the default
+  `hybrid.phase_single_event_split = "indel"` a length-changing event (every
+  frameshift, e.g. dupA/dupC) splits the peak into two alleles and the event
+  is scored as usual. The reads of each allele are selected by the event
+  itself, so the event's read support is conditional on that split; the
+  independent evidence is the candidate-site test (stutter-deconvolved share
+  >= `het_af_min`, run background, strand bias, `het_min_group`). A
+  single substitution-only event (not split at the default) and any split
+  that yields identical alleles stay `unresolved_single_site` with the
+  located reason `unresolved heterozygous site at repeat N`, which makes the
+  result INCONCLUSIVE instead of NEGATIVE.
 - **True dupC mixtures with high deletion stutter.** `hybrid.event_max_alternative_frac`
   (default 0.25) rejects a homopolymer event whose no-event mixture weight
   exceeds it. On simulated HiFi data with unusually high C7 deletion stutter
