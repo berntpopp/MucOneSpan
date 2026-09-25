@@ -268,7 +268,7 @@ are not a calibration or release claim.
   the estimated alternative share of the true dupC fell from 0.263/0.284 (the
   former shifted background) to 0.140/0.187: supported at the default, but
   closer to the limit than on real ONT amplicon reads (PRJEB92208 dupC
-  positives, 0.08-0.10). The one consensus-error dupC in the simulated panels
+  positives, 0.07-0.12). The one consensus-error dupC in the simulated panels
   (a spurious C8 over a 52:47 C8/C7 read split) stayed `discordant` at 0.379
   (0.439 before), so the margin between true events and that error is 0.19
   (0.155 before). Tolerated wild-type share at the default limit (synthetic,
@@ -276,9 +276,9 @@ are not a calibration or release claim.
   1/3 at 20% and none from 25%; the D1-shaped step none from 20%; the
   saturating ONT "+" shape (shift background after the guard) 3/3 up to 25%
   and none at 30%. A wild-type share of 25% or less on such ONT data can
-  therefore pass as a pure dupC, with either background. A stutter step at the event length that is steeper
-  than any trend in the sample's shorter runs cannot be predicted from those
-  runs, and run length alone cannot tell it apart from a C7/C8 mixture;
+  therefore pass as a pure dupC, with either background. A stutter step at
+  the event length that is steeper than any trend in the sample's shorter
+  runs cannot be predicted from those runs, and run length alone cannot tell it apart from a C7/C8 mixture;
   `event_max_alternative_frac` stays a calibration trade-off.
 - **Residual single-base HiFi consensus misses.** On a 40-case frozen
   simulated panel (`simpanel`), 77/80 alleles were sequence-exact at commit
