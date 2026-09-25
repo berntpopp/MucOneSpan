@@ -150,12 +150,15 @@ class HybridSettings:
     # The reads of a single-event split are selected by the event, so the event's read
     # support is conditional on the split. The split is made only when the one-sided
     # lower confidence bound (at phase_single_event_alpha; profile likelihood of the
-    # stutter-deconvolved minor share over the site-table sample of at most
-    # phase_max_site_reads reads) reaches het_af_min; otherwise the site stays
-    # unresolved. The fixed sample keeps the bound's power independent of depth: a
-    # systematic artefact does not shrink with depth, so a bound over every read would
-    # pass any artefact slightly above het_af_min at high depth.
+    # stutter-deconvolved minor share over a fresh seeded sample of at most
+    # phase_single_event_bound_reads reads) reaches het_af_min; otherwise the peak stays
+    # unconfirmed_single_site. The fixed sample keeps the bound's power independent of
+    # depth: a systematic artefact does not shrink with depth, so a bound over every
+    # read would pass any artefact slightly above het_af_min at high depth. The sample
+    # size is its own setting (300 = the phase_max_site_reads default it used to share),
+    # so raising that compute cap cannot weaken this safety gate.
     phase_single_event_alpha: float = 0.001
+    phase_single_event_bound_reads: int = 300
     # Run-length error profiles (hybrid.run_strand) pool errors beyond
     # +/- phase_run_error_cap bases into their edge bins. 16 (= hp_max_run_len) keeps
     # every modelled run's full range of errors distinct, so no observation of a run
@@ -248,6 +251,7 @@ class HybridSettings:
             ("phase_run_bg_window", 1),
             ("phase_min_minor_reads", 1),
             ("phase_min_pair_reads", 2),
+            ("phase_single_event_bound_reads", 1),
         ):
             _integer(f"hybrid.{name}", getattr(self, name), minimum)
         _number("hybrid.phase_run_bg_multiplier", self.phase_run_bg_multiplier, 0)

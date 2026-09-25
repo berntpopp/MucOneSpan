@@ -168,6 +168,7 @@
     "phase_strand_bias_alpha": 0.001,
     "phase_single_event_split": "indel",
     "phase_single_event_alpha": 0.001,
+    "phase_single_event_bound_reads": 300,
     "phase_run_error_cap": 16,
     "polish_max_reads": 120,
     "polish_partial_min_units": 1.0,

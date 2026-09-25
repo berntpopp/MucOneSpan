@@ -23,9 +23,10 @@ peaks each peak already is one allele.
 The split reads are selected by the event itself, so the allele's read support
 (``evidence``) is conditional on the split. The split is therefore made only when a
 peak-level gate independent of the split passes: the one-sided lower confidence bound
-(``phase_single_event_alpha``) of the stutter-deconvolved minor share, over the
-site-table sample of at most ``phase_max_site_reads`` reads, must reach ``het_af_min``.
-Otherwise the peak stays ``unconfirmed_single_site`` (INCONCLUSIVE, located).
+(``phase_single_event_alpha``) of the stutter-deconvolved minor share, over a fresh
+seeded sample of at most ``phase_single_event_bound_reads`` reads, must reach
+``het_af_min``. Otherwise the peak stays ``unconfirmed_single_site`` (INCONCLUSIVE,
+located).
 
 Every tunable is a validated ``HybridSettings`` field taken from ``settings``.
 """
@@ -107,16 +108,16 @@ def _share_bound(
     profiles: tuple[ShiftProfile, ShiftProfile] | None,
     s: HybridSettings,
 ) -> float:
-    """Lower confidence bound of the minor share over the site-table sample.
+    """Lower confidence bound of the minor share over a fixed-size read sample.
 
-    At most ``phase_max_site_reads`` reads (sampled with ``random.Random(s.seed)``),
-    so the bound's power does not grow with depth. Run reads contribute their
+    At most ``phase_single_event_bound_reads`` reads (a fresh sample drawn with
+    ``random.Random(s.seed)``), so the bound's power does not grow with depth. Run reads contribute their
     likelihood under each run length (stutter profiles); column reads their allele
     (reads with neither allele are skipped).
     """
     idx = list(range(len(feats)))
-    if len(idx) > s.phase_max_site_reads:
-        idx = sorted(random.Random(s.seed).sample(idx, s.phase_max_site_reads))
+    if len(idx) > s.phase_single_event_bound_reads:
+        idx = sorted(random.Random(s.seed).sample(idx, s.phase_single_event_bound_reads))
     obs: list[tuple[float, float]] = []
     for i in idx:
         observed = feats[i].get(site["site"])

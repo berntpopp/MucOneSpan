@@ -240,13 +240,17 @@ are not a calibration or release claim.
   independent evidence is the candidate-site test (run background, strand
   bias, `het_min_group`) and the peak-level share gate: the one-sided lower
   confidence bound (`phase_single_event_alpha`) of the stutter-deconvolved
-  minor share, over at most `phase_max_site_reads` reads, must reach
-  `het_af_min`. On synthetic wild-type ONT-like reads (1200 reads) with a
+  minor share, over a fresh seeded sample of at most
+  `phase_single_event_bound_reads` reads, must reach `het_af_min`. On synthetic wild-type ONT-like reads (1200 reads) with a
   site-specific one-base excess at one C7 run on both strands, excess shares
   of 0.10-0.30 were never PATHOGENIC. From about 0.35 such an artefact cannot
-  be told apart from a real minor allele of that share and is called like one. A
+  be told apart from a real minor allele of that share and is called like one.
+  That stress test used a C7 run inside a canonical `X` unit; a symmetric
+  excess of 0.35 or more at a C7 run in a variant unit or at the edge units of
+  the array is untested. A
   single substitution-only event (not split at the default) and any split
-  that yields identical alleles stay `unresolved_single_site` with the
+  that yields identical alleles keep the phase basis `unconfirmed_single_site`
+  (selection status `unresolved_single_site`) with the
   located reason `unresolved heterozygous site at repeat N`, which makes the
   result INCONCLUSIVE instead of NEGATIVE.
 - **True dupC mixtures with high deletion stutter.** `hybrid.event_max_alternative_frac`

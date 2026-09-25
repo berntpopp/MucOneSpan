@@ -30,7 +30,7 @@ pytest.importorskip("edlib", reason="edlib (extra 'hybrid') is not installed")
 S = base.S
 REPEAT = len(synth.PRE) + 1  # 1-based repeat of the first inner unit
 # Realistic ONT amplicon depth for the stress cell (reads on the one length peak).
-STRESS_DEPTH = 4 * S.phase_max_site_reads
+STRESS_DEPTH = 4 * S.phase_single_event_bound_reads
 # Site-specific +1 excess at one C7 run, as a share of all reads, from well below to
 # above het_af_min (both strands alike, so no strand test can reject it).
 EXCESS_STEPS = (-2, -1, 0, 1, 2)
@@ -145,3 +145,31 @@ def test_unassigned_reads_of_a_single_event_split_are_reassigned(tmp_path: Path)
     assigned = sum(result.alleles[k]["spanning_reads"] for k in ("allele_1", "allele_2"))
     total = result.block["read_categories"]["spanning"]
     assert assigned == total - result.block["unassigned_spanning_reads"]
+
+
+def test_share_bound_sample_is_its_own_setting() -> None:
+    """Raising the site-table compute cap must not weaken the share gate.
+
+    At four times the bound's sample size a share of 1.25 x het_af_min is significant
+    over every read but not over the bound's fixed sample.
+    """
+    n = 4 * S.phase_single_event_bound_reads
+    minor = round(n * (S.het_af_min + S.het_af_min / 4))
+    one_q = synth.allele(["X"] * 10 + ["Q"] + ["X"] * 19)
+    wild = synth.allele(["X"] * 30)
+    reads = synth.reads(one_q, minor, err=base.ERR, seed=5)
+    reads += synth.reads(wild, n - minor, err=base.ERR, seed=6)
+    members = categorize_reads(reads, base.ANCH, S).spanning
+    s = dataclasses.replace(S, phase_single_event_split="all")
+    res = split_by_linked_sites(wild, members, s, random.Random(S.seed))
+    assert res.basis == "unconfirmed_single_site", res.basis
+    assert single_event.split_single_event(wild, members, res, s) is None
+    big_cap = dataclasses.replace(s, phase_max_site_reads=len(members))
+    assert single_event.split_single_event(wild, members, res, big_cap) is None
+    every_read = dataclasses.replace(s, phase_single_event_bound_reads=len(members))
+    assert single_event.split_single_event(wild, members, res, every_read) is not None
+
+
+def test_share_bound_reads_is_validated() -> None:
+    with pytest.raises(ValueError, match="phase_single_event_bound_reads"):
+        dataclasses.replace(S, phase_single_event_bound_reads=0)

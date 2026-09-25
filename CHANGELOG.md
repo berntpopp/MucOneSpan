@@ -139,7 +139,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
   a single-peak length model splits on its single length-changing event
   (new setting `hybrid.phase_single_event_split`, default `"indel"`) when the
   lower confidence bound of its minor share (`hybrid.phase_single_event_alpha`)
-  reaches `het_af_min`; run error profiles use `hybrid.phase_run_error_cap`. A peak
+  reaches `het_af_min` over a fixed sample of `hybrid.phase_single_event_bound_reads`
+  reads; run error profiles use `hybrid.phase_run_error_cap`. A peak
   left unsplit names its site in `selection_detail` ("unresolved heterozygous
   site at repeat N") and keeps a negative call blocked. The `--assay` help
   text now says the option is recorded for provenance only.
