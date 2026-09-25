@@ -131,6 +131,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
   "residual_heterogeneity"`, and a `read_support.status` other than
   `"supported"` now gate the clinical decision through the shared evidence
   gates in `clinical_gates.py`.
+- Hybrid engine: the homopolymer event/no-event mixture fit convolves each
+  allele with the stutter profile of its own run length (new
+  `hybrid.hp_stutter_model`, default `"length"`; `"shift"` keeps the former
+  shifted background). A length without `hybrid.hp_stutter_min_class_runs`
+  peer runs and `hybrid.hp_stutter_min_class_reads` observations is
+  extrapolated from the two nearest measured lengths, with the per-base growth
+  capped at `hybrid.hp_stutter_max_growth`. A true dupC with heavy C8 deletion
+  stutter is no longer rated a C7/C8 mixture (simulated HiFi D1/HD4
+  alternative share 0.263/0.284 -> 0.140/0.187; `event_max_alternative_frac`
+  unchanged).
 - Hybrid engine: an equal-length heterozygote whose alleles differ at one
   event (e.g. dupA on one allele, both alleles the same repeat count) could
   be merged into one wild-type consensus and reported NEGATIVE. Homopolymer-run

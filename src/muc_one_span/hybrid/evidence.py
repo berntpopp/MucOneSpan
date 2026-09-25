@@ -6,7 +6,9 @@ Producer contract for ``read_support.status == "supported"`` (consumed unchanged
 * Homopolymer event (dictionary template = single-base indel inside a consensus run
   ``>= hp_event_min_run``): ``n >= hp_min_reads``, stutter-aware LLR ``>= hp_llr_min``,
   alt fraction ``>= hp_min_alt_frac``, the no-event share of the maximum-likelihood
-  event/no-event stutter mixture ``<= event_max_alternative_frac`` (else
+  event/no-event stutter mixture (each allele convolved with the stutter profile of
+  its own run length, ``stutter.allele_profiles``, Task 15f)
+  ``<= event_max_alternative_frac`` (else
   ``discordant``), and no strand with ``>= hp_min_strand_reads`` reads has a negative
   strand LLR (else ``discordant``). A strand with zero reads never fails the event.
   Only reads that keep both consensus bases bounding the run, with nothing but the
@@ -34,10 +36,13 @@ from typing import Any
 from muc_one_span.config import RepeatDictionary
 from muc_one_span.hybrid.align import Columns, edit_distance, global_columns
 from muc_one_span.hybrid.polish import _runs, polish, run_observation
+from muc_one_span.hybrid.stutter import STRANDS as STRANDS
+from muc_one_span.hybrid.stutter import Profile as Profile
+from muc_one_span.hybrid.stutter import allele_profiles, class_counts
+from muc_one_span.hybrid.stutter import shift as _shift
+from muc_one_span.hybrid.stutter import smooth as _smooth
 from muc_one_span.settings import HybridSettings
 
-Profile = dict[str, list[float]]
-STRANDS = ("+", "-")
 # Display precision of reported fractions and log-likelihood ratios (output format
 # only: every status is decided on the unrounded values).
 FRACTION_DECIMALS = 3
@@ -68,20 +73,6 @@ def residual_sites(cons: str, reads: list[str], af: float, *, min_run: int) -> l
     return out
 
 
-def _smooth(counter: Counter[int], s: HybridSettings) -> list[float]:
-    size = s.hp_max_run_len + 1
-    tot = sum(counter.values())
-    pseudo = s.hp_background_pseudocount
-    return [(counter.get(i, 0) + pseudo) / (tot + pseudo * size) for i in range(size)]
-
-
-def _shift(p: list[float], d: int) -> list[float]:
-    cap = len(p) - 1
-    q = [p[min(max(i - d, 0), cap)] for i in range(len(p))]
-    total = sum(q)
-    return [x / total for x in q]
-
-
 def homopolymer_background(
     cons: str,
     reads: list[tuple[str, str, Columns]],
@@ -96,37 +87,36 @@ def homopolymer_background(
     that does not observe a run cleanly (``run_observation``); each profile has
     ``hp_max_run_len + 1`` smoothed entries (longer observations are capped).
     """
-    runs = [
-        (st, e)
-        for st, e, b in _runs(cons, length)
-        if b == base and e - st == length and not st <= exclude < e
-    ]
-    per: dict[str, Counter[int]] = {strand: Counter() for strand in STRANDS}
-    for seq, strand, proj in reads:
-        for st, e in runs:
-            observed = run_observation(seq, proj, cons, st, e)
-            if observed is not None:
-                per.setdefault(strand, Counter())[min(observed, s.hp_max_run_len)] += 1
+    _n_runs, per = class_counts(cons, reads, base, length, exclude, s)
     return {strand: _smooth(c, s) for strand, c in per.items()}
 
 
-def homopolymer_llr(obs: list[tuple[str, int]], background: Profile, shift: int) -> float:
-    """log L(event length) - log L(reference length) over (strand, observed length).
+def profile_llr(obs: list[tuple[str, int]], event: Profile, no_event: Profile) -> float:
+    """log L(event allele) - log L(no-event allele) over (strand, observed length).
 
-    The reference model is the strand's background profile; the event model is that
-    profile shifted by ``shift`` bases (the template's run-length change, +1 for a
-    single-base insertion and -1 for a deletion). An observation on a strand without a
-    background profile carries no information and contributes 0.
+    Each allele's probability of an observed length comes from its own per-strand
+    profile (``stutter.allele_profiles``). An observation on a strand without both
+    profiles carries no information and contributes 0.
     """
     llr = 0.0
     for strand, observed in obs:
-        p0 = background.get(strand)
-        if not p0:
+        p0, p1 = no_event.get(strand), event.get(strand)
+        if not p0 or not p1:
             continue
-        p1 = _shift(p0, shift)
         k = min(observed, len(p0) - 1)
         llr += math.log(p1[k] / p0[k])
     return llr
+
+
+def homopolymer_llr(obs: list[tuple[str, int]], background: Profile, shift: int) -> float:
+    """``profile_llr`` with the event profile = the background shifted by ``shift``.
+
+    The pre-15f model (``hp_stutter_model = "shift"``): the reference model is the
+    strand's background profile and the event model that profile shifted by the
+    template's run-length change (+1 for a single-base insertion, -1 for a deletion).
+    """
+    event = {strand: _shift(p, shift) for strand, p in background.items() if p}
+    return profile_llr(obs, event, background)
 
 
 def homopolymer_event_run(
@@ -260,16 +250,16 @@ def _strand_fracs(flags: dict[str, list[bool]]) -> dict[str, float | None]:
 
 
 def _mixture_obs(
-    obs: list[tuple[str, int]], background: Profile, shift: int
+    obs: list[tuple[str, int]], event: Profile, no_event: Profile
 ) -> list[tuple[float, float]]:
-    """(p_event, p_no_event) per observation; a strand without a profile is skipped."""
+    """(p_event, p_no_event) per observation; a strand without profiles is skipped."""
     out = []
     for strand, observed in obs:
-        p0 = background.get(strand)
-        if not p0:
+        p0, p1 = no_event.get(strand), event.get(strand)
+        if not p0 or not p1:
             continue
         k = min(observed, len(p0) - 1)
-        out.append((_shift(p0, shift)[k], p0[k]))
+        out.append((p1[k], p0[k]))
     return out
 
 
@@ -279,11 +269,12 @@ def _homopolymer_support(
     run: tuple[int, int, str, int],
     s: HybridSettings,
 ) -> dict[str, Any]:
-    start, end, base, shift = run
+    start, end, _base, shift = run
     length = end - start
-    background = homopolymer_background(cons, reads, base, length - shift, start, s)
     observed = [(st, run_observation(seq, p, cons, start, end)) for seq, st, p in reads]
     obs = [(st, k) for st, k in observed if k is not None]
+    # Each allele is convolved with the stutter of its own run length (Task 15f).
+    event, no_event = allele_profiles(cons, reads, run, {st for st, _ in obs}, s)
 
     def is_alt(k: int) -> bool:
         return k >= length if shift > 0 else k <= length
@@ -292,11 +283,11 @@ def _homopolymer_support(
     alt = sum(1 for _, k in obs if is_alt(k))
     strands = sorted({*STRANDS, *(st for st, _ in obs)})
     strand_obs = {st: [o for o in obs if o[0] == st] for st in strands}
-    strand_llr = {st: homopolymer_llr(v, background, shift) for st, v in strand_obs.items()}
+    strand_llr = {st: profile_llr(v, event, no_event) for st, v in strand_obs.items()}
     strand_n = {st: len(v) for st, v in strand_obs.items()}
-    llr = homopolymer_llr(obs, background, shift)
+    llr = profile_llr(obs, event, no_event)
     alt_frac = alt / n if n else 0.0
-    alternative_frac = 1.0 - event_allele_fraction(_mixture_obs(obs, background, shift))
+    alternative_frac = 1.0 - event_allele_fraction(_mixture_obs(obs, event, no_event))
     return {
         "kind": "homopolymer",
         "n": n,

@@ -253,19 +253,22 @@ are not a calibration or release claim.
   (selection status `unresolved_single_site`) with the
   located reason `unresolved heterozygous site at repeat N`, which makes the
   result INCONCLUSIVE instead of NEGATIVE.
-- **True dupC mixtures with high deletion stutter.** `hybrid.event_max_alternative_frac`
+- **True dupC with high deletion stutter.** `hybrid.event_max_alternative_frac`
   (default 0.25) rejects a homopolymer event whose no-event mixture weight
-  exceeds it. On simulated HiFi data with unusually high C7 deletion stutter
-  at the true C8 run (about 31-32% of reads showing C7, against only 7-8%
-  deletion stutter at background C7 runs of the same sample), the true dupC
-  event's estimated alternative share reached 0.263-0.284 and became
-  `discordant` (INCONCLUSIVE) rather than `supported` (PATHOGENIC) at the
-  default threshold -- a safe direction (no wrong call), but a sensitivity
-  cost. On real ONT amplicon reads (PRJEB92208 dupC positives), the same
-  mixture fit stayed well inside the default margin (alternative share
-  0.08-0.13). Run-length-dependent stutter cannot be told apart from a true
-  mixture using run length alone; `event_max_alternative_frac` is a
-  calibration trade-off, not yet tuned against a sealed evaluation.
+  exceeds it. The mixture convolves each allele with the stutter profile of its
+  own run length (`hybrid.hp_stutter_model = "length"`), so the heavier deletion
+  stutter of a longer run is not taken for a no-event allele. MUC1 has no C8 run
+  besides a dupC run, so the C8 profile is always extrapolated from the sample's
+  shorter C runs (per-base growth capped at `hp_stutter_max_growth`). On
+  simulated HiFi reads with about 31-32% C7 reads at the true C8 run against
+  7-8% deletion stutter at the C7 runs (a steeper step than the trend below C7),
+  the estimated alternative share of the true dupC fell from 0.263/0.284 (the
+  former shifted background) to 0.140/0.187: supported at the default, but
+  closer to the limit than on real ONT amplicon reads (PRJEB92208 dupC
+  positives, 0.08-0.09). A stutter step at the event length that is steeper
+  than any trend in the sample's shorter runs cannot be predicted from those
+  runs, and run length alone cannot tell it apart from a C7/C8 mixture;
+  `event_max_alternative_frac` stays a calibration trade-off.
 - **Residual single-base HiFi consensus misses.** On a 40-case frozen
   simulated panel (`simpanel`), 77/80 alleles were sequence-exact at commit
   `ca81a97` (see "Validation numbers" below); every mutation event and every

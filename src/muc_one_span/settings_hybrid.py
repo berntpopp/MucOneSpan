@@ -24,6 +24,7 @@ SMEAR_CORRECTIONS = ("bonferroni", "none")
 # Which single heterozygous events may split a length peak (hybrid.single_event):
 # "off" never, "indel" only length-changing events (every frameshift), "all" any event.
 SINGLE_EVENT_SPLIT_MODES = ("off", "indel", "all")
+STUTTER_MODELS = ("length", "shift")
 
 
 @dataclass(frozen=True)
@@ -79,6 +80,20 @@ class HybridSettings:
     hp_event_min_run: int = 4
     hp_max_run_len: int = 16
     hp_background_pseudocount: float = 0.5
+    # Task 15f (hybrid.stutter): "length" convolves each allele of a homopolymer event's
+    # event/no-event mixture with the stutter profile of its own run length. A length is
+    # measured at >= hp_stutter_min_class_runs peer runs of its base with
+    # >= hp_stutter_min_class_reads clean observations on the strand; otherwise it is
+    # extrapolated from the two nearest measured lengths, each error share growing by at
+    # most hp_stutter_max_growth per base (or shrinking by at most its inverse). "shift"
+    # is the pre-15f model (the no-event profile shifted by the event). Defaults: one run
+    # is one sequence context, which cannot separate length from context, so a class
+    # needs 2; 200 observations; growth cap 3.0 above the largest per-base growth seen
+    # between adjacent measured lengths in the development panels (about 2.7).
+    hp_stutter_model: str = "length"
+    hp_stutter_min_class_runs: int = 2
+    hp_stutter_min_class_reads: int = 200
+    hp_stutter_max_growth: float = 3.0
     qc_residual_min_run: int = 3
     # Task 13b: an event must beat the read-derived alternative at its site. Reads are
     # compared over the event unit extended by event_context_units repeat units on each
@@ -264,6 +279,10 @@ class HybridSettings:
         )
         _open_unit_interval("hybrid.phase_single_event_alpha", self.phase_single_event_alpha)
         _integer("hybrid.phase_run_error_cap", self.phase_run_error_cap, 1)
+        _choice("hybrid.hp_stutter_model", self.hp_stutter_model, STUTTER_MODELS)
+        _integer("hybrid.hp_stutter_min_class_runs", self.hp_stutter_min_class_runs, 1)
+        _integer("hybrid.hp_stutter_min_class_reads", self.hp_stutter_min_class_reads, 1)
+        _number("hybrid.hp_stutter_max_growth", self.hp_stutter_max_growth, 1)
         _integer("hybrid.polish_max_reads", self.polish_max_reads, 1)
         _integer("hybrid.qc_residual_max_reads", self.qc_residual_max_reads, 1)
         _number("hybrid.polish_partial_min_units", self.polish_partial_min_units, 0)

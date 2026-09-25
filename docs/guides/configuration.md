@@ -377,12 +377,16 @@ no hardcoded thresholds in the hybrid engine.
 | `hybrid.hp_event_min_run` | `4` | Minimum consensus run length for a single-base-indel dictionary template to be typed a homopolymer event (else it falls back to parent-vs-template competition); integer >=2. |
 | `hybrid.hp_max_run_len` | `16` | Runs whose event or reference length would reach this cap are not modelled as a homopolymer mixture; integer >= `hp_event_min_run` + 1. |
 | `hybrid.hp_background_pseudocount` | `0.5` | Additive smoothing pseudocount for the per-strand background run-length profile; number strictly >0. |
+| `hybrid.hp_stutter_model` | `"length"` | Stutter background of the homopolymer event/no-event mixture. `"length"`: each allele is convolved with the per-strand stutter profile of **its own** run length (a dupC C8 run with the C8 profile, the no-event C7 allele with the C7 profile), measured at the sample's own peer runs of that base and length (the event run left out); a length without enough peer runs is extrapolated from the two nearest measured lengths of the base (no pooling across bases); with one measured length its profile is shifted; with none, the `"shift"` rule applies. `"shift"`: the no-event length's profile, shifted by the event for the event allele (behaviour before this setting). One of `"length"`, `"shift"`. |
+| `hybrid.hp_stutter_min_class_runs` | `2` | Peer runs (same base and length, event run excluded) a length needs to be measured rather than extrapolated. One run is one sequence context, which cannot separate the effect of length from that of context. Integer >=1. |
+| `hybrid.hp_stutter_min_class_reads` | `200` | Clean run observations on a strand a length needs to be measured on that strand. Integer >=1. |
+| `hybrid.hp_stutter_max_growth` | `3.0` | Cap on the per-base growth (and, inverted, the shrinkage) of each error value's share when a length is extrapolated log-linearly from the two nearest measured lengths. The default sits above the largest growth between adjacent measured lengths in the development panels (about 2.7, C6 to C7 deletion). `1.0` disables growth (the nearest profile shifted). Number >=1. |
 | `hybrid.hp_llr_min` | `10.0` | Minimum stutter-aware log-likelihood ratio for a homopolymer event; number strictly >0. |
 | `hybrid.hp_min_reads` | `20` | Minimum reads (`n`) before a status other than `insufficient_depth` is possible; integer >=1. |
 | `hybrid.hp_min_alt_frac` | `0.30` | Minimum alt-supporting fraction for a homopolymer or competition event; number in [0,1]. |
 | `hybrid.hp_min_strand_reads` | `5` | A strand with at least this many reads must not show a negative homopolymer LLR, else the event is `discordant`; integer >=0. |
 | `hybrid.event_context_units` | `1.0` | Context, in repeat units (x the dictionary unit length), compared around a competition event's unit on each side; number >=0. |
-| `hybrid.event_max_alternative_frac` | `0.25` | Maximum estimated alternative share at the event site: `ref/n` for competition events, `1 - f_hat` of the event/no-event stutter mixture for homopolymer events; above it the event is `discordant`; number in [0,1]. |
+| `hybrid.event_max_alternative_frac` | `0.25` | Maximum estimated alternative share at the event site: `ref/n` for competition events, `1 - f_hat` of the event/no-event stutter mixture (length-aware, `hp_stutter_model`) for homopolymer events; above it the event is `discordant`; number in [0,1]. |
 
 #### Engine orchestration
 
