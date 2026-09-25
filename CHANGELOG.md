@@ -116,7 +116,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
   phase sites now use a stutter-aware strand-bias test (strand-asymmetric ONT
   stutter was read as strand bias and dropped the only heterozygous site), and
   a single-peak length model splits on its single length-changing event
-  (new setting `hybrid.phase_single_event_split`, default `"indel"`). A peak
+  (new setting `hybrid.phase_single_event_split`, default `"indel"`) when the
+  lower confidence bound of its minor share (`hybrid.phase_single_event_alpha`)
+  reaches `het_af_min`; run error profiles use `hybrid.phase_run_error_cap`. A peak
   left unsplit names its site in `selection_detail` ("unresolved heterozygous
   site at repeat N") and keeps a negative call blocked. The `--assay` help
   text now says the option is recorded for provenance only.

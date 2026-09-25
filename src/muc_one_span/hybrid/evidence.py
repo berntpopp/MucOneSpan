@@ -214,7 +214,13 @@ def event_allele_fraction(obs: list[tuple[float, float]]) -> float:
     """
 
     def slope(f: float) -> float:
-        return sum((p1 - p0) / (f * p1 + (1 - f) * p0) for p1, p0 in obs)
+        total = 0.0
+        for p1, p0 in obs:
+            den = f * p1 + (1 - f) * p0
+            if den <= 0:  # a read impossible at f (e.g. a column allele at f = 0 or 1)
+                return math.inf if p1 > p0 else -math.inf
+            total += (p1 - p0) / den
+        return total
 
     if not obs or slope(0.0) <= 0:
         return 0.0

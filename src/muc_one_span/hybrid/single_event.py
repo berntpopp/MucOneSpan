@@ -21,15 +21,18 @@ this only for a length model with a single peak (``engine._groups``); with two l
 peaks each peak already is one allele.
 
 The split reads are selected by the event itself, so the allele's read support
-(``evidence``) is conditional on the split; the independent evidence that the event
-is real is the candidate test above (stutter-deconvolved share >= ``het_af_min``,
-run background, strand bias and group size).
+(``evidence``) is conditional on the split. The split is therefore made only when a
+peak-level gate independent of the split passes: the one-sided lower confidence bound
+(``phase_single_event_alpha``) of the stutter-deconvolved minor share, over the
+site-table sample of at most ``phase_max_site_reads`` reads, must reach ``het_af_min``.
+Otherwise the peak stays ``unconfirmed_single_site`` (INCONCLUSIVE, located).
 
 Every tunable is a validated ``HybridSettings`` field taken from ``settings``.
 """
 
 from __future__ import annotations
 
+import random
 from typing import Any
 
 from muc_one_span.hybrid.phase import PhaseResult
@@ -43,7 +46,12 @@ from muc_one_span.hybrid.phase_sites import (
     site_counts,
     top_site,
 )
-from muc_one_span.hybrid.run_strand import ShiftProfile, length_prob, shift_profiles
+from muc_one_span.hybrid.run_strand import (
+    ShiftProfile,
+    length_prob,
+    share_lower_bound,
+    shift_profiles,
+)
 from muc_one_span.hybrid.spans import SpanRead
 from muc_one_span.settings import HybridSettings
 
@@ -92,6 +100,40 @@ def _allele(
     return None if p_major == p_minor else int(p_minor > p_major)
 
 
+def _share_bound(
+    feats: list[dict[Site, Any]],
+    strands: list[str],
+    site: dict[str, Any],
+    profiles: tuple[ShiftProfile, ShiftProfile] | None,
+    s: HybridSettings,
+) -> float:
+    """Lower confidence bound of the minor share over the site-table sample.
+
+    At most ``phase_max_site_reads`` reads (sampled with ``random.Random(s.seed)``),
+    so the bound's power does not grow with depth. Run reads contribute their
+    likelihood under each run length (stutter profiles); column reads their allele
+    (reads with neither allele are skipped).
+    """
+    idx = list(range(len(feats)))
+    if len(idx) > s.phase_max_site_reads:
+        idx = sorted(random.Random(s.seed).sample(idx, s.phase_max_site_reads))
+    obs: list[tuple[float, float]] = []
+    for i in idx:
+        observed = feats[i].get(site["site"])
+        if observed is None:
+            continue
+        if profiles is not None:
+            obs.append(
+                (
+                    length_prob(profiles[1], strands[i], observed, site["minor"]),
+                    length_prob(profiles[0], strands[i], observed, site["major"]),
+                )
+            )
+        elif observed in (site["minor"], site["major"]):
+            obs.append((float(observed == site["minor"]), float(observed == site["major"])))
+    return share_lower_bound(obs, s.phase_single_event_alpha)
+
+
 def split_single_event(
     cons: str, members: list[SpanRead], res: PhaseResult, settings: HybridSettings
 ) -> PhaseResult | None:
@@ -110,6 +152,8 @@ def split_single_event(
     profiles = (
         _run_classifier(feats, strands, modal, site, settings) if site["site"][0] == "run" else None
     )
+    if _share_bound(feats, strands, site, profiles, settings) < settings.het_af_min:
+        return None
     groups: list[list[SpanRead]] = [[], []]
     unassigned: list[SpanRead] = []
     for m, f in zip(members, feats, strict=True):

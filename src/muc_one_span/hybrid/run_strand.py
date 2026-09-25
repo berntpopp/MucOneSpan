@@ -14,7 +14,10 @@ against "a weight per strand" gives the strand-bias p value. A strand-specific
 systematic error at one site (present on one strand only) still fails; strand-specific
 stutter that every run of that base shares is absorbed by the profiles.
 
-Every tunable is a validated ``HybridSettings`` field (``hp_max_run_len``,
+``share_lower_bound`` gives the one-sided profile-likelihood lower confidence bound of
+such a mixture weight (the single-event split's peak-level gate).
+
+Every tunable is a validated ``HybridSettings`` field (``phase_run_error_cap``,
 ``hp_background_pseudocount``); nothing is defaulted from ``DEFAULT_SETTINGS``.
 """
 
@@ -22,6 +25,7 @@ from __future__ import annotations
 
 import math
 from collections import Counter
+from statistics import NormalDist
 from typing import Any
 
 from muc_one_span.hybrid.evidence import event_allele_fraction
@@ -43,14 +47,14 @@ def shift_profiles(
 ) -> ShiftProfile:
     """Per-strand length-error profile of runs of the site's base with true ``length``.
 
-    Errors beyond ``hp_max_run_len`` are capped; each profile adds
+    Errors beyond ``phase_run_error_cap`` are capped; each profile adds
     ``hp_background_pseudocount`` per error value, so a strand without peer
     observations is uniform (uninformative) rather than missing.
     """
     base = meta[site][0]
     others = [p for p, (b, _n) in meta.items() if p != site and b == base]
     peers = [p for p in others if meta[p][1] == length] or others
-    cap = settings.hp_max_run_len
+    cap = settings.phase_run_error_cap
     per: dict[str, Counter[int]] = {st: Counter() for st in strands}
     for f, strand in zip(feats, strands, strict=True):
         for p in peers:
@@ -114,3 +118,29 @@ def run_mixture(
     stat = max(0.0, 2 * (split - _loglik(pooled, weight)))
     # Chi-square survival function with one degree of freedom (the extra strand weight).
     return weight, math.erfc(math.sqrt(stat / 2))
+
+
+def share_lower_bound(obs: list[tuple[float, float]], alpha: float) -> float:
+    """One-sided lower confidence bound (level 1 - ``alpha``) of a mixture weight.
+
+    ``obs`` are ``(p_minor, p_major)`` per read, as in ``run_mixture`` (a column read
+    is ``(1, 0)`` or ``(0, 1)``). The bound is the profile-likelihood limit below the
+    maximum-likelihood weight where the log-likelihood has dropped by ``z**2 / 2``
+    (``z`` the standard normal ``1 - alpha`` quantile; signed-root likelihood ratio).
+    The log-likelihood is concave, so bisection finds it; the loop ends when the float
+    interval cannot shrink any further (no tolerance tunable). A weight of 0 gives 0.
+    """
+    best = event_allele_fraction(obs)
+    if best <= 0:
+        return 0.0
+    z = NormalDist().inv_cdf(1 - alpha)
+    floor = _loglik(obs, best) - z * z / 2
+    lo, hi = 0.0, best
+    while True:
+        mid = (lo + hi) / 2
+        if mid <= lo or mid >= hi:
+            return hi
+        if _loglik(obs, mid) < floor:
+            lo = mid
+        else:
+            hi = mid

@@ -147,6 +147,20 @@ class HybridSettings:
     # stutter-deconvolved minor weight must reach het_af_min; likelihood ratio at
     # phase_strand_bias_alpha).
     phase_single_event_split: str = "indel"
+    # The reads of a single-event split are selected by the event, so the event's read
+    # support is conditional on the split. The split is made only when the one-sided
+    # lower confidence bound (at phase_single_event_alpha; profile likelihood of the
+    # stutter-deconvolved minor share over the site-table sample of at most
+    # phase_max_site_reads reads) reaches het_af_min; otherwise the site stays
+    # unresolved. The fixed sample keeps the bound's power independent of depth: a
+    # systematic artefact does not shrink with depth, so a bound over every read would
+    # pass any artefact slightly above het_af_min at high depth.
+    phase_single_event_alpha: float = 0.001
+    # Run-length error profiles (hybrid.run_strand) pool errors beyond
+    # +/- phase_run_error_cap bases into their edge bins. 16 (= hp_max_run_len) keeps
+    # every modelled run's full range of errors distinct, so no observation of a run
+    # up to hp_max_run_len is merged with a larger error.
+    phase_run_error_cap: int = 16
     # Engine orchestration (Task 11). Polishing and residual QC use at most
     # polish_max_reads / qc_residual_max_reads spanning members per allele (sampled with
     # the seeded RNG when a group is larger); an assigned non-spanning fragment joins the
@@ -244,6 +258,8 @@ class HybridSettings:
             self.phase_single_event_split,
             SINGLE_EVENT_SPLIT_MODES,
         )
+        _open_unit_interval("hybrid.phase_single_event_alpha", self.phase_single_event_alpha)
+        _integer("hybrid.phase_run_error_cap", self.phase_run_error_cap, 1)
         _integer("hybrid.polish_max_reads", self.polish_max_reads, 1)
         _integer("hybrid.qc_residual_max_reads", self.qc_residual_max_reads, 1)
         _number("hybrid.polish_partial_min_units", self.polish_partial_min_units, 0)

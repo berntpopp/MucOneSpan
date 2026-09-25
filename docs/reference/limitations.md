@@ -205,8 +205,14 @@ are not a calibration or release claim.
   frameshift, e.g. dupA/dupC) splits the peak into two alleles and the event
   is scored as usual. The reads of each allele are selected by the event
   itself, so the event's read support is conditional on that split; the
-  independent evidence is the candidate-site test (stutter-deconvolved share
-  >= `het_af_min`, run background, strand bias, `het_min_group`). A
+  independent evidence is the candidate-site test (run background, strand
+  bias, `het_min_group`) and the peak-level share gate: the one-sided lower
+  confidence bound (`phase_single_event_alpha`) of the stutter-deconvolved
+  minor share, over at most `phase_max_site_reads` reads, must reach
+  `het_af_min`. On synthetic wild-type ONT-like reads (1200 reads) with a
+  site-specific one-base excess at one C7 run on both strands, excess shares
+  of 0.10-0.30 were never PATHOGENIC. From about 0.35 such an artefact cannot
+  be told apart from a real minor allele of that share and is called like one. A
   single substitution-only event (not split at the default) and any split
   that yields identical alleles stay `unresolved_single_site` with the
   located reason `unresolved heterozygous site at repeat N`, which makes the

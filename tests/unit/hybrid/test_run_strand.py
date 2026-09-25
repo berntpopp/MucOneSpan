@@ -7,12 +7,15 @@ carries a minor length at a chosen share.
 
 from __future__ import annotations
 
+import dataclasses
+import math
+from statistics import NormalDist
 from typing import Any
 
 import pytest
 
 from muc_one_span.hybrid.phase_sites import candidates
-from muc_one_span.hybrid.run_strand import run_mixture
+from muc_one_span.hybrid.run_strand import run_mixture, share_lower_bound, shift_profiles
 from muc_one_span.settings import HybridSettings
 
 S = HybridSettings()
@@ -78,3 +81,28 @@ def test_run_without_peers_uses_the_column_rules() -> None:
     lone = {**META, TARGET: ("A", LENGTH)}
     feats, strands = _table({"+": HIGH, "-": HIGH}, {"+": 2 * PERIOD, "-": 2 * PERIOD})
     assert any(c["site"] == TARGET for c in candidates(feats, strands, lone, S))
+
+
+def test_error_profile_width_is_its_own_setting() -> None:
+    """Length errors are capped at phase_run_error_cap, not at the run-length cap."""
+    s = dataclasses.replace(S, phase_run_error_cap=STUTTER)
+    feats, strands = _table({"+": HIGH, "-": HIGH}, {"+": PERIOD, "-": PERIOD})
+    profile = shift_profiles(feats, strands, META, TARGET, LENGTH, s)
+    assert {len(v) for v in profile.values()} == {2 * STUTTER + 1} != {2 * S.hp_max_run_len + 1}
+
+
+def test_share_lower_bound_is_a_one_sided_likelihood_bound() -> None:
+    """Binomial counts: the bound drops the log-likelihood by z**2 / 2 below its maximum."""
+    n, k = PERIOD, HIGH
+    obs = [(1.0, 0.0)] * k + [(0.0, 1.0)] * (n - k)
+    alpha = S.phase_single_event_alpha
+    lo = share_lower_bound(obs, alpha)
+
+    def loglik(f: float) -> float:
+        return k * math.log(f) + (n - k) * math.log(1 - f)
+
+    z = NormalDist().inv_cdf(1 - alpha)
+    assert 0 < lo < k / n
+    assert loglik(k / n) - loglik(lo) == pytest.approx(z * z / 2)
+    assert share_lower_bound(obs, alpha / 10) < lo < share_lower_bound(obs, 1 / 2) + 1 / n
+    assert share_lower_bound([(0.0, 1.0)] * n, alpha) == 0.0
