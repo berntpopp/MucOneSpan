@@ -259,7 +259,10 @@ are not a calibration or release claim.
   own run length (`hybrid.hp_stutter_model = "length"`), so the heavier deletion
   stutter of a longer run is not taken for a no-event allele. MUC1 has no C8 run
   besides a dupC run, so the C8 profile is always extrapolated from the sample's
-  shorter C runs (per-base growth capped at `hp_stutter_max_growth`). On
+  shorter C runs (per-base growth capped at `hp_stutter_max_growth`). Where the
+  sample's stutter saturates (real ONT "+" reads) the extrapolated C8 allele
+  would be read as C7 about as often as C8; such a strand falls back to the
+  shifted background (`hp_stutter_max_event_confusion`). On
   simulated HiFi reads with about 31-32% C7 reads at the true C8 run against
   7-8% deletion stutter at the C7 runs (a steeper step than the trend below C7),
   the estimated alternative share of the true dupC fell from 0.263/0.284 (the
@@ -268,7 +271,12 @@ are not a calibration or release claim.
   positives, 0.08-0.10). The one consensus-error dupC in the simulated panels
   (a spurious C8 over a 52:47 C8/C7 read split) stayed `discordant` at 0.379
   (0.439 before), so the margin between true events and that error is 0.19
-  (0.155 before). A stutter step at the event length that is steeper
+  (0.155 before). Tolerated wild-type share at the default limit (synthetic,
+  three seeds, share of seeds still `supported`): log-linear HiFi-like stutter
+  1/3 at 20% and none from 25%; the D1-shaped step none from 20%; the
+  saturating ONT "+" shape (shift background after the guard) 3/3 up to 25%
+  and none at 30%. A wild-type share of 25% or less on such ONT data can
+  therefore pass as a pure dupC, with either background. A stutter step at the event length that is steeper
   than any trend in the sample's shorter runs cannot be predicted from those
   runs, and run length alone cannot tell it apart from a C7/C8 mixture;
   `event_max_alternative_frac` stays a calibration trade-off.

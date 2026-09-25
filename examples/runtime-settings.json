@@ -141,6 +141,7 @@
     "hp_stutter_min_class_runs": 2,
     "hp_stutter_min_class_reads": 200,
     "hp_stutter_max_growth": 3.0,
+    "hp_stutter_max_event_confusion": 0.3,
     "qc_residual_min_run": 3,
     "event_context_units": 1.0,
     "event_max_alternative_frac": 0.25,

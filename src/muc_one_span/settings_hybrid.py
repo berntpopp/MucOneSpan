@@ -94,6 +94,16 @@ class HybridSettings:
     hp_stutter_min_class_runs: int = 2
     hp_stutter_min_class_reads: int = 200
     hp_stutter_max_growth: float = 3.0
+    # Fix round 1 (identifiability guard): an event-allele profile that is not measured
+    # (extrapolated or moved from another length) may put at most
+    # hp_stutter_max_event_confusion of its mass on the no-event run length; above it,
+    # the event allele would be read as the no-event allele so often that a mixture
+    # could pass as the pure event, and that strand falls back to the shift model.
+    # Extrapolated shares at the no-event length in the development data: 0.03-0.19 on
+    # every identifiable strand (simulated HiFi D1/HD4 0.17-0.19, real ONT "-" 0.10-0.11)
+    # and 0.42-0.55 where ONT "+" stutter saturates (real PRJEB92208 MP1-4 0.46-0.55;
+    # synthetic 0.42-0.46). 0.3 lies between the groups. 1 disables the guard.
+    hp_stutter_max_event_confusion: float = 0.3
     qc_residual_min_run: int = 3
     # Task 13b: an event must beat the read-derived alternative at its site. Reads are
     # compared over the event unit extended by event_context_units repeat units on each
@@ -283,6 +293,7 @@ class HybridSettings:
         _integer("hybrid.hp_stutter_min_class_runs", self.hp_stutter_min_class_runs, 1)
         _integer("hybrid.hp_stutter_min_class_reads", self.hp_stutter_min_class_reads, 1)
         _number("hybrid.hp_stutter_max_growth", self.hp_stutter_max_growth, 1)
+        _number("hybrid.hp_stutter_max_event_confusion", self.hp_stutter_max_event_confusion, 0, 1)
         _integer("hybrid.polish_max_reads", self.polish_max_reads, 1)
         _integer("hybrid.qc_residual_max_reads", self.qc_residual_max_reads, 1)
         _number("hybrid.polish_partial_min_units", self.polish_partial_min_units, 0)

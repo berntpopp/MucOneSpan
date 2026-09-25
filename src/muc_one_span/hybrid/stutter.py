@@ -23,6 +23,19 @@ strand, the profile of a length is chosen in this order (``hp_stutter_model =
 4. Otherwise the pre-15f rule: the no-event allele uses whatever its own length's
    peer runs show, and the event allele that profile shifted by the event.
 
+A length whose peer runs are enough but whose observations on a strand are fewer
+than ``hp_stutter_min_class_reads`` is treated as unmeasured on that strand: a
+profile from so few reads is dominated by the pseudocount (nearly uniform), which
+makes the two alleles harder to tell apart, whereas rules 2-4 build on well-measured
+lengths and the identifiability guard below.
+
+**Identifiability guard.** An event-allele profile that is not measured (rules 2-3)
+may put at most ``hp_stutter_max_event_confusion`` of its mass on the no-event run
+length; otherwise that strand falls back to rule 4 (the shift model). Saturating
+stutter (real ONT "+" reads: deletion 10% at C6, 26% at C7, but 21% at a true C8)
+would otherwise extrapolate to a C8 allele read as C7 about as often as C8, and a
+wild-type/dupC mixture would pass as a pure dupC.
+
 Lengths are per base; there is no pooling across bases. ``hp_stutter_model =
 "shift"`` is the pre-15f model (rule 4 for both alleles). Every tunable is a
 validated ``HybridSettings`` field.
@@ -153,6 +166,7 @@ def allele_profiles(
         return smooth(c, s)
 
     def profile(strand: str, length: int) -> list[float] | None:
+        """Rules 1-3; None when no length of the base is measured on the strand."""
         found: dict[int, list[float]] = {}
         order = sorted(range(MIN_RUN, s.hp_max_run_len + 1), key=lambda m: (abs(m - length), m))
         for m in order:
@@ -171,5 +185,14 @@ def allele_profiles(
         return event, none
     for st in sorted(strands):
         none[st] = profile(st, none_len) or none[st]
-        event[st] = profile(st, event_len) or shift(none[st], d)
+        fallback = shift(none[st], d)
+        candidate = profile(st, event_len)
+        if candidate is None:
+            event[st] = fallback
+        elif measured(event_len, st) is not None or (
+            candidate[min(none_len, len(candidate) - 1)] <= s.hp_stutter_max_event_confusion
+        ):
+            event[st] = candidate
+        else:
+            event[st] = fallback
     return event, none

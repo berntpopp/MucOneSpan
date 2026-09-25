@@ -137,7 +137,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
   shifted background). A length without `hybrid.hp_stutter_min_class_runs`
   peer runs and `hybrid.hp_stutter_min_class_reads` observations is
   extrapolated from the two nearest measured lengths, with the per-base growth
-  capped at `hybrid.hp_stutter_max_growth`. A true dupC with heavy C8 deletion
+  capped at `hybrid.hp_stutter_max_growth`; an extrapolated event profile that
+  puts more than `hybrid.hp_stutter_max_event_confusion` of its mass on the
+  no-event length falls back to the shift model on that strand. A true dupC with heavy C8 deletion
   stutter is no longer rated a C7/C8 mixture (simulated HiFi D1/HD4
   alternative share 0.263/0.284 -> 0.140/0.187; `event_max_alternative_frac`
   unchanged).
