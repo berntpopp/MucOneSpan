@@ -1,5 +1,6 @@
 """Strict MucOneUp adapter fixtures, independent of generated data."""
 
+import gzip
 import json
 from dataclasses import replace
 
@@ -128,3 +129,31 @@ def test_metadata_nominal_molecules_are_separate_from_stale_coverage(tmp_path):
     assert result.provenance["retained_records"] is None
     assert result.provenance["read_simulation_seed"] == 9101
     assert result.provenance["read_metadata"]["Coverage"] == "30"
+
+
+_READ_TRUTH_HEADER = (
+    "read_id\thap\tmolecule\tkind\tstrand\tsrc_start\tsrc_end\tn_hp_edits\thp_edits\tdetail\n"
+)
+
+
+def test_read_truth_manifest_marked_available(tmp_path):
+    rd = fixture(tmp_path)
+    with gzip.open(tmp_path / "x_read_truth.tsv.gz", "wt") as fh:
+        fh.write(_READ_TRUTH_HEADER)
+    truth = load_truth(tmp_path, rd)
+    assert truth.provenance["read_source_truth"] == "available"
+    assert "x_read_truth.tsv.gz" in truth.hashes
+
+
+def test_read_truth_manifest_missing_or_ambiguous_is_unavailable(tmp_path):
+    rd = fixture(tmp_path)
+    truth = load_truth(tmp_path, rd)
+    assert truth.provenance["read_source_truth"] == "unavailable"
+    assert not any(name.endswith("_read_truth.tsv.gz") for name in truth.hashes)
+
+    for name in ("x_read_truth.tsv.gz", "y_read_truth.tsv.gz"):
+        with gzip.open(tmp_path / name, "wt") as fh:
+            fh.write(_READ_TRUTH_HEADER)
+    truth = load_truth(tmp_path, rd)
+    assert truth.provenance["read_source_truth"] == "unavailable"
+    assert not any(name.endswith("_read_truth.tsv.gz") for name in truth.hashes)

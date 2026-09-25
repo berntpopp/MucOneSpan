@@ -7,6 +7,85 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+### Added
+
+- MucSim-Bench, a realistic simulated benchmark (`scripts/benchsim.py`,
+  `muc_one_span.benchsim`): stratified designs for three profiles (HiFi
+  uncalibrated), generation with MucOneUp >= 0.45.0 kept outside Git, engine runs
+  that keep failed cases in the denominator, cluster-bootstrap stratified reports,
+  a failure atlas and a pre-registered decision rule for a sealed `test` split.
+- Realism report against public PRJEB92208 aggregate targets; the optional
+  `bench` extra provides edlib for it.
+- Every benchmark tunable is a validated setting (`benchsim.bench_config`).
+  `--bench-config` overrides it, and the settings hash is recorded per case
+  and report. Regular splits cap smear plus chimera at the real off-peak
+  maximum; smear 0.5 moved to `stress`.
+- Amplicon template sizing floors the minor-allele share at
+  `amount.min_minor_share`. Floored cases record `amount_capped`, and every
+  amplicon case records the floor used (`min_minor_share`).
+- Event targets are clamped off the conserved head (units 1-5) and tail
+  (units 6-9) and recorded as `target_clamped`. Too-short alleles are
+  `design_invalid`.
+- MucSim-Bench guide (`docs/benchmark.md`).
+- MucSim-Bench reason atlas. `evaluate` keeps each sample's clinical reason list
+  (`clinical.reasons`) and evaluator `reconstruction_flags`; `report` tabulates
+  normalised reasons by profile and design stratum and splits INCONCLUSIVE
+  cases into resolvable and expected (split or depth below the caller's
+  per-allele gate), with every threshold in the `atlas` bench-config section.
+  Cases without a recorded depth are counted as `depth_unknown`.
+- `generate` reuse is checked against `bench_generation_sha256` (design,
+  amount, profiles and structures settings only), so report-, realism-, run- or
+  atlas-only changes no longer invalidate generated cases.
+- MucSim-Bench benchmark sets (`sets` bench-config section, `design --set`):
+  the realistic `standard` headline set (depths 500-2000 ONT amplicon, 200-1000
+  HiFi, 30-100 genomic; calibrated error; no or calibrated PCR bias; typical
+  smear and chimera), a `clean` control and a `stress` set with the former
+  harsh mix. Design IDs carry the set name, sets of a split share their
+  haplotypes, `report` and `realism` write one section per set (headline
+  first), and the decision rule (now v3) applies to the headline set only.
+  Realism results are labelled indicative. The per-split smear levels and the
+  `design` depth, PCR, error and chimera levels moved into the sets.
+- `profiles.simulator_threads` bounds the threads of MucOneUp's simulator tools
+  per generated case (written into every profile variant), so `generate --jobs`
+  sets a predictable core budget.
+- Benchmark sets also fix concatemer and off-target levels (`clean` has no
+  molecule artefact at all); the generation hash covers only a case's own set
+  levels and ignores `simulator_threads`; the reason atlas treats the `stress`
+  set as expected (`atlas.expected_inconclusive_sets`).
+  `bench_config_sha256` stays the full provenance hash.
+- Owner-approved absolute targets in the decision rule (`targets` bench-config
+  section, task 12e): a candidate must, on top of beating the baseline, clear
+  a fixed floor or ceiling per bench set on `pathogenic_rate`,
+  `inconclusive_rate` and `false_positive_rate` (`clean` >= 0.90 / <= 0.10 /
+  <= 0, `standard` >= 0.80 / <= 0.20 / <= 0; `stress` has none), judged on the
+  point estimate or a Clopper-Pearson CI bound (`targets.basis`). `report`
+  evaluates every configured target for the candidate, pooled per set and per
+  profile, and writes a pass/fail table to `report.md` and `report.json`
+  (`decision.targets`); adoption now needs the relative rule and every named
+  set's targets to pass. The decision rule is now v4; a changed threshold,
+  comparator, basis or set membership needs a new pre-registration.
+- Benchmark final-review fixes. `first_evaluation.json` records the rule that
+  unsealed `test`, and only that rule is accepted afterwards. `generate` also
+  refuses to reuse a case whose MucOneUp version, base read profile, MucOneUp
+  config or `--flank-fasta` hash differs or is not recorded. A targeted set with
+  no cases in the output root is reported as "not present" (it still blocks
+  adoption), and `report.json` holds target tables for every engine, including
+  reports without a decision. `report.json` also records harness and caller
+  provenance (`run` writes `caller.json`). Manifests merge rows by `design_id`.
+  A caller crash is `execution_failed`. A realism `IndexError` is recorded for
+  its case. Engines scored on different cases give a clean `report` error. The
+  `bench` extra now requires `edlib>=1.3.9` on every Python version, and on
+  3.14 edlib builds from source.
+- Task C1 owner ruling (2026-09-25): the relative false-positive
+  non-inferiority margin (`report.ni_margin`) is dropped from the decision
+  rule -- at the planned `test` size (280 normals per profile) its Newcombe
+  upper bound could never clear a meaningful margin, even with 0 observed
+  false positives in both engines. The false-positive `PATHOGENIC` rate is now
+  judged solely by Part 2's absolute `false_positive_rate` targets, and is
+  reported per profile with a Clopper-Pearson interval for information only.
+  A bench config still naming `report.ni_margin` is rejected. The decision
+  rule is now v5; a fresh `test` pre-registration is required.
+
 ## [0.16.1] - 2026-09-24
 
 ### Fixed

@@ -117,7 +117,10 @@ def _load(root: Path, rd: RepeatDictionary) -> TruthSample:
         warnings.append("missing_seed")
     _read_provenance(root, provenance, paths)
     provenance["vntr_coverage"] = stats.get("vntr_coverage", {})
-    provenance["read_source_truth"] = "unavailable"
+    manifests = sorted(root.glob("*_read_truth.tsv.gz"))
+    provenance["read_source_truth"] = "available" if len(manifests) == 1 else "unavailable"
+    if len(manifests) == 1:
+        paths.append(manifests[0])
     warnings.append("nominal_coverage_is_not_retained_molecules")
     haplotypes = []
     used_units: set[str] = set()
