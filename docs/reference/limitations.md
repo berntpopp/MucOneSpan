@@ -265,7 +265,10 @@ are not a calibration or release claim.
   the estimated alternative share of the true dupC fell from 0.263/0.284 (the
   former shifted background) to 0.140/0.187: supported at the default, but
   closer to the limit than on real ONT amplicon reads (PRJEB92208 dupC
-  positives, 0.08-0.09). A stutter step at the event length that is steeper
+  positives, 0.08-0.10). The one consensus-error dupC in the simulated panels
+  (a spurious C8 over a 52:47 C8/C7 read split) stayed `discordant` at 0.379
+  (0.439 before), so the margin between true events and that error is 0.19
+  (0.155 before). A stutter step at the event length that is steeper
   than any trend in the sample's shorter runs cannot be predicted from those
   runs, and run length alone cannot tell it apart from a C7/C8 mixture;
   `event_max_alternative_frac` stays a calibration trade-off.
