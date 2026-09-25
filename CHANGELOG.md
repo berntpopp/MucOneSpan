@@ -76,6 +76,15 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
   its case. Engines scored on different cases give a clean `report` error. The
   `bench` extra now requires `edlib>=1.3.9` on every Python version, and on
   3.14 edlib builds from source.
+- Task C1 owner ruling (2026-09-25): the relative false-positive
+  non-inferiority margin (`report.ni_margin`) is dropped from the decision
+  rule -- at the planned `test` size (280 normals per profile) its Newcombe
+  upper bound could never clear a meaningful margin, even with 0 observed
+  false positives in both engines. The false-positive `PATHOGENIC` rate is now
+  judged solely by Part 2's absolute `false_positive_rate` targets, and is
+  reported per profile with a Clopper-Pearson interval for information only.
+  A bench config still naming `report.ni_margin` is rejected. The decision
+  rule is now v5; a fresh `test` pre-registration is required.
 
 ## [0.16.0] - 2026-09-24
 

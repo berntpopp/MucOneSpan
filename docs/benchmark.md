@@ -137,7 +137,7 @@ python scripts/benchsim.py --bench-config my-bench.json design --split dev --n 3
 | `profiles.simulator_threads` | 2 | Threads per case for MucOneUp's simulator tools (written to each profile variant as `pacbio_params.threads` or `ont_amplicon_params.threads`); `generate --jobs` times this is the approximate core use. A run-time knob: excluded from the generation hash and the variant's content address |
 | `structures.rare_fraction`, `rare_usage_max`, `stationary_steps` | 0.10, 0.01, 2000 | Rare-unit structures |
 | `realism.*` | see the realism section | Metric definitions and tolerances |
-| `report.alpha`, `ni_margin` | 0.05, 0.005 | Decision rule and interval level |
+| `report.alpha` | 0.05 | Decision rule and interval level |
 | `report.bootstrap_replicates`, `bootstrap_seed` | 2000, 0 | Cluster bootstrap |
 | `targets.basis` | point | How a target is judged: `point` estimate or `ci_bound` (Clopper-Pearson) |
 | `targets.by_set` | `standard`, `clean` (see [Decision rule](#decision-rule)) | Owner-approved absolute targets (`pathogenic_rate`, `inconclusive_rate`, `false_positive_rate`) per bench set; `stress` has none |
@@ -207,18 +207,22 @@ SHA-256, registration and first-evaluation times) is copied into each
 
 ### Decision rule
 
-Adopt a candidate engine over the baseline only if **both** parts hold (v4,
-task 12e).
+Adopt a candidate engine over the baseline only if **both** parts hold (v5,
+task 12e, task C1 owner ruling 2026-09-25).
 
 **Part 1, the relative rule**, decided on the headline set
 (`sets.headline`, default `standard`) only: for every profile, the candidate
 is superior on per-allele exact sequence (exact two-sided McNemar on paired
 truth alleles, Holm-adjusted across the three primary metrics at alpha 0.05),
-non-inferior on the false-positive `PATHOGENIC` rate among normal and benign
-truths (Newcombe one-sided 95% upper bound of the difference below 0.5
-percentage points), and calls no more pathogenic truths
-`NO_PATHOGENIC_VARIANT_DETECTED` or `NO_CALL` than the baseline. The numbers
-are `report.alpha` and `report.ni_margin`.
+and calls no more pathogenic truths `NO_PATHOGENIC_VARIANT_DETECTED` or
+`NO_CALL` than the baseline. The number is `report.alpha`. The false-positive
+`PATHOGENIC` rate among normal and benign truths is no longer part of the
+relative rule (task C1 owner ruling: a relative non-inferiority margin small
+enough to be meaningful could never be cleared at the planned `test` size,
+280 normals per profile, even with 0 observed false positives in both
+engines). It is reported per profile with a Clopper-Pearson interval for
+information only, and is judged solely by Part 2's absolute
+`false_positive_rate` targets below.
 
 **Part 2, the absolute targets** (owner-approved 2026-09-25): the candidate
 alone (no baseline comparison) must clear a fixed floor or ceiling per bench

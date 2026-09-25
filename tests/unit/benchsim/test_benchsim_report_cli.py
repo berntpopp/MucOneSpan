@@ -451,8 +451,8 @@ def test_only_the_unlocking_rule_can_report_on_test(
     _split(tmp_path, "test")
     (tmp_path / "data" / "results" / "test" / "ladder").mkdir(parents=True)
     other = tmp_path / "other.json"
-    margin = DEFAULT_BENCH_CONFIG.report.ni_margin * 2
-    other.write_text(json.dumps({"schema_version": 1, "report": {"ni_margin": margin}}))
+    alpha = DEFAULT_BENCH_CONFIG.report.alpha / 2
+    other.write_text(json.dumps({"schema_version": 1, "report": {"alpha": alpha}}))
     root = ["--out-root", str(tmp_path / "data")]
     cli.main(["preregister", *root])
     cli.main(["--bench-config", str(other), "preregister", *root])

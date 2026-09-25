@@ -52,6 +52,10 @@ def test_json_overlays_defaults_and_coerces_lists(tmp_path: Path) -> None:
     [
         ({"schema_version": 1, "nope": {}}, "unknown bench config sections"),
         ({"schema_version": 1, "report": {"nope": 1}}, "unknown report fields"),
+        # Task C1: `report.ni_margin` (the relative FP non-inferiority margin) was
+        # dropped from the decision rule; a config still naming it is rejected, not
+        # silently ignored.
+        ({"schema_version": 1, "report": {"ni_margin": 0.005}}, "unknown report fields"),
         ({"report": {}}, "schema_version"),
         ({"schema_version": 1, "report": {"alpha": 0}}, "report.alpha"),
         ({"schema_version": 1, "structures": []}, "JSON object"),

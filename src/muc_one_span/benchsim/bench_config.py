@@ -276,16 +276,22 @@ class RealismConfig:
 
 @dataclass(frozen=True)
 class ReportConfig:
-    """Decision-rule and interval parameters (spec section 6, `report`)."""
+    """Decision-rule and interval parameters (spec section 6, `report`).
+
+    The false-positive rate is no longer judged by a relative non-inferiority
+    margin (owner ruling, task C1, 2026-09-25: the margin small enough to be
+    meaningful could never be cleared at the planned `test` size). It is
+    reported per profile with a Clopper-Pearson interval for information only;
+    the decision rule judges it solely through the absolute `targets.by_set`
+    `false_positive_rate` entries (`report.decide`, `report.rule_text`).
+    """
 
     alpha: float = 0.05
-    ni_margin: float = 0.005  # non-inferiority margin on the FP rate difference
     bootstrap_replicates: int = 2000
     bootstrap_seed: int = 0
 
     def __post_init__(self) -> None:
         _num("report.alpha", self.alpha, 0, 0.5, open_lo=True)
-        _num("report.ni_margin", self.ni_margin, 0, 1, open_lo=True)
         _int("report.bootstrap_replicates", self.bootstrap_replicates, 1)
         _int("report.bootstrap_seed", self.bootstrap_seed, 0)
 
