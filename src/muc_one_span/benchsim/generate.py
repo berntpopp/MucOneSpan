@@ -102,19 +102,19 @@ def _write_json(path: Path, data: dict[str, Any]) -> None:
 def write_manifest(split_dir: Path, cases: list[dict[str, Any]]) -> Path:
     """Write ``manifest.jsonl`` with one case per line, sorted by ``design_id``.
 
-    Rows already in the manifest are kept when their benchmark set
-    (``bench_set``; ``None`` before sets existed) is not among the sets of
-    ``cases``, so generating one set replaces only that set's rows.
+    Rows are merged by ``design_id``: a row in ``cases`` replaces the manifest row
+    with the same id, and every other row already in the manifest is kept, so
+    generating part of a set (for example one profile) never drops the rest.
     """
     split_dir.mkdir(parents=True, exist_ok=True)
     path = split_dir / "manifest.jsonl"
     tmp = path.with_suffix(".tmp")
-    sets = {c.get("bench_set") for c in cases}
-    kept = []
+    merged: dict[str, dict[str, Any]] = {}
     if path.is_file():
         old = [json.loads(line) for line in path.read_text().splitlines() if line.strip()]
-        kept = [c for c in old if c.get("bench_set") not in sets]
-    rows = sorted([*kept, *cases], key=lambda c: str(c["design_id"]))
+        merged = {str(c["design_id"]): c for c in old}
+    merged.update({str(c["design_id"]): c for c in cases})
+    rows = [merged[k] for k in sorted(merged)]
     tmp.write_text("".join(json.dumps(c, sort_keys=True) + "\n" for c in rows))
     tmp.replace(path)
     return path
@@ -366,14 +366,33 @@ def _commit(
         )
 
 
+def simulator_provenance(design: Design, ctx: GenerateContext) -> dict[str, Any]:
+    """What produced a case besides its design and settings: MucOneUp and its local inputs.
+
+    The MucOneUp version, and the SHA-256 of the base read profile, the MucOneUp
+    config and the ``--flank-fasta`` file (``None`` without one). All are known
+    before simulation, so `_check_reusable` can compare them on resume.
+    """
+    base = ctx.profile_dir / f"{BUILTIN_PROFILE[design.profile]}.json"
+    return {
+        "muconeup_version": ctx.muconeup_version,
+        "base_profile_sha256": compute_sha256(base),
+        "muconeup_config_sha256": compute_sha256(ctx.config),
+        "flank_fasta_sha256": compute_sha256(ctx.flank_fasta) if ctx.flank_fasta else None,
+    }
+
+
 def _check_reusable(
     saved: dict[str, Any], design: Design, ctx: GenerateContext, case_dir: Path
 ) -> None:
-    """Refuse to reuse a completed case made from another design or generation settings.
+    """Refuse to reuse a completed case made from another design, settings or simulator.
 
     Only `BenchConfig.generation_sha256` is compared, so report-, realism-, run- or
     atlas-only changes keep cases reusable. A case written before that hash existed
-    is reused only when its full ``bench_config_sha256`` matches.
+    is reused only when its full ``bench_config_sha256`` matches. The
+    `simulator_provenance` (MucOneUp version, base read profile, MucOneUp config and
+    flank FASTA hashes) must match too; a case that does not record one of them is
+    refused, since what produced it cannot be verified.
     """
     current = json.loads(json.dumps(design.to_dict()))
     problems = []
@@ -386,6 +405,11 @@ def _check_reusable(
         saved_hash, current_hash = saved.get("bench_config_sha256"), ctx.bench.sha256()
     if saved_hash != current_hash:
         problems.append(f"generation settings sha256 {saved_hash} != {current_hash}")
+    for key, value in simulator_provenance(design, ctx).items():
+        if key not in saved:
+            problems.append(f"{key} not recorded")
+        elif saved[key] != value:
+            problems.append(f"{key} {saved[key]} != {value}")
     if problems:
         raise StaleCaseError(
             f"{case_dir} was generated under other inputs ({'; '.join(problems)}); "
@@ -396,8 +420,8 @@ def _check_reusable(
 def generate_case(design: Design, ctx: GenerateContext) -> dict[str, Any]:
     """Generate, validate and record one case; returns the ``case.json`` dict.
 
-    A verified-complete case is reused only if its design and generation
-    settings match (`_check_reusable`); otherwise `StaleCaseError` is raised and nothing is overwritten.
+    A verified-complete case is reused only if its design, generation settings and
+    simulator provenance match (`_check_reusable`); otherwise `StaleCaseError` is raised and nothing is overwritten.
     """
     split_dir = (ctx.out_root / design.split).resolve()
     case_dir = split_dir / design.design_id
@@ -418,7 +442,7 @@ def generate_case(design: Design, ctx: GenerateContext) -> dict[str, Any]:
         "bench_set": design.bench_set,
         "profile": design.profile,
         "design": design.to_dict(),
-        "muconeup_version": ctx.muconeup_version,
+        **simulator_provenance(design, ctx),
         "bench_config_sha256": ctx.bench.sha256(),
         "bench_generation_sha256": ctx.bench.generation_sha256(design.bench_set, design.profile),
         "target_clamped": design.target_clamped,

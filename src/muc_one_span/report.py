@@ -20,13 +20,13 @@ except ImportError:
 from typing import Any
 
 from muc_one_span.clinical_gates import (
-    LEGACY_MIN_TOTAL_READS,
     LOW_DEPTH_STATUSES,
     allele_gate_reasons,
     depth_assessed,
     depth_gate_failure,
     mutation_blockers,
 )
+from muc_one_span.decision_settings import resolve_decision_settings
 from muc_one_span.nomenclature import enrich_mutation_record
 from muc_one_span.report_assets import (
     REPORT_IGV_MODES,
@@ -34,6 +34,8 @@ from muc_one_span.report_assets import (
     igv_payload,
     igv_provenance,
 )
+from muc_one_span.settings import ClinicalDecisionSettings
+from muc_one_span.stage_concordance import stage_concordance_caveats, stage_concordance_reasons
 from muc_one_span.version import __version__
 
 
@@ -81,7 +83,10 @@ def _execution_context(summary: dict, execution_status: dict | None) -> dict[str
 
 
 def compute_clinical_decision(
-    summary: dict[str, Any], *, execution_status: dict | None = None
+    summary: dict[str, Any],
+    *,
+    execution_status: dict | None = None,
+    settings: ClinicalDecisionSettings | None = None,
 ) -> dict[str, Any]:
     """Derive the 3-state clinical decision banner after all evidence gates.
 
@@ -91,8 +96,13 @@ def compute_clinical_decision(
     resolved allele selection, genotype and length, adequate depth and no
     uncertain observed event. Legacy summaries without per-allele depth fall
     back to the total-read threshold.
+
+    ``settings`` overrides thresholds recorded on *summary* (see
+    ``decision_settings.resolve_decision_settings``); the resolved values and
+    their source are returned under ``"thresholds"``.
     """
     execution = _execution_context(summary, execution_status)
+    decision_settings, threshold_source = resolve_decision_settings(summary, settings)
     classifications = summary.get("classifications", {})
     alleles = summary.get("alleles", {})
     a1 = alleles.get("allele_1", {}) if isinstance(alleles, dict) else {}
@@ -100,7 +110,11 @@ def compute_clinical_decision(
     carriers = {"allele_1": a1, "allele_2": a2}
     assessed = depth_assessed([a1, a2])
     total_reads = (a1.get("reads", 0) or 0) + (a2.get("reads", 0) or 0)
-    low_coverage = not assessed and total_reads < LEGACY_MIN_TOTAL_READS and (bool(a1) or bool(a2))
+    low_coverage = (
+        not assessed
+        and total_reads < decision_settings.legacy_min_total_reads
+        and (bool(a1) or bool(a2))
+    )
 
     pathogenic_mutations: list[dict[str, Any]] = []
     uncertain_mutations: list[dict[str, Any]] = []
@@ -156,9 +170,17 @@ def compute_clinical_decision(
                     f"{a_key}: Candidate reconstruction not separately resolved."
                 )
 
-    selection_reasons = allele_gate_reasons(
-        a1, "Allele 1", assessed=assessed
-    ) + allele_gate_reasons(a2, "Allele 2", assessed=assessed)
+    selection_reasons = (
+        allele_gate_reasons(a1, "Allele 1", assessed=assessed)
+        + allele_gate_reasons(a2, "Allele 2", assessed=assessed)
+        + stage_concordance_reasons(a1, "Allele 1")
+        + stage_concordance_reasons(a2, "Allele 2")
+    )
+    stage_caveats = [
+        f"Quality caveat: {caveat}"
+        for caveat in stage_concordance_caveats(a1, "Allele 1")
+        + stage_concordance_caveats(a2, "Allele 2")
+    ]
 
     if pathogenic_mutations:
         state = "PATHOGENIC"
@@ -192,6 +214,7 @@ def compute_clinical_decision(
         details.extend(
             f"Quality caveat: {reason}" for reason in selection_reasons + reconstruction_reasons
         )
+        details.extend(stage_caveats)
         summary_text = (
             "A pathogenic frameshift variant was identified in the MUC1 VNTR region. "
             "This finding is consistent with autosomal dominant tubulointerstitial "
@@ -203,7 +226,7 @@ def compute_clinical_decision(
         )
     elif (
         low_coverage
-        or ambiguous_bases > 10
+        or ambiguous_bases > decision_settings.max_ambiguous_bases
         or execution["warning"] is not None
         or bool(uncertain_mutations)
         or bool(reconstruction_reasons)
@@ -220,9 +243,9 @@ def compute_clinical_decision(
         if low_coverage:
             reasons.append(
                 f"Total read depth ({total_reads} reads) is below diagnostic threshold "
-                f"({LEGACY_MIN_TOTAL_READS} reads)."
+                f"({decision_settings.legacy_min_total_reads} reads)."
             )
-        if ambiguous_bases > 10:
+        if ambiguous_bases > decision_settings.max_ambiguous_bases:
             reasons.append(
                 f"High number of ambiguous consensus bases ({ambiguous_bases}) detected."
             )
@@ -240,6 +263,7 @@ def compute_clinical_decision(
         reasons.extend(selection_reasons)
         if not reasons:
             reasons.append("Quality control metrics did not meet validation standards.")
+        reasons.extend(stage_caveats)
         summary_text = (
             "The test result is inconclusive due to execution, quality or coverage limitations. "
             "No definitive clinical call can be rendered."
@@ -262,6 +286,7 @@ def compute_clinical_decision(
         details = [
             f"Allele 1: {a1.get('length', 'N/A')} repeats ({a1.get('canonical_repeats', 'N/A')} canonical units) - {a1.get('reads', 0)} reads",
             f"Allele 2: {a2.get('length', 'N/A')} repeats ({a2.get('canonical_repeats', 'N/A')} canonical units) - {a2.get('reads', 0)} reads",
+            *stage_caveats,
         ]
         recommendations = (
             "A negative result significantly reduces the likelihood of ADTKD-MUC1 caused by "
@@ -300,6 +325,11 @@ def compute_clinical_decision(
         "details": details,
         "recommendations": recommendations,
         "multiplicity_caveat": multiplicity_caveat,
+        "thresholds": {
+            "max_ambiguous_bases": decision_settings.max_ambiguous_bases,
+            "legacy_min_total_reads": decision_settings.legacy_min_total_reads,
+            "source": threshold_source,
+        },
     }
 
 

@@ -18,7 +18,11 @@ from muc_one_span.benchsim.stats import (
 )
 
 R = DEFAULT_BENCH_CONFIG.report
-A, M = R.alpha, R.ni_margin
+A = R.alpha
+# `noninferior` is a general Newcombe hybrid-score utility, no longer wired into any
+# bench-config-driven decision (task C1 dropped the relative FP margin from `report.decide`);
+# its margin is an arbitrary fixed value here, purely to exercise the algorithm.
+M = 0.005
 
 
 def test_clopper_pearson_reference() -> None:

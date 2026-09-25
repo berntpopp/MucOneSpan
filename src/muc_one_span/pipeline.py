@@ -125,6 +125,7 @@ def execute_pipeline(
         settings=settings.allele_selection,
         reference_layout=settings.reference_layout,
         platform=settings.run.platform,
+        repeat_length_bp=rd.repeat_length_bp,
     )
     annotate_selection_qc(alleles_result, settings.allele_selection)
     (out / "alleles.json").write_text(json.dumps(alleles_result, indent=2) + "\n")

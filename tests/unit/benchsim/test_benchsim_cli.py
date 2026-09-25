@@ -10,6 +10,7 @@ from typing import Any
 import pytest
 
 from muc_one_span.benchsim.bench_config import DEFAULT_BENCH_CONFIG
+from muc_one_span.version import __version__
 
 SCRIPT = Path(__file__).resolve().parents[3] / "scripts" / "benchsim.py"
 
@@ -250,6 +251,9 @@ def test_run_derives_engines_results_root_and_models(
     _, engines, results_root, threads, jobs = calls[0]
     assert engines == ["ladder"] and threads == 4 and jobs == 1
     assert results_root == tmp_path / "data" / "results" / "dev"
+    caller = json.loads((results_root / "ladder" / "caller.json").read_text())
+    assert caller["engine"] == "ladder" and caller["caller_commit"]  # fake git output
+    assert caller["caller_version"] == __version__
 
 
 def test_run_accepts_multiple_engines_and_explicit_results_root(

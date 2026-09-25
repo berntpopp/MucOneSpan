@@ -39,7 +39,7 @@ hybrid = [
     "pyspoa>=0.3.2",
 ]
 bench = [
-    "edlib>=1.3; python_version < \"3.14\"",
+    "edlib>=1.3.9",
 ]
 docs = [
     "mkdocs-material>=9.7.7",

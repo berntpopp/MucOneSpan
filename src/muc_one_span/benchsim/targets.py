@@ -21,7 +21,10 @@ Metric cohorts (`_cohort`, `TARGET_METRIC_NAMES`):
   rows (the same cohort as `report._fp_test`).
 
 A grouping with no cases in its cohort fails its target (`_judge`) rather than being
-silently skipped, so a bench set the candidate was never run on cannot pass by default.
+silently skipped. A targeted bench set with no cases at all in the evaluated output
+root is marked *not present* by `targets_by_set` (``present: False``, ``pass: None``)
+rather than FAIL; it still blocks adoption (`report.decide`), so a bench set the
+candidate was never run on cannot pass by default.
 """
 
 from __future__ import annotations
@@ -111,10 +114,38 @@ def evaluate_targets(
     return {
         "bench_set": set_name,
         "basis": config.basis,
+        "present": True,
         "profiles": profiles,
         "table": table,
         "pass": all(row["pass"] for row in table),
     }
+
+
+def targets_by_set(
+    rows: Sequence[dict[str, Any]], config: TargetsConfig, alpha: float
+) -> dict[str, dict[str, Any] | None]:
+    """`evaluate_targets` for every set in ``config.by_set``, from one engine's rows.
+
+    ``rows`` carry ``bench_set``. A targeted set with no rows (not in the evaluated
+    output root) gets ``present: False`` and ``pass: None`` instead of a failing
+    table; an untargeted set maps to ``None``.
+    """
+    out: dict[str, dict[str, Any] | None] = {}
+    for name in config.by_set:
+        sub = [r for r in rows if r.get("bench_set") == name]
+        result = evaluate_targets(sub, name, config, alpha)
+        if result is not None and not sub:
+            result = {
+                "bench_set": name,
+                "basis": config.basis,
+                "present": False,
+                "profiles": [],
+                "table": [],
+                "pass": None,
+                "reason": "no cases of this set in the evaluated output root",
+            }
+        out[name] = result
+    return out
 
 
 def targets_text(targets: TargetsConfig) -> str:
@@ -146,6 +177,8 @@ def render_targets(by_set: dict[str, dict[str, Any] | None]) -> str:
         "|---|---|---|---|---|---|---|---|",
     ]
     for set_name, res in entries:
+        if not res.get("present", True):
+            lines.append(f"| {set_name} | - | - | - | 0 cases | n/a | n/a | not present |")
         for row in res["table"]:
             symbol = _COMPARATOR_SYMBOL[row["comparator"]]
             rate = "n/a" if row["rate"] is None else f"{row['rate']:.4g}"
@@ -155,5 +188,7 @@ def render_targets(by_set: dict[str, dict[str, Any] | None]) -> str:
                 f"{symbol} {row['threshold']:g} | {row['k']}/{row['n']} | {rate} | "
                 f"{judged} | {row['pass']} |"
             )
-    verdict = ", ".join(f"{name}={res['pass']}" for name, res in entries)
+    verdict = ", ".join(
+        f"{name}={'not present' if res['pass'] is None else res['pass']}" for name, res in entries
+    )
     return "\n".join([*lines, "", f"Set verdict: {verdict}", ""])

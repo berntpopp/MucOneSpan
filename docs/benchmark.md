@@ -22,7 +22,7 @@ rule. Everything is driven by `scripts/benchsim.py`.
 | MucOneUp read profiles | `generate` | `--muconeup-profiles <MucOneUp>/muc_one_up/data/read_profiles`. |
 | pbsim3 (`pbsim`) and `ccs` | `generate` | MucOneUp calls them for read simulation, through the `tools` section of its `config.json`. |
 | minimap2, samtools, bcftools, Clair3 + models | `run` | On `PATH`, as for `muconespan run`; ONT and HiFi models via `--model-ont` / `--model-hifi` or `$CLAIR3_MODEL_ONT` / `$CLAIR3_MODEL_HIFI`. |
-| edlib (`bench` extra) | `realism` | `uv sync --extra bench`, or `make dev` (all extras). No edlib wheel exists for Python 3.14 yet; `realism` then fails with a clear error. |
+| edlib (`bench` extra) | `realism` | `uv sync --extra bench`, or `make dev` (all extras). edlib 1.3.9.post1 has no Python 3.14 wheel; on 3.14 it builds from the source distribution, which needs a C++ compiler. Without edlib, `realism` fails with a clear error. |
 
 ## Profiles
 
@@ -99,7 +99,12 @@ likewise replaces the whole default map: each set's metric names must be one
 of `pathogenic_rate`, `inconclusive_rate`, `false_positive_rate`, each with a
 `comparator` (`ge`, `le`) and a `threshold` in `[0, 1]`, and each set named
 there must be defined in `sets.definitions`. `generate` reuses a
-completed case only if its design and generation hash match. Changes to
+completed case only if its design and generation hash match, and its simulator
+provenance matches too: the MucOneUp version (`muconeup_version`) and the
+SHA-256 of the base read profile (`base_profile_sha256`), the MucOneUp config
+(`muconeup_config_sha256`) and the `--flank-fasta` file (`flank_fasta_sha256`,
+`null` without one), all recorded in `case.json`. A case that does not record
+one of them is not reused. Changes to
 `report`, `realism`, `run`, `atlas`, `targets`, `profiles.simulator_threads`,
 set names, descriptions, `sets.headline`/`default`/`legacy` or another set's
 or profile's levels keep cases reusable. A case written before the generation
@@ -132,7 +137,7 @@ python scripts/benchsim.py --bench-config my-bench.json design --split dev --n 3
 | `profiles.simulator_threads` | 2 | Threads per case for MucOneUp's simulator tools (written to each profile variant as `pacbio_params.threads` or `ont_amplicon_params.threads`); `generate --jobs` times this is the approximate core use. A run-time knob: excluded from the generation hash and the variant's content address |
 | `structures.rare_fraction`, `rare_usage_max`, `stationary_steps` | 0.10, 0.01, 2000 | Rare-unit structures |
 | `realism.*` | see the realism section | Metric definitions and tolerances |
-| `report.alpha`, `ni_margin` | 0.05, 0.005 | Decision rule and interval level |
+| `report.alpha` | 0.05 | Decision rule and interval level |
 | `report.bootstrap_replicates`, `bootstrap_seed` | 2000, 0 | Cluster bootstrap |
 | `targets.basis` | point | How a target is judged: `point` estimate or `ci_bound` (Clopper-Pearson) |
 | `targets.by_set` | `standard`, `clean` (see [Decision rule](#decision-rule)) | Owner-approved absolute targets (`pathogenic_rate`, `inconclusive_rate`, `false_positive_rate`) per bench set; `stress` has none |
@@ -168,7 +173,7 @@ MucOneSpan-bench-data/
       reads/                     # FASTQ + read_truth.tsv.gz
   test/preregistration.jsonl     # append-only decision-rule ledger
   test/first_evaluation.json     # written once, when test truth is first read
-  results/<split>/<engine>/      # engine output, inventory, evaluation.json
+  results/<split>/<engine>/      # engine output, inventory, caller.json, evaluation.json
   results/<split>/report.json, report.md
   calibration/<split>/<name>/    # `calibrate` / `calibrate-report` (dev and val only)
     calibration.json             # inputs, hashes, seeds, versions, per-point status
@@ -198,24 +203,32 @@ read `test` truth until the exact decision-rule text is pre-registered with
 `test/first_evaluation.json`. The marker is written *before* scoring starts, so
 a run that later fails still counts as unsealing; this is deliberately
 conservative. After it exists, a new pre-registration is refused, so a rule
-cannot be registered after the test truth has been seen. The audit (rule
+cannot be registered after the test truth has been seen. The marker also
+records the SHA-256 of the rule that unsealed `test` (`rule_sha256`). From then
+on `evaluate`, `report` and `realism` on `test` accept only that rule, even if
+another rule was registered before unsealing, so a second rule cannot publish a
+`test` verdict. A marker without a rule hash fails closed. The audit (rule
 SHA-256, registration and first-evaluation times) is copied into each
 `evaluation.json` and `report.json`.
 
 ### Decision rule
 
-Adopt a candidate engine over the baseline only if **both** parts hold (v4,
-task 12e).
+Adopt a candidate engine over the baseline only if **both** parts hold (v5,
+task 12e, task C1 owner ruling 2026-09-25).
 
 **Part 1, the relative rule**, decided on the headline set
 (`sets.headline`, default `standard`) only: for every profile, the candidate
 is superior on per-allele exact sequence (exact two-sided McNemar on paired
 truth alleles, Holm-adjusted across the three primary metrics at alpha 0.05),
-non-inferior on the false-positive `PATHOGENIC` rate among normal and benign
-truths (Newcombe one-sided 95% upper bound of the difference below 0.5
-percentage points), and calls no more pathogenic truths
-`NO_PATHOGENIC_VARIANT_DETECTED` or `NO_CALL` than the baseline. The numbers
-are `report.alpha` and `report.ni_margin`.
+and calls no more pathogenic truths `NO_PATHOGENIC_VARIANT_DETECTED` or
+`NO_CALL` than the baseline. The number is `report.alpha`. The false-positive
+`PATHOGENIC` rate among normal and benign truths is no longer part of the
+relative rule (task C1 owner ruling: a relative non-inferiority margin small
+enough to be meaningful could never be cleared at the planned `test` size,
+280 normals per profile, even with 0 observed false positives in both
+engines). It is reported per profile with a Clopper-Pearson interval for
+information only, and is judged solely by Part 2's absolute
+`false_positive_rate` targets below.
 
 **Part 2, the absolute targets** (owner-approved 2026-09-25): the candidate
 alone (no baseline comparison) must clear a fixed floor or ceiling per bench
@@ -235,8 +248,9 @@ object) is reported without a target, for example `stress`. The defaults:
 estimate (`"point"`, the default), or the Clopper-Pearson CI bound on the
 threshold's side (`"ci_bound"`: the lower bound for a `ge` target, the upper
 bound for a `le` target) at `report.alpha`. A bench set named in
-`targets.by_set` with no candidate cases fails its targets rather than being
-silently skipped. `report` writes a pass/fail table per (bench set, grouping,
+`targets.by_set` with no candidate cases is reported as **not present**
+(`present: false`, `pass: null`), not as FAIL. It still blocks adoption, so a set
+the candidate was never run on cannot pass by default. `report` writes a pass/fail table per (bench set, grouping,
 metric) to `report.md` and `report.json` (`decision.targets`); adoption
 requires the relative rule **and** every target of every named set to pass.
 
@@ -276,9 +290,10 @@ python scripts/benchsim.py design --split test --salt-file ~/secrets/benchsim.sa
 
 Simulates truth and reads for each design with MucOneUp and writes
 `case.json`, `truth/`, `reads/` and the split `manifest.jsonl`. Cases are
-written once; failed cases stay in the manifest with their status. The
-manifest keeps rows of other sets, so generating one set replaces only that
-set's rows.
+written once; failed cases stay in the manifest with their status. Manifest
+rows are merged by `design_id`: a generated case replaces its own row and every
+other row is kept, so generating part of a set (for example one profile) never
+drops the rest.
 
 Amplicon template counts are sized so that the PCR-disadvantaged minor allele
 reaches the design depth. With strong PCR bias and a large length difference
@@ -303,7 +318,10 @@ reads.
 ### `run`
 
 Runs the engines over a split manifest. Cases that did not generate are kept as
-`not_attempted`, so denominators never shrink. `run` is not resumable: it runs
+`not_attempted`, so denominators never shrink. A caller that raises once it has
+been invoked is recorded as `execution_failed`; both statuses score as `NO_CALL`.
+Each engine directory gets `caller.json` with the caller version and the Git
+commit of the checkout it ran from. `run` is not resumable: it runs
 every case again, so remove `results/<split>/<engine>/` before a clean rerun.
 `--jobs` times `--threads` is the approximate core use. `--config FILE`
 passes a runtime settings file to every run as `muconespan --config FILE`; the
@@ -356,6 +374,23 @@ headline-set cases the decision rule is not applied. When it is, `decision.targe
 (`report.json`) and "Part 2: absolute targets" (`report.md`) hold the task
 12e pass/fail table: one row per (bench set, grouping, metric) of
 `targets.by_set`, pooled and per profile, for the candidate alone.
+`report.json["targets"]` holds the same table for every reported engine and
+every targeted set, whether or not a decision was made. Without a decision,
+`report.md` shows it per engine as descriptive. A targeted set with no cases in
+this output root is marked not present. When a decision is made and the baseline
+and candidate were not scored on the same cases, `report` stops with an error.
+`report.json["provenance"]` records the harness version and commit, each
+engine's `caller.json`, and a count of the MucOneUp versions in the manifest.
+
+**One output root per split, holding all sets.** `report` sees only the sets in
+the given `--out-root`. For an adoption verdict, generate every set of a split
+(for example `standard`, `clean` and `stress`) into the **same** `--out-root`,
+then run, evaluate and report once. The relative rule and every set's targets
+are then decided together. If each set has its own root (per-set roots), every
+report gives that set's target table. The relative rule is decided only in the
+root that holds the headline set, and targeted sets from other roots show as
+not present there, so such a report never gives ADOPT. Combine the sets into
+one root for the decision.
 
 Each engine section starts with the **reason atlas** (`report.json` key
 `sets.<set>.atlas.<engine>`). It covers the cases whose decision is in `atlas.decisions`

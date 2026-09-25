@@ -9,6 +9,7 @@ from unittest.mock import patch
 
 import pytest
 
+from muc_one_span import alleles, ladder_clusters
 from muc_one_span.alleles import (
     PRE_AFTER_REPEAT_COUNT,
     _build_allele_info,
@@ -87,6 +88,42 @@ class TestParseIdxstats:
         counts = parse_idxstats(IDXSTATS_TWO_PEAKS)
         assert 60 in counts
         assert counts[60] == 245
+
+
+def test_cluster_helpers_are_reexported():
+    """alleles re-exports the pure cluster helpers moved to ladder_clusters.
+
+    Task 4 (#74) relocated ``AlleleInfo``, ``parse_idxstats`` and
+    ``_find_clusters`` to ``ladder_clusters`` without changing behaviour.
+    ``alleles`` must keep exposing the same objects (not copies) so existing
+    imports and monkeypatch targets keep working.
+    """
+    assert alleles.AlleleInfo is ladder_clusters.AlleleInfo
+    assert alleles.AlleleResult is ladder_clusters.AlleleResult
+    assert alleles.parse_idxstats is ladder_clusters.parse_idxstats
+    assert alleles._find_clusters is ladder_clusters._find_clusters
+
+
+def test_alleles_has_no_all_and_preserves_star_import_surface():
+    """The Task 4 split must not shrink or alter ``from alleles import *``.
+
+    ``alleles.py`` had no ``__all__`` before Task 4 (#74), so a star-import
+    pulled in every non-underscore module-level name. Re-exporting the
+    moved names must not introduce an ``__all__`` (which would silently
+    narrow that surface) and must not star-export the private
+    ``_find_clusters`` helper, even though it is directly accessible as
+    ``alleles._find_clusters`` for patch targets.
+    """
+    assert not hasattr(alleles, "__all__")
+    public_names = {n for n in vars(alleles) if not n.startswith("_")}
+    assert "_find_clusters" not in public_names
+    assert {
+        "AlleleInfo",
+        "AlleleResult",
+        "parse_idxstats",
+        "detect_alleles",
+        "refine_peak_contig",
+    } <= public_names
 
 
 class TestDetectAlleles:

@@ -57,8 +57,8 @@ from muc_one_span.benchsim.preregistration import (
     require_preregistered,
     rule_sha256,
 )
-from muc_one_span.benchsim.stats import clopper_pearson, holm, mcnemar_exact, noninferior
-from muc_one_span.benchsim.targets import evaluate_targets, render_targets, targets_text
+from muc_one_span.benchsim.stats import clopper_pearson, holm, mcnemar_exact
+from muc_one_span.benchsim.targets import render_targets, targets_by_set, targets_text
 
 __all__ = [
     "RULE_TEXT",
@@ -94,28 +94,30 @@ STRATA = (
 ALLELE_UNIT = ("sample", "allele")
 
 _RULE_TEMPLATE = (
-    "MucSim-Bench decision rule v4 (spec section 6, plus the task 12e absolute targets). "
-    "Adopt the candidate engine over the baseline only if both parts hold. Part 1, the "
-    "relative rule, is decided on the `{headline}` benchmark set only (other sets are "
-    "reported descriptively and never decide it): for every profile, (1) the candidate is "
-    "superior on per-allele exact sequence (unit: each truth allele of each case, exact "
-    "under the least favourable optimal assignment with independent haplotype evidence), "
-    "by exact two-sided McNemar on allele pairs (same (design_id, truth allele) keys for "
-    "both engines), Holm-adjusted across the primary family {{allele_exact, false_positive, "
-    "critical_false_negative}} at alpha {alpha:g}, with more candidate-only than "
-    "baseline-only exact alleles; (2) it is non-inferior on the false-positive PATHOGENIC "
-    "rate among normal and benign truths (Newcombe hybrid-score one-sided {level:g}% upper "
-    "bound of candidate minus baseline below {margin:g}); and (3) its count of pathogenic "
+    "MucSim-Bench decision rule v5 (spec section 6, plus the task 12e absolute targets and "
+    "the task C1 owner ruling). Adopt the candidate engine over the baseline only if both "
+    "parts hold. Part 1, the relative rule, is decided on the `{headline}` benchmark set "
+    "only (other sets are reported descriptively and never decide it): for every profile, "
+    "(1) the candidate is superior on per-allele exact sequence (unit: each truth allele of "
+    "each case, exact under the least favourable optimal assignment with independent "
+    "haplotype evidence), by exact two-sided McNemar on allele pairs (same (design_id, "
+    "truth allele) keys for both engines), Holm-adjusted across the primary family "
+    "{{allele_exact, false_positive, critical_false_negative}} at alpha {alpha:g}, with more "
+    "candidate-only than baseline-only exact alleles; and (2) its count of pathogenic "
     "truths called NO_PATHOGENIC_VARIANT_DETECTED or NO_CALL does not exceed the "
-    "baseline's. Pooled per-allele and case-exact rates are reported with {level:g}% "
-    "cluster-bootstrap intervals over design_id ({replicates} replicates, seed {seed}). "
-    "Failed or unattempted runs count as NO_CALL with every truth allele not exact; no "
-    "case or allele is dropped. Part 2, the absolute targets (`targets.by_set`), "
-    "{targets_text}, on the candidate alone (no baseline comparison), pooled over every "
-    "profile of that set and on each profile separately; a bench set named in "
-    "`targets.by_set` with no candidate cases fails its targets. A bench set not named in "
-    "`targets.by_set` (for example `stress`) is reported without a target. Adopt only if "
-    "the relative rule and every target of every named set pass."
+    "baseline's. The false-positive PATHOGENIC rate among normal and benign truths is not "
+    "part of the relative rule (task C1 owner ruling): it is reported per profile with a "
+    "{level:g}% Clopper-Pearson interval for information only, and is judged solely by "
+    "part 2's absolute `false_positive_rate` targets below. Pooled per-allele and "
+    "case-exact rates are reported with {level:g}% cluster-bootstrap intervals over "
+    "design_id ({replicates} replicates, seed {seed}). Failed or unattempted runs count as "
+    "NO_CALL with every truth allele not exact; no case or allele is dropped. Part 2, the "
+    "absolute targets (`targets.by_set`), {targets_text}, on the candidate alone (no "
+    "baseline comparison), pooled over every profile of that set and on each profile "
+    "separately; a bench set named in `targets.by_set` with no candidate cases is reported "
+    "as not present and blocks adoption. A bench set not named in `targets.by_set` (for "
+    "example `stress`) is reported without a target. Adopt only if the relative rule and "
+    "every target of every named set pass."
 )
 
 
@@ -134,7 +136,6 @@ def rule_text(
         headline=headline_set,
         alpha=report.alpha,
         level=float((1 - Fraction(str(report.alpha))) * PERCENT),
-        margin=report.ni_margin,
         replicates=report.bootstrap_replicates,
         seed=report.bootstrap_seed,
         targets_text=targets_text(targets),
@@ -328,36 +329,32 @@ def paired(
 def _fp_test(
     base: list[dict[str, Any]], cand: list[dict[str, Any]], cfg: ReportConfig
 ) -> dict[str, Any]:
+    """Candidate/baseline FP counts, plus the candidate's own Clopper-Pearson interval.
+
+    Informational only (task C1 owner ruling): the false-positive rate no longer gates
+    ``_profile``'s ``pass``, so this returns a rate and CI for the report rather than a
+    relative (non-inferiority) verdict. The FP criterion itself is the absolute
+    `targets.by_set` `false_positive_rate` entry, evaluated separately (`report.decide`).
+    """
+
     def eligible(rows: list[dict[str, Any]]) -> list[dict[str, Any]]:
         return [r for r in rows if r.get("normal") or r.get("benign")]
 
     b_rows, c_rows = eligible(base), eligible(cand)
-    out: dict[str, Any] = {
+    fp, n = sum(r["false_positive"] for r in c_rows), len(c_rows)
+    ci_low, ci_high = clopper_pearson(fp, n, alpha=cfg.alpha) if n else (None, None)
+    return {
         "denominator": "normal + benign truths",
-        "n": len(c_rows),
+        "n": n,
         "n_baseline": len(b_rows),
-        "fp": sum(r["false_positive"] for r in c_rows),
+        "fp": fp,
         "fp_baseline": sum(r["false_positive"] for r in b_rows),
         "no_call": sum(int(r.get("no_call", 0)) for r in c_rows),
         "no_call_baseline": sum(int(r.get("no_call", 0)) for r in b_rows),
-        "margin": cfg.ni_margin,
+        "rate": fp / n if n else None,
+        "ci_low": ci_low,
+        "ci_high": ci_high,
     }
-    if not b_rows or not c_rows:
-        return out | {
-            "diff": None,
-            "upper": None,
-            "noninferior": False,
-            "reason": "no normal or benign truths in this profile",
-        }
-    test = noninferior(
-        out["fp"],
-        len(c_rows),
-        out["fp_baseline"],
-        len(b_rows),
-        margin=cfg.ni_margin,
-        alpha=cfg.alpha,
-    )
-    return out | test
 
 
 def _profile(
@@ -373,6 +370,8 @@ def _profile(
         test["p_holm"] = adjusted[metric]
     exact = tests["allele_exact"]
     exact["superior"] = exact["c"] > exact["b"] and exact["p_holm"] < cfg.alpha
+    # Informational only (task C1): the FP rate/CI never gates `pass`; the FP criterion
+    # is the absolute `targets.by_set` `false_positive_rate` entry (`report.decide`).
     fp = _fp_test(base, cand, cfg) | {"paired": tests["false_positive"]}
     cfn = tests["critical_false_negative"]
     cfn["pass"] = cfn["k_b"] <= cfn["k_a"]
@@ -382,7 +381,7 @@ def _profile(
         "allele_exact": exact,
         "false_positive": fp,
         "critical_false_negative": cfn,
-        "pass": bool(exact["superior"] and fp["noninferior"] and cfn["pass"]),
+        "pass": bool(exact["superior"] and cfn["pass"]),
     }
 
 
@@ -403,13 +402,8 @@ def decide(
     base = [r for r in reports[baseline] if r.get("bench_set") == headline]
     cand = [r for r in reports[candidate] if r.get("bench_set") == headline]
     profiles = sorted({_key(r.get("profile")) for r in (*base, *cand)})
-    cand_all = reports[candidate]
-    target_results = {
-        name: evaluate_targets(
-            [r for r in cand_all if r.get("bench_set") == name], name, config.targets, cfg.alpha
-        )
-        for name in config.targets.by_set
-    }
+    target_results = targets_by_set(reports[candidate], config.targets, cfg.alpha)
+    not_present = [n for n, t in target_results.items() if t is not None and not t["present"]]
     result: dict[str, Any] = {
         "baseline": baseline,
         "candidate": candidate,
@@ -417,16 +411,17 @@ def decide(
         "rule_sha256": rule_sha256(rule_text(cfg, headline, config.targets)),
         "holm_family": list(HOLM_FAMILY),
         "alpha": cfg.alpha,
-        "margin": cfg.ni_margin,
         "profiles": {},
         "targets": target_results,
+        "targets_not_present": not_present,
     }
     for profile in profiles:
         b = [r for r in base if _key(r.get("profile")) == profile]
         c = [r for r in cand if _key(r.get("profile")) == profile]
         result["profiles"][profile] = _profile(b, c, cfg)
     relative_pass = bool(profiles) and all(p["pass"] for p in result["profiles"].values())
-    targets_pass = all(t["pass"] for t in target_results.values() if t is not None)
+    # A targeted set not present in these rows (pass None) blocks adoption: fail closed.
+    targets_pass = all(t["pass"] is True for t in target_results.values() if t is not None)
     result["adopt"] = relative_pass and targets_pass
     return result
 
@@ -486,13 +481,15 @@ def render_markdown(result: dict[str, Any]) -> str:
         lines += [
             "## Part 1: relative rule per profile",
             "",
-            "Metric 1 is per-allele exact sequence (McNemar on allele pairs); FP is the "
-            "PATHOGENIC rate over normal + benign truths, shown next to their no-call rate.",
+            "Metric 1 is per-allele exact sequence (McNemar on allele pairs). FP is the "
+            "PATHOGENIC rate over normal + benign truths, shown next to their no-call rate "
+            "with a Clopper-Pearson interval; it is informational only here (task C1 owner "
+            "ruling) and is judged solely by part 2's absolute `false_positive_rate` targets.",
             "",
             "| profile | cases | alleles | exact alleles base/cand | b/c | p (Holm) | superior | "
             "FP/(normal+benign) cand vs base | no-call on normal+benign cand vs base | "
-            "FP diff upper | non-inferior | crit. FN cand/base | pass |",
-            "|---|---|---|---|---|---|---|---|---|---|---|---|---|",
+            "FP rate [CI] (info) | crit. FN cand/base | pass |",
+            "|---|---|---|---|---|---|---|---|---|---|---|---|",
         ]
         for name, prof in result["profiles"].items():
             ex, fp, cfn = (
@@ -505,13 +502,17 @@ def render_markdown(result: dict[str, Any]) -> str:
                 f"{ex['b']}/{ex['c']} | {fmt_value(ex['p_holm'])} | {ex['superior']} | "
                 f"{fp['fp']}/{fp['n']} vs {fp['fp_baseline']}/{fp['n_baseline']} | "
                 f"{fp['no_call']}/{fp['n']} vs {fp['no_call_baseline']}/{fp['n_baseline']} | "
-                f"{fmt_value(fp['upper'])} | {fp['noninferior']} | {cfn['k_b']}/{cfn['k_a']} | "
+                f"{fmt_value(fp['rate'])} [{fmt_value(fp['ci_low'])}, {fmt_value(fp['ci_high'])}] | "
+                f"{cfn['k_b']}/{cfn['k_a']} | "
                 f"{prof['pass']} |"
             )
         lines.append("")
     body = "\n".join(lines) + "\n"
     if result.get("targets"):
         body += "## Part 2: absolute targets\n\n" + render_targets(result["targets"]) + "\n"
+    if result.get("targets_not_present"):
+        absent = ", ".join(f"`{n}`" for n in result["targets_not_present"])
+        body += f"Not present in this output root (adoption blocked): {absent}.\n\n"
     return body + render_tables(result.get("tables") or {})
 
 

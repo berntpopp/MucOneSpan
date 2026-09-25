@@ -1125,7 +1125,7 @@ dependencies = [
 
 [package.optional-dependencies]
 bench = [
-    { name = "edlib", marker = "python_full_version < '3.14'" },
+    { name = "edlib" },
 ]
 docs = [
     { name = "mkdocs-click" },
@@ -1173,7 +1173,7 @@ test = [
 [package.metadata]
 requires-dist = [
     { name = "click", specifier = ">=8.3.3,<9.0" },
-    { name = "edlib", marker = "python_full_version < '3.14' and extra == 'bench'", specifier = ">=1.3" },
+    { name = "edlib", marker = "extra == 'bench'", specifier = ">=1.3.9" },
     { name = "edlib", marker = "extra == 'hybrid'", specifier = ">=1.3.9" },
     { name = "jinja2", marker = "extra == 'report'", specifier = ">=3.1.0" },
     { name = "mkdocs-click", marker = "extra == 'docs'", specifier = ">=0.8.0" },
