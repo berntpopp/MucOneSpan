@@ -8,6 +8,8 @@ from __future__ import annotations
 
 from typing import Any
 
+from muc_one_span.settings import DEFAULT_SETTINGS
+
 SUPPORTED_VCF_STATUSES = frozenset({"exact_sequence_concordance"})
 
 
@@ -27,7 +29,9 @@ def mutation_supported(mutation: dict[str, Any]) -> bool:
     return False
 
 
-LEGACY_MIN_TOTAL_READS = 30
+LEGACY_MIN_TOTAL_READS = (
+    DEFAULT_SETTINGS.clinical_decision.legacy_min_total_reads
+)  # deprecated alias
 
 _GENOTYPE_REASONS = {
     "heterozygous_within_length_partition": (

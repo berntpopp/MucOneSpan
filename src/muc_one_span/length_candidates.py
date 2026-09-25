@@ -8,15 +8,24 @@ from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
 
+from muc_one_span.config import load_repeat_dictionary
 from muc_one_span.read_dominance import (
     DominanceScore,
     evaluate_candidate_pair_dominance,
     extract_read_scores_for_contigs,
 )
-from muc_one_span.settings import AlleleSelectionSettings
+from muc_one_span.settings import (
+    DEFAULT_SETTINGS,
+    AlleleSelectionSettings,
+    ReferenceLayoutSettings,
+)
 from muc_one_span.tools import run_tool_iter
 
 logger = logging.getLogger(__name__)
+
+# Structural, not tunable: a read-length peak must dominate the bins up to this many
+# bin widths away on each side (the former ``b +/- 5`` and ``b +/- 10`` neighbours).
+PEAK_NEIGHBOUR_BINS = 2
 
 
 @dataclass
@@ -136,12 +145,15 @@ def validate_candidates_with_dominance(
     if not read_scores:
         return False, None
 
+    resolved = settings or DEFAULT_SETTINGS.allele_selection
     dom_score = evaluate_candidate_pair_dominance(
         read_scores,
         c1_name,
         c2_name,
         platform=platform,
         c2_primary_records=candidate_2.primary_reads,
+        close_candidate_repeats=resolved.dominance_close_candidate_repeats,
+        zero_primary_extra_reads=resolved.dominance_zero_primary_extra_reads,
     )
 
     return dom_score.is_valid_second_allele, dom_score
@@ -213,19 +225,47 @@ def split_cluster_by_read_length(
     cluster: dict,
     *,
     platform: str = "hifi",
-    min_reads: int = 5,
-    min_fraction: float = 0.15,
+    min_reads: int | None = None,
+    min_fraction: float | None = None,
     run_tool_iter_func: Any = None,
+    settings: AlleleSelectionSettings | None = None,
+    reference_layout: ReferenceLayoutSettings | None = None,
+    repeat_length_bp: int | None = None,
 ) -> list[dict] | None:
     """Split a single cluster into two alleles if physical read lengths are bimodal.
 
     In spanning reads (particularly PacBio HiFi amplicons), read length directly
-    reflects VNTR repeat count (1 repeat ≈ 60 bp). Near-equal alleles (e.g. 40/41)
-    merge into one cluster during gap-based contig clustering, but exhibit two
-    distinct modes in physical read lengths.
+    reflects VNTR repeat count (one repeat unit per ``repeat_length_bp``). Near-equal
+    alleles (e.g. 40/41) merge into one cluster during gap-based contig clustering,
+    but exhibit two distinct modes in physical read lengths.
+
+    Thresholds come from ``settings`` (``allele_selection.read_length_split_*``);
+    *min_reads* and *min_fraction* override their settings when given. The unit length
+    defaults to the bundled repeat dictionary's ``repeat_length_bp`` and the fixed
+    repeat count to *reference_layout*. A peak's bin count must be at least that of
+    every bin up to :data:`PEAK_NEIGHBOUR_BINS` bin widths away on each side (a
+    structural constant, not a setting).
 
     Returns two sub-clusters if two valid modes are detected, or None.
+
+    Raises:
+        ValueError: If twice the unit tolerance is not below the repeat unit length.
     """
+    s = settings or DEFAULT_SETTINGS.allele_selection
+    layout = reference_layout or DEFAULT_SETTINGS.reference_layout
+    unit = (
+        load_repeat_dictionary().repeat_length_bp if repeat_length_bp is None else repeat_length_bp
+    )
+    tolerance = s.read_length_split_unit_tolerance_bp
+    if 2 * tolerance >= unit:
+        raise ValueError(
+            f"allele_selection.read_length_split_unit_tolerance_bp={tolerance} must be "
+            f"below half the repeat unit length ({unit} bp)"
+        )
+    min_reads = s.read_length_split_min_reads if min_reads is None else min_reads
+    min_fraction = s.read_length_split_min_fraction if min_fraction is None else min_fraction
+    bin_bp = s.read_length_split_bin_bp
+
     runner = run_tool_iter_func or run_tool_iter
     contig_names = [f"contig_{c}" for c, _ in cluster["contigs"]]
     if not contig_names or not bam_path.exists():
@@ -243,16 +283,17 @@ def split_cluster_by_read_length(
 
     bins: dict[int, int] = {}
     for length in read_lengths:
-        b = (length // 5) * 5
+        b = (length // bin_bp) * bin_bp
         bins[b] = bins.get(b, 0) + 1
 
     peaks: list[tuple[int, int]] = []
     threshold = max(min_reads, int(total_reads * min_fraction))
+    offsets = [k * bin_bp for k in range(1, PEAK_NEIGHBOUR_BINS + 1)]
     for b in sorted(bins):
         cnt = bins[b]
         if cnt >= threshold:
-            left = max(bins.get(b - 5, 0), bins.get(b - 10, 0))
-            right = max(bins.get(b + 5, 0), bins.get(b + 10, 0))
+            left = max(bins.get(b - off, 0) for off in offsets)
+            right = max(bins.get(b + off, 0) for off in offsets)
             if cnt >= left and cnt >= right:
                 peaks.append((b, cnt))
 
@@ -263,16 +304,15 @@ def split_cluster_by_read_length(
     p1, p2 = sorted([peaks[0][0], peaks[1][0]])
     delta = p2 - p1
 
-    if not (45 <= delta <= 320):
+    if not (s.read_length_split_min_delta_bp <= delta <= s.read_length_split_max_delta_bp):
         return None
-    rem = delta % 60
-    if not (rem <= 15 or rem >= 45):
+    rem = delta % unit
+    if not (rem <= tolerance or rem >= unit - tolerance):
         return None
 
-    r1 = round((p1 - 30) / 60)
-    r2 = round((p2 - 30) / 60)
-    c1 = r1 - 9
-    c2 = r2 - 9
+    offset = s.read_length_split_offset_bp
+    c1 = round((p1 - offset) / unit) - layout.fixed_repeat_count
+    c2 = round((p2 - offset) / unit) - layout.fixed_repeat_count
     if c1 >= c2:
         return None
 

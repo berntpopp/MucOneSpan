@@ -12,6 +12,7 @@ from muc_one_span.length_candidates import (
     discover_length_candidates,
     validate_candidates_with_dominance,
 )
+from muc_one_span.settings import AlleleSelectionSettings
 
 
 def test_discover_length_candidates_empty() -> None:
@@ -61,6 +62,28 @@ def test_validate_candidates_with_dominance_edge_cases(tmp_path: Path) -> None:
     with patch("muc_one_span.length_candidates.extract_read_scores_for_contigs", return_value={}):
         valid, _ = validate_candidates_with_dominance(bam, c1, c2)
         assert not valid
+
+
+def test_validate_candidates_with_dominance_forwards_settings(tmp_path: Path) -> None:
+    """M3: non-default dominance_close_candidate_repeats/zero_primary_extra_reads are honoured."""
+    c1 = CandidateCluster(51, "contig_51", 40, 40, ["contig_51"])
+    c2 = CandidateCluster(71, "contig_71", 15, 15, ["contig_71"])
+    bam = tmp_path / "reads.bam"
+    bam.touch()
+    settings = AlleleSelectionSettings(
+        dominance_close_candidate_repeats=9,
+        dominance_zero_primary_extra_reads=5,
+    )
+    with (
+        patch(
+            "muc_one_span.length_candidates.extract_read_scores_for_contigs",
+            return_value={"read1": {"contig_51": 100, "contig_71": 100}},
+        ),
+        patch("muc_one_span.length_candidates.evaluate_candidate_pair_dominance") as evaluate,
+    ):
+        validate_candidates_with_dominance(bam, c1, c2, settings=settings)
+    assert evaluate.call_args.kwargs["close_candidate_repeats"] == 9
+    assert evaluate.call_args.kwargs["zero_primary_extra_reads"] == 5
 
 
 def test_length_selection_evidence_without_bam() -> None:

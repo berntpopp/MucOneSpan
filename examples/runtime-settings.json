@@ -15,7 +15,21 @@
     "min_gap": 5,
     "valley_min_points": 3,
     "valley_min_separation": 3,
-    "refinement_max_shift": 1
+    "refinement_max_shift": 1,
+    "refinement_min_supported_records": 3,
+    "refinement_supported_fraction": 0.25,
+    "refinement_min_shift_ont": 2,
+    "valley_min_canonical_repeats": 10,
+    "minority_min_alignment_records": 3,
+    "dominance_close_candidate_repeats": 6,
+    "dominance_zero_primary_extra_reads": 2,
+    "read_length_split_min_reads": 5,
+    "read_length_split_min_fraction": 0.15,
+    "read_length_split_bin_bp": 5,
+    "read_length_split_min_delta_bp": 45,
+    "read_length_split_max_delta_bp": 320,
+    "read_length_split_unit_tolerance_bp": 15,
+    "read_length_split_offset_bp": 30
   },
   "classification": {
     "max_indel_probe": 30,
@@ -46,7 +60,8 @@
   },
   "read_phasing": {
     "internal_downsampling": null,
-    "mapping_quality": null
+    "mapping_quality": null,
+    "min_haplotype_reads": 5
   },
   "reference_layout": {
     "pre": [
@@ -64,6 +79,10 @@
     ],
     "min_units": 1,
     "max_units": 150
+  },
+  "clinical_decision": {
+    "max_ambiguous_bases": 10,
+    "legacy_min_total_reads": 30
   },
   "repeat_dictionary": null
 }

@@ -86,6 +86,41 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
   A bench config still naming `report.ni_margin` is rejected. The decision
   rule is now v5; a fresh `test` pre-registration is required.
 
+## [0.16.1] - 2026-09-24
+
+### Fixed
+
+- A frameshift indel that Clair3's pileup stage calls (allele fraction >= 0.5, depth >= 10)
+  but that is missing from the applied calls now blocks a negative result
+  (`alleles[*].stage_concordance`). On simulated older ONT reads with the R9 model,
+  NEGATIVE on pathogenic samples falls from 12/39 to 1/39; no other benchmark or
+  PRJEB92208 decision changes (#72).
+- Clinical decision thresholds are configurable and taken from the recorded run
+  configuration: `clinical_decision.max_ambiguous_bases` (10) and
+  `clinical_decision.legacy_min_total_reads` (30) (#73).
+- Read-length splitting uses the configured reference layout and the dictionary repeat
+  length instead of fixed values (#74).
+
+### Added
+
+- Settings `calling.stage_discordance_min_af`, `calling.stage_discordance_min_depth`, the
+  `clinical_decision` section, 14 `allele_selection` heuristics formerly hardcoded, and
+  `read_phasing.min_haplotype_reads`. All defaults equal the previous behaviour.
+- Output field `alleles[*].stage_concordance`.
+
+### Changed
+
+- The experimental read-phased haplotag split's minimum-reads-per-haplotype floor is now
+  controlled by `read_phasing.min_haplotype_reads` (default `5`) instead of being coupled
+  to the VCF-filtering `min_dp` argument, which was never applied to filtering itself.
+  Library callers who previously relied on passing a non-default `min_dp` to change the
+  haplotag split must set `read_phasing.min_haplotype_reads` instead; default behaviour is
+  unchanged (#74).
+- When an allele's Clair3 partition has no `pileup.vcf.gz` (`stage_concordance.status =
+  "not_assessed"`), a NEGATIVE report now carries an extra detail, `Quality caveat: Allele N:
+  caller-stage concordance not assessed (...); Clair3 pileup-stage frameshift calls were not
+  compared with the applied calls.`. The decision itself does not change (#72).
+
 ## [0.16.0] - 2026-09-24
 
 ### Fixed
@@ -476,7 +511,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 - Project scaffolding with uv, ruff, mypy, pytest, CI
 - Initial pipeline implementation
 
-[Unreleased]: https://github.com/berntpopp/MucOneSpan/compare/v0.15.1...HEAD
+[Unreleased]: https://github.com/berntpopp/MucOneSpan/compare/v0.16.1...HEAD
+[0.16.1]: https://github.com/berntpopp/MucOneSpan/compare/v0.16.0...v0.16.1
+[0.16.0]: https://github.com/berntpopp/MucOneSpan/compare/v0.15.1...v0.16.0
 [0.15.1]: https://github.com/berntpopp/MucOneSpan/compare/v0.15.0...v0.15.1
 [0.15.0]: https://github.com/berntpopp/MucOneSpan/compare/v0.14.1...v0.15.0
 [0.14.1]: https://github.com/berntpopp/MucOneSpan/compare/v0.14.0...v0.14.1
