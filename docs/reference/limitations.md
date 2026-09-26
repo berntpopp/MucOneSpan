@@ -329,6 +329,13 @@ are not a calibration or release claim.
     real minor allele between the alleles (contamination, mosaicism) that is
     not a significant excess over the local smear is called smear, the same
     detection floor as the below-top smear test.
+  - Measured at commit `e324fa3` on the v4 benchmark (INCONCLUSIVE share of
+    all cases, before -> after): development `standard` 0.233 -> 0.122 and
+    `clean` 0.189 -> 0.078; validation `standard` 0.233 -> 0.178, `clean`
+    0.089 unchanged. Every changed case was a normal going from INCONCLUSIVE
+    to NEGATIVE with its allele lengths correct; no false positive and no
+    NEGATIVE on a pathogenic case. A simulated long allele with PCR dropout
+    (102 units, 1% of reads) stays a gate-relevant peak.
 - **PRJEB92208 ONT amplicon negatives.** Most amplicon runs on that dataset
   produce several length peaks below `hybrid.min_peak_reads`/
   `far_peak_min_frac`/`near_peak_min_frac` from PCR-smear reads, so sample
@@ -344,6 +351,14 @@ are not a calibration or release claim.
   (length-peak selection) or `hybrid/allele_fields.py` (`selection_status`)
   -- but this figure itself was not re-run at `ca81a97`). No pathogenic call
   was produced on a known-negative sample.
+  The PRJEB92208 amplicon runs hold no dimer peak (at most one dimer read per
+  run) and their smear between the alleles is now recognised (at `e324fa3`),
+  but HG001-HG004 stay INCONCLUSIVE. Their remaining gate-relevant peaks lie
+  below the top allele and are a significant excess over the smear (HG001 and
+  HG004: a cluster two units below the top allele with 2.1% and 2.7% of its
+  reads; HG002 and HG003: clusters far below it, some `smear_ambiguous`), or
+  are clusters of 3-11 reads a few units above the longer allele. The dimer
+  and smear tests do not cover these.
 
 ### Validation numbers
 
