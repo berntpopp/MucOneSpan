@@ -60,6 +60,15 @@
 </div>
 {% endif %}
 
+{% for item in summary.get("deprecations", []) %}
+<div class="alert alert-warning deprecation-banner" role="note" aria-label="Deprecated option">
+  <span class="alert-icon" aria-hidden="true">&#x26A0;</span>
+  <div class="alert-content">
+    <strong>Deprecated:</strong> {{ item.message }}
+  </div>
+</div>
+{% endfor %}
+
 <!-- ════════════════════════════════════════════════════════
      2. ALLELE SUMMARY
      ════════════════════════════════════════════════════════ -->

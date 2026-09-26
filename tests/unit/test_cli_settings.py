@@ -216,7 +216,9 @@ def test_recorded_auto_preset_remains_auto_when_reused(tmp_path):
     reads = tmp_path / "reads.fq"
     reads.write_text("@r\nAC\n+\nII\n")
     with patch("muc_one_span.tools.check_tools", side_effect=RuntimeError("tool sentinel")):
-        CliRunner().invoke(main, ["run", "-i", str(reads), "-o", str(tmp_path)])
+        CliRunner().invoke(
+            main, ["run", "-i", str(reads), "-o", str(tmp_path), "--engine", "ladder"]
+        )
     first = json.loads((tmp_path / "run_configuration.json").read_text())
     config = tmp_path / "reused.json"
     config.write_text(json.dumps(first["settings"]))
@@ -224,7 +226,10 @@ def test_recorded_auto_preset_remains_auto_when_reused(tmp_path):
     with patch("muc_one_span.tools.check_tools", side_effect=RuntimeError("tool sentinel")):
         CliRunner().invoke(
             main,
-            ["--config", str(config), "run", "-i", str(reads), "-o", str(out), "--platform", "ont"],
+            [
+                *("--config", str(config), "run", "-i", str(reads), "-o", str(out)),
+                *("--platform", "ont", "--engine", "ladder"),
+            ],
         )
     second = json.loads((out / "run_configuration.json").read_text())
     assert second["settings"]["run"]["minimap2_preset"] is None

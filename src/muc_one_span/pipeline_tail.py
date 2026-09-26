@@ -100,6 +100,7 @@ def finish_run(
         "pipeline_version": __version__,
         "configuration": configuration_record,
         "deprecations": run_deprecations(settings),
+        "ignored_options": list(configuration_record.get("ignored_options", [])),
         **(extra_summary or {}),
     }
     (out / "summary.json").write_text(json.dumps(summary, indent=2) + "\n")

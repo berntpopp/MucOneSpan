@@ -10,7 +10,13 @@ from typing import TYPE_CHECKING, Any
 import click
 
 from muc_one_span.cli_settings import effective_run_settings, write_run_configuration
-from muc_one_span.deprecations import warn_deprecations
+from muc_one_span.deprecations import (
+    LADDER_ENGINE,
+    explicit_command_line_options,
+    ignored_options,
+    warn_deprecations,
+    warn_ignored,
+)
 from muc_one_span.settings import DEFAULT_SETTINGS, RuntimeSettings
 
 if TYPE_CHECKING:
@@ -92,10 +98,18 @@ def execute_pipeline(
         settings.consensus.validate_flanks(rd.flanking_left, rd.flanking_right)
     except ValueError as exc:
         raise click.BadParameter(str(exc), param_hint="--config") from exc
-    configuration_record = write_run_configuration(
-        settings, configuration, Path(input_path), ref, out
-    )
+    if settings.run.engine != LADDER_ENGINE and settings.run.report_igv != "off":
+        raise click.BadParameter(
+            f"IGV tracks are not available for the {settings.run.engine} engine; use "
+            "--engine ladder (deprecated) or --report-igv off",
+            param_hint="--report-igv",
+        )
+    ignored = ignored_options(settings, explicit_command_line_options())
     warn_deprecations(settings)
+    warn_ignored(ignored)
+    configuration_record = write_run_configuration(
+        settings, configuration, Path(input_path), ref, out, ignored_options=ignored
+    )
     if settings.run.engine == "hybrid":
         _run_hybrid(out, input_path, rd, settings, configuration_record, report)
         return
@@ -194,10 +208,6 @@ def _run_hybrid(
     from muc_one_span.pipeline_tail import finish_run
     from muc_one_span.tools import check_tools
 
-    if settings.run.report_igv != "off":
-        raise click.BadParameter(
-            "IGV tracks are not available for the hybrid engine", param_hint="--report-igv"
-        )
     check_tools(["samtools"] if Path(input_path).suffix == ".bam" else [])
     click.echo("Hybrid engine: reconstructing alleles from reads...")
     hybrid = reconstruct_alleles(Path(input_path), out, rd, settings)

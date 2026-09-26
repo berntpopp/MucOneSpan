@@ -44,9 +44,25 @@ def test_default_engine_is_hybrid_and_calls_dupc(tmp_path: Path) -> None:
     summary = json.loads((tmp_path / "summary.json").read_text())
     assert summary["configuration"]["settings"]["run"]["engine"] == "hybrid"
     assert "hybrid" in summary and summary["deprecations"] == []
+    assert summary["ignored_options"] == []
     lengths = sorted(summary["alleles"][k]["length"] for k in ("allele_1", "allele_2"))
     assert lengths == [60, 80]
     names = {
         m.get("mutation_name") for c in summary["classifications"].values() for m in c["mutations"]
     }
     assert "dupC" in names
+
+
+def test_ladder_only_option_is_ignored_and_recorded(tmp_path: Path) -> None:
+    """A ladder-only option on a hybrid run warns and lands in summary["ignored_options"]."""
+    if shutil.which("samtools") is None:
+        pytest.skip("samtools is not on PATH")
+    bams = sorted(DATA.glob("*_amplicon_aligned.bam")) if DATA.is_dir() else []
+    if not bams:
+        pytest.skip(f"generated test data missing: {DATA} (run make generate-testdata)")
+    args = ["run", "-i", str(bams[0]), "-o", str(tmp_path), "--min-qual", "10", "--no-report"]
+    res = CliRunner().invoke(main, args)
+    assert res.exit_code == 0, res.output
+    assert "--min-qual is ignored by the hybrid engine" in res.stderr
+    summary = json.loads((tmp_path / "summary.json").read_text())
+    assert [o["option"] for o in summary["ignored_options"]] == ["--min-qual"]
