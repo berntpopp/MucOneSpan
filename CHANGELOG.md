@@ -7,6 +7,67 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+## [0.17.0] - 2026-09-26
+
+The read-centric **hybrid engine is now the default** for every input type
+(amplicon and genomic), and the **ladder engine is deprecated**. See the
+migration guide (`docs/guides/migration.md`) for what changes and how to keep
+the ladder for now.
+
+Hybrid validation at the 0.17.0 defaults (MucSim-Bench v4, commit `3162d22`;
+development split for tuning, validation split for confirmation, sealed test
+split not run): `standard` PATHOGENIC 0.930 (dev) / 0.912 (val) and
+INCONCLUSIVE 0.122 / 0.178; `clean` PATHOGENIC 0.947 / 0.947 and
+INCONCLUSIVE 0.078 / 0.089; false positives 0 and NEGATIVE on a pathogenic
+case 0 on every set. Frozen panels (commit `e324fa3`): no false positive and no
+NEGATIVE on a pathogenic case. PRJEB92208 (re-run at `c4ab26c`): MP1-MP4
+PATHOGENIC with supported dupC read support, HG002 amplicon alleles literal
+sequence-exact, HG001-HG004 not PATHOGENIC.
+
+Known limits: 77/80 alleles sequence-exact on the frozen `simpanel` (commit
+`ca81a97`, single-base homopolymer-adjacent consensus misses); on ONT reads
+with saturating "+" strand stutter up to 25% wild-type reads can pass as a pure
+dupC; equal-length normals with strong stutter at a single run are
+INCONCLUSIVE, not NEGATIVE; whole-unit PCR slippage clusters keep PRJEB92208
+HG001-HG004 INCONCLUSIVE; `clean2` PATHOGENIC is 0.895, one case short of 0.90;
+the in-house genomic numbers come from an earlier commit (`2b0072b`) and were
+not re-run.
+
+### Changed
+
+- **Default engine.** `muconespan run` now defaults to `--engine hybrid`
+  (`run.engine = "hybrid"`) for amplicon and genomic input. A FASTQ run calls
+  no external tool; a BAM input needs `samtools`. `--report-igv` is rejected by
+  the hybrid engine, and `--clair3-model`, `--min-qual` and `--minimap2-preset`
+  apply to the ladder engine only. `--assay` stays recorded for provenance
+  only; it is not auto-detected.
+- **Dependencies.** `edlib`, `pyabpoa` and `pyspoa` are core dependencies; the
+  `hybrid` extra is kept with the same packages so
+  `pip install 'muc_one_span[hybrid]'` still works. `pyabpoa` builds from
+  source (C compiler and zlib); `pyspoa` has Linux wheels only. The hybrid
+  modules import the libraries at load time.
+- **Harness defaults.** `scripts/benchmark.py --engine`,
+  `scripts/clinical_benchmark.py run --engine` and `scripts/benchsim.py
+  run|evaluate --engines` default to `hybrid`. `benchmarking.run_pipeline`
+  always passes `--engine`; `clinical_benchmark.py` keeps hashing ladder runs
+  without an `engine` key and passes `--engine ladder` to the worker
+  explicitly. `benchsim report --baseline` stays `ladder`.
+- **Ladder-visible changes since 0.16.1.** A ladder run in which one allele's
+  `depth_status` is `not_assessed` while another allele's depth is assessed is
+  now INCONCLUSIVE (0.16.1: NEGATIVE; fail-closed depth rule). The
+  unresolved-selection reason no longer prints `secondary mode fraction None`
+  when the fraction is unknown.
+- `benchmarks/clinical/prjeb92208/hybrid-engine.json` refreshed at the final
+  defaults (amplicon cohort and `--assay genomic` WGS pass).
+
+### Deprecated
+
+- The ladder engine (`--engine ladder`, `run.engine = "ladder"`). It still
+  works and keeps its output schema; a run prints a warning on stderr and
+  `summary.json` records it in the new additive `deprecations` list (empty for
+  hybrid runs). Removal happens no earlier than the next minor release and is
+  announced in the changelog of the release before it.
+
 ### Added
 
 - `benchsim calibrate` and `benchsim calibrate-report`: run a grid of runtime
@@ -25,15 +86,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
   engine other than `hybrid`, before any point runs. `calibrate-report` ranks
   and recommends a `--stage lengths` calibration through the same 15b/15c
   machinery as a full one.
-- `--engine hybrid` (experimental) and `--assay {amplicon,genomic}` for
-  `muconespan run`: a read-centric allele reconstruction path (motif
-  anchoring, a length model, partial-order-alignment consensus, linked-site
-  phase splitting, all-read assignment, polishing, and per-event read-level
-  support) that runs no minimap2, Clair3 or bcftools for FASTQ input. `ladder`
-  stays the default engine until the benchmark decision rule is met on the
-  sealed test split; `--report-igv` is rejected with `--engine hybrid`.
-- Optional extra `hybrid` (`edlib`, `pyabpoa`, `pyspoa`) and its settings
-  section (`hybrid.*`, `HybridSettings`); see the configuration guide.
+- The hybrid engine (`--engine hybrid`, the default from this release) and
+  `--assay {amplicon,genomic}` for `muconespan run`: a read-centric allele
+  reconstruction path (motif anchoring, a length model, partial-order-alignment
+  consensus, linked-site phase splitting, all-read assignment, polishing, and
+  per-event read-level support) that runs no minimap2, Clair3 or bcftools for
+  FASTQ input.
+- The `hybrid.*` settings section (`HybridSettings`); see the configuration
+  guide. `summary.json["deprecations"]` lists deprecated options a run
+  selected.
+- Migration guide for 0.17.0 (`docs/guides/migration.md`).
 - Additive hybrid evidence fields: per-allele `spanning_reads`,
   `assigned_reads`, `depth_status`, `depth_basis`, `selection_status`,
   `selection_detail`, `split_basis`, `phase_status`,
@@ -613,7 +675,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 - Project scaffolding with uv, ruff, mypy, pytest, CI
 - Initial pipeline implementation
 
-[Unreleased]: https://github.com/berntpopp/MucOneSpan/compare/v0.16.1...HEAD
+[Unreleased]: https://github.com/berntpopp/MucOneSpan/compare/v0.17.0...HEAD
+[0.17.0]: https://github.com/berntpopp/MucOneSpan/compare/v0.16.1...v0.17.0
 [0.16.1]: https://github.com/berntpopp/MucOneSpan/compare/v0.16.0...v0.16.1
 [0.16.0]: https://github.com/berntpopp/MucOneSpan/compare/v0.15.1...v0.16.0
 [0.15.1]: https://github.com/berntpopp/MucOneSpan/compare/v0.15.0...v0.15.1
