@@ -344,6 +344,7 @@ no hardcoded thresholds in the hybrid engine.
 | `hybrid.phase_run_bg_window` | `3` | Run-length background window (+/- d observed length) used to score a run site; integer >=1. |
 | `hybrid.phase_min_minor_reads` | `5` | Minimum reads showing a candidate site's minor allele; integer >=1. |
 | `hybrid.phase_run_bg_multiplier` | `4.0` | Multiplier on local background noise for the run-length candidate-site AF floor; number >=0. |
+| `hybrid.phase_run_safety_multiplier` | `2.0` | NEGATIVE-blocking safety tier for an equal-length genotype (Task 15g). When the length model finds a **single** peak and that peak stays unsplit with no candidate site (`none`), every homopolymer run is tested against the lower floor `max(het_af_min, phase_run_safety_multiplier * background)`, with the same leave-one-out peer background as a candidate site but none of its other tests. A run above it gives the phase basis `unconfirmed_run_site` (selection and phase status `unresolved_run_site`): the result is INCONCLUSIVE with the located reason `unresolved heterozygous site at repeat N`. The tier never splits the peak, never creates an event and never makes a result PATHOGENIC. It exists because a heterozygous run can sit below the split floor: simulated HiFi reads of an equal-length heterozygous dupC showed 42% C8 against 13.7% at the peer C7 runs (ratio 3.1, under the x4 split floor), and were reported NEGATIVE before this tier. Default from the v4 development panels (every wild-type length peak left unsplit, whatever the peak count): the floor is reached at 11/26 HiFi peaks at 1.5, 4/26 at 2.0 and 3/26 at 2.5-3.0, and at none of 61 ONT peaks; 2.0 is the lowest value on that plateau. The wild-type runs that reach it carry 21-30% of reads at one length, at or above `het_af_min`; the tier itself flags 3 of the 4 equal-length wild-type HiFi samples and none of the 3 ONT ones. Setting it to `phase_run_bg_multiplier` restores the pre-15g behaviour for runs below the split floor. Number >=1. |
 | `hybrid.phase_gap_af_factor` | `1.5` | AF factor applied when the candidate site's minor allele is a gap (deletion); number >=1. |
 | `hybrid.phase_min_pair_reads` | `10` | Minimum reads informative at both sites of a pair before their linkage is tested; integer >=2. |
 | `hybrid.phase_strand_bias_alpha` | `0.001` | Strand-bias test significance level; a site failing it, or with no minor-allele observation on a strand with >= `hp_min_strand_reads` reads, is rejected. Column and insertion sites use a one-sided Fisher exact test. Homopolymer-run sites use a stutter-aware test: each strand's length-error profile comes from the other runs of the same base, the minor run length's stutter-deconvolved share must reach `het_af_min`, and a likelihood-ratio test (one weight for both strands vs. one per strand) is applied at this level, so strand-asymmetric ONT stutter is not read as strand bias. Number strictly in (0,1). |
@@ -406,11 +407,12 @@ Per-allele, `depth_status` is `adequate`/`low`/`insufficient` from
 thresholds as amplicon; `--assay genomic` records the library type but does
 not lower them, so a low-molecule WGS run can legitimately show `low` or
 `insufficient` depth even when the pipeline behaves correctly). Sample
-`selection_status` is `"resolved"` or one of five `"unresolved_*"` reasons
+`selection_status` is `"resolved"` or one of six `"unresolved_*"` reasons
 (`unresolved_max_alleles`, `unresolved_single_site`,
 **`unresolved_group_size`** -- a linked-site split whose smaller group falls
-below `het_min_group` -- `unresolved_rejected_peak`,
-`unresolved_unassigned_spanning`); any `unresolved_*` selection blocks a
+below `het_min_group` -- **`unresolved_run_site`** -- an unsplit single length
+peak with a homopolymer run above the `phase_run_safety_multiplier` floor --
+`unresolved_rejected_peak`, `unresolved_unassigned_spanning`); any `unresolved_*` selection blocks a
 NEGATIVE result (`clinical_gates.allele_gate_reasons`) but does **not** block
 PATHOGENIC when the causative event has its own explicit read-level support --
 `compute_clinical_decision` only requires an unblocked mutation to reach

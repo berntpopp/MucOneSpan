@@ -253,6 +253,25 @@ are not a calibration or release claim.
   (selection status `unresolved_single_site`) with the
   located reason `unresolved heterozygous site at repeat N`, which makes the
   result INCONCLUSIVE instead of NEGATIVE.
+- **Heterozygous homopolymer runs below the split floor.** A run-length site
+  becomes a candidate only above `max(het_af_min, phase_run_bg_multiplier x
+  background)`. Under heavy stutter a real heterozygous run can stay below it:
+  a simulated HiFi equal-length heterozygous dupC (1000x) showed 42% C8 reads
+  against 13.7% C8 at the peer C7 runs, under the x4 floor of 0.55, and was
+  merged into one wild-type consensus and reported NEGATIVE. This was found on
+  the benchmark validation split, not the development split. A single
+  unsplit length peak is now tested against a lower safety floor
+  (`hybrid.phase_run_safety_multiplier`, default 2.0); a run above it makes the
+  result INCONCLUSIVE (`unresolved_run_site`, located), never PATHOGENIC, so such
+  a carrier is not called. Costs and limits:
+  - Wild-type runs with site-specific stutter at or above `het_af_min` are
+    flagged the same way. In the v4 development panels the tier flags 3 of the
+    4 equal-length (single-peak) wild-type HiFi samples (runs at 21-27% of reads
+    at one length) and none of the 3 ONT ones.
+  - The tier keeps `het_af_min` as its share floor, so a heterozygous run whose
+    minor length is seen in fewer than `het_af_min` of the reads (strong
+    allele imbalance combined with heavy stutter) is still not flagged.
+  - With two length peaks the tier does not apply: each peak is one allele.
 - **True dupC with high deletion stutter.** `hybrid.event_max_alternative_frac`
   (default 0.25) rejects a homopolymer event whose no-event mixture weight
   exceeds it. The mixture convolves each allele with the stutter profile of its

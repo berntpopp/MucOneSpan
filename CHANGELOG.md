@@ -156,6 +156,16 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
   left unsplit names its site in `selection_detail` ("unresolved heterozygous
   site at repeat N") and keeps a negative call blocked. The `--assay` help
   text now says the option is recorded for provenance only.
+- Hybrid engine: an equal-length heterozygous homopolymer event whose run
+  share stays below the candidate-site floor (`phase_run_bg_multiplier` x the
+  peer stutter background) was merged into one wild-type consensus and
+  reported NEGATIVE (simulated HiFi dupC, 42% C8 against a 0.55 floor). A
+  single unsplit length peak now tests every homopolymer run against a lower
+  safety floor (new setting `hybrid.phase_run_safety_multiplier`, default
+  2.0); a run above it gives the new phase basis `unconfirmed_run_site` and
+  selection status `unresolved_run_site`, which makes the result INCONCLUSIVE
+  with the located reason. The tier never creates an event or a PATHOGENIC
+  call.
 
 ### Changed
 

@@ -59,6 +59,8 @@ __all__ = [
 # Output format precision of reported fractions (statuses use unrounded values).
 FRACTION_DECIMALS = 4
 T = TypeVar("T")
+# Split basis of an unsplit equal-length peak held back by the run-site safety tier.
+RUN_SITE_BASIS = "unconfirmed_run_site"
 
 
 @dataclass
@@ -134,6 +136,21 @@ def _single_event(
     return promoted, sub
 
 
+def _run_site_tier(split: PhaseResult) -> PhaseResult:
+    """Keep an unsplit equal-length peak from a negative call on a sub-floor run site.
+
+    A peak with no candidate site ("none") whose runs include one above the lower
+    safety floor (``PhaseResult.run_excess``) becomes ``unconfirmed_run_site``: still
+    one group and no event, but its selection status blocks a negative call and the
+    site with the largest excess is named in the reason.
+    """
+    if split.basis != "none" or not split.run_excess:
+        return split
+    return PhaseResult(
+        split.groups, RUN_SITE_BASIS, split.run_excess, candidate=split.run_excess[0]
+    )
+
+
 def located_site(candidate: dict[str, Any], unit_bp: int) -> str:
     """Gate reason naming an unresolved heterozygous site by its 1-based repeat unit."""
     kind, pos = candidate["site"]
@@ -156,7 +173,8 @@ def _groups(
     ``PLOIDY`` peaks (the equal-length heterozygote): with two length peaks each peak
     already is one allele, so a within-peak single-site mixture is not a further
     haplotype, and splitting it would only move stutter or error reads out of an allele
-    and make that allele's read support circular. Such a peak stays unconfirmed.
+    and make that allele's read support circular. Such a peak stays unconfirmed. The
+    run-site safety tier (``_run_site_tier``) applies under the same condition.
     """
     groups: list[_Group] = []
     split_bases: list[str] = []
@@ -168,6 +186,7 @@ def _groups(
         sub: list[_Group] | None = None
         if len(model.peaks) < PLOIDY:
             split, sub = _single_event(draft, peak.members, split, h, rng, backend)
+            split = _run_site_tier(split)
         split_bases.append(split.basis)
         if split.candidate is not None and (sub is not None or len(split.groups) == 1):
             located.setdefault(split.basis, []).append(located_site(split.candidate, unit_bp))

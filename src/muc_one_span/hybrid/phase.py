@@ -22,7 +22,15 @@ from collections import deque
 from dataclasses import dataclass, field
 from typing import Any
 
-from muc_one_span.hybrid.phase_sites import Meta, Site, candidates, events, features, top_site
+from muc_one_span.hybrid.phase_sites import (
+    Meta,
+    Site,
+    candidates,
+    events,
+    features,
+    run_excess_sites,
+    top_site,
+)
 from muc_one_span.hybrid.spans import SpanRead
 from muc_one_span.settings import HybridSettings
 
@@ -35,6 +43,9 @@ class PhaseResult:
     than ``min_linked_sites``) or "unconfirmed_group_size" (a linked split whose smaller
     group is below ``het_min_group``). ``unassigned`` holds members of a split that are
     informative at no linked event or tie between the groups; the caller reassigns them.
+    ``run_excess`` holds, for a peak with no candidate site ("none"), the run sites that
+    clear only the lower safety floor (``phase_sites.run_excess_sites``); they never
+    split the peak, and the engine uses them only to block a negative call.
     """
 
     groups: list[list[SpanRead]]
@@ -42,6 +53,7 @@ class PhaseResult:
     sites: list[dict[str, Any]] = field(default_factory=list)
     candidate: dict[str, Any] | None = None
     unassigned: list[SpanRead] = field(default_factory=list)
+    run_excess: list[dict[str, Any]] = field(default_factory=list)
 
 
 def _signed_phi(pairs: list[tuple[int, int]]) -> float:
@@ -158,7 +170,7 @@ def split_by_linked_sites(
     feats, meta = features(cons, [m.seq for m in sample], settings)
     sites = candidates(feats, [m.strand for m in sample], meta, settings)
     if not sites:
-        return PhaseResult([members], "none")
+        return PhaseResult([members], "none", run_excess=run_excess_sites(feats, meta, settings))
     ori = _linked(feats, sites, meta, settings) if len(sites) > 1 else {0: 1}
     order = sorted(ori)
     linked = [sites[k] for k in order]

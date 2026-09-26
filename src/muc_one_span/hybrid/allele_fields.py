@@ -27,6 +27,7 @@ PHASE_STATUS = {
     "unconfirmed_single_site": "unresolved_single_site",
     "unconfirmed_group_size": "unresolved_group_size",
     "single_event": "phased_single_event",
+    "unconfirmed_run_site": "unresolved_run_site",
 }
 # A single-event split (Task 15e) separates the reads by their allele at the only
 # heterozygous event, so it is read-level haplotype evidence like a linked-site split.
@@ -36,6 +37,8 @@ RESOLVED = "resolved"
 MAX_ALLELES = "unresolved_max_alleles"
 SINGLE_SITE = "unresolved_single_site"
 GROUP_SIZE = "unresolved_group_size"
+# Task 15g: an unsplit equal-length peak with a run above the lower safety floor.
+RUN_SITE = "unresolved_run_site"
 REJECTED_PEAK = "unresolved_rejected_peak"
 UNASSIGNED_SPANNING = "unresolved_unassigned_spanning"
 # Length-model rejection reason that means "a third allele-like peak" (lengths.py).
@@ -43,6 +46,7 @@ MAX_ALLELES_REASON = "max_alleles"
 UNCONFIRMED_SPLIT_STATUS = {
     "unconfirmed_single_site": SINGLE_SITE,
     "unconfirmed_group_size": GROUP_SIZE,
+    "unconfirmed_run_site": RUN_SITE,
 }
 
 
@@ -63,7 +67,8 @@ def selection_status(
     """Sample-level selection status; any unresolved state blocks a negative call.
 
     Precedence: more than two allele groups (or a rejected third peak), an unconfirmed
-    linked-site split, any other gate-relevant rejected length peak (including
+    linked-site split, an unsplit peak with a run above the safety floor
+    (``unconfirmed_run_site``), any other gate-relevant rejected length peak (including
     ``smear_ambiguous``), then too many spanning reads assigned to no allele.
     """
     reasons = {r["reason"] for r in model.gate_relevant_rejections}

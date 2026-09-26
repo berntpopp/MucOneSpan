@@ -168,6 +168,7 @@
     "phase_run_bg_window": 3,
     "phase_min_minor_reads": 5,
     "phase_run_bg_multiplier": 4.0,
+    "phase_run_safety_multiplier": 2.0,
     "phase_gap_af_factor": 1.5,
     "phase_min_pair_reads": 10,
     "phase_strand_bias_alpha": 0.001,

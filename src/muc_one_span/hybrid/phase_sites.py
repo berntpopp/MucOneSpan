@@ -109,15 +109,23 @@ def _run_background(
 
 
 def _run_minor(
-    c: Counter[Any], major: Any, noise: dict[Any, float], settings: HybridSettings
+    c: Counter[Any],
+    major: Any,
+    noise: dict[Any, float],
+    settings: HybridSettings,
+    multiplier: float,
 ) -> tuple[Any, int] | None:
-    """Best-scoring run length among all that clear max(het_af_min, mult * background)."""
+    """Best-scoring run length among all that clear max(het_af_min, multiplier * background).
+
+    ``multiplier`` is ``phase_run_bg_multiplier`` for a candidate site and
+    ``phase_run_safety_multiplier`` for the NEGATIVE-blocking tier (``run_excess_sites``).
+    """
     tot = sum(c.values())
     best: tuple[float, Any, int] | None = None
     for allele, n in c.items():
         if allele == major or n < settings.phase_min_minor_reads:
             continue
-        bg = settings.phase_run_bg_multiplier * noise.get(allele, 0.0)
+        bg = multiplier * noise.get(allele, 0.0)
         if n / tot >= max(settings.het_af_min, bg) and (best is None or n / tot - bg > best[0]):
             best = (n / tot - bg, allele, n)
     return None if best is None else (best[1], best[2])
@@ -220,7 +228,7 @@ def candidates(
     for site, c in counts.items():
         major, _ = c.most_common(1)[0]
         if site[0] == "run":
-            pick = _run_minor(c, major, bg[site], settings)
+            pick = _run_minor(c, major, bg[site], settings, settings.phase_run_bg_multiplier)
             keep = pick is not None and _run_consistent(
                 feats, strands, modal, site, (major, pick[0]), settings
             )
@@ -240,6 +248,49 @@ def candidates(
             }
         )
     return out
+
+
+def run_excess_sites(
+    feats: list[dict[Site, Any]], meta: Meta, settings: HybridSettings
+) -> list[dict[str, Any]]:
+    """Run sites whose minor length clears the lower safety floor (Task 15g).
+
+    The floor is ``max(het_af_min, phase_run_safety_multiplier * background)`` with the
+    same leave-one-out peer background as a candidate site, but with none of the
+    candidate's other tests (split floor, stutter-deconvolved weight, strand bias).
+    A site here is never split on or scored as an event; the engine uses it only to
+    keep an unsplit equal-length peak from a negative call, because a heterozygous run
+    below the split floor (heavy stutter at a true longer run) would otherwise merge
+    both alleles into one consensus. Largest excess over the floor first.
+    """
+    counts = site_counts(feats)
+    modal = modal_meta(counts, meta)
+    bg = _run_background(counts, modal, settings.phase_run_bg_window)
+    mult = settings.phase_run_safety_multiplier
+    out = []
+    for site, c in counts.items():
+        if site[0] != "run":
+            continue
+        major, _ = c.most_common(1)[0]
+        pick = _run_minor(c, major, bg[site], settings, mult)
+        if pick is None:
+            continue
+        tot = sum(c.values())
+        excess = pick[1] / tot - mult * bg[site].get(pick[0], 0.0)
+        out.append(
+            (
+                excess,
+                {
+                    "site": site,
+                    "major": major,
+                    "minor": pick[0],
+                    "af": round(pick[1] / tot, AF_DECIMALS),
+                    "n": tot,
+                },
+            )
+        )
+    out.sort(key=lambda item: -item[0])
+    return [site for _excess, site in out]
 
 
 def top_site(sites: list[dict[str, Any]]) -> dict[str, Any]:

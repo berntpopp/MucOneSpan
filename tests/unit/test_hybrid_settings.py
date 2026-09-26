@@ -122,6 +122,8 @@ def test_hybrid_phase_tunables_default_unchanged() -> None:
     assert h.phase_min_pair_reads == 10
     # Fix round 2: strand consistency is a strand-bias test at this alpha.
     assert h.phase_strand_bias_alpha == 0.001
+    # Task 15g: the NEGATIVE-blocking run-site tier uses half the split multiplier.
+    assert h.phase_run_safety_multiplier == 2.0
 
 
 @pytest.mark.parametrize(
@@ -132,6 +134,7 @@ def test_hybrid_phase_tunables_default_unchanged() -> None:
         ("phase_run_bg_window", 0),
         ("phase_min_minor_reads", 0),
         ("phase_run_bg_multiplier", -0.5),
+        ("phase_run_safety_multiplier", 0.5),
         ("phase_gap_af_factor", 0.5),
         ("phase_min_pair_reads", 1),
         ("phase_strand_bias_alpha", 0.0),

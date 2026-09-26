@@ -159,6 +159,22 @@ class HybridSettings:
     phase_run_bg_window: int = 3
     phase_min_minor_reads: int = 5
     phase_run_bg_multiplier: float = 4.0
+    # Task 15g (safety tier): when the length model finds a single peak and the peak
+    # stays unsplit with no candidate site, any homopolymer run whose minor length
+    # reaches max(het_af_min, phase_run_safety_multiplier x its leave-one-out peer
+    # background) keeps the sample from a negative call (phase basis
+    # unconfirmed_run_site, INCONCLUSIVE with the located site); it never splits the
+    # peak or creates an event. A heterozygous run can sit below the split floor
+    # (phase_run_bg_multiplier x background): simulated HiFi reads of an equal-length
+    # heterozygous dupC showed 42% C8 against 13.7% C8 at the peer C7 runs, a ratio of
+    # 3.1 under the x4 floor. Default 2.0, from the development panels (v4 dev,
+    # wild-type length peaks left unsplit, any peak count): the floor is reached at
+    # 11/26 HiFi peaks at 1.5, 4/26 at 2.0 and 3/26 at 2.5-3.0, and at none of 61 ONT
+    # peaks. 2.0 is the lowest value on that plateau, so the floor stays as far as
+    # possible below a heterozygous share; the wild-type runs that still reach it show
+    # 0.21-0.30 of reads at one length, at or above het_af_min. Minimum 1: below 1 the
+    # floor would sit under the background itself.
+    phase_run_safety_multiplier: float = 2.0
     phase_gap_af_factor: float = 1.5
     phase_min_pair_reads: int = 10
     phase_strand_bias_alpha: float = 0.001
@@ -280,6 +296,7 @@ class HybridSettings:
         ):
             _integer(f"hybrid.{name}", getattr(self, name), minimum)
         _number("hybrid.phase_run_bg_multiplier", self.phase_run_bg_multiplier, 0)
+        _number("hybrid.phase_run_safety_multiplier", self.phase_run_safety_multiplier, 1)
         _number("hybrid.phase_gap_af_factor", self.phase_gap_af_factor, 1)
         _open_unit_interval("hybrid.phase_strand_bias_alpha", self.phase_strand_bias_alpha)
         _choice(
