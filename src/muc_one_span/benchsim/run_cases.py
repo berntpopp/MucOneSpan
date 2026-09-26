@@ -34,6 +34,7 @@ from typing import Any
 
 from muc_one_span.benchmarking import run_pipeline
 from muc_one_span.benchsim.generate import FASTQ
+from muc_one_span.deprecations import LADDER_ENGINE
 
 
 def platform_for_profile(profile: Any) -> str:
@@ -122,12 +123,14 @@ def _run_one(
             platform=platform,
             profile=profile,
         )
-    try:
-        model = model_for(platform)
-    except (ValueError, KeyError) as exc:
-        return _not_attempted(
-            design_id, engine, output_dir, str(exc), platform=platform, profile=profile
-        )
+    model = ""  # only the ladder engine uses a caller (Clair3) model
+    if engine == LADDER_ENGINE:
+        try:
+            model = model_for(platform)
+        except (ValueError, KeyError) as exc:
+            return _not_attempted(
+                design_id, engine, output_dir, str(exc), platform=platform, profile=profile
+            )
     try:
         if config is None:  # keep the call unchanged for runs without a config
             record = run_pipeline(

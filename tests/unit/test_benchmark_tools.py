@@ -178,6 +178,25 @@ def test_pipeline_controls_are_forwarded_and_recorded(tmp_path: Path) -> None:
     ]
 
 
+def test_empty_model_is_not_forwarded(tmp_path: Path) -> None:
+    from muc_one_span.benchmarking import run_pipeline
+
+    class Result:
+        exit_code = 0
+        output = "ok"
+        exception = None
+
+    class Runner:
+        def invoke(self, command, args):
+            return Result()
+
+    reads = tmp_path / "reads.fastq"
+    reads.touch()
+    record = run_pipeline("sample", reads, tmp_path / "out", "ont", "", 1, runner=Runner())
+    assert "--clair3-model" not in record["cli_args"]
+    assert record["model"] == ""
+
+
 def test_benchmark_script_defaults_to_hybrid() -> None:
     assert script_module("benchmark").parser().parse_args([]).engine == "hybrid"
 
