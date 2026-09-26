@@ -89,3 +89,23 @@ def reads(
             seq = rc(seq)
         out.append(ReadRecord(f"r{seed}_{i}", seq, "5" * len(seq)))
     return out
+
+
+def concatemers(
+    allele_a: str, allele_b: str, n: int, *, err: float, seed: int, flank_bp: int = 40
+) -> list[ReadRecord]:
+    """``n`` noisy head-to-tail PCR dimer reads: amplicon(a) + amplicon(b), random strand.
+
+    Each amplicon is ``flank + allele + flank`` (as in `reads`), so the junction between
+    the two copies holds the right flank of copy a and the left flank of copy b.
+    """
+    rng = random.Random(seed)
+    left = RD.flanking_left[-flank_bp:] if flank_bp else ""
+    right = RD.flanking_right[:flank_bp] if flank_bp else ""
+    out = []
+    for i in range(n):
+        seq = _noisy(left + allele_a + right + left + allele_b + right, err, rng)
+        if rng.random() < 0.5:
+            seq = rc(seq)
+        out.append(ReadRecord(f"d{seed}_{i}", seq, "5" * len(seq)))
+    return out

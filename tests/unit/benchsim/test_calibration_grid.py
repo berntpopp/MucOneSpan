@@ -21,6 +21,7 @@ from muc_one_span.benchsim.calibration_grid import (
     grid_points,
     load_grid,
 )
+from muc_one_span.hybrid import dimers as hybrid_dimers
 from muc_one_span.hybrid import lengths as hybrid_lengths
 from muc_one_span.hybrid import smear as hybrid_smear
 from muc_one_span.hybrid import spans as hybrid_spans
@@ -196,12 +197,16 @@ def _settings_attributes_read(module: ModuleType) -> set[str]:
 
 
 def test_length_stage_keys_matches_every_setting_spans_lengths_and_smear_read() -> None:
-    """`LENGTH_STAGE_KEYS` must track `hybrid.spans`/`hybrid.lengths`/`hybrid.smear`'s
+    """`LENGTH_STAGE_KEYS` must track `hybrid.spans`/`hybrid.lengths`/`hybrid.smear`/
+    `hybrid.dimers`'s
     own settings usage exactly: neither a stale entry (a key that no longer affects the
     length model) nor a missing one (a key that does, silently refused for calibration)
     should be able to drift in without this test failing."""
     read = set().union(
-        *(_settings_attributes_read(m) for m in (hybrid_spans, hybrid_lengths, hybrid_smear))
+        *(
+            _settings_attributes_read(m)
+            for m in (hybrid_spans, hybrid_lengths, hybrid_smear, hybrid_dimers)
+        )
     )
     declared = {key.removeprefix("hybrid.") for key in LENGTH_STAGE_KEYS}
     assert read == declared

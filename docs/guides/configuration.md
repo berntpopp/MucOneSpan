@@ -317,6 +317,9 @@ no hardcoded thresholds in the hybrid engine.
 | `hybrid.smear_test_window_frac` | `0.25` | Core window width, as a fraction of the candidate's assignment half-window, scored against the local background; number strictly >0, in [0,1]. |
 | `hybrid.smear_background_flank_units` | `2.0` | Minimum span, in units, of each side of the smear-test background window; number strictly >0. |
 | `hybrid.smear_background_min_reads` | `5` | Minimum reads required in each widened background window side; integer >=1. |
+| `hybrid.smear_test_inter_allele` | `true` | Also run the smear test on the candidates between two accepted peaks when the shorter allele is the top peak (smear below the longer allele), over the region from the shorter allele's window edge to `smear_short_product_units` below the longer allele. Only `support_below_threshold` candidates are re-judged; a significant candidate stays gate-relevant, a `max_alleles` third peak is never relabelled. Rejected entries from a smear test carry `smear_region` (`below_top` or `inter_allele`); boolean. |
+| `hybrid.dimer_recognition` | `true` | Recognise PCR dimer products: spanning reads with an internal motif-9 -> motif-1 amplicon junction (found with `anchor_max_edits`) whose two parts each fall in an accepted peak's assignment window. They are removed before the final peak fit, never join an allele (consensus, phasing, read support) and are recorded as a `dimer` rejected peak (not gate-relevant) with `parent_units`; boolean. |
+| `hybrid.dimer_max_parent_frac` | `0.05` | Most dimer reads a parent pair may have, as a fraction of the smaller parent's support, to count as a minority artefact (dev maximum 0.016). Above it the pair is left unexplained and stays gate-relevant; number in [0,1]. |
 
 #### POA draft and polishing (S3, S7)
 

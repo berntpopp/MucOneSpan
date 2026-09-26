@@ -143,6 +143,19 @@ class HybridSettings:
     smear_test_window_frac: float = 0.25
     smear_background_flank_units: float = 2.0
     smear_background_min_reads: int = 5
+    # Task 15h length artefacts. smear_test_inter_allele runs the same smear test on the
+    # candidates between two accepted peaks when the shorter one is the top peak (smear
+    # below the longer allele; the below-top region already covers the other case); a
+    # candidate that is significant keeps its gate-relevant reason. dimer_recognition
+    # removes PCR dimer products: spanning reads with an internal motif-9 -> motif-1
+    # amplicon junction (anchor_max_edits) whose two parts each fall in an accepted
+    # peak's assignment window. They are recorded as a 'dimer' rejected peak and never
+    # join an allele, when a parent pair has at most dimer_max_parent_frac x the smaller
+    # parent's support in dimer reads (dev max 0.016); more is not a minority artefact
+    # and stays unexplained (gate-relevant).
+    smear_test_inter_allele: bool = True
+    dimer_recognition: bool = True
+    dimer_max_parent_frac: float = 0.05
     # S4 (Task 8) linked-site phase split: site-table read cap, homopolymer-run site
     # length and background window, minor-allele read floor, run background multiplier
     # (D6), gap-allele AF factor and pairwise-linkage read floor. Strand consistency is
@@ -286,6 +299,9 @@ class HybridSettings:
         if self.smear_background_flank_units == 0:
             raise ValueError("hybrid.smear_background_flank_units must be > 0")
         _integer("hybrid.smear_background_min_reads", self.smear_background_min_reads, 1)
+        _boolean("hybrid.smear_test_inter_allele", self.smear_test_inter_allele)
+        _boolean("hybrid.dimer_recognition", self.dimer_recognition)
+        _number("hybrid.dimer_max_parent_frac", self.dimer_max_parent_frac, 0, 1)
         for name, minimum in (
             ("phase_max_site_reads", 1),
             ("phase_run_min_len", 2),

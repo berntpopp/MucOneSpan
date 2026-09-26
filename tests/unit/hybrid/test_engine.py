@@ -60,6 +60,31 @@ def test_heterozygous_dupc_sample_is_reconstructed(tmp_path: Path) -> None:
     assert saved["read_categories"]["spanning"] == 210
 
 
+def test_dimer_products_are_recorded_and_kept_out_of_the_alleles(tmp_path: Path) -> None:
+    # Task 15h: head-to-tail PCR dimers (A+A, A+B, B+B) make length peaks near L_a + L_b;
+    # they are recorded as 'dimer' rejected peaks, not gate-relevant, and never polished.
+    reads = (
+        synth.reads(A, 150, err=0.02, seed=1)
+        + synth.reads(B, 60, err=0.02, seed=2)
+        + synth.concatemers(A, A, 3, err=0.02, seed=5)
+        + synth.concatemers(A, B, 3, err=0.02, seed=6)
+        + synth.concatemers(B, B, 3, err=0.02, seed=7)
+    )
+    path = _fastq(tmp_path / "dimers.fastq", reads)
+    result = reconstruct_alleles(path, tmp_path, synth.RD, DEFAULT_SETTINGS)
+    block = result.block
+    dimers = [r for r in block["rejected_peaks"] if r["reason"] == "dimer"]
+    assert dimers and block["dimer_product_reads"] == sum(r["support"] for r in dimers)
+    assert block["dimer_product_fraction"] > 0
+    assert block["selection_status"] == "resolved"
+    seqs = {
+        p.read_text().split("\n", 1)[1].replace("\n", "") for p in result.consensus_paths.values()
+    }
+    assert seqs == {A, B}
+    member_lengths = [len(seq) for group in result.members.values() for seq, _ in group]
+    assert max(member_lengths) < len(A) + len(A)  # no dimer product joined an allele
+
+
 def test_low_depth_allele_is_marked_not_dropped(tmp_path: Path) -> None:
     result = reconstruct_alleles(_sample(tmp_path, n_b=15), tmp_path, synth.RD, DEFAULT_SETTINGS)
     statuses = sorted(result.alleles[k]["depth_status"] for k in ("allele_1", "allele_2"))

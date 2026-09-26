@@ -166,6 +166,22 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
   selection status `unresolved_run_site`, which makes the result INCONCLUSIVE
   with the located reason. The tier never creates an event or a PATHOGENIC
   call.
+- Hybrid engine: PCR dimer products and smear between the two alleles no longer
+  count as unexplained length peaks, the main cause of INCONCLUSIVE results on
+  ONT amplicons. A spanning read with an internal motif-9 -> motif-1 amplicon
+  junction whose two parts each match an accepted allele is a dimer product
+  (new settings `hybrid.dimer_recognition`, default on, and
+  `hybrid.dimer_max_parent_frac`, default 0.05). Dimer products are removed
+  before the final peak fit, never join an allele and are recorded as a
+  `dimer` rejected peak (with `parent_units`) and in the new
+  `dimer_product_reads`/`dimer_product_fraction` fields. A real allele at
+  twice an allele's length has no junction and stays a gate-relevant peak.
+  The smear significance test now also covers the region between the alleles
+  when the shorter allele is the top peak (new setting
+  `hybrid.smear_test_inter_allele`, default on); smear-tested rejected peaks
+  name their `smear_region`. `benchsim calibrate --stage lengths` flags cases
+  with a gate-relevant rejected peak (`gate_relevant_rejected_peak`), for use
+  as a reason metric.
 
 ### Changed
 

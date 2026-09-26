@@ -20,7 +20,7 @@ def spans(inner_units: int, n: int, seed: int, **kw: float) -> list[SpanRead]:
 
 
 def _fit(reads: list[SpanRead]) -> LengthModel:
-    return fit_length_model(reads, S, UNIT)
+    return fit_length_model(reads, S, ANCH)
 
 
 def test_two_distant_alleles_with_minor_long_allele() -> None:
@@ -209,5 +209,5 @@ def test_borderline_smear_candidate_is_smear_ambiguous() -> None:
     # Widening the borderline band to cover every non-trivial p value routes the smear
     # tail's tested candidates to smear_ambiguous (gate-relevant) instead of silent smear.
     wide = HybridSettings(smear_test_borderline_factor=1e6)
-    model = fit_length_model(spans(60, 120, 3, smear_frac=0.45), wide, UNIT)
+    model = fit_length_model(spans(60, 120, 3, smear_frac=0.45), wide, ANCH)
     assert "smear_ambiguous" in [r["reason"] for r in model.gate_relevant_rejections]

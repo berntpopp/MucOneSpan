@@ -32,7 +32,7 @@ from muc_one_span.benchsim.generate import FASTQ
 from muc_one_span.config import load_repeat_dictionary
 from muc_one_span.evaluation.artifacts import read_inventory
 from muc_one_span.evaluation.truth import TruthValidationError, load_truth
-from muc_one_span.hybrid.lengths import fit_length_model, window_bp
+from muc_one_span.hybrid.lengths import GATE_RELEVANT_REJECTIONS, fit_length_model, window_bp
 from muc_one_span.hybrid.reads_io import read_input
 from muc_one_span.hybrid.spans import Anchors, categorize_reads
 from muc_one_span.settings import HybridSettings, load_settings
@@ -40,6 +40,9 @@ from muc_one_span.settings import HybridSettings, load_settings
 SCHEMA_VERSION = 1
 LENGTHS_FILE = "lengths.json"
 NOT_ATTEMPTED = "not_attempted"
+# Reconstruction flag for a case with a gate-relevant rejected length peak (the lengths
+# stage's proxy for an unresolved_rejected_peak INCONCLUSIVE), usable as a reason metric.
+GATE_RELEVANT_FLAG = "gate_relevant_rejected_peak"
 Row = dict[str, Any]
 
 
@@ -65,7 +68,7 @@ def _fit_one(row: dict[str, Any], split_dir: Path, anchors: Anchors, h: HybridSe
         return {"status": NOT_ATTEMPTED, "error": f"reads file not found: {fastq}"}
     try:
         cats = categorize_reads(read_input(fastq), anchors, h)
-        model = fit_length_model(cats.spanning, h, anchors.unit_bp)
+        model = fit_length_model(cats.spanning, h, anchors)
     except (OSError, ValueError) as exc:
         return {"status": NOT_ATTEMPTED, "error": f"{type(exc).__name__}: {exc}"}
     return {
@@ -208,7 +211,10 @@ def _score(
     matched_alleles, false_alleles, missed_alleles = _match_alleles(
         truth_lengths, data["peaks"], h, unit_bp
     )
-    smear_ambiguous = any(r["reason"] == "smear_ambiguous" for r in data["rejected"])
+    reasons = {r["reason"] for r in data["rejected"]}
+    flags = ["smear_ambiguous"] if "smear_ambiguous" in reasons else []
+    if reasons & GATE_RELEVANT_REJECTIONS:
+        flags.append(GATE_RELEVANT_FLAG)
     return {
         "sample": name,
         "status": "ok",
@@ -220,7 +226,7 @@ def _score(
         "false_alleles": false_alleles,
         "missed_alleles": missed_alleles,
         "case_length_exact": int(false_alleles == 0 and missed_alleles == 0),
-        "reconstruction_flags": ["smear_ambiguous"] if smear_ambiguous else [],
+        "reconstruction_flags": flags,
         "clinical_reasons": [],
     }
 

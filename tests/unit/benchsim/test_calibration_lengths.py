@@ -360,6 +360,9 @@ def test_evaluate_records_a_missed_allele_when_a_minor_peak_is_rejected(tmp_path
     assert row["observed_allele_count"] == 1
     assert row["missed_alleles"] == 1
     assert row["case_length_exact"] == 0
+    # Task 15h: the rejected minor peak is gate-relevant (it drives INCONCLUSIVE), so
+    # the lengths stage flags it for a reason-rate metric.
+    assert row["reconstruction_flags"] == ["gate_relevant_rejected_peak"]
 
 
 def test_evaluate_records_smear_ambiguous_as_a_reconstruction_flag(tmp_path: Path) -> None:
@@ -370,7 +373,7 @@ def test_evaluate_records_smear_ambiguous_as_a_reconstruction_flag(tmp_path: Pat
     config = _write_config(tmp_path, {"hybrid.smear_test_borderline_factor": 1e6})
     report, _ = _run_and_evaluate(tmp_path, rows, config)
     (row,) = report["rows"]
-    assert row["reconstruction_flags"] == ["smear_ambiguous"]
+    assert row["reconstruction_flags"] == ["smear_ambiguous", "gate_relevant_rejected_peak"]
 
 
 def test_evaluate_fails_a_case_whose_truth_cannot_be_loaded(tmp_path: Path) -> None:

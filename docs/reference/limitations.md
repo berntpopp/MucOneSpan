@@ -310,6 +310,25 @@ are not a calibration or release claim.
   decision error), plus one case where a substituted base and its neighbouring
   insertion slot are split across two separate pileup-vote columns. Neither
   failure mode changed a clinical call.
+- **PCR dimers and smear between the alleles.** A head-to-tail PCR dimer is
+  read as `allele_a + junction + allele_b`, a length peak near `L_a + L_b`
+  (`2 x L` when both copies come from one allele). It is recognised only on
+  structural evidence: each read must carry an internal motif-9 -> motif-1
+  amplicon junction, and both of its parts must fall in an accepted allele's
+  window. Length alone never makes a peak a dimer, so a real allele at twice
+  another allele's length stays a gate-relevant rejected peak. Limits:
+  - A dimer whose junction motifs carry more than `anchor_max_edits` edits,
+    a trimer, or a dimer of an allele that was not accepted is not
+    recognised and keeps the sample INCONCLUSIVE.
+  - More dimer reads than `dimer_max_parent_frac` x the smaller parent's
+    support are not treated as a minority artefact.
+  - Head-to-head (inverted) dimers produce no extra length peak and are not
+    counted.
+  - The smear test between the alleles runs only when the shorter allele is
+    the top peak and only re-judges `support_below_threshold` candidates. A
+    real minor allele between the alleles (contamination, mosaicism) that is
+    not a significant excess over the local smear is called smear, the same
+    detection floor as the below-top smear test.
 - **PRJEB92208 ONT amplicon negatives.** Most amplicon runs on that dataset
   produce several length peaks below `hybrid.min_peak_reads`/
   `far_peak_min_frac`/`near_peak_min_frac` from PCR-smear reads, so sample

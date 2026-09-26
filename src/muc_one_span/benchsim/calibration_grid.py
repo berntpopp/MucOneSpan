@@ -45,8 +45,9 @@ DEFAULT_STAGE = "full"
 LENGTHS_STAGE = "lengths"
 STAGES = (DEFAULT_STAGE, LENGTHS_STAGE)
 
-# The exact `HybridSettings` fields read by `hybrid.spans`, `hybrid.lengths` and
-# `hybrid.smear` (S1 anchor search, S2 length model, smear significance test):
+# The exact `HybridSettings` fields read by `hybrid.spans`, `hybrid.lengths`,
+# `hybrid.smear` and `hybrid.dimers` (S1 anchor search, S2 length model, smear
+# significance test, PCR dimer recognition):
 # everything else cannot change a length-stage result, so a grid over it is
 # refused for ``--stage lengths`` before any point is run.
 LENGTH_STAGE_KEYS = frozenset(
@@ -78,6 +79,9 @@ LENGTH_STAGE_KEYS = frozenset(
         "smear_test_correction",
         "smear_test_alpha",
         "smear_test_borderline_factor",
+        "smear_test_inter_allele",
+        "dimer_recognition",
+        "dimer_max_parent_frac",
     )
 )
 

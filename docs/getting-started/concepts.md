@@ -157,7 +157,7 @@ produces no BAM alignment tracks.
 ```mermaid
 graph TD
     A["Input reads<br/>(FASTQ/.gz, or BAM primary reads)"] --> S1["S1 Anchor + categorize<br/>motif-1/motif-9 edlib search,<br/>flank-anchor fallback"]
-    S1 --> S2["S2 Length model<br/>KDE over spanning-read lengths;<br/>smear test; rejected peaks"]
+    S1 --> S2["S2 Length model<br/>KDE over spanning-read lengths;<br/>smear and dimer tests; rejected peaks"]
     S2 --> S3["S3 Draft consensus<br/>POA (pyabpoa/pyspoa) on a<br/>random near-modal sample"]
     S3 --> S4["S4 Phase split<br/>linked, strand-consistent sites<br/>(majority vote, not EM)"]
     S4 --> S5["S5/S6 Hybrid reference + assignment<br/>ladder-flanked draft; every read<br/>assigned by edit-distance margin"]
@@ -191,8 +191,10 @@ staying silent:
   `left_anchored`, `right_anchored`, `internal_or_offtarget`), `rejected_peaks`
   (each candidate length peak that did not become an allele, with its reason:
   `noise`, `smear`, `smear_ambiguous`, `support_below_threshold`,
-  `max_alleles`), `undecided_reads`, `off_target_reads`,
-  `unassigned_spanning_fraction`, `short_product_fraction`,
+  `max_alleles`, or `dimer` for a PCR dimer product with its `parent_units`;
+  smear-tested entries name their `smear_region`), `undecided_reads`,
+  `off_target_reads`, `unassigned_spanning_fraction`, `short_product_fraction`,
+  `dimer_product_reads`, `dimer_product_fraction`,
   `selection_status`, `poa_backend`.
 - **Per allele**: `spanning_reads`, `assigned_reads`, `depth_status`
   (`adequate`/`low`/`insufficient`), `selection_status`

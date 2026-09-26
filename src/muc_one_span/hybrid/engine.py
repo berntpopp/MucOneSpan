@@ -221,7 +221,7 @@ def reconstruct_alleles(
     anchors = Anchors.from_dictionary(rd, h)
     unit_bp = anchors.unit_bp
     cats = categorize_reads(read_input(input_path), anchors, h)
-    model = fit_length_model(cats.spanning, h, unit_bp)
+    model = fit_length_model(cats.spanning, h, anchors)
     if not model.peaks:
         raise InsufficientEvidenceError("hybrid: no allele length peak passed the thresholds")
     groups, split_bases, phase_leftover, located = _groups(model, h, rng, backend, unit_bp)
@@ -323,6 +323,8 @@ def reconstruct_alleles(
         "read_categories": cats.counts(),
         "rejected_peaks": model.rejected,
         "short_product_fraction": round(model.short_product_fraction, FRACTION_DECIMALS),
+        "dimer_product_reads": len(model.dimer_products),
+        "dimer_product_fraction": round(model.dimer_product_fraction, FRACTION_DECIMALS),
         "unassigned_spanning_reads": n_unassigned,
         "phase_unassigned_spanning_reads": len(phase_leftover),
         "unassigned_spanning_fraction": round(unassigned_fraction, FRACTION_DECIMALS),
