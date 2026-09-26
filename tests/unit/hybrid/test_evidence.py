@@ -22,6 +22,7 @@ from muc_one_span.hybrid.evidence import (
 from muc_one_span.hybrid.spans import Anchors, categorize_reads
 from muc_one_span.settings import HybridSettings
 from tests.unit.hybrid import synth
+from tests.unit.hybrid.synth import LAYOUT
 
 S = HybridSettings()
 UNIT = synth.RD.repeat_length_bp
@@ -37,7 +38,7 @@ BOTH = {"+": 0, "-": 0}
 
 def _oriented(allele: str, n: int, seed: int) -> list[tuple[str, str]]:
     cats = categorize_reads(
-        synth.reads(allele, n, err=0.02, seed=seed), Anchors.from_dictionary(synth.RD, S), S
+        synth.reads(allele, n, err=0.02, seed=seed), Anchors.from_dictionary(synth.RD, S, LAYOUT), S
     )
     return [(sp.seq, sp.strand) for sp in cats.spanning]
 

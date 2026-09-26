@@ -18,6 +18,7 @@ from muc_one_span.hybrid.polish import (
 from muc_one_span.hybrid.spans import Anchors, SpanRead, categorize_reads
 from muc_one_span.settings import DEFAULT_SETTINGS, HybridSettings
 from tests.unit.hybrid import synth
+from tests.unit.hybrid.synth import LAYOUT
 
 BACKEND = DEFAULT_SETTINGS.hybrid.poa_backend
 S = DEFAULT_SETTINGS.hybrid
@@ -50,7 +51,7 @@ class _RecordingBackend:
 def _members(seq: str, n: int, seed: int) -> list[SpanRead]:
     return categorize_reads(
         synth.reads(seq, n, err=0.03, seed=seed),
-        Anchors.from_dictionary(synth.RD, HybridSettings()),
+        Anchors.from_dictionary(synth.RD, HybridSettings(), LAYOUT),
         HybridSettings(),
     ).spanning
 

@@ -18,6 +18,9 @@ from muc_one_span.hybrid.spans import ReadRecord
 # (0x800) alignments, so each molecule is read once (format definition, not a tunable).
 NON_PRIMARY_FLAGS = "0x900"
 FASTQ_HEADER = "@"
+FASTQ_SEPARATOR = "+"
+# Longest excerpt of an offending FASTQ line quoted in an error (message size only).
+ERROR_EXCERPT_CHARS = 40
 # Distribution name of each POA backend's Python package (for version provenance).
 BACKEND_PACKAGES = {"pyabpoa": "pyabpoa", "pyspoa": "pyspoa"}
 UNKNOWN_VERSION = "unknown"
@@ -30,13 +33,27 @@ def parse_fastq(lines: Iterable[str]) -> Iterator[ReadRecord]:
         if not header.strip():
             continue
         if not header.startswith(FASTQ_HEADER):
-            raise ValueError(f"malformed FASTQ header: {header.strip()[:40]!r}")
+            raise ValueError(f"malformed FASTQ header: {_excerpt(header)!r}")
         try:
-            seq, _plus, qual = next(it), next(it), next(it)
+            seq, plus, qual = next(it), next(it), next(it)
         except StopIteration:
             raise ValueError("truncated FASTQ record") from None
         name = header[len(FASTQ_HEADER) :].split()
-        yield ReadRecord(name[0] if name else "", seq.strip().upper(), qual.strip())
+        if not plus.startswith(FASTQ_SEPARATOR):
+            raise ValueError(
+                f"malformed FASTQ record {_excerpt(header)!r}: missing '+' separator line"
+            )
+        seq, qual = seq.strip(), qual.strip()
+        if len(seq) != len(qual):
+            raise ValueError(
+                f"malformed FASTQ record {_excerpt(header)!r}: sequence length {len(seq)} "
+                f"!= quality length {len(qual)}"
+            )
+        yield ReadRecord(name[0] if name else "", seq.upper(), qual)
+
+
+def _excerpt(line: str) -> str:
+    return line.strip()[:ERROR_EXCERPT_CHARS]
 
 
 def read_input(path: Path) -> Iterator[ReadRecord]:

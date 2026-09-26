@@ -25,6 +25,10 @@ SMEAR_CORRECTIONS = ("bonferroni", "none")
 # "off" never, "indel" only length-changing events (every frameshift), "all" any event.
 SINGLE_EVENT_SPLIT_MODES = ("off", "indel", "all")
 STUTTER_MODELS = ("length", "shift")
+# Structural: a "linked" split needs at least two events that agree. A single event goes
+# through the single-event split and its share-bound gate (hybrid.single_event), never
+# through the linked-site path, so min_linked_sites may not go below this.
+MIN_LINKED_EVENTS = 2
 
 
 @dataclass(frozen=True)
@@ -233,7 +237,6 @@ class HybridSettings:
             "min_peak_reads",
             "rejected_peak_noise_reads",
             "polish_rounds",
-            "min_linked_sites",
             "min_fragment_bp",
             "assign_margin",
             "depth_low_spanning",
@@ -242,6 +245,7 @@ class HybridSettings:
         ):
             _integer(f"hybrid.{name}", getattr(self, name))
         _integer("hybrid.n_poa", self.n_poa, 1)
+        _integer("hybrid.min_linked_sites", self.min_linked_sites, MIN_LINKED_EVENTS)
         _integer("hybrid.hp_vote_min_run", self.hp_vote_min_run, 2)
         _integer("hybrid.hp_event_min_run", self.hp_event_min_run, 2)
         _integer("hybrid.hp_max_run_len", self.hp_max_run_len, self.hp_event_min_run + 1)

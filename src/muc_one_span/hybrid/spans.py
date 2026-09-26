@@ -7,7 +7,7 @@ from dataclasses import dataclass, field
 
 from muc_one_span.config import RepeatDictionary
 from muc_one_span.hybrid.align import infix_hit, rc
-from muc_one_span.settings import HybridSettings
+from muc_one_span.settings import HybridSettings, ReferenceLayoutSettings
 
 PHRED_OFFSET = 33  # FASTQ Phred+33 quality encoding (format definition, not a tunable)
 
@@ -53,10 +53,13 @@ class Anchors:
     unit_bp: int
 
     @classmethod
-    def from_dictionary(cls, rd: RepeatDictionary, settings: HybridSettings) -> Anchors:
+    def from_dictionary(
+        cls, rd: RepeatDictionary, settings: HybridSettings, layout: ReferenceLayoutSettings
+    ) -> Anchors:
+        """Anchor on the layout's outer fixed repeats (``left_anchor_id``/``right_anchor_id``)."""
         return cls(
-            rd.repeats["1"],
-            rd.repeats["9"],
+            rd.repeats[layout.left_anchor_id],
+            rd.repeats[layout.right_anchor_id],
             rd.flanking_left[-settings.flank_anchor_bp :],
             rd.flanking_right[: settings.flank_anchor_bp],
             rd.repeat_length_bp,

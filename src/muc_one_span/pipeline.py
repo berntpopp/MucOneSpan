@@ -80,11 +80,16 @@ def execute_pipeline(
         else (settings or DEFAULT_SETTINGS).run.mapping_timeout,
         **{k: v for k, v in (("engine", engine), ("assay", assay)) if v is not None},
     )
-    if reference is None and (
-        settings.repeat_dictionary is not None
-        or settings.reference_layout.pre != DEFAULT_SETTINGS.reference_layout.pre
-        or settings.reference_layout.after != DEFAULT_SETTINGS.reference_layout.after
-        or settings.consensus.flank_length != DEFAULT_SETTINGS.consensus.flank_length
+    # Only the ladder aligns to a reference FASTA; the hybrid engine builds its own.
+    if (
+        reference is None
+        and settings.run.engine == LADDER_ENGINE
+        and (
+            settings.repeat_dictionary is not None
+            or settings.reference_layout.pre != DEFAULT_SETTINGS.reference_layout.pre
+            or settings.reference_layout.after != DEFAULT_SETTINGS.reference_layout.after
+            or settings.consensus.flank_length != DEFAULT_SETTINGS.consensus.flank_length
+        )
     ):
         raise click.BadParameter(
             "A configured dictionary, reference layout or flank length requires an explicit matching reference.",
@@ -211,7 +216,7 @@ def _run_hybrid(
     check_tools(["samtools"] if Path(input_path).suffix == ".bam" else [])
     click.echo("Hybrid engine: reconstructing alleles from reads...")
     hybrid = reconstruct_alleles(Path(input_path), out, rd, settings)
-    (out / "alleles.json").write_text(json.dumps(hybrid.alleles, indent=2) + "\n")
+    # alleles.json is written once, by finish_run, after read-support annotation.
     finish_run(
         out=out,
         input_path=input_path,

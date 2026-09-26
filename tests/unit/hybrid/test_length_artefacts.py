@@ -19,9 +19,10 @@ from muc_one_span.hybrid.lengths import GATE_RELEVANT_REJECTIONS, LengthModel, f
 from muc_one_span.hybrid.spans import Anchors, SpanRead, categorize_reads
 from muc_one_span.settings import HybridSettings
 from tests.unit.hybrid import synth
+from tests.unit.hybrid.synth import LAYOUT
 
 S = HybridSettings()
-ANCH = Anchors.from_dictionary(synth.RD, S)
+ANCH = Anchors.from_dictionary(synth.RD, S, LAYOUT)
 UNIT = ANCH.unit_bp
 ERR = 0.02
 SHORT_INNER = 30  # 39 units in total (synth.PRE + inner + synth.POST)

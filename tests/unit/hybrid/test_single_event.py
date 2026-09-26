@@ -33,9 +33,10 @@ from muc_one_span.pipeline import execute_pipeline
 from muc_one_span.report import compute_clinical_decision
 from muc_one_span.settings import DEFAULT_SETTINGS, HybridSettings
 from tests.unit.hybrid import synth
+from tests.unit.hybrid.synth import LAYOUT
 
 S = HybridSettings()
-ANCH = Anchors.from_dictionary(synth.RD, S)
+ANCH = Anchors.from_dictionary(synth.RD, S, LAYOUT)
 ERR = 0.02
 N_PER_ALLELE = S.phase_max_site_reads // 2
 DUPA = next(

@@ -38,7 +38,11 @@ from muc_one_span.hybrid.assign import (
     hybrid_references,
     trim_to_draft,
 )
-from muc_one_span.hybrid.evidence import event_read_support, residual_sites
+from muc_one_span.hybrid.evidence import (
+    FRACTION_DECIMALS,
+    event_read_support,
+    residual_sites,
+)
 from muc_one_span.hybrid.lengths import LengthModel, fit_length_model
 from muc_one_span.hybrid.phase import PhaseResult, split_by_linked_sites
 from muc_one_span.hybrid.poa import PoaBackend, get_backend
@@ -56,8 +60,6 @@ __all__ = [
     "read_input",
     "reconstruct_alleles",
 ]
-# Output format precision of reported fractions (statuses use unrounded values).
-FRACTION_DECIMALS = 4
 T = TypeVar("T")
 # Split basis of an unsplit equal-length peak held back by the run-site safety tier.
 RUN_SITE_BASIS = "unconfirmed_run_site"
@@ -218,7 +220,7 @@ def reconstruct_alleles(
     h = settings.hybrid
     rng = random.Random(h.seed)
     backend = get_backend(h.poa_backend)
-    anchors = Anchors.from_dictionary(rd, h)
+    anchors = Anchors.from_dictionary(rd, h, settings.reference_layout)
     unit_bp = anchors.unit_bp
     cats = categorize_reads(read_input(input_path), anchors, h)
     model = fit_length_model(cats.spanning, h, anchors)
@@ -312,7 +314,9 @@ def reconstruct_alleles(
             "homozygous": homozygous,
             "same_length": len(set(lengths)) == 1,
             "observed_length_candidates": [round(p.center_bp / unit_bp) for p in model.peaks],
-            "allele_multiplicity_status": "resolved" if len(kept) == PLOIDY else "unresolved",
+            "allele_multiplicity_status": "resolved"
+            if len(kept) == PLOIDY or homozygous
+            else "unresolved",
         }
     )
     block = {

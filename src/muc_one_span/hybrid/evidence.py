@@ -43,8 +43,9 @@ from muc_one_span.hybrid.stutter import shift as _shift
 from muc_one_span.hybrid.stutter import smooth as _smooth
 from muc_one_span.settings import HybridSettings
 
-# Display precision of reported fractions and log-likelihood ratios (output format
-# only: every status is decided on the unrounded values).
+# Display precision of reported fractions (the one hybrid-wide value; engine.py reuses
+# it) and of log-likelihood ratios (output format only: every status is decided on the
+# unrounded values).
 FRACTION_DECIMALS = 3
 LLR_DECIMALS = 1
 

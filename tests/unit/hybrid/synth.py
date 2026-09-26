@@ -7,8 +7,10 @@ import random
 from muc_one_span.config import load_repeat_dictionary
 from muc_one_span.hybrid.align import rc
 from muc_one_span.hybrid.spans import ReadRecord
+from muc_one_span.settings import DEFAULT_SETTINGS
 
 RD = load_repeat_dictionary()
+LAYOUT = DEFAULT_SETTINGS.reference_layout  # anchors: its outer fixed repeats (1 and 9)
 PRE = ["1", "2", "3", "4", "5"]
 POST = ["6", "7", "8", "9"]
 

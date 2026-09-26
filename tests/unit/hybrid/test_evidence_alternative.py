@@ -30,6 +30,7 @@ from muc_one_span.pipeline import execute_pipeline
 from muc_one_span.report import compute_clinical_decision
 from muc_one_span.settings import DEFAULT_SETTINGS, HybridSettings
 from tests.unit.hybrid import synth
+from tests.unit.hybrid.synth import LAYOUT
 
 S = HybridSettings()
 X = synth.RD.repeats["X"]
@@ -61,7 +62,7 @@ def _oriented_mix(
         for _ in range(count):
             template = _stutter(source, rng, p_del, p_ins)
             records += synth.reads(template, 1, err=ERR, seed=rng.randrange(1 << 30))
-    cats = categorize_reads(records, Anchors.from_dictionary(synth.RD, S), S)
+    cats = categorize_reads(records, Anchors.from_dictionary(synth.RD, S, LAYOUT), S)
     return [(sp.seq, sp.strand) for sp in cats.spanning]
 
 

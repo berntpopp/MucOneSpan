@@ -93,8 +93,9 @@ def run_lengths_stage(
     split_dir = manifest.parent
     split = split_dir.name
     rows = _read_manifest(manifest)
-    h = load_settings(config).hybrid
-    anchors = Anchors.from_dictionary(load_repeat_dictionary(), h)
+    loaded = load_settings(config)
+    h = loaded.hybrid
+    anchors = Anchors.from_dictionary(load_repeat_dictionary(), h, loaded.reference_layout)
     engine_dir = Path(results_root) / engine
     engine_dir.mkdir(parents=True, exist_ok=True)
     records = []

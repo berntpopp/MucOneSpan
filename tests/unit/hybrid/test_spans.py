@@ -6,9 +6,10 @@ from muc_one_span.classify import classify_sequence
 from muc_one_span.hybrid.spans import Anchors, ReadRecord, categorize_reads
 from muc_one_span.settings import HybridSettings
 from tests.unit.hybrid import synth
+from tests.unit.hybrid.synth import LAYOUT
 
 S = HybridSettings()
-ANCH = Anchors.from_dictionary(synth.RD, S)
+ANCH = Anchors.from_dictionary(synth.RD, S, LAYOUT)
 
 
 def test_dupc_template_is_classified() -> None:

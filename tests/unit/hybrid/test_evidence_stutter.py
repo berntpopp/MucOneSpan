@@ -24,6 +24,7 @@ from muc_one_span.hybrid.spans import Anchors, ReadRecord, categorize_reads
 from muc_one_span.settings import HybridSettings
 from tests.unit.hybrid import synth
 from tests.unit.hybrid import test_evidence_alternative as alt
+from tests.unit.hybrid.synth import LAYOUT
 
 S = HybridSettings()
 N_READS = 200
@@ -74,7 +75,7 @@ def _reads(
         for _ in range(count):
             template = _stutter(source, rng, p_del)
             records += synth.reads(template, 1, err=alt.ERR, seed=rng.randrange(1 << 30))
-    cats = categorize_reads(records, Anchors.from_dictionary(synth.RD, S), S)
+    cats = categorize_reads(records, Anchors.from_dictionary(synth.RD, S, LAYOUT), S)
     return [(sp.seq, sp.strand) for sp in cats.spanning]
 
 
