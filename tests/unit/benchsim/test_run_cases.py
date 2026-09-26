@@ -235,6 +235,25 @@ def test_jobs_parallel_matches_sequential(tmp_path: Path) -> None:
     assert statuses == {"dev-a": "completed", "dev-b": "completed"}
 
 
+def test_config_is_forwarded_only_when_given(tmp_path: Path) -> None:
+    split_dir = tmp_path / "dev"
+    _write_reads(split_dir, "dev-a", "ont_amplicon_r10")
+    _write_truth(split_dir, "dev-a")
+    manifest = _manifest(split_dir, [_row("dev-a", "ont_amplicon_r10", "ok")])
+    seen: list[dict[str, object]] = []
+
+    def fake(sample, input_path, output_dir, platform, model, threads, **kwargs):
+        seen.append(kwargs)
+        return {"sample": sample, "status": "completed", "result_dir": str(output_dir)}
+
+    config = tmp_path / "overlay.json"
+    with patch("muc_one_span.benchsim.run_cases.run_pipeline", side_effect=fake):
+        run_split(manifest, ["ladder"], tmp_path / "a", lambda p: "m", 1, 1)
+        run_split(manifest, ["ladder"], tmp_path / "b", lambda p: "m", 1, 1, config=config)
+    assert "config" not in seen[0]
+    assert seen[1]["config"] == config
+
+
 def test_model_lookup_failure_is_not_attempted(tmp_path: Path) -> None:
     """No model for the platform: the caller was never invoked."""
     split_dir = tmp_path / "dev"
@@ -249,3 +268,28 @@ def test_model_lookup_failure_is_not_attempted(tmp_path: Path) -> None:
         records = run_split(manifest, ["ladder"], tmp_path / "res", no_model, 1, 1)
     caller.assert_not_called()
     assert records[0]["status"] == "not_attempted"
+
+
+def test_hybrid_engine_runs_without_a_caller_model(tmp_path: Path) -> None:
+    """The hybrid engine uses no Clair3 model, so a missing model must not block the case."""
+    split_dir = tmp_path / "dev"
+    _write_reads(split_dir, "dev-a", "ont_amplicon_r10")
+    _write_truth(split_dir, "dev-a")
+    manifest = _manifest(split_dir, [_row("dev-a", "ont_amplicon_r10", "ok")])
+    seen: list[str] = []
+
+    def no_model(platform: str) -> str:
+        raise ValueError("no caller model for ont (set CLAIR3_MODEL_ONT)")
+
+    def fake(
+        sample, input_path, output_dir, platform, model, threads, *, runner=None, engine="hybrid"
+    ):
+        seen.append(model)
+        return {"sample": sample, "status": "completed", "result_dir": str(output_dir)}
+
+    with patch("muc_one_span.benchsim.run_cases.run_pipeline", side_effect=fake):
+        records = run_split(manifest, ["hybrid", "ladder"], tmp_path / "res", no_model, 1, 1)
+
+    by_engine = {r["engine"]: r for r in records}
+    assert by_engine["hybrid"]["status"] == "completed" and seen == [""]
+    assert by_engine["ladder"]["status"] == "not_attempted"

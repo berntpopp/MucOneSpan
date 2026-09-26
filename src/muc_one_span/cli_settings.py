@@ -101,10 +101,19 @@ def write_run_configuration(
     input_path: Path,
     reference: Path,
     output_dir: Path,
+    *,
+    ignored_options: list[dict[str, Any]] | None = None,
 ) -> dict[str, Any]:
-    """Persist effective settings and input provenance before launching tools."""
+    """Persist effective settings and input provenance before launching tools.
+
+    Ladder-only provenance (minimap2 preset, Clair3 model) is recorded only for a ladder
+    run; a hybrid run records those fields as unused and lists ``ignored_options``.
+    """
     from muc_one_span.config import _bundled_repeats_path
+    from muc_one_span.deprecations import LADDER_ENGINE
     from muc_one_span.mapping import PLATFORM_PRESETS
+
+    ladder = settings.run.engine == LADDER_ENGINE
 
     dictionary = (
         Path(settings.repeat_dictionary) if settings.repeat_dictionary else _bundled_repeats_path()
@@ -112,8 +121,11 @@ def write_run_configuration(
     record = {
         "schema_version": 1,
         "settings": settings_as_dict(settings),
-        "resolved_minimap2_preset": settings.run.minimap2_preset
-        or PLATFORM_PRESETS[settings.run.platform],
+        "resolved_minimap2_preset": (
+            settings.run.minimap2_preset or PLATFORM_PRESETS[settings.run.platform]
+        )
+        if ladder
+        else None,
         "configuration_path": str(configuration.resolve()) if configuration else None,
         "configuration_sha256": digest(configuration) if configuration else None,
         "input_path": str(input_path.resolve()),
@@ -124,9 +136,12 @@ def write_run_configuration(
         "repeat_dictionary_sha256": digest(dictionary),
         "precedence": "explicit CLI > configuration file > central defaults",
         "tool_selection": "executable names resolved by existing external-tool PATH handling",
-        "model_selection": "explicit path"
-        if settings.run.clair3_model
-        else "external default unverified",
+        "model_selection": (
+            "explicit path" if settings.run.clair3_model else "external default unverified"
+        )
+        if ladder
+        else f"not used ({settings.run.engine} engine)",
+        "ignored_options": list(ignored_options or []),
     }
     output_dir.mkdir(parents=True, exist_ok=True)
     (output_dir / "run_configuration.json").write_text(json.dumps(record, indent=2) + "\n")

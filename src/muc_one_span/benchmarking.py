@@ -14,6 +14,7 @@ from unittest.mock import patch
 from click.testing import CliRunner
 
 from muc_one_span.config import RepeatDictionary, load_repeat_dictionary
+from muc_one_span.deprecations import LADDER_ENGINE
 from muc_one_span.evaluation import (
     TruthValidationError,
     aggregate,
@@ -22,6 +23,7 @@ from muc_one_span.evaluation import (
     load_truth,
 )
 from muc_one_span.evaluation.artifacts import discover_input, read_inventory
+from muc_one_span.settings import DEFAULT_SETTINGS
 
 
 class Runner(Protocol):
@@ -108,33 +110,35 @@ def run_pipeline(
     threads: int,
     *,
     runner: Runner | None = None,
-    engine: str = "ladder",
+    engine: str = DEFAULT_SETTINGS.run.engine,
+    config: Path | None = None,
 ) -> dict[str, Any]:
     """Run the real full CLI while timing its five scientific stages.
 
-    ``engine`` is appended to ``cli_args`` as ``--engine <engine>`` only when it
-    is not the default ``"ladder"`` (the current CLI has no ``--engine`` flag;
-    it arrives with the hybrid engine), and is always recorded in the returned
-    record and ``measurement.json``.
+    ``engine`` (default: the runtime default, ``hybrid``) is always appended to
+    ``cli_args`` as ``--engine <engine>`` and recorded in the returned record and
+    ``measurement.json``. ``config`` (a runtime settings JSON) is
+    passed as the global ``muconespan --config`` option and recorded; explicit
+    run options (``--threads``, ``--platform``, ``--clair3-model``, ``--engine``)
+    still override its values. ``--threads``, ``--platform`` and ``--clair3-model`` are
+    ladder-only and passed only for the ladder engine (always recorded).
     """
     from muc_one_span.cli import main
 
     output_dir.mkdir(parents=True, exist_ok=True)
+    prefix = ["--config", str(config.resolve())] if config is not None else []
     cli_args = [
+        *prefix,
         "run",
         "--input",
         str(input_path.resolve()),
         "--output-dir",
         str(output_dir.resolve()),
-        "--clair3-model",
-        model,
-        "--threads",
-        str(threads),
-        "--platform",
-        platform,
     ]
-    if engine != "ladder":
-        cli_args += ["--engine", engine]
+    if engine == LADDER_ENGINE:  # ladder-only options; the hybrid engine ignores them
+        cli_args += [*(["--clair3-model", model] if model else []), "--threads", str(threads)]
+        cli_args += ["--platform", platform]
+    cli_args += ["--engine", engine]
     timings: dict[str, float] = {}
     started = time.perf_counter()
     with ExitStack() as stack:
@@ -163,6 +167,8 @@ def run_pipeline(
         "timings": timings,
         "engine": engine,
     }
+    if config is not None:
+        record["config"] = str(config.resolve())
     if error:
         record["error"] = error
     (output_dir / "measurement.json").write_text(json.dumps(record, indent=2) + "\n")
@@ -220,6 +226,7 @@ def run_inventory(
     platform: str | None = None,
     model: str | None = None,
     threads: int | None = None,
+    engine: str = DEFAULT_SETTINGS.run.engine,
 ) -> list[dict[str, Any]]:
     """Run or explicitly fail every inventory entry without dropping denominators."""
     records: list[dict[str, Any]] = []
@@ -256,7 +263,13 @@ def run_inventory(
             if isinstance(run_threads, bool) or run_threads < 1:
                 raise ValueError(f"{sample}: threads must be a positive integer")
             record = run_pipeline(
-                sample, input_path, result_dir, run_platform, run_model, run_threads
+                sample,
+                input_path,
+                result_dir,
+                run_platform,
+                run_model,
+                run_threads,
+                engine=engine,
             )
         except (OSError, ValueError) as exc:
             record = {

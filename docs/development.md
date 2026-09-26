@@ -74,6 +74,8 @@ description is not the implementation contract; see
 | `calling.py`, `vcf.py` | Allele read extraction/remapping, Clair3 calls, VCF processing |
 | `consensus.py` | Allele consensus sequences using bcftools |
 | `classify.py`, `classify_types.py`, `repeat_alignment.py` | Repeat segmentation, nomenclature, mutation interpretation |
+| `hybrid/`, `settings_hybrid.py` | Default read-centric engine: anchoring, length model, POA consensus, phasing, assignment, polishing, read support |
+| `pipeline.py`, `pipeline_tail.py`, `deprecations.py` | Engine dispatch, shared classification/summary tail, deprecated-option warnings and `summary["deprecations"]` |
 | `report.py`, `templates/` | Structured results and optional HTML report |
 | `tools.py` | External command execution, environments, errors, tool versions |
 | `scripts/` | Reference generation, simulation, benchmark and maintenance helpers |
@@ -365,7 +367,9 @@ supports PATHOGENIC only when all of these hold:
 - it is an exact dictionary template (`template_match` and `mutation_name`);
 - its localization is not ambiguous;
 - it has explicit support (exact VCF concordance or `read_support.status=supported`);
-- its allele's `depth_status` is not `low`.
+- its allele's `depth_status` is `adequate` (with a `depth_basis`, any other value,
+  including a missing or unknown one, blocks PATHOGENIC; legacy summaries without a basis
+  block `low` and `insufficient` only).
 
 NEGATIVE additionally requires:
 

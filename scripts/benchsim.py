@@ -30,6 +30,17 @@ from typing import Any
 
 from muc_one_span.benchsim.atlas import build_atlas, render_atlas
 from muc_one_span.benchsim.bench_config import DEFAULT_BENCH_CONFIG, load_bench_config
+from muc_one_span.benchsim.calibration import (
+    CALIBRATION_SPLIT,
+    CalibrationRequest,
+    EvaluateFn,
+    check_split,
+    run_calibration,
+)
+from muc_one_span.benchsim.calibration_cli import add_calibration_parsers
+from muc_one_span.benchsim.calibration_grid import LENGTHS_STAGE
+from muc_one_span.benchsim.calibration_lengths import evaluate_lengths_stage, run_lengths_stage
+from muc_one_span.benchsim.calibration_report import build_report
 from muc_one_span.benchsim.design import Design, build_split
 from muc_one_span.benchsim.generate import (
     GenerateContext,
@@ -63,12 +74,14 @@ from muc_one_span.benchsim.report_tables import build_tables, render_engine_tabl
 from muc_one_span.benchsim.run_cases import run_split
 from muc_one_span.benchsim.targets import render_targets, targets_by_set
 from muc_one_span.config import load_repeat_dictionary
+from muc_one_span.settings import DEFAULT_SETTINGS
 from muc_one_span.tools import run_tool
 
 DATA_DIR_NAME = "MucOneSpan-bench-data"
 SPLITS = sorted(DEFAULT_BENCH_CONFIG.design.split_sizes)
 DEFAULT_SALT = "mucsim-bench-v1"
 HERE = Path(__file__).resolve().parent
+DEFAULT_ENGINE = DEFAULT_SETTINGS.run.engine
 
 
 def _load_evaluate() -> ModuleType:
@@ -205,6 +218,13 @@ def cmd_generate(args: argparse.Namespace) -> int:
     return 1 if counts.get("generation_failed") else 0
 
 
+def _models(args: argparse.Namespace) -> dict[str, str | None]:
+    return {
+        "ont": args.model_ont or os.environ.get("CLAIR3_MODEL_ONT"),
+        "hifi": args.model_hifi or os.environ.get("CLAIR3_MODEL_HIFI"),
+    }
+
+
 def _model_lookup(models: dict[str, str | None], platform: str) -> str:
     """Picklable ``model_for`` (a bound closure is not, and breaks ``--jobs`` > 1)."""
     model = models.get(platform)
@@ -226,14 +246,10 @@ def cmd_run(args: argparse.Namespace) -> int:
     split = manifest.resolve().parent.name
     default_results = manifest.resolve().parent.parent / "results" / split
     results_root = ensure_outside(args.results_root or default_results, "--results-root")
-    models: dict[str, str | None] = {
-        "ont": args.model_ont or os.environ.get("CLAIR3_MODEL_ONT"),
-        "hifi": args.model_hifi or os.environ.get("CLAIR3_MODEL_HIFI"),
-    }
     threads = args.threads if args.threads is not None else args.bench.run.threads
-    records = run_split(
-        manifest, engines, results_root, partial(_model_lookup, models), threads, args.jobs
-    )
+    extra = {"config": args.config.resolve()} if args.config else {}
+    model_for = partial(_model_lookup, _models(args))
+    records = run_split(manifest, engines, results_root, model_for, threads, args.jobs, **extra)
     commit = git_commit(HERE, run_tool)
     for engine in engines:  # which caller build produced these results
         write_caller(results_root / engine, caller_record(engine, commit))
@@ -492,6 +508,54 @@ def cmd_realism(args: argparse.Namespace) -> int:
     return 0
 
 
+def cmd_calibrate(args: argparse.Namespace) -> int:
+    """Run and score every point of a settings grid (resumable; test refused).
+
+    ``--stage lengths`` (Task 15d) fits only the hybrid length model on each case's
+    spanning reads instead of running the full pipeline, so it needs ``--engine
+    hybrid`` (the length model is a hybrid-engine concept; refused otherwise, before
+    any point is run).
+    """
+    check_split(args.split)
+    if args.stage == LENGTHS_STAGE and args.engine != "hybrid":
+        raise SystemExit("--stage lengths requires --engine hybrid")
+    evaluate_fn: EvaluateFn
+    if args.stage == LENGTHS_STAGE:
+        evaluate_fn = evaluate_lengths_stage
+
+        def run_point(manifest: Path, results: Path, config: Path) -> Any:
+            return run_lengths_stage(manifest, results, config, engine=args.engine)
+    else:
+        threads = args.threads if args.threads is not None else args.bench.run.threads
+        model_for = partial(_model_lookup, _models(args))
+        evaluate_fn = evaluate_run or _load_evaluate().run
+
+        def run_point(manifest: Path, results: Path, config: Path) -> Any:
+            return run_split(
+                manifest, [args.engine], results, model_for, threads, args.jobs, config=config
+            )
+
+    request = CalibrationRequest(
+        args.split,
+        args.name or args.grid.stem,
+        args.engine,
+        args.grid,
+        args.config,
+        out_root(args),
+        stage=args.stage,
+    )
+    return run_calibration(request, run_point, evaluate_fn)
+
+
+def cmd_calibrate_report(args: argparse.Namespace) -> int:
+    """Rank a calibration under OBJECTIVE.json and write the recommended config."""
+    check_split(args.split)
+    root = out_root(args)
+    shift = (args.shift_from, _cases(root / CALIBRATION_SPLIT)) if args.shift_from else None
+    cases = _cases(root / args.split)
+    return build_report(root, args.split, args.name, args.objective, cases, args.bench, shift)
+
+
 def parser() -> argparse.ArgumentParser:
     """Command-line interface."""
     result = argparse.ArgumentParser(description=__doc__.splitlines()[0])
@@ -527,11 +591,14 @@ def parser() -> argparse.ArgumentParser:
     run_cmd.add_argument(
         "--manifest", type=Path, required=True, help="<out-root>/<split>/manifest.jsonl"
     )
-    run_cmd.add_argument("--engines", default="ladder", help="comma-separated (default: ladder)")
+    run_cmd.add_argument(
+        "--engines", default=DEFAULT_ENGINE, help=f"comma-separated (default: {DEFAULT_ENGINE})"
+    )
     run_cmd.add_argument("--results-root", type=Path, help="default: <out-root>/results/<split>")
     run_cmd.add_argument("--model-ont", help="caller model for ont (default: $CLAIR3_MODEL_ONT)")
     run_cmd.add_argument("--model-hifi", help="caller model for hifi (default: $CLAIR3_MODEL_HIFI)")
     run_cmd.add_argument("--threads", type=int, help="default: bench config run.threads")
+    run_cmd.add_argument("--config", type=Path, help="runtime settings for every run (--config)")
     run_cmd.add_argument(
         "--jobs", type=int, default=1, help="parallel (engine, case) pairs (process pool)"
     )
@@ -549,7 +616,7 @@ def parser() -> argparse.ArgumentParser:
         sp.add_argument("--out-root", type=Path, help=f"default: <repo parent>/{DATA_DIR_NAME}")
         sp.set_defaults(func=func)
         if name == "evaluate":
-            sp.add_argument("--engines", default="ladder", help="comma-separated engines")
+            sp.add_argument("--engines", default=DEFAULT_ENGINE, help="comma-separated engines")
         if name == "report":
             sp.add_argument("--baseline", default="ladder")
             sp.add_argument("--candidate", help="engine to decide on (omit: tables only)")
@@ -558,6 +625,8 @@ def parser() -> argparse.ArgumentParser:
         if name == "realism":
             sp.add_argument("--muconeup-config", type=Path, help="only for cases without geometry")
             sp.add_argument("--flank-fasta", type=Path, help="flanks used at generation (genomic)")
+    out_help = f"default: <repo parent>/{DATA_DIR_NAME}"
+    add_calibration_parsers(commands, SPLITS, out_help, cmd_calibrate, cmd_calibrate_report)
     return result
 
 

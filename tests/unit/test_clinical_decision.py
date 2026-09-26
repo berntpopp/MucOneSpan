@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+import pytest
+
 from muc_one_span.report import compute_clinical_decision
 from muc_one_span.settings import ClinicalDecisionSettings
 
@@ -331,6 +333,109 @@ def test_pathogenic_allele_1_with_low_allele_2_keeps_caveat() -> None:
     )
 
 
+HYBRID_GATES = dict(
+    RESOLVED_GATES,
+    depth_basis="spanning_reads",
+    spanning_reads=120,
+    secondary_mode_fraction=None,
+    allele_genotype_status="not_applicable_read_consensus",
+    engine="hybrid",
+)
+
+
+def _hybrid_summary(**allele2: object) -> dict:
+    summary = _gated_summary()
+    for key in ("allele_1", "allele_2"):
+        summary["alleles"][key].update(HYBRID_GATES)
+    summary["alleles"]["allele_2"].update(allele2)
+    return summary
+
+
+def test_hybrid_resolved_is_negative() -> None:
+    assert compute_clinical_decision(_hybrid_summary())["state"] == (
+        "NO_PATHOGENIC_VARIANT_DETECTED"
+    )
+
+
+@pytest.mark.parametrize(
+    ("field", "value"),
+    [
+        ("depth_status", "insufficient"),
+        ("selection_status", "unresolved_rejected_peak"),
+        ("selection_status", "unresolved_unassigned_spanning"),
+        ("selection_status", "unresolved_single_site"),
+        ("selection_status", "unresolved_max_alleles"),
+        ("allele_genotype_status", "residual_heterogeneity"),
+    ],
+)
+def test_hybrid_gate_blocks_negative(field: str, value: str) -> None:
+    decision = compute_clinical_decision(_hybrid_summary(**{field: value}))
+    assert decision["state"] == "INCONCLUSIVE"
+
+
+def test_insufficient_depth_carrier_blocks_pathogenic() -> None:
+    mutation = dict(
+        BASE,
+        vcf_support=False,
+        vcf_support_status="not_applicable_read_consensus",
+        read_support={"status": "supported"},
+    )
+    summary = _hybrid_summary()
+    summary["classifications"]["allele_1"]["mutations"] = [mutation]
+    assert compute_clinical_decision(summary)["state"] == "PATHOGENIC"
+    summary["alleles"]["allele_1"]["depth_status"] = "insufficient"
+    assert compute_clinical_decision(summary)["state"] == "INCONCLUSIVE"
+
+
+def test_hybrid_depth_message_names_spanning_reads() -> None:
+    decision = compute_clinical_decision(_hybrid_summary(depth_status="low", spanning_reads=12))
+    assert any("Allele 2: 12 spanning reads" in detail for detail in decision["details"])
+
+
+def test_selection_message_omits_missing_secondary_fraction() -> None:
+    decision = compute_clinical_decision(
+        _hybrid_summary(selection_status="unresolved_rejected_peak", selection_detail="peak 80u")
+    )
+    reason = next(d for d in decision["details"] if "allele selection unresolved" in d)
+    assert "secondary mode fraction" not in reason and "peak 80u" in reason
+
+
+def test_unknown_depth_status_fails_closed_when_other_allele_is_adequate() -> None:
+    decision = compute_clinical_decision(_hybrid_summary(depth_status="bogus"))
+    assert decision["state"] == "INCONCLUSIVE"
+    assert any("Allele 2" in d and "'bogus'" in d for d in decision["details"])
+
+
+def test_not_assessed_depth_beside_an_assessed_allele_fails_closed() -> None:
+    negative = _hybrid_summary(depth_status="not_assessed")
+    assert compute_clinical_decision(negative)["state"] == "INCONCLUSIVE"
+    for status in ("not_assessed", "bogus"):
+        positive = _hybrid_summary()
+        positive["classifications"]["allele_1"]["mutations"] = [dict(SUPPORTED)]
+        positive["alleles"]["allele_1"]["depth_status"] = status
+        decision = compute_clinical_decision(positive)
+        assert decision["state"] == "INCONCLUSIVE"
+        expected = f"carrying allele depth status {status!r} is not adequate"
+        assert any(expected in d for d in decision["details"])
+
+
+def test_ladder_not_assessed_on_both_alleles_keeps_legacy_fallback() -> None:
+    """Ladder without a BAM marks both alleles not_assessed; total reads decide."""
+    summary = _gated_summary()
+    for key in ("allele_1", "allele_2"):
+        summary["alleles"][key].update(
+            depth_status="not_assessed", depth_basis="primary_alignment_records", reads=40
+        )
+    assert compute_clinical_decision(summary)["state"] == "NO_PATHOGENIC_VARIANT_DETECTED"
+
+
+def test_non_string_depth_basis_fails_closed() -> None:
+    summary = _hybrid_summary(depth_basis=["spanning_reads"])
+    decision = compute_clinical_decision(summary)
+    assert decision["state"] == "INCONCLUSIVE"
+    assert any("Allele 2" in d and "invalid_depth_basis" in d for d in decision["details"])
+
+
 _R9_DISCORDANCE = {
     "status": "discordant_frameshift",
     "min_af": 0.5,
@@ -483,3 +588,19 @@ def test_recorded_legacy_min_total_reads_avoids_low_coverage() -> None:
     decision = compute_clinical_decision(summary)
     assert decision["state"] == "PATHOGENIC"
     assert not any("below diagnostic threshold" in detail for detail in decision["details"])
+
+
+def test_stage_veto_and_hybrid_gates_both_apply() -> None:
+    """Merged decision: the stage veto and the hybrid gates each block NEGATIVE only."""
+    vetoed = _hybrid_summary()
+    vetoed["alleles"]["allele_2"]["stage_concordance"] = dict(_R9_DISCORDANCE)
+    decision = compute_clinical_decision(vetoed)
+    assert decision["state"] == "INCONCLUSIVE"
+    assert any(d.startswith("Allele 2: caller-stage discordance:") for d in decision["details"])
+    both = _hybrid_summary(selection_status="unresolved_single_site")
+    both["alleles"]["allele_2"]["stage_concordance"] = dict(_R9_DISCORDANCE)
+    assert compute_clinical_decision(both)["state"] == "INCONCLUSIVE"
+    carrier = _hybrid_summary()
+    carrier["alleles"]["allele_2"]["stage_concordance"] = dict(_R9_DISCORDANCE)
+    carrier["classifications"]["allele_1"]["mutations"] = [dict(SUPPORTED)]
+    assert compute_clinical_decision(carrier)["state"] == "PATHOGENIC"

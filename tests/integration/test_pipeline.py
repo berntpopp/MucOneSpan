@@ -131,10 +131,13 @@ class TestFullPipeline:
                 str(clair3_model),
                 "--threads",
                 "2",
+                "--engine",
+                "ladder",
             ],
         )
         assert result.exit_code == 0, f"{result.output}\n{result.exception}"
         summary = json.loads((output / "summary.json").read_text())
+        assert [d["value"] for d in summary["deprecations"]] == ["ladder"]
         classifications = summary["classifications"]
         assert classifications
         assert all(value["structure"] for value in classifications.values())

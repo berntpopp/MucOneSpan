@@ -7,8 +7,135 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+## [0.17.0] - 2026-09-26
+
+The read-centric **hybrid engine is now the default** for every input type
+(amplicon and genomic), and the **ladder engine is deprecated**. See the
+migration guide (`docs/guides/migration.md`) for what changes and how to keep
+the ladder for now.
+
+Hybrid validation at the 0.17.0 defaults (MucSim-Bench v4, `e324fa3` snapshot;
+development split for tuning, validation split for confirmation, sealed test
+split not run): `standard` PATHOGENIC 0.930 (dev) / 0.912 (val) and
+INCONCLUSIVE 0.122 / 0.178; `clean` PATHOGENIC 0.947 / 0.947 and
+INCONCLUSIVE 0.078 / 0.089; false positives 0 and NEGATIVE on a pathogenic
+case 0 on every set. Frozen panels (commit `e324fa3`): no false positive and no
+NEGATIVE on a pathogenic case. PRJEB92208 (re-run at `a185ecc`): MP1-MP4
+PATHOGENIC with supported dupC read support, HG002 amplicon alleles literal
+sequence-exact, HG001-HG004 not PATHOGENIC.
+
+Known limits: 77/80 alleles sequence-exact on the frozen `simpanel` (commit
+`ca81a97`, single-base homopolymer-adjacent consensus misses); on ONT reads
+with saturating "+" strand stutter up to 25% wild-type reads can pass as a pure
+dupC; equal-length normals with strong stutter at a single run are
+INCONCLUSIVE, not NEGATIVE; whole-unit PCR slippage clusters keep PRJEB92208
+HG001-HG004 INCONCLUSIVE; `clean2` PATHOGENIC is 0.895, one case short of 0.90;
+the in-house genomic numbers come from an earlier commit (`2b0072b`) and were
+not re-run.
+
+### Changed
+
+- The `run` command moved from `cli.py` to `cli_run.py`; `from
+  muc_one_span.cli import run` keeps working.
+- **Default engine.** `muconespan run` now defaults to `--engine hybrid`
+  (`run.engine = "hybrid"`) for amplicon and genomic input. A FASTQ run calls
+  no external tool; a BAM input needs `samtools`. `--assay` stays recorded for
+  provenance only; it is not auto-detected.
+- **Ladder-only options on a hybrid run.** `--clair3-model`, `--min-qual`,
+  `--minimap2-preset`, `--platform`, `--min-coverage`, `--threads`,
+  `--mapping-timeout` and `--reference` (every `run` option the hybrid path
+  does not use), given on the command line or through a non-default
+  configuration value, print `Warning: <option> is ignored by the hybrid
+  engine; use --engine ladder (deprecated)` and are listed in the new additive
+  `ignored_options` field of `summary.json` and `run_configuration.json`. For a
+  hybrid run `run_configuration.json` records `resolved_minimap2_preset: null`
+  and `model_selection: "not used (hybrid engine)"`. `--report-igv
+  embedded|sidecar` stays an error for the hybrid engine; it is now raised
+  before `run_configuration.json` is written and names both remedies
+  (`--engine ladder` (deprecated) or `--report-igv off`). A custom repeat
+  dictionary, reference layout or flank length no longer requires `--reference`
+  with the hybrid engine, which reads no reference FASTA.
+- **Hybrid anchors follow the reference layout.** Read anchoring uses the
+  layout's outer fixed repeats (`reference_layout.left_anchor_id` /
+  `right_anchor_id`) instead of the literal repeat IDs "1" and "9"; the default
+  layout gives the same anchors.
+- **Hybrid output hygiene.** Reported hybrid fractions share one precision (3
+  decimals; the length-model fractions were 4). A resolved homozygote reports
+  `allele_multiplicity_status: "resolved"` (was `"unresolved"`). `alleles.json`
+  is written once per hybrid run. The FASTQ parser rejects a record without a
+  `+` separator line or with sequence and quality of different lengths.
+- **Dependencies.** `edlib` and `pyabpoa` (the default POA backend) are core
+  dependencies, imported at load time; `pyabpoa` builds from source (C compiler
+  and zlib). `pyspoa` (the alternative backend) stays in the optional `hybrid`
+  extra, which also still lists `edlib` and `pyabpoa`, so older
+  `pip install 'muc_one_span[hybrid]'` commands keep working; selecting
+  `pyspoa` without it fails with an `ImportError` naming the extra. The
+  `benchsim` realism metrics no longer point to the `bench` extra for `edlib`.
+- **Harness defaults.** `scripts/benchmark.py --engine`,
+  `scripts/clinical_benchmark.py run --engine` and `scripts/benchsim.py
+  run|evaluate --engines` default to `hybrid`. `benchmarking.run_pipeline`
+  always passes `--engine`, and passes `--clair3-model`, `--threads` and
+  `--platform` only to the ladder engine; `benchsim run` looks up a Clair3
+  model only for the ladder engine. `clinical_benchmark.py` keeps hashing ladder
+  runs without an `engine` key, passes `--engine ladder` to the worker
+  explicitly and the ladder-only options only for ladder runs; `freeze --model`
+  is optional (a model-less environment runs the hybrid engine only).
+  `benchsim report --baseline` stays `ladder`.
+- **Ladder-visible changes since 0.16.1.** Fail-closed depth rule: when an
+  allele carries a `depth_basis`, any `depth_status` other than `adequate`
+  (including an unknown or missing value) blocks a result. A ladder run in
+  which one allele's `depth_status` is `not_assessed` while another allele's
+  depth is assessed is now INCONCLUSIVE instead of NEGATIVE, and a frameshift
+  on the `not_assessed` allele is no longer PATHOGENIC. The
+  unresolved-selection reason no longer prints `secondary mode fraction None`
+  when the fraction is unknown.
+- `benchmarks/clinical/prjeb92208/hybrid-engine.json` refreshed at the final
+  defaults (amplicon cohort and `--assay genomic` WGS pass).
+
+### Deprecated
+
+- The ladder engine (`--engine ladder`, `run.engine = "ladder"`). It still
+  works and keeps its output schema; a run prints a warning on stderr,
+  `summary.json` records it in the new additive `deprecations` list (empty for
+  hybrid runs), and the HTML report shows a "Deprecated" banner. Removal happens no earlier than the next minor release and is
+  announced in the changelog of the release before it.
+
 ### Added
 
+- `benchsim calibrate` and `benchsim calibrate-report`: run a grid of runtime
+  settings overlays through `run` and `evaluate` on `dev` (resumable,
+  content-addressed, validated by the strict settings loader, `test` refused).
+  Rank the points under a selection rule declared in `objective.json`, with
+  cluster-bootstrap CIs. Write a `recommended-config.json` loadable by
+  `--config`, with a provenance sidecar. Confirm on `val` with the dev → val
+  shift. `benchsim run --config` forwards a settings file to every run.
+- `benchsim calibrate --stage lengths`: fits only the hybrid length model
+  (anchor search, peak fitting, the smear significance test) on each case's
+  spanning reads and scores the peaks against the case truth (allele count,
+  allele lengths, false/missed alleles, `smear_ambiguous` rate), so a
+  smear/peak threshold sweep takes seconds instead of a full pipeline run per
+  point. Refuses a grid key that cannot affect the length model, and an
+  engine other than `hybrid`, before any point runs. `calibrate-report` ranks
+  and recommends a `--stage lengths` calibration through the same 15b/15c
+  machinery as a full one.
+- The hybrid engine (`--engine hybrid`, the default from this release) and
+  `--assay {amplicon,genomic}` for `muconespan run`: a read-centric allele
+  reconstruction path (motif anchoring, a length model, partial-order-alignment
+  consensus, linked-site phase splitting, all-read assignment, polishing, and
+  per-event read-level support) that runs no minimap2, Clair3 or bcftools for
+  FASTQ input.
+- The `hybrid.*` settings section (`HybridSettings`); see the configuration
+  guide. `summary.json["deprecations"]` lists deprecated options a run
+  selected.
+- Migration guide for 0.17.0 (`docs/guides/migration.md`).
+- Additive hybrid evidence fields: per-allele `spanning_reads`,
+  `assigned_reads`, `depth_status`, `depth_basis`, `selection_status`,
+  `selection_detail`, `split_basis`, `phase_status`,
+  `consensus_concordance_fraction`, `classification_confidence_status`;
+  per-sample `summary["hybrid"]` (read categories, rejected length peaks,
+  `undecided_reads`, `off_target_reads`, unassigned/short-product fractions,
+  POA backend and package versions); per-mutation `read_support` (kind,
+  counts, fractions, `alternative_frac`, status).
 - MucSim-Bench, a realistic simulated benchmark (`scripts/benchsim.py`,
   `muc_one_span.benchsim`): stratified designs for three profiles (HiFi
   uncalibrated), generation with MucOneUp >= 0.45.0 kept outside Git, engine runs
@@ -64,6 +191,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
   (`decision.targets`); adoption now needs the relative rule and every named
   set's targets to pass. The decision rule is now v4; a changed threshold,
   comparator, basis or set membership needs a new pre-registration.
+- `muconespan settings show [--section NAME] [--config FILE]` prints the
+  effective settings as schema-1 JSON that loads back with `--config`, and
+  `muconespan settings validate FILE` reports the strict loader's first error
+  and exits non-zero on an invalid file. `examples/runtime-settings.json` is
+  kept identical to `settings show` by a unit test.
 - Benchmark final-review fixes. `first_evaluation.json` records the rule that
   unsealed `test`, and only that rule is accepted afterwards. `generate` also
   refuses to reuse a case whose MucOneUp version, base read profile, MucOneUp
@@ -85,6 +217,70 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
   reported per profile with a Clopper-Pearson interval for information only.
   A bench config still naming `report.ni_margin` is rejected. The decision
   rule is now v5; a fresh `test` pre-registration is required.
+
+### Fixed
+
+- `hybrid.min_linked_sites` now has a minimum of 2 (was 0). At 1 a single
+  heterozygous event became a `linked_sites` split that bypassed the
+  single-event share-bound gate, so a wild-type sample with a 30%
+  site-specific +1 excess at one C7 run could be called PATHOGENIC. A config
+  value below 2 is rejected.
+- `depth_status` values other than `"adequate"` (including `"insufficient"`,
+  previously ungated), `allele_genotype_status ==
+  "residual_heterogeneity"`, and a `read_support.status` other than
+  `"supported"` now gate the clinical decision through the shared evidence
+  gates in `clinical_gates.py`.
+- Hybrid engine: the homopolymer event/no-event mixture fit convolves each
+  allele with the stutter profile of its own run length (new
+  `hybrid.hp_stutter_model`, default `"length"`; `"shift"` keeps the former
+  shifted background). A length without `hybrid.hp_stutter_min_class_runs`
+  peer runs and `hybrid.hp_stutter_min_class_reads` observations is
+  extrapolated from the two nearest measured lengths, with the per-base growth
+  capped at `hybrid.hp_stutter_max_growth`; an extrapolated event profile that
+  puts more than `hybrid.hp_stutter_max_event_confusion` of its mass on the
+  no-event length falls back to the shift model on that strand. A true dupC with heavy C8 deletion
+  stutter is no longer rated a C7/C8 mixture (simulated HiFi D1/HD4
+  alternative share 0.263/0.284 -> 0.140/0.187; `event_max_alternative_frac`
+  unchanged).
+- Hybrid engine: an equal-length heterozygote whose alleles differ at one
+  event (e.g. dupA on one allele, both alleles the same repeat count) could
+  be merged into one wild-type consensus and reported NEGATIVE. Homopolymer-run
+  phase sites now use a stutter-aware strand-bias test (strand-asymmetric ONT
+  stutter was read as strand bias and dropped the only heterozygous site), and
+  a single-peak length model splits on its single length-changing event
+  (new setting `hybrid.phase_single_event_split`, default `"indel"`) when the
+  lower confidence bound of its minor share (`hybrid.phase_single_event_alpha`)
+  reaches `het_af_min` over a fixed sample of `hybrid.phase_single_event_bound_reads`
+  reads; run error profiles use `hybrid.phase_run_error_cap`. A peak
+  left unsplit names its site in `selection_detail` ("unresolved heterozygous
+  site at repeat N") and keeps a negative call blocked. The `--assay` help
+  text now says the option is recorded for provenance only.
+- Hybrid engine: an equal-length heterozygous homopolymer event whose run
+  share stays below the candidate-site floor (`phase_run_bg_multiplier` x the
+  peer stutter background) was merged into one wild-type consensus and
+  reported NEGATIVE (simulated HiFi dupC, 42% C8 against a 0.55 floor). A
+  single unsplit length peak now tests every homopolymer run against a lower
+  safety floor (new setting `hybrid.phase_run_safety_multiplier`, default
+  2.0); a run above it gives the new phase basis `unconfirmed_run_site` and
+  selection status `unresolved_run_site`, which makes the result INCONCLUSIVE
+  with the located reason. The tier never creates an event or a PATHOGENIC
+  call.
+- Hybrid engine: PCR dimer products and smear between the two alleles no longer
+  count as unexplained length peaks, the main cause of INCONCLUSIVE results on
+  ONT amplicons. A spanning read with an internal motif-9 -> motif-1 amplicon
+  junction whose two parts each match an accepted allele is a dimer product
+  (new settings `hybrid.dimer_recognition`, default on, and
+  `hybrid.dimer_max_parent_frac`, default 0.05). Dimer products are removed
+  before the final peak fit, never join an allele and are recorded as a
+  `dimer` rejected peak (with `parent_units`) and in the new
+  `dimer_product_reads`/`dimer_product_fraction` fields. A real allele at
+  twice an allele's length has no junction and stays a gate-relevant peak.
+  The smear significance test now also covers the region between the alleles
+  when the shorter allele is the top peak (new setting
+  `hybrid.smear_test_inter_allele`, default on); smear-tested rejected peaks
+  name their `smear_region`. `benchsim calibrate --stage lengths` flags cases
+  with a gate-relevant rejected peak (`gate_relevant_rejected_peak`), for use
+  as a reason metric.
 
 ## [0.16.1] - 2026-09-24
 
@@ -511,7 +707,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 - Project scaffolding with uv, ruff, mypy, pytest, CI
 - Initial pipeline implementation
 
-[Unreleased]: https://github.com/berntpopp/MucOneSpan/compare/v0.16.1...HEAD
+[Unreleased]: https://github.com/berntpopp/MucOneSpan/compare/v0.17.0...HEAD
+[0.17.0]: https://github.com/berntpopp/MucOneSpan/compare/v0.16.1...v0.17.0
 [0.16.1]: https://github.com/berntpopp/MucOneSpan/compare/v0.16.0...v0.16.1
 [0.16.0]: https://github.com/berntpopp/MucOneSpan/compare/v0.15.1...v0.16.0
 [0.15.1]: https://github.com/berntpopp/MucOneSpan/compare/v0.15.0...v0.15.1

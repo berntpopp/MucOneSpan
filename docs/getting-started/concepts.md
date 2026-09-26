@@ -6,7 +6,13 @@ Understanding the fundamental concepts behind MucOneSpan helps you interpret res
 
 ## Pipeline Architecture
 
-MucOneSpan executes five stages sequentially. Each stage produces intermediate files that feed into the next.
+Since 0.17.0 `muconespan run` uses the read-centric
+[hybrid engine](#hybrid-engine) by default. The five-stage ladder pipeline
+described below is the **deprecated** `--engine ladder` path; it stays
+available until a later release removes it (see the
+[migration guide](../guides/migration.md)). The ladder pipeline executes five
+stages sequentially. Each stage produces intermediate files that feed into the
+next.
 
 ```mermaid
 graph TD
@@ -130,6 +136,83 @@ Each classified repeat receives a **confidence score** (0.0 to 1.0):
 - **< 0.8** -- low confidence, may indicate sequencing error or novel variant
 
 The **allele confidence** is the mean of all per-repeat confidences. VCF cross-validation can further adjust scores when Clair3 variants confirm or contradict the classification.
+
+---
+
+## Hybrid Engine
+
+`muconespan run` (default `--engine hybrid`) replaces ladder stages 2-5 above
+with a read-centric reconstruction that never invokes minimap2, Clair3 or
+bcftools for FASTQ input (a BAM input still needs `samtools` to extract
+primary reads). It is the default for amplicon and genomic input since 0.17.0.
+`--report-igv` is unavailable with the hybrid engine because a hybrid run
+produces no BAM alignment tracks.
+
+!!! note "Defaults and validation"
+    Every `hybrid.*` setting default was tuned on the benchmark development
+    split and confirmed on the validation split -- never on the sealed test
+    split. See the
+    [configuration guide](../guides/configuration.md#hybrid-engine)
+    for every setting and the
+    [known limitations](../reference/limitations.md#hybrid-engine)
+    for measured detection limits and validation numbers.
+
+### Stages
+
+```mermaid
+graph TD
+    A["Input reads<br/>(FASTQ/.gz, or BAM primary reads)"] --> S1["S1 Anchor + categorize<br/>motif-1/motif-9 edlib search,<br/>flank-anchor fallback"]
+    S1 --> S2["S2 Length model<br/>KDE over spanning-read lengths;<br/>smear and dimer tests; rejected peaks"]
+    S2 --> S3["S3 Draft consensus<br/>POA (pyabpoa/pyspoa) on a<br/>random near-modal sample"]
+    S3 --> S4["S4 Phase split<br/>linked, strand-consistent sites<br/>(majority vote, not EM)"]
+    S4 --> S5["S5/S6 Hybrid reference + assignment<br/>ladder-flanked draft; every read<br/>assigned by edit-distance margin"]
+    S5 --> S7["S7 Polish<br/>pileup majority vote +<br/>homopolymer median vote"]
+    S7 --> S8["S8 Residual QC<br/>minor-allele consensus columns"]
+    S7 --> S9["S9 Classify<br/>existing classify_sequence,<br/>unchanged"]
+    S9 --> S10["S10 Event read support<br/>per-event competition or<br/>stutter-aware mixture fit"]
+    S8 --> S11["S11 Outputs<br/>alleles.json, consensus_*.fa,<br/>hybrid_reads.json, summary['hybrid']"]
+    S10 --> S11
+```
+
+This implementation deviates from the original design in a few recorded ways
+(`hybrid/engine.py`'s module docstring):
+
+- no ladder-assisted length prior and no ladder-seeded consensus for
+  low-depth peaks (S2/S3);
+- `depth_status` is judged on spanning reads only (assigned-but-not-spanning
+  reads are not yet an alternative depth basis);
+- per-event read-level support (S10) uses the spanning members assigned to an
+  allele, not every assigned read;
+- the phase split (S4) uses a majority vote over linked sites, not the
+  prototype's EM read-phasing;
+- there is no optional Clair3-on-own-consensus QC step.
+
+### Evidence, not a silent call
+
+Every stage that discards or cannot resolve something records why, instead of
+staying silent:
+
+- **Per sample** (`summary["hybrid"]`): `read_categories` (`spanning`,
+  `left_anchored`, `right_anchored`, `internal_or_offtarget`), `rejected_peaks`
+  (each candidate length peak that did not become an allele, with its reason:
+  `noise`, `smear`, `smear_ambiguous`, `support_below_threshold`,
+  `max_alleles`, or `dimer` for a PCR dimer product with its `parent_units`;
+  smear-tested entries name their `smear_region`), `undecided_reads`,
+  `off_target_reads`, `unassigned_spanning_fraction`, `short_product_fraction`,
+  `dimer_product_reads`, `dimer_product_fraction`,
+  `selection_status`, `poa_backend`.
+- **Per allele**: `spanning_reads`, `assigned_reads`, `depth_status`
+  (`adequate`/`low`/`insufficient`), `selection_status`
+  (`resolved` or an `unresolved_*` reason), `split_basis`, `phase_status`,
+  `residual_sites`, `consensus_concordance_fraction`.
+- **Per event**: `read_support` -- read-level counts and a status
+  (`supported`/`insufficient_depth`/`discordant`/`not_supported`/
+  `not_localized`) computed directly from the reads assigned to that allele.
+
+The [configuration guide](../guides/configuration.md#hybrid-engine)
+describes every field and setting; the
+[limitations page](../reference/limitations.md#hybrid-engine)
+describes measured detection limits and validation numbers.
 
 ---
 

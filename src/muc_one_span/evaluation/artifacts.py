@@ -86,6 +86,9 @@ def _prediction(
             raise ValueError(f"{name}: malformed event annotation")
         if not isinstance(m.get("vcf_support_status", "unknown"), str):
             raise ValueError(f"{name}: malformed variant support status")
+        read_support = m.get("read_support", {"status": "unknown"})
+        if not isinstance(read_support, dict) or not isinstance(read_support.get("status"), str):
+            raise ValueError(f"{name}: malformed read support")
         events.append(
             Event(
                 index,
@@ -95,6 +98,7 @@ def _prediction(
                 m.get("template_match") is True,
                 m.get("vcf_support") is True,
                 m.get("vcf_support_status", "unknown"),
+                read_support["status"],
             )
         )
     from muc_one_span.settings import DEFAULT_SETTINGS

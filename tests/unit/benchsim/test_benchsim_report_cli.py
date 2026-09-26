@@ -107,13 +107,36 @@ def test_evaluate_test_split_refused_before_reading_truth(
     calls: list[Any] = []
     _fake_evaluate(cli, monkeypatch, calls)
     with pytest.raises(SystemExit, match="pre-regist"):
-        cli.main(["evaluate", "--split", "test", "--out-root", str(tmp_path / "data")])
+        cli.main(
+            [
+                "evaluate",
+                "--engines",
+                "ladder",
+                "--split",
+                "test",
+                "--out-root",
+                str(tmp_path / "data"),
+            ]
+        )
     assert calls == []
     _split(tmp_path, "test")
     for engine in ("ladder",):
         (tmp_path / "data" / "results" / "test" / engine).mkdir(parents=True)
     cli.main(["preregister", "--out-root", str(tmp_path / "data")])
-    assert cli.main(["evaluate", "--split", "test", "--out-root", str(tmp_path / "data")]) == 0
+    assert (
+        cli.main(
+            [
+                "evaluate",
+                "--engines",
+                "ladder",
+                "--split",
+                "test",
+                "--out-root",
+                str(tmp_path / "data"),
+            ]
+        )
+        == 0
+    )
     assert len(calls) == 1
     evaluation = json.loads(
         (tmp_path / "data" / "results" / "test" / "ladder" / "evaluation.json").read_text()
@@ -122,7 +145,9 @@ def test_evaluate_test_split_refused_before_reading_truth(
     assert set(audit) == {"sha256", "registered_at", "test_first_evaluated_at"}
     first = audit["test_first_evaluated_at"]
     # A second evaluation keeps the first unsealing time; re-registration is refused.
-    cli.main(["evaluate", "--split", "test", "--out-root", str(tmp_path / "data")])
+    cli.main(
+        ["evaluate", "--engines", "ladder", "--split", "test", "--out-root", str(tmp_path / "data")]
+    )
     again = json.loads(
         (tmp_path / "data" / "results" / "test" / "ladder" / "evaluation.json").read_text()
     )
@@ -150,7 +175,20 @@ def test_evaluate_loads_scripts_evaluate_lazily(
             return {"samples": []}, 1
 
     monkeypatch.setattr(cli, "_load_evaluate", lambda: FakeModule)
-    assert cli.main(["evaluate", "--split", "dev", "--out-root", str(tmp_path / "data")]) == 1
+    assert (
+        cli.main(
+            [
+                "evaluate",
+                "--engines",
+                "ladder",
+                "--split",
+                "dev",
+                "--out-root",
+                str(tmp_path / "data"),
+            ]
+        )
+        == 1
+    )
     assert len(loaded) == 1
 
 
@@ -233,7 +271,9 @@ def test_report_single_engine_has_no_decision(
     _fake_evaluate(cli, monkeypatch, [])
     _split(tmp_path)
     (tmp_path / "data" / "results" / "dev" / "ladder").mkdir(parents=True)
-    cli.main(["evaluate", "--split", "dev", "--out-root", str(tmp_path / "data")])
+    cli.main(
+        ["evaluate", "--engines", "ladder", "--split", "dev", "--out-root", str(tmp_path / "data")]
+    )
     assert cli.main(["report", "--split", "dev", "--out-root", str(tmp_path / "data")]) == 0
     report = json.loads((tmp_path / "data" / "results" / "dev" / "report.json").read_text())
     assert report["decision"] is None and "ladder" in report["engines"]
@@ -346,7 +386,7 @@ def test_report_writes_the_reason_atlas_with_config_thresholds(
     _split(tmp_path)
     (tmp_path / "data" / "results" / "dev" / "ladder").mkdir(parents=True)
     data = str(tmp_path / "data")
-    cli.main(["evaluate", "--split", "dev", "--out-root", data])
+    cli.main(["evaluate", "--engines", "ladder", "--split", "dev", "--out-root", data])
     assert cli.main(["report", "--split", "dev", "--out-root", data]) == 0
     report = json.loads((tmp_path / "data" / "results" / "dev" / "report.json").read_text())
     atlas = report["sets"][STANDARD]["atlas"]["ladder"]
@@ -456,7 +496,7 @@ def test_only_the_unlocking_rule_can_report_on_test(
     root = ["--out-root", str(tmp_path / "data")]
     cli.main(["preregister", *root])
     cli.main(["--bench-config", str(other), "preregister", *root])
-    assert cli.main(["evaluate", "--split", "test", *root]) == 0
+    assert cli.main(["evaluate", "--engines", "ladder", "--split", "test", *root]) == 0
     marker = json.loads((tmp_path / "data" / "test" / "first_evaluation.json").read_text())
     assert marker["rule_sha256"] == rule_sha256(RULE_TEXT)
     assert cli.main(["report", "--split", "test", *root]) == 0
@@ -551,7 +591,7 @@ def test_report_records_harness_caller_and_simulator_provenance(
     caller = {"engine": "ladder", "caller_version": "9.9.9", "caller_commit": "abc"}
     (engine_dir / "caller.json").write_text(json.dumps(caller))
     data = str(tmp_path / "data")
-    cli.main(["evaluate", "--split", "dev", "--out-root", data])
+    cli.main(["evaluate", "--engines", "ladder", "--split", "dev", "--out-root", data])
     assert cli.main(["report", "--split", "dev", "--out-root", data]) == 0
     report = json.loads((engine_dir.parent / "report.json").read_text())
     prov = report["provenance"]

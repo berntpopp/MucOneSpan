@@ -56,6 +56,65 @@ def test_preparation_error_does_not_skip_later_runs(tmp_path, monkeypatch):
     assert records[0]["error"] == "synthetic corrupt input"
 
 
+def test_run_defaults_to_hybrid_and_keeps_legacy_ladder_hash(tmp_path, monkeypatch):
+    import json
+
+    spec = spec_from_file_location("clinical_benchmark", Path("scripts/clinical_benchmark.py"))
+    module = module_from_spec(spec)
+    spec.loader.exec_module(module)
+
+    manifest = tmp_path / "manifest.json"
+    manifest.write_text(json.dumps({"runs": []}))
+    environment = tmp_path / "environment.json"
+    environment.write_text(json.dumps({"model": {"path": "model.path"}}))
+    data_root = tmp_path / "data"
+    (data_root / "ERR1").mkdir(parents=True)
+    (data_root / "ERR1" / "preparation.json").write_text(json.dumps({"run_accession": "ERR1"}))
+
+    run = {"run_accession": "ERR1", "arm": "primary_amplicon"}
+    monkeypatch.setattr(module, "validate_inventory", lambda raw: {"runs": [run]})
+    monkeypatch.setattr(module, "verify_environment", lambda environment, checkout: None)
+
+    captured: list[dict] = []
+
+    def fake_run_case(run_arg, preparation, output_root, settings, *, resume=False):
+        captured.append(settings)
+        return {
+            "run_accession": run_arg["run_accession"],
+            "status": "completed",
+            "analysis_state": "completed",
+        }
+
+    monkeypatch.setattr(module, "run_case", fake_run_case)
+
+    def invoke(output_root, extra):
+        args = [
+            "run",
+            "--manifest",
+            str(manifest),
+            "--data-root",
+            str(data_root),
+            "--output-root",
+            str(output_root),
+            "--environment",
+            str(environment),
+            *extra,
+        ]
+        assert module.main(args) == 0
+
+    invoke(tmp_path / "out_default", [])
+    assert captured[-1]["engine"] == "hybrid"
+    assert "assay" not in captured[-1]
+
+    # The ladder hashes without an engine key, so pre-0.17 ladder attempts stay resumable.
+    invoke(tmp_path / "out_ladder", ["--engine", "ladder"])
+    assert "engine" not in captured[-1]
+
+    invoke(tmp_path / "out_hybrid", ["--engine", "hybrid", "--assay", "genomic"])
+    assert captured[-1]["engine"] == "hybrid"
+    assert captured[-1]["assay"] == "genomic"
+
+
 def test_load_records_merges_terminal_files_and_latest_failure_journal(tmp_path):
     import json
 
@@ -74,3 +133,54 @@ def test_load_records_merges_terminal_files_and_latest_failure_journal(tmp_path)
     records = {r["run_accession"]: r for r in module.load_records(tmp_path)}
     assert records["ERR1"]["status"] == "execution_failed"
     assert records["ERR2"]["status"] == "completed"
+
+
+def test_freeze_model_is_optional_and_a_modelless_environment_runs_hybrid_only(
+    tmp_path, monkeypatch
+):
+    import json
+
+    import pytest
+
+    from muc_one_span import clinical_provenance
+
+    spec = spec_from_file_location("clinical_benchmark", Path("scripts/clinical_benchmark.py"))
+    module = module_from_spec(spec)
+    spec.loader.exec_module(module)
+    args = module.parser().parse_args(["freeze", "--output", str(tmp_path / "e.json")])
+    assert args.model is None
+
+    frozen: list[object] = []
+    monkeypatch.setattr(
+        module, "freeze_environment", lambda checkout, model: frozen.append(model) or {}
+    )
+    assert module.main(["freeze", "--output", str(tmp_path / "e.json")]) == 0
+    assert frozen == [None]
+
+    # verify_environment accepts a model-less environment (no model to compare).
+    env = {"model": None}
+    assert clinical_provenance.frozen_model_path(env) is None
+
+    manifest = tmp_path / "manifest.json"
+    manifest.write_text(json.dumps({"runs": []}))
+    environment = tmp_path / "environment.json"
+    environment.write_text(json.dumps(env))
+    data_root = tmp_path / "data"
+    (data_root / "ERR1").mkdir(parents=True)
+    (data_root / "ERR1" / "preparation.json").write_text(json.dumps({"run_accession": "ERR1"}))
+    run = {"run_accession": "ERR1", "arm": "primary_amplicon"}
+    monkeypatch.setattr(module, "validate_inventory", lambda raw: {"runs": [run]})
+    monkeypatch.setattr(module, "verify_environment", lambda environment, checkout: None)
+    captured: list[dict] = []
+
+    def fake_run_case(run_arg, preparation, output_root, settings, *, resume=False):
+        captured.append(settings)
+        return {"run_accession": "ERR1", "status": "completed", "analysis_state": "completed"}
+
+    monkeypatch.setattr(module, "run_case", fake_run_case)
+    base = ["run", "--manifest", str(manifest), "--data-root", str(data_root)]
+    base += ["--environment", str(environment)]
+    assert module.main([*base, "--output-root", str(tmp_path / "h")]) == 0
+    assert captured[-1]["model"] is None
+    with pytest.raises(SystemExit, match="model"):
+        module.main([*base, "--output-root", str(tmp_path / "l"), "--engine", "ladder"])

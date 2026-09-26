@@ -19,7 +19,13 @@ except ImportError:
 
 from typing import Any
 
-from muc_one_span.clinical_gates import allele_gate_reasons, mutation_blockers
+from muc_one_span.clinical_gates import (
+    LOW_DEPTH_STATUSES,
+    allele_gate_reasons,
+    depth_assessed,
+    depth_gate_failure,
+    mutation_blockers,
+)
 from muc_one_span.decision_settings import resolve_decision_settings
 from muc_one_span.nomenclature import enrich_mutation_record
 from muc_one_span.report_assets import (
@@ -102,10 +108,10 @@ def compute_clinical_decision(
     a1 = alleles.get("allele_1", {}) if isinstance(alleles, dict) else {}
     a2 = alleles.get("allele_2", {}) if isinstance(alleles, dict) else {}
     carriers = {"allele_1": a1, "allele_2": a2}
-    depth_assessed = any(a.get("depth_status") in ("adequate", "low") for a in (a1, a2))
+    assessed = depth_assessed([a1, a2])
     total_reads = (a1.get("reads", 0) or 0) + (a2.get("reads", 0) or 0)
     low_coverage = (
-        not depth_assessed
+        not assessed
         and total_reads < decision_settings.legacy_min_total_reads
         and (bool(a1) or bool(a2))
     )
@@ -122,8 +128,11 @@ def compute_clinical_decision(
             mut_copy = dict(mut)
             mut_copy["allele"] = allele_key
             blockers = mutation_blockers(mut)
-            if carrier.get("depth_status") == "low":
+            carrier_depth = depth_gate_failure(carrier, assessed=assessed)
+            if carrier_depth in LOW_DEPTH_STATUSES:
                 blockers.append("carrying allele is below the per-allele depth gate")
+            elif carrier_depth is not None:
+                blockers.append(f"carrying allele depth status {carrier_depth!r} is not adequate")
             if low_coverage:
                 blockers.append("total read depth is below the diagnostic threshold")
             mut_copy["decision_blockers"] = blockers
@@ -162,8 +171,8 @@ def compute_clinical_decision(
                 )
 
     selection_reasons = (
-        allele_gate_reasons(a1, "Allele 1")
-        + allele_gate_reasons(a2, "Allele 2")
+        allele_gate_reasons(a1, "Allele 1", assessed=assessed)
+        + allele_gate_reasons(a2, "Allele 2", assessed=assessed)
         + stage_concordance_reasons(a1, "Allele 1")
         + stage_concordance_reasons(a2, "Allele 2")
     )

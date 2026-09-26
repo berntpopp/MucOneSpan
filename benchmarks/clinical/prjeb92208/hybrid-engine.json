@@ -1,0 +1,728 @@
+{
+  "schema_version": 1,
+  "study_accession": "PRJEB92208",
+  "engine": "hybrid",
+  "caller_commit": "a185ecc488672b1efd316b67bca5a2fe053ceb1e",
+  "pipeline_version": "0.17.0",
+  "hybrid_extra_versions": {
+    "edlib": "1.3.9.post1",
+    "pyabpoa": "1.5.7.1"
+  },
+  "poa_backend": "pyabpoa",
+  "settings": "defaults (no overlay)",
+  "threads": 2,
+  "timeout_seconds": 1800,
+  "environment_sha256": "8fa76605afed3ad843c67ca698a54e7a3bec18ff366244733fded22c6fdfe2f8",
+  "manifest_sha256": "a25ee98d13b522375a67365c7f84e25162323caf5db6e072160be15c2f52c27a",
+  "truth_sha256": "72ef424557ae900dc691514f550ab1e38ad7442fa7dd6fe5727103f6f978cb7a",
+  "expectations": {
+    "mp1_to_mp4_pathogenic_with_supported_read_support": true,
+    "hg002_amplicon_literal_exact_alleles": 2,
+    "hg001_to_hg004_not_pathogenic": true
+  },
+  "invocations": [
+    {
+      "assay": "amplicon",
+      "runs_requested": "all eligible",
+      "results_sha256": "2ce14efa85fe68a0346040666b4454e2ae2912a1c6b83f4dc549d4c390ded7a7",
+      "attempt_ledger_sha256": "30bb34e7baa0c37a37f4cb00d60cb344b8360980f8e2991821566420369f7210",
+      "poa_backend": "pyabpoa",
+      "scores": {
+        "execution_success": {
+          "numerator": 11,
+          "denominator": 11,
+          "value": 1.0,
+          "reason": null
+        },
+        "callability": {
+          "numerator": 7,
+          "denominator": 11,
+          "value": 0.6363636363636364,
+          "reason": null
+        },
+        "insufficient_evidence": {
+          "numerator": 0,
+          "denominator": 11,
+          "value": 0.0,
+          "reason": null
+        },
+        "sequence_concordance": {
+          "numerator": 0,
+          "denominator": 2,
+          "value": 0.0,
+          "reason": null
+        },
+        "literal_sequence_concordance": {
+          "numerator": 2,
+          "denominator": 2,
+          "value": 1.0,
+          "reason": null
+        },
+        "sequence_length_concordance": {
+          "numerator": 2,
+          "denominator": 2,
+          "value": 1.0,
+          "reason": null
+        },
+        "sequence_comparable_runs": 2,
+        "status_counts": {
+          "completed": 11,
+          "insufficient_evidence": 0,
+          "execution_failed": 0,
+          "invalid_artifacts": 0,
+          "unsupported_input": 0,
+          "unattempted": 0
+        }
+      },
+      "reported_controls_dupC_primary_amplicon": {
+        "numerator": 4,
+        "denominator": 4,
+        "value": 1.0,
+        "reason": null
+      },
+      "runs": [
+        {
+          "run_accession": "ERR15277564",
+          "biological_sample": "HG003",
+          "arm": "primary_amplicon",
+          "assay": "amplicon",
+          "analysis_state": "completed",
+          "decision_state": "INCONCLUSIVE",
+          "allele_lengths": [
+            44,
+            65
+          ],
+          "spanning_reads": [
+            6777,
+            2226
+          ],
+          "depth_status": [
+            "adequate",
+            "adequate"
+          ],
+          "selection_status": "unresolved_rejected_peak",
+          "split_bases": [
+            "none",
+            "none"
+          ],
+          "events": [],
+          "literal_exact_alleles": null,
+          "independent_exact_alleles": null,
+          "sequence_edit_distance": null,
+          "output_sha256": {
+            "summary.json": "d2f4f8748f29ff37e08ef5c419102c489719e3c4fa797e15f17dc78e1d7abe39",
+            "run_status.json": "6f922fc99c101e4c69006c9a81b8f211c38fedce064967782f32f652793c716a",
+            "run_configuration.json": "785cfcaddca18fed42b8134fefb3480d05aad7a46943c4d68247cb206746869a",
+            "alleles.json": "c10c81b7d4edc9570bd148fec491ee2b3cfff3208dd9c2ded9e4c85bb0481e26"
+          }
+        },
+        {
+          "run_accession": "ERR15277565",
+          "biological_sample": "HG004",
+          "arm": "primary_amplicon",
+          "assay": "amplicon",
+          "analysis_state": "ambiguous_reconstruction",
+          "decision_state": "INCONCLUSIVE",
+          "allele_lengths": [
+            44,
+            77
+          ],
+          "spanning_reads": [
+            7987,
+            1757
+          ],
+          "depth_status": [
+            "adequate",
+            "adequate"
+          ],
+          "selection_status": "unresolved_rejected_peak",
+          "split_bases": [
+            "none",
+            "none"
+          ],
+          "events": [
+            {
+              "allele": "allele_2",
+              "name": null,
+              "closest_type": "7",
+              "repeat_index": 75,
+              "frameshift": false,
+              "localization_status": "ambiguous",
+              "read_support_status": "supported",
+              "read_support_alt": 1750,
+              "read_support_n": 1757,
+              "read_support_alt_frac": 0.996
+            }
+          ],
+          "literal_exact_alleles": null,
+          "independent_exact_alleles": null,
+          "sequence_edit_distance": null,
+          "output_sha256": {
+            "summary.json": "ab720081fcbe4cb99c21621628c94e16dd6d9ea6b61350bad7f8416a377fdbb1",
+            "run_status.json": "6f922fc99c101e4c69006c9a81b8f211c38fedce064967782f32f652793c716a",
+            "run_configuration.json": "dce87fce121687fe9a84356dfaa6ea1a48aad35a703c0bf2625564ae8d70b6dc",
+            "alleles.json": "896ac6f7cb399d8d217ea31f66577b66bbd289bd1ce6629ed8741e6e08aa9a0b"
+          }
+        },
+        {
+          "run_accession": "ERR15277569",
+          "biological_sample": "MP4",
+          "arm": "primary_amplicon",
+          "assay": "amplicon",
+          "analysis_state": "completed",
+          "decision_state": "PATHOGENIC",
+          "allele_lengths": [
+            45,
+            80
+          ],
+          "spanning_reads": [
+            4520,
+            512
+          ],
+          "depth_status": [
+            "adequate",
+            "adequate"
+          ],
+          "selection_status": "unresolved_rejected_peak",
+          "split_bases": [
+            "none",
+            "none"
+          ],
+          "events": [
+            {
+              "allele": "allele_2",
+              "name": "dupC",
+              "closest_type": "X",
+              "repeat_index": 49,
+              "frameshift": true,
+              "localization_status": "resolved",
+              "read_support_status": "supported",
+              "read_support_alt": 304,
+              "read_support_n": 512,
+              "read_support_alt_frac": 0.594
+            }
+          ],
+          "literal_exact_alleles": null,
+          "independent_exact_alleles": null,
+          "sequence_edit_distance": null,
+          "output_sha256": {
+            "summary.json": "57294bf9573b373b1fd86cd2cb73c86d5925e40e243afb1d8dab0addfbe6cda4",
+            "run_status.json": "6f922fc99c101e4c69006c9a81b8f211c38fedce064967782f32f652793c716a",
+            "run_configuration.json": "77406f3b6abffc51749e8318ff9fcc3db29bf5595ea1bbcc635f26372319bff3",
+            "alleles.json": "36b31fb0acc4a4509c2f7fc0efb38314c911ba5168028878cdbf305d30f94ae2"
+          }
+        },
+        {
+          "run_accession": "ERR15277562",
+          "biological_sample": "HG001",
+          "arm": "primary_amplicon",
+          "assay": "amplicon",
+          "analysis_state": "completed",
+          "decision_state": "INCONCLUSIVE",
+          "allele_lengths": [
+            40,
+            72
+          ],
+          "spanning_reads": [
+            6923,
+            1551
+          ],
+          "depth_status": [
+            "adequate",
+            "adequate"
+          ],
+          "selection_status": "unresolved_rejected_peak",
+          "split_bases": [
+            "none",
+            "none"
+          ],
+          "events": [],
+          "literal_exact_alleles": null,
+          "independent_exact_alleles": null,
+          "sequence_edit_distance": null,
+          "output_sha256": {
+            "summary.json": "b3f086835ce5436fa84b14295f699346fcfc3d78c72a92214eb74557e13d9739",
+            "run_status.json": "6f922fc99c101e4c69006c9a81b8f211c38fedce064967782f32f652793c716a",
+            "run_configuration.json": "408ff983a8152e92c8574d0ef90c6e6515b2b0287c5f02f2b520959c4d37f54f",
+            "alleles.json": "7d27034237f1828cbfc387ec6bcfdc6bad659ed38fd467335025e7697463065e"
+          }
+        },
+        {
+          "run_accession": "ERR15277570",
+          "biological_sample": "MP5",
+          "arm": "primary_amplicon",
+          "assay": "amplicon",
+          "analysis_state": "completed",
+          "decision_state": "INCONCLUSIVE",
+          "allele_lengths": [
+            61,
+            83
+          ],
+          "spanning_reads": [
+            1334,
+            366
+          ],
+          "depth_status": [
+            "adequate",
+            "adequate"
+          ],
+          "selection_status": "unresolved_max_alleles",
+          "split_bases": [
+            "none",
+            "none"
+          ],
+          "events": [
+            {
+              "allele": "allele_2",
+              "name": null,
+              "closest_type": "X",
+              "repeat_index": 35,
+              "frameshift": true,
+              "localization_status": "resolved",
+              "read_support_status": "supported",
+              "read_support_alt": 349,
+              "read_support_n": 366,
+              "read_support_alt_frac": 0.954
+            }
+          ],
+          "literal_exact_alleles": null,
+          "independent_exact_alleles": null,
+          "sequence_edit_distance": null,
+          "output_sha256": {
+            "summary.json": "74c5a4db712f66d4d82612b5ad4f601dec8189bf447d427e0932765bfbbc1a09",
+            "run_status.json": "6f922fc99c101e4c69006c9a81b8f211c38fedce064967782f32f652793c716a",
+            "run_configuration.json": "47a2267545c9920dc1f567a092f3f0a5f74c385d88ff3e479f0e718077a46c4e",
+            "alleles.json": "1bc6483fce3acde7a45660115e2da0033d42fceba96f5968070af70bffb2cd95"
+          }
+        },
+        {
+          "run_accession": "ERR15277563",
+          "biological_sample": "HG002",
+          "arm": "primary_amplicon",
+          "assay": "amplicon",
+          "analysis_state": "ambiguous_reconstruction",
+          "decision_state": "INCONCLUSIVE",
+          "allele_lengths": [
+            65,
+            77
+          ],
+          "spanning_reads": [
+            3466,
+            2023
+          ],
+          "depth_status": [
+            "adequate",
+            "adequate"
+          ],
+          "selection_status": "unresolved_rejected_peak",
+          "split_bases": [
+            "none",
+            "none"
+          ],
+          "events": [
+            {
+              "allele": "allele_2",
+              "name": null,
+              "closest_type": "7",
+              "repeat_index": 75,
+              "frameshift": false,
+              "localization_status": "ambiguous",
+              "read_support_status": "supported",
+              "read_support_alt": 2009,
+              "read_support_n": 2023,
+              "read_support_alt_frac": 0.993
+            }
+          ],
+          "literal_exact_alleles": 2,
+          "independent_exact_alleles": 0,
+          "sequence_edit_distance": 0,
+          "output_sha256": {
+            "summary.json": "4526e15c4025f1cbebfa76a07ff66779f23647a3786daaca3b89689811a02ca5",
+            "run_status.json": "6f922fc99c101e4c69006c9a81b8f211c38fedce064967782f32f652793c716a",
+            "run_configuration.json": "7044d82f79cc3bf8c9d097cc9531df3ea9f76b9065ff25159b5c147905819524",
+            "alleles.json": "20f0ce4d29742443701cc152ecf53695b4fb952b2eb83734c46f77d70df0a42b"
+          }
+        },
+        {
+          "run_accession": "ERR15277552",
+          "biological_sample": "HG002",
+          "arm": "secondary_wgs",
+          "assay": "amplicon",
+          "analysis_state": "ambiguous_reconstruction",
+          "decision_state": "INCONCLUSIVE",
+          "allele_lengths": [
+            65,
+            77
+          ],
+          "spanning_reads": [
+            28,
+            15
+          ],
+          "depth_status": [
+            "low",
+            "low"
+          ],
+          "selection_status": "resolved",
+          "split_bases": [
+            "none",
+            "none"
+          ],
+          "events": [
+            {
+              "allele": "allele_2",
+              "name": null,
+              "closest_type": "7",
+              "repeat_index": 75,
+              "frameshift": false,
+              "localization_status": "ambiguous",
+              "read_support_status": "insufficient_depth",
+              "read_support_alt": 15,
+              "read_support_n": 15,
+              "read_support_alt_frac": 1.0
+            }
+          ],
+          "literal_exact_alleles": 2,
+          "independent_exact_alleles": 0,
+          "sequence_edit_distance": 0,
+          "output_sha256": {
+            "summary.json": "65f1a55e3ec173e9a3e29fbeb6c25af5d1461937e64b72e4fb8483ad477a069d",
+            "run_status.json": "6f922fc99c101e4c69006c9a81b8f211c38fedce064967782f32f652793c716a",
+            "run_configuration.json": "d5a0d2cd97686158a7f55cf244a6f6bdffe28a5f39a9dc41afb58c62b95f4583",
+            "alleles.json": "1787f924a20ace8d2144bd8bbd6f3a2035ecf716a7c986f51a5f259db730fca8"
+          }
+        },
+        {
+          "run_accession": "ERR15277553",
+          "biological_sample": "MP1_WGS_identity_unresolved",
+          "arm": "secondary_wgs",
+          "assay": "amplicon",
+          "analysis_state": "ambiguous_reconstruction",
+          "decision_state": "INCONCLUSIVE",
+          "allele_lengths": [
+            44,
+            44
+          ],
+          "spanning_reads": [
+            8,
+            8
+          ],
+          "depth_status": [
+            "insufficient",
+            "insufficient"
+          ],
+          "selection_status": "unresolved_rejected_peak",
+          "split_bases": [
+            "none"
+          ],
+          "events": [],
+          "literal_exact_alleles": null,
+          "independent_exact_alleles": null,
+          "sequence_edit_distance": null,
+          "output_sha256": {
+            "summary.json": "55bc83d35e4c1c8eebe997f91f89ea77ef734a1f3784d897dbf45cf01b27a4b0",
+            "run_status.json": "6f922fc99c101e4c69006c9a81b8f211c38fedce064967782f32f652793c716a",
+            "run_configuration.json": "658a5309b5e818cf58223d3eaebf6f38d2d617698e7c30db2e4a21ee9a21ccf0",
+            "alleles.json": "b0517dd4148b66e7fcaa26286fe54c526917148e6fb86fd4e825933499da9aa2"
+          }
+        },
+        {
+          "run_accession": "ERR15277568",
+          "biological_sample": "MP3",
+          "arm": "primary_amplicon",
+          "assay": "amplicon",
+          "analysis_state": "completed",
+          "decision_state": "PATHOGENIC",
+          "allele_lengths": [
+            44,
+            50
+          ],
+          "spanning_reads": [
+            6551,
+            3987
+          ],
+          "depth_status": [
+            "adequate",
+            "adequate"
+          ],
+          "selection_status": "unresolved_rejected_peak",
+          "split_bases": [
+            "none",
+            "none"
+          ],
+          "events": [
+            {
+              "allele": "allele_1",
+              "name": "dupC",
+              "closest_type": "X",
+              "repeat_index": 7,
+              "frameshift": true,
+              "localization_status": "resolved",
+              "read_support_status": "supported",
+              "read_support_alt": 3899,
+              "read_support_n": 6551,
+              "read_support_alt_frac": 0.595
+            }
+          ],
+          "literal_exact_alleles": null,
+          "independent_exact_alleles": null,
+          "sequence_edit_distance": null,
+          "output_sha256": {
+            "summary.json": "aaa0f8c4dec10ae0e474ac01a7501168fe21351f10525587c556d977858ef7e4",
+            "run_status.json": "6f922fc99c101e4c69006c9a81b8f211c38fedce064967782f32f652793c716a",
+            "run_configuration.json": "2473680bbdc387c64037f9aea2382cd3787a4662b1e0465c4c1985466e7c3491",
+            "alleles.json": "3c374f7e5f5c2f692da6158656b09a6befefb7a71712c5494f43b3685b4084f1"
+          }
+        },
+        {
+          "run_accession": "ERR15277566",
+          "biological_sample": "MP1",
+          "arm": "primary_amplicon",
+          "assay": "amplicon",
+          "analysis_state": "completed",
+          "decision_state": "PATHOGENIC",
+          "allele_lengths": [
+            44,
+            78
+          ],
+          "spanning_reads": [
+            3362,
+            336
+          ],
+          "depth_status": [
+            "adequate",
+            "adequate"
+          ],
+          "selection_status": "resolved",
+          "split_bases": [
+            "none",
+            "none"
+          ],
+          "events": [
+            {
+              "allele": "allele_2",
+              "name": "dupC",
+              "closest_type": "B",
+              "repeat_index": 17,
+              "frameshift": true,
+              "localization_status": "resolved",
+              "read_support_status": "supported",
+              "read_support_alt": 242,
+              "read_support_n": 336,
+              "read_support_alt_frac": 0.72
+            }
+          ],
+          "literal_exact_alleles": null,
+          "independent_exact_alleles": null,
+          "sequence_edit_distance": null,
+          "output_sha256": {
+            "summary.json": "e1cc4c104b9b0c9f2f5b349b852701b41655280ce505e284e752ef7d8f3f74c2",
+            "run_status.json": "6f922fc99c101e4c69006c9a81b8f211c38fedce064967782f32f652793c716a",
+            "run_configuration.json": "e7437a266d9bce37f10f2c648e30d1ea92ca7e6ca5dfa886dab20e662644c1da",
+            "alleles.json": "54aac8658e5f3803e4853943a4795600d6adf3ab042c7a3382e733a9db2895a1"
+          }
+        },
+        {
+          "run_accession": "ERR15277567",
+          "biological_sample": "MP2",
+          "arm": "primary_amplicon",
+          "assay": "amplicon",
+          "analysis_state": "completed",
+          "decision_state": "PATHOGENIC",
+          "allele_lengths": [
+            50,
+            78
+          ],
+          "spanning_reads": [
+            2744,
+            652
+          ],
+          "depth_status": [
+            "adequate",
+            "adequate"
+          ],
+          "selection_status": "unresolved_rejected_peak",
+          "split_bases": [
+            "none",
+            "none"
+          ],
+          "events": [
+            {
+              "allele": "allele_2",
+              "name": "dupC",
+              "closest_type": "B",
+              "repeat_index": 17,
+              "frameshift": true,
+              "localization_status": "resolved",
+              "read_support_status": "supported",
+              "read_support_alt": 396,
+              "read_support_n": 652,
+              "read_support_alt_frac": 0.607
+            }
+          ],
+          "literal_exact_alleles": null,
+          "independent_exact_alleles": null,
+          "sequence_edit_distance": null,
+          "output_sha256": {
+            "summary.json": "102a8f7a027dc9e4ee465ccf3db2c3205a523c430fa86a40c5a734ef116b6368",
+            "run_status.json": "6f922fc99c101e4c69006c9a81b8f211c38fedce064967782f32f652793c716a",
+            "run_configuration.json": "9c033e7aa1a5c1508dd49cab563d3f1dadf6194c18d0b22dde1de0ca71edbfa4",
+            "alleles.json": "dc218fa11e7357449abcf26753522177263597f030e9c500fe595830a5d9951d"
+          }
+        }
+      ]
+    },
+    {
+      "assay": "genomic",
+      "runs_requested": [
+        "ERR15277552",
+        "ERR15277553"
+      ],
+      "results_sha256": "8f03a57ec7aae9823c171eff662d6964e7f609aa23b7f719ac227e83ec856e20",
+      "attempt_ledger_sha256": "77c592d56da52fd2b6f0a5e7b95e7352adbec853f8a4dab381111fe58f6eb848",
+      "poa_backend": "pyabpoa",
+      "scores": {
+        "execution_success": {
+          "numerator": 2,
+          "denominator": 11,
+          "value": 0.18181818181818182,
+          "reason": null
+        },
+        "callability": {
+          "numerator": 0,
+          "denominator": 11,
+          "value": 0.0,
+          "reason": null
+        },
+        "insufficient_evidence": {
+          "numerator": 0,
+          "denominator": 11,
+          "value": 0.0,
+          "reason": null
+        },
+        "sequence_concordance": {
+          "numerator": 0,
+          "denominator": 2,
+          "value": 0.0,
+          "reason": null
+        },
+        "literal_sequence_concordance": {
+          "numerator": 1,
+          "denominator": 2,
+          "value": 0.5,
+          "reason": null
+        },
+        "sequence_length_concordance": {
+          "numerator": 1,
+          "denominator": 2,
+          "value": 0.5,
+          "reason": null
+        },
+        "sequence_comparable_runs": 1,
+        "status_counts": {
+          "completed": 2,
+          "insufficient_evidence": 0,
+          "execution_failed": 0,
+          "invalid_artifacts": 0,
+          "unsupported_input": 0,
+          "unattempted": 9
+        }
+      },
+      "reported_controls_dupC_primary_amplicon": {
+        "numerator": 0,
+        "denominator": 4,
+        "value": 0.0,
+        "reason": null
+      },
+      "runs": [
+        {
+          "run_accession": "ERR15277552",
+          "biological_sample": "HG002",
+          "arm": "secondary_wgs",
+          "assay": "genomic",
+          "analysis_state": "ambiguous_reconstruction",
+          "decision_state": "INCONCLUSIVE",
+          "allele_lengths": [
+            65,
+            77
+          ],
+          "spanning_reads": [
+            28,
+            15
+          ],
+          "depth_status": [
+            "low",
+            "low"
+          ],
+          "selection_status": "resolved",
+          "split_bases": [
+            "none",
+            "none"
+          ],
+          "events": [
+            {
+              "allele": "allele_2",
+              "name": null,
+              "closest_type": "7",
+              "repeat_index": 75,
+              "frameshift": false,
+              "localization_status": "ambiguous",
+              "read_support_status": "insufficient_depth",
+              "read_support_alt": 15,
+              "read_support_n": 15,
+              "read_support_alt_frac": 1.0
+            }
+          ],
+          "literal_exact_alleles": 2,
+          "independent_exact_alleles": 0,
+          "sequence_edit_distance": 0,
+          "output_sha256": {
+            "summary.json": "b89dadf1d270482e0f2b2af024ab196d6d905ce5aa6ea66162f47287fb30673d",
+            "run_status.json": "6f922fc99c101e4c69006c9a81b8f211c38fedce064967782f32f652793c716a",
+            "run_configuration.json": "07b0a793215e9226e7f7560e831f381c7f368212e54a93f8768d6e2e32068b12",
+            "alleles.json": "1787f924a20ace8d2144bd8bbd6f3a2035ecf716a7c986f51a5f259db730fca8"
+          }
+        },
+        {
+          "run_accession": "ERR15277553",
+          "biological_sample": "MP1_WGS_identity_unresolved",
+          "arm": "secondary_wgs",
+          "assay": "genomic",
+          "analysis_state": "ambiguous_reconstruction",
+          "decision_state": "INCONCLUSIVE",
+          "allele_lengths": [
+            44,
+            44
+          ],
+          "spanning_reads": [
+            8,
+            8
+          ],
+          "depth_status": [
+            "insufficient",
+            "insufficient"
+          ],
+          "selection_status": "unresolved_rejected_peak",
+          "split_bases": [
+            "none"
+          ],
+          "events": [],
+          "literal_exact_alleles": null,
+          "independent_exact_alleles": null,
+          "sequence_edit_distance": null,
+          "output_sha256": {
+            "summary.json": "09738fe78e45779baa9e056cd80c30778a43f22ae6a07054733103b50de081bd",
+            "run_status.json": "6f922fc99c101e4c69006c9a81b8f211c38fedce064967782f32f652793c716a",
+            "run_configuration.json": "dcfbefdc203c6ab64627542f6d9042f9330f578c1bae0491f020ed1f720abbed",
+            "alleles.json": "b0517dd4148b66e7fcaa26286fe54c526917148e6fb86fd4e825933499da9aa2"
+          }
+        }
+      ]
+    }
+  ],
+  "limitations": [
+    "Reported-control labels do not establish independent positive truth.",
+    "Healthy/reference labels do not establish endpoint-specific negative truth.",
+    "HG002 exactness is literal (edit distance 0); independent exactness is 0 because analysis_state is ambiguous_reconstruction.",
+    "No sequences, reads or per-read outputs are recorded here."
+  ]
+}

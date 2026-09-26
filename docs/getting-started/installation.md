@@ -1,18 +1,26 @@
 # Installation
 
-MucOneSpan requires Python 3.10 or newer; CI tests Python 3.10–3.14. Full pipeline
-analysis also needs external bioinformatics tools and a Clair3 model.
+MucOneSpan requires Python 3.10 or newer; CI tests Python 3.10–3.14. The default
+hybrid engine needs no external tool for FASTQ input (`samtools` for BAM input).
+The deprecated ladder engine (`--engine ladder`) also needs external
+bioinformatics tools and a Clair3 model.
 
 ## Install the Python package
 
 ```bash
-pip install 'muc_one_span[report] @ git+https://github.com/berntpopp/MucOneSpan.git@v0.13.0'
+pip install 'muc_one_span[report] @ git+https://github.com/berntpopp/MucOneSpan.git@v0.17.0'
 muconespan --version
 ```
 
 The `[report]` extra enables HTML reports through Jinja2. Python installation
-includes Click, PyYAML, and packaged reference/repeat data. External alignment
-and variant-calling tools are installed separately.
+includes Click, PyYAML, the hybrid engine's `edlib` and `pyabpoa` (its default
+POA backend), and packaged reference/repeat data. `pyabpoa` is published as a
+source distribution only and needs a C compiler and zlib headers (`gcc`,
+`libc6-dev`, `zlib1g-dev` on Debian/Ubuntu). The optional `[hybrid]` extra adds
+`pyspoa`, the alternative POA backend (`hybrid.poa_backend: "pyspoa"`); it has
+Linux wheels only and builds with cmake and a C++ compiler elsewhere. External
+alignment and variant-calling tools for the ladder engine are installed
+separately.
 
 ## Install from source
 
@@ -46,8 +54,9 @@ See the [developer guide](../development.md) for checks, hooks, and architecture
 | bcftools | Filter VCF files and construct consensus sequences |
 | Clair3 and a platform-appropriate model | Call variants for HiFi or ONT reads |
 
-The `muconespan run` command uses all four tools. The `ladder` and `classify`
-commands can run without external tools. Linux is the primary pipeline platform;
+`muconespan run --engine ladder` (deprecated) uses all four tools; the default
+hybrid engine uses only `samtools`, and only for BAM input. The `ladder` and
+`classify` commands can run without external tools. Linux is the primary pipeline platform;
 check Clair3's platform requirements before installing on another operating system.
 
 The repository's conda environment supplies pinned minimap2, samtools, bcftools,
@@ -82,7 +91,7 @@ docker run --rm \
   run --input /data/reads.bam --output-dir /data/results/
 ```
 
-Use a version tag such as `0.13.0` in place of `latest` to select a release.
+Use a version tag such as `0.17.0` in place of `latest` to select a release.
 
 ## Verify installation
 

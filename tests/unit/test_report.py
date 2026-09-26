@@ -273,6 +273,84 @@ def test_report_multiplicity_caveat(sample_summary, tmp_path):
     assert "Single allele length observed; second allele not established." in html_same
 
 
+def test_report_hybrid_allele_shows_read_support_not_ladder_confidence(sample_summary, tmp_path):
+    """Hybrid alleles carry ``consensus_concordance_fraction`` and
+    ``classification_confidence_status`` (see hybrid/allele_fields.py::allele_info,
+    commit 3080dc9). The ladder's ``classify.py`` ``confidence`` is a dictionary-fit
+    heuristic fed identically for both engines and was constant (1.00) for hybrid
+    alleles regardless of reconstruction correctness. The Quality Metrics tile must
+    show the hybrid engine's own read-support evidence for these alleles instead of
+    presenting that constant dictionary-fit value as a meaningful "good" score.
+    """
+    sample_summary["alleles"]["allele_1"]["consensus_concordance_fraction"] = 0.62
+    sample_summary["alleles"]["allele_1"]["classification_confidence_status"] = (
+        "not_applicable_dictionary_fit_heuristic"
+    )
+    detailed = {
+        "allele_1": {
+            "repeats": [],
+            "mutations_detected": [],
+            "confidence": 1.0,  # constant dictionary-fit heuristic; must not read as "good"
+            "exact_match_pct": 88.0,
+        },
+        "allele_2": {
+            "repeats": [],
+            "mutations_detected": [],
+            "confidence": 0.95,
+            "exact_match_pct": 92.0,
+        },
+    }
+    out = tmp_path / "report.html"
+    generate_report(sample_summary, out, sample_name="hybrid_sample", detailed_repeats=detailed)
+    html = out.read_text()
+
+    # Real hybrid read-support evidence is shown for the hybrid allele.
+    assert "62.0%" in html
+    assert 'aria-label="allele_1 consensus concordance"' in html
+    # The classification_confidence_status marker the F1 change added is surfaced.
+    assert "not_applicable_dictionary_fit_heuristic" in html
+    # The misleading dictionary-fit 100% must not be rendered as this allele's
+    # ladder "Allele confidence" progress bar.
+    assert 'aria-label="allele_1 confidence"' not in html
+    # The unaffected ladder allele keeps its ordinary confidence tile.
+    assert 'aria-label="allele_2 confidence"' in html
+    assert "95.0%" in html
+
+
+def test_report_ladder_allele_confidence_rendering_is_unchanged(sample_summary, tmp_path):
+    """Alleles without the F1 hybrid fields must render the pre-existing ladder
+    "Allele confidence" tile exactly as before: the dictionary-fit ``confidence`` as a
+    percentage with a threshold-coloured progress bar.
+    """
+    detailed = {
+        "allele_1": {
+            "repeats": [],
+            "mutations_detected": [],
+            "confidence": 0.95,
+            "exact_match_pct": 92.0,
+        },
+        "allele_2": {
+            "repeats": [],
+            "mutations_detected": [],
+            "confidence": 0.42,
+            "exact_match_pct": 30.0,
+        },
+    }
+    out = tmp_path / "report.html"
+    generate_report(sample_summary, out, sample_name="ladder_sample", detailed_repeats=detailed)
+    html = out.read_text()
+
+    assert 'aria-label="allele_1 confidence"' in html
+    assert 'aria-label="allele_2 confidence"' in html
+    assert "95.0%" in html
+    assert "42.0%" in html
+    assert 'data-tip="Average classification confidence across all repeat units"' in html
+    assert 'class="progress-fill good"' in html  # allele_1 at 95% >= 80
+    assert 'class="progress-fill poor"' in html  # allele_2 at 42% < 50
+    assert "not_applicable_dictionary_fit_heuristic" not in html
+    assert "consensus concordance" not in html
+
+
 def test_report_accessibility_attributes(sample_summary, tmp_path):
     """Verify accessible ARIA roles, focus rings, and tabular numbers in report."""
     out = tmp_path / "report_a11y.html"

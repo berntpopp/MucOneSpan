@@ -1120,6 +1120,8 @@ name = "muc-one-span"
 source = { editable = "." }
 dependencies = [
     { name = "click" },
+    { name = "edlib" },
+    { name = "pyabpoa" },
     { name = "pyyaml" },
 ]
 
@@ -1131,6 +1133,11 @@ docs = [
     { name = "mkdocs-click" },
     { name = "mkdocs-material" },
     { name = "mkdocstrings", extra = ["python"] },
+]
+hybrid = [
+    { name = "edlib" },
+    { name = "pyabpoa" },
+    { name = "pyspoa" },
 ]
 report = [
     { name = "jinja2" },
@@ -1168,14 +1175,19 @@ test = [
 [package.metadata]
 requires-dist = [
     { name = "click", specifier = ">=8.3.3,<9.0" },
+    { name = "edlib", specifier = ">=1.3.9" },
     { name = "edlib", marker = "extra == 'bench'", specifier = ">=1.3.9" },
+    { name = "edlib", marker = "extra == 'hybrid'", specifier = ">=1.3.9" },
     { name = "jinja2", marker = "extra == 'report'", specifier = ">=3.1.0" },
     { name = "mkdocs-click", marker = "extra == 'docs'", specifier = ">=0.8.0" },
     { name = "mkdocs-material", marker = "extra == 'docs'", specifier = ">=9.7.7" },
     { name = "mkdocstrings", extras = ["python"], marker = "extra == 'docs'", specifier = ">=0.24.0" },
+    { name = "pyabpoa", specifier = ">=1.5.7" },
+    { name = "pyabpoa", marker = "extra == 'hybrid'", specifier = ">=1.5.7" },
+    { name = "pyspoa", marker = "extra == 'hybrid'", specifier = ">=0.3.2" },
     { name = "pyyaml", specifier = ">=6.0" },
 ]
-provides-extras = ["bench", "docs", "report"]
+provides-extras = ["bench", "docs", "hybrid", "report"]
 
 [package.metadata.requires-dev]
 dev = [
@@ -1446,6 +1458,12 @@ wheels = [
 ]
 
 [[package]]
+name = "pyabpoa"
+version = "1.5.7.1"
+source = { registry = "https://pypi.org/simple" }
+sdist = { url = "https://files.pythonhosted.org/packages/52/80/2cbe11e51c99137ee26558662c5d90aacf74ee85135b309cbffa9bc546f5/pyabpoa-1.5.7.1.tar.gz", hash = "sha256:765643c522032cac957c5c8b057e021599ffa01bcace39ba893aa31448e7a428", size = 902527, upload-time = "2026-09-17T08:41:49.612Z" }
+
+[[package]]
 name = "pyee"
 version = "13.0.1"
 source = { registry = "https://pypi.org/simple" }
@@ -1486,6 +1504,25 @@ source = { registry = "https://pypi.org/simple" }
 sdist = { url = "https://files.pythonhosted.org/packages/f3/91/9c6ee907786a473bf81c5f53cf703ba0957b23ab84c264080fb5a450416f/pyparsing-3.3.2.tar.gz", hash = "sha256:c777f4d763f140633dcb6d8a3eda953bf7a214dc4eff598413c070bcdc117cbc", size = 6851574, upload-time = "2026-01-21T03:57:59.36Z" }
 wheels = [
     { url = "https://files.pythonhosted.org/packages/10/bd/c038d7cc38edc1aa5bf91ab8068b63d4308c66c4c8bb3cbba7dfbc049f9c/pyparsing-3.3.2-py3-none-any.whl", hash = "sha256:850ba148bd908d7e2411587e247a1e4f0327839c40e2e5e6d05a007ecc69911d", size = 122781, upload-time = "2026-01-21T03:57:55.912Z" },
+]
+
+[[package]]
+name = "pyspoa"
+version = "0.3.2"
+source = { registry = "https://pypi.org/simple" }
+sdist = { url = "https://files.pythonhosted.org/packages/1d/d5/6dcb9ae756ef7ad1debff56fd30af8c4806cd68dd747f7fd51d5bad85fc5/pyspoa-0.3.2.tar.gz", hash = "sha256:91523a01e2c579acc9fa0423ff4a96912c57c456c876ac08168bab92befbc781", size = 53576, upload-time = "2025-12-03T10:05:49.06Z" }
+wheels = [
+    { url = "https://files.pythonhosted.org/packages/cd/49/378b58ff91c62d0e2aca5d7069f90cdfe0ecc6a151b29a6c24c5a5c41431/pyspoa-0.3.2-cp310-cp310-manylinux2014_aarch64.manylinux_2_17_aarch64.whl", hash = "sha256:5fa62b047df8956a5e73ae6545ac3459c10221ec6d96d1b36bf59008bc60662c", size = 1128582, upload-time = "2025-12-03T10:05:21.228Z" },
+    { url = "https://files.pythonhosted.org/packages/f3/07/a6947f1cedd934a7aac26967e31c896d932966a3f4fa0a1cc40039dc1ca4/pyspoa-0.3.2-cp310-cp310-manylinux_2_24_aarch64.manylinux_2_28_aarch64.whl", hash = "sha256:7369084b76ef7e21b8c6b08579c5ed9479182d9f6edec8b579572f54beb850eb", size = 1053088, upload-time = "2025-12-03T10:05:23.587Z" },
+    { url = "https://files.pythonhosted.org/packages/db/c1/c7163641c6acb6c525e5ca3663701ad39fa698c25c71ded522b67c7c6a43/pyspoa-0.3.2-cp310-cp310-manylinux_2_24_x86_64.manylinux_2_28_x86_64.whl", hash = "sha256:cadd4bcc677d87832dde2444e83d5ca74ef6faf20ad2a8c5b932e9fb9864081c", size = 1080157, upload-time = "2025-12-03T10:05:26.078Z" },
+    { url = "https://files.pythonhosted.org/packages/f2/7d/1742c83a0660075aadb76a7274a97897751adf54c8f4a49b6cc43cf7e9ac/pyspoa-0.3.2-cp311-cp311-manylinux_2_24_aarch64.manylinux_2_28_aarch64.whl", hash = "sha256:e57af069250a5f73d36ac710a94dbdd5356868ffc3b742dfe4f747a02d26535f", size = 1069486, upload-time = "2025-12-03T10:05:27.999Z" },
+    { url = "https://files.pythonhosted.org/packages/40/cb/6f93aede773044484052e9250d27ab8e1a65d45f861e333a239ca65a21fd/pyspoa-0.3.2-cp311-cp311-manylinux_2_24_x86_64.manylinux_2_28_x86_64.whl", hash = "sha256:a4f56bbda4c2bff817ffc48bc0ef52652484a6ba37d46132c5b1de6557c866fb", size = 1089483, upload-time = "2025-12-03T10:05:30.396Z" },
+    { url = "https://files.pythonhosted.org/packages/ee/12/d8357f512d18e2c5e7b8043e9de2ec2577e4f77e866529486b3bdd2a023e/pyspoa-0.3.2-cp312-cp312-manylinux_2_24_aarch64.manylinux_2_28_aarch64.whl", hash = "sha256:56d967fccbea276a9db8a7c3c7ea82c5c0b59d461f685997eeb416588af25314", size = 1085531, upload-time = "2025-12-03T10:05:33.258Z" },
+    { url = "https://files.pythonhosted.org/packages/22/00/8adc598ef541fe49069f4633810bc8fd8e081308419e982a8c15c6255daa/pyspoa-0.3.2-cp312-cp312-manylinux_2_24_x86_64.manylinux_2_28_x86_64.whl", hash = "sha256:a2d9e7d20e247b90e25ec0f05795750ddc6922b7bea5c8b6694529fa79dbcfbc", size = 1109898, upload-time = "2025-12-03T10:05:36.612Z" },
+    { url = "https://files.pythonhosted.org/packages/a4/fc/a302d4332f4ee72bc3aaf3c8d2bd370fd8e59fd562dfdc2222f7a6f5cc88/pyspoa-0.3.2-cp313-cp313-manylinux_2_24_aarch64.manylinux_2_28_aarch64.whl", hash = "sha256:1bc825c97215e9304496b43bdd1620a39f4187cd7b3895f5467c1f1c441906b3", size = 1100235, upload-time = "2025-12-03T10:05:39.246Z" },
+    { url = "https://files.pythonhosted.org/packages/71/d9/362e903e4498770fbda46be9dc4f650b3717908c5195952f28c38e888621/pyspoa-0.3.2-cp313-cp313-manylinux_2_24_x86_64.manylinux_2_28_x86_64.whl", hash = "sha256:025c075d3701a078e9bceb179c7872329667d308bf9476b2fb5d139634a49fea", size = 1123393, upload-time = "2025-12-03T10:05:41.839Z" },
+    { url = "https://files.pythonhosted.org/packages/07/c6/0303b90b9301c4deb1385320c7f84dadd6b8f1b6ab8bc87e3122bff35426/pyspoa-0.3.2-cp314-cp314-manylinux_2_24_aarch64.manylinux_2_28_aarch64.whl", hash = "sha256:9d48706303bc6c120588aecb5ad2216d1b86ae328fc3990a1dbae9aefed5f6c9", size = 1100071, upload-time = "2025-12-03T10:05:44.134Z" },
+    { url = "https://files.pythonhosted.org/packages/24/9d/1d5eeecffd7509a47c130d609af36e63f874744e8bff78ee40e91ba57d2b/pyspoa-0.3.2-cp314-cp314-manylinux_2_24_x86_64.manylinux_2_28_x86_64.whl", hash = "sha256:3f96b75166b5c216848a907f6e9590ec60e41477560108eeec372c74bfb3c713", size = 1122128, upload-time = "2025-12-03T10:05:46.822Z" },
 ]
 
 [[package]]

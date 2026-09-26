@@ -243,6 +243,43 @@ def test_unmatched_legacy_supported_event_remains_a_legacy_false_positive():
     assert result["metrics"]["legacy_supported_event_fp"] == {"min": 1, "max": 1}
 
 
+def test_supported_policy_text_matches_event_supported_semantics():
+    from muc_one_span.evaluation.scoring import SCORING_POLICY
+
+    assert SCORING_POLICY["supported_events"] == (
+        "frameshift AND template_match AND vcf_support are true AND "
+        "vcf_support_status is exact_sequence_concordance; OR frameshift AND "
+        "template_match AND read_support_status is supported (hybrid engine)"
+    )
+    cases = (
+        (True, True, True, "exact_sequence_concordance", "unknown"),  # legacy-path support
+        (True, True, False, "exact_sequence_concordance", "unknown"),  # no vcf_support boolean
+        (True, True, True, "unknown", "unknown"),  # status not exact concordance
+        (True, True, False, "not_applicable_read_consensus", "supported"),  # read-only path
+        (True, False, False, "unknown", "supported"),  # missing template_match
+        (False, True, False, "unknown", "supported"),  # missing frameshift
+        (True, True, False, "unknown", "discordant"),  # read support not "supported"
+    )
+    for frameshift, template_match, vcf_support, support_status, read_support_status in cases:
+        event = Event(
+            1,
+            "X",
+            "dupC",
+            frameshift,
+            template_match,
+            vcf_support,
+            support_status,
+            read_support_status,
+        )
+        expected = (
+            frameshift
+            and template_match
+            and vcf_support
+            and support_status == "exact_sequence_concordance"
+        ) or (frameshift and template_match and read_support_status == "supported")
+        assert event.supported == expected
+
+
 def test_ambiguous_positive_is_not_removed_from_specificity_denominator():
     normal = evaluate([hap()], [pred()])
     ambiguous_positive = evaluate(
