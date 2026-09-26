@@ -74,6 +74,8 @@ description is not the implementation contract; see
 | `calling.py`, `vcf.py` | Allele read extraction/remapping, Clair3 calls, VCF processing |
 | `consensus.py` | Allele consensus sequences using bcftools |
 | `classify.py`, `classify_types.py`, `repeat_alignment.py` | Repeat segmentation, nomenclature, mutation interpretation |
+| `hybrid/`, `settings_hybrid.py` | Default read-centric engine: anchoring, length model, POA consensus, phasing, assignment, polishing, read support |
+| `pipeline.py`, `pipeline_tail.py`, `deprecations.py` | Engine dispatch, shared classification/summary tail, deprecated-option warnings and `summary["deprecations"]` |
 | `report.py`, `templates/` | Structured results and optional HTML report |
 | `tools.py` | External command execution, environments, errors, tool versions |
 | `scripts/` | Reference generation, simulation, benchmark and maintenance helpers |

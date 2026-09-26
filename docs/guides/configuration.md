@@ -220,50 +220,47 @@ explicit reference for `run`. Supply it through `run.reference` or `--reference`
 The application cannot infer that an arbitrary FASTA was built from matching
 settings; keep the generating configuration with that reference.
 
-## Hybrid Engine (Experimental)
+## Hybrid Engine
 
-`muconespan run --engine hybrid` selects a read-centric allele reconstruction
-path (motif anchoring, a length model, partial-order-alignment consensus,
+Since 0.17.0 the hybrid engine is the **default** for every input type
+(`run.engine = "hybrid"`). It is a read-centric allele reconstruction path
+(motif anchoring, a length model, partial-order-alignment consensus,
 linked-site phase splitting, all-read assignment, polishing, and per-event
-read-level support) instead of the default ladder-alignment/Clair3 path. See
-[Core Concepts](../getting-started/concepts.md#hybrid-engine-experimental) for
-the stage-by-stage pipeline and
-[Known Limitations](../reference/limitations.md#hybrid-engine-experimental)
-for measured detection limits and validation numbers.
+read-level support) that replaces the ladder-alignment/Clair3 path. See
+[Core Concepts](../getting-started/concepts.md#hybrid-engine) for the
+stage-by-stage pipeline,
+[Known Limitations](../reference/limitations.md#hybrid-engine) for measured
+detection limits and validation numbers, and the
+[migration guide](migration.md) for what changed.
 
 ```bash
 muconespan run \
   --input reads.fastq \
   --output-dir results/ \
-  --engine hybrid \
   --assay amplicon \
   --threads 8
 ```
 
-`--engine` is `ladder` or `hybrid` (`run.engine`); `--assay` is `amplicon` or
+`--engine` is `hybrid` (default) or `ladder` (`run.engine`, deprecated); `--assay` is `amplicon` or
 `genomic` (`run.assay`) and is recorded for provenance
-(`summary["hybrid"]["assay"]`) -- it does not currently change any
-`hybrid.*` default. `--report-igv` is rejected with `--engine hybrid` (a
-hybrid run has no BAM alignment tracks to show). `--clair3-model` and
-`--min-qual` are accepted but unused by the hybrid path.
+(`summary["hybrid"]["assay"]`) -- it does not change any `hybrid.*` default
+and is never auto-detected. `--report-igv` is rejected by the hybrid engine (a
+hybrid run has no BAM alignment tracks to show). `--clair3-model`,
+`--min-qual` and `--minimap2-preset` are accepted but unused by the hybrid path.
 
 | Section.field | Default | Meaning and validation |
 | --- | --- | --- |
-| `run.engine` | `"ladder"` | `"ladder"` or `"hybrid"`. `ladder` stays the default until the benchmark decision rule is met on the sealed test split. |
+| `run.engine` | `"hybrid"` | `"hybrid"` or `"ladder"`. `ladder` is deprecated: a ladder run prints a warning and records it in `summary.json["deprecations"]`; it is removed no earlier than the next minor release. |
 | `run.assay` | `"amplicon"` | `"amplicon"` or `"genomic"`; library type, recorded only. |
 
-### Install the `hybrid` extra
+### Dependencies
 
-```bash
-pip install 'muc_one_span[hybrid]'
-```
-
-installs `edlib`, `pyabpoa`, and `pyspoa`. Without the extra, `--engine
-hybrid` fails with a clear `ImportError` naming the extra
-(`"The hybrid engine needs the 'hybrid' extra: pip install
-'muc_one_span[hybrid]'"`); it never silently falls back to another backend.
-All three packages are MIT-licensed; the hybrid engine does not use medaka
-or dorado.
+`edlib`, `pyabpoa` and `pyspoa` are core dependencies since 0.17.0, so a
+plain install includes them; the `hybrid` extra
+(`pip install 'muc_one_span[hybrid]'`) is kept as an alias for existing install
+commands. The engine imports them at module load and never silently falls back
+to another POA backend. All three packages are MIT-licensed; the hybrid engine
+does not use medaka or dorado.
 
 | Package | Wheels | Notes |
 | --- | --- | --- |
@@ -277,9 +274,8 @@ is copied into the runtime image.
 
 ### Hybrid settings (`hybrid.*`)
 
-Every default below is **provisional** (prototype-derived) and tuned on the
-development/validation splits only; the sealed test split never informs a
-default. Every threshold is a validated `HybridSettings` field -- there are
+Every default below was tuned on the benchmark development split and confirmed
+on the validation split only; the sealed test split never informs a default. Every threshold is a validated `HybridSettings` field -- there are
 no hardcoded thresholds in the hybrid engine.
 
 #### Anchoring and span categorization (S1)

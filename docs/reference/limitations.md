@@ -1,5 +1,16 @@
 # Known Limitations
 
+!!! note "Engines"
+    Since 0.17.0 the [hybrid engine](#hybrid-engine) is the default. The
+    sections from "Allele Length Detection" to "Variant support and
+    confidence" describe the **deprecated ladder engine** (`--engine ladder`,
+    minimap2 + Clair3 + bcftools), which stays available until a later release
+    removes it (see the [migration guide](../guides/migration.md)). Its
+    measured behaviour is unchanged by 0.17.0 except for two gates: a ladder
+    run where one allele's depth is `not_assessed` while another's is assessed
+    is now INCONCLUSIVE (0.16.1: NEGATIVE), and the unresolved-selection reason
+    no longer prints `secondary mode fraction None`.
+
 ## Allele Length Detection
 
 ### Discrete Repeat-Unit Length Errors
@@ -208,17 +219,17 @@ scientifically validated. An explicit FASTA must match its generating dictionary
 and flank configuration; the pipeline does not yet prove complete reference
 compatibility from the FASTA alone.
 
-## Hybrid Engine (Experimental)
+## Hybrid Engine
 
-`--engine hybrid` is **experimental and not the default engine**; `ladder`
-remains the default until the benchmark decision rule is met on the sealed
-test split. Every `hybrid.*` default (see the
-[configuration guide](../guides/configuration.md#hybrid-engine-experimental))
-is provisional and tuned on development/validation splits only. The numbers
-below come from internal regression runs on a development branch (frozen
-simulated panels, PRJEB92208, and in-house genomic data whose outputs stay
-outside the repository); they are not part of the automated test suite and
-are not a calibration or release claim.
+Since 0.17.0 the hybrid engine is the **default** engine for amplicon and
+genomic input. Every `hybrid.*` default (see the
+[configuration guide](../guides/configuration.md#hybrid-engine)) was tuned on
+the benchmark development split and confirmed on the validation split; the
+sealed test split never informed a default. The numbers below come from
+internal regression runs (the MucSim-Bench v4 splits, frozen simulated panels,
+PRJEB92208, and in-house genomic data whose outputs stay outside the
+repository); each states the commit it was measured at. They are not part of
+the automated test suite.
 
 ### Detection limits
 
@@ -336,69 +347,86 @@ are not a calibration or release claim.
     to NEGATIVE with its allele lengths correct; no false positive and no
     NEGATIVE on a pathogenic case. A simulated long allele with PCR dropout
     (102 units, 1% of reads) stays a gate-relevant peak.
-- **PRJEB92208 ONT amplicon negatives.** Most amplicon runs on that dataset
-  produce several length peaks below `hybrid.min_peak_reads`/
-  `far_peak_min_frac`/`near_peak_min_frac` from PCR-smear reads, so sample
-  `selection_status` is usually `unresolved_rejected_peak`. That correctly
-  blocks a NEGATIVE result (no false reassurance) but also means most
-  amplicon runs without a pathogenic event end up INCONCLUSIVE rather than
-  NEGATIVE: internally, about 6 of 9 amplicon runs reached a callable
-  (non-`unresolved_rejected_peak`) primary-amplicon selection (measured at
-  commit `2b0072b`, before the Task 13b fix; that fix (`git diff
-  2b0072b..ca81a97`) touched only `hybrid/evidence.py`,
-  `hybrid/polish.py` (the homopolymer consensus vote) and
-  `settings_hybrid.py` (two new settings) -- not `hybrid/lengths.py`
-  (length-peak selection) or `hybrid/allele_fields.py` (`selection_status`)
-  -- but this figure itself was not re-run at `ca81a97`). No pathogenic call
-  was produced on a known-negative sample.
-  The PRJEB92208 amplicon runs hold no dimer peak (at most one dimer read per
-  run) and their smear between the alleles is now recognised (at `e324fa3`),
-  but HG001-HG004 stay INCONCLUSIVE. Their remaining gate-relevant peaks lie
-  below the top allele and are a significant excess over the smear (HG001 and
-  HG004: a cluster two units below the top allele with 2.1% and 2.7% of its
-  reads; HG002 and HG003: clusters far below it, some `smear_ambiguous`), or
-  are clusters of 3-11 reads a few units above the longer allele. The dimer
-  and smear tests do not cover these.
+- **Equal-length normals with strong single-run stutter.** The
+  `unresolved_run_site` safety tier above cannot tell a wild-type run with
+  strong site-specific stutter from a heterozygous run, so such normals are
+  INCONCLUSIVE, not NEGATIVE (v4 development panels: 3 of 154 normals moved
+  NEGATIVE -> INCONCLUSIVE when the tier was added). The ratio is fixed and has
+  no depth term, so a low-depth ONT normal can be flagged too (one validation
+  ONT genomic normal with 57 phase reads). Where the background falls back to
+  shorter same-base runs it is under-estimated, which flags more, never less.
+- **Whole-unit PCR slippage.** Clusters one or two repeat units below an
+  accepted allele (PCR slippage, a few percent of that allele's reads) are a
+  significant excess over the smear and stay gate-relevant rejected peaks,
+  so the sample is INCONCLUSIVE. This is the remaining cause on PRJEB92208
+  HG001-HG004 and on three v4 validation cases (clusters one unit below an
+  allele).
+- **Inter-allele smear near long alleles.** The background of the smear test
+  between the alleles can be inflated next to long alleles (above about 100
+  units), which lowers the chance that a real minor allele there is flagged.
+- **PRJEB92208 ONT amplicon runs.** Most amplicon runs carry clusters of
+  PCR-product reads below or above the alleles, so `selection_status` is often
+  `unresolved_rejected_peak`. That blocks a NEGATIVE result (no false
+  reassurance) but leaves the non-dupC runs INCONCLUSIVE. The PRJEB92208 runs
+  hold no dimer peak (at most one dimer read per run), and their smear between
+  the alleles is recognised. HG001-HG004 stay INCONCLUSIVE: their remaining
+  gate-relevant peaks lie below the top allele and are a significant excess over
+  the smear (HG001 and HG004: a cluster two units below the top allele with
+  2.1% and 2.7% of its reads; HG002 and HG003: clusters far below it, some
+  `smear_ambiguous`), or are clusters of 3-11 reads a few units above the longer
+  allele. No pathogenic call was produced on a known-negative sample.
 
 ### Validation numbers
 
-Two internal validation passes describe this engine, both on branch
-`feat/hybrid-engine`: one at commit `2b0072b` (before the Task 13b fix) and
-one after it, at commit `ca81a97`. The Task 13b fix (`git diff
-2b0072b..ca81a97`) changed `hybrid/evidence.py` (per-event read-level
-support: the event vs. no-event vs. read-derived-alternative comparison and
-the homopolymer stutter mixture fit), `hybrid/polish.py` (the homopolymer
-consensus vote counts only reads that observe a run cleanly, so a read that
-merges the run with its neighbour no longer votes) and `settings_hybrid.py`
-(`event_context_units`, `event_max_alternative_frac`); it did not touch
-`hybrid/lengths.py` (length-peak selection) or `hybrid/allele_fields.py`
-(sample `selection_status`). The frozen simulated panels and the 9-library
-PRJEB92208 **amplicon** run were re-executed afterward and are reported at
-`ca81a97` below. The PRJEB92208 **genomic/WGS** invocations, the in-house
-genomic runs, and the `clinical_benchmark.py`-scored sequence-exactness
-check were run once, at `2b0072b`, and were **not** re-run after the fix --
-each row below states which commit it was measured on.
+**MucSim-Bench v4** (simulated; development split used for tuning, validation
+split for confirmation only; measured at commit `3162d22`, whose hybrid
+defaults are the 0.17.0 defaults). PATHOGENIC is the share of pathogenic
+cases called PATHOGENIC; INCONCLUSIVE is the share of all cases.
 
-**Re-verified after the fix (commit `ca81a97`):**
+| Split | Set | PATHOGENIC | INCONCLUSIVE | False positives | NEGATIVE on a pathogenic case |
+| --- | --- | --- | --- | --- | --- |
+| dev | standard | 53/57 = 0.930 | 11/90 = 0.122 | 0/33 | 0 |
+| dev | clean | 54/57 = 0.947 | 7/90 = 0.078 | 0/33 | 0 |
+| dev | clean2 | 17/19 = 0.895 | 2/30 = 0.067 | 0/11 | 0 |
+| val | standard | 52/57 = 0.912 | 16/90 = 0.178 | 0/33 | 0 |
+| val | clean | 54/57 = 0.947 | 8/90 = 0.089 | 0/33 | 0 |
+| val | clean2 | 17/19 = 0.895 | 2/30 = 0.067 | 0/11 | 0 |
+
+`clean2` is one case short of the 0.90 PATHOGENIC target on both splits. The
+sealed test split has not been run.
+
+**Frozen simulated panels** (commit `e324fa3`, same hybrid defaults;
+PATHOGENIC/INCONCLUSIVE/NEGATIVE counts):
+
+| Panel | Normals | Pathogenic |
+| --- | --- | --- |
+| `simpanel` (40 cases) | 0/2/14 | 24/0/0 |
+| `heldout` | 0/4/8 | 26/2/0 |
+| `ms_ont_sub` (ONT) | 0/1/38 | 38/1/0 |
+
+No false positive and no NEGATIVE on a pathogenic case. Sequence exactness on
+`simpanel` was last measured at commit `ca81a97`: 77/80 alleles sequence-exact
+(the residual single-base misses described above); it was not re-measured at
+the 0.17.0 defaults.
+
+**PRJEB92208** (public ONT data; `benchmarks/clinical/prjeb92208/hybrid-engine.json`,
+re-run with the 0.17.0 defaults at commit `c4ab26c`, 2 threads):
 
 | Check | Result |
 | --- | --- |
-| Frozen simulated dev panel, alleles sequence-exact | 77/80 (mutations detected 24/24). One case names an extra, read-support-`discordant` variant alongside the correct causative event from a residual 1-base consensus error; the clinical decision (PATHOGENIC on the true event) is unaffected, but the panel's by-name mutation scorer counts it as a false positive. |
-| Frozen simulated held-out panel, alleles sequence-exact | 77/80 (mutations detected 28/28) |
-| PRJEB92208 amplicon dupC-positive controls (4 libraries) | PATHOGENIC with `read_support.status == "supported"` on all of them |
-| PRJEB92208 amplicon non-dupC samples (5 libraries) | none reached PATHOGENIC (all INCONCLUSIVE) |
+| Amplicon dupC-positive controls MP1-MP4 | PATHOGENIC, dupC `read_support` `supported` on all four (242/336, 396/652, 3899/6551, 304/512) |
+| Amplicon HG001-HG004 | none PATHOGENIC (all INCONCLUSIVE, `unresolved_rejected_peak`) |
+| Amplicon MP5 | INCONCLUSIVE (`unresolved_max_alleles`) |
+| HG002 amplicon vs. an independent full-sequence assembly | both alleles literal sequence-exact |
+| Callability (amplicon invocation, 11 runs incl. the 2 WGS runs) | 7/11 |
+| Genomic/WGS invocations (`--assay genomic`, 2 runs) | both INCONCLUSIVE on spanning depth (HG002 28/15 spanning reads, `low`; the identity-unresolved MP1 WGS run 8/8, `insufficient`); HG002 alleles literal sequence-exact |
 
-**Measured once, before the fix (commit `2b0072b`, Task 13) -- not re-run
-afterward:**
+**In-house ONT genomic samples** (5 libraries, local only; measured once at
+commit `2b0072b`, **not re-run** at the 0.17.0 defaults): no phantom fragment
+alleles; a low-spanning-depth dupC sample was reported INCONCLUSIVE
+(insufficient depth), not PATHOGENIC or NEGATIVE.
 
-| Check | Result |
-| --- | --- |
-| PRJEB92208 HG002 vs. an independent full-sequence assembly (`clinical_benchmark.py`-scored, the amplicon library and the genomic WGS invocation) | both literal sequence-exact |
-| PRJEB92208 genomic/WGS invocations (2 libraries) | both INCONCLUSIVE, on insufficient/low spanning depth |
-| In-house ONT genomic samples (5 libraries, local only) | no phantom fragment alleles; a low-spanning-depth dupC sample reported INCONCLUSIVE (insufficient depth), not PATHOGENIC or NEGATIVE |
-
-These are development-branch regression runs, not a release validation: the
-frozen-panel gate for this engine (>=80/80 sequence-exact) was not met, the
-public PRJEB92208 benchmark record was not refreshed after the Task 13b
-evidence fix, several checks above were never re-run after that fix, and the
-sealed test split was never used to tune a default.
+These are internal regression runs, not a release validation on an
+independent cohort: reported-control labels do not establish independent
+positive truth, healthy-sample labels do not establish endpoint-specific
+negative truth, and the genomic numbers above cover few libraries.

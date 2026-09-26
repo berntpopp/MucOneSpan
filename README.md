@@ -13,7 +13,7 @@ MucOneSpan analyzes the MUC1 VNTR from PacBio HiFi and Oxford Nanopore amplicon 
 pip install 'muc_one_span[report] @ git+https://github.com/berntpopp/MucOneSpan.git@v0.13.0'
 ```
 
-The pipeline also requires minimap2, samtools, bcftools, and Clair3. See the [installation guide](https://berntpopp.github.io/MucOneSpan/getting-started/installation/) for setup and container options.
+The default hybrid engine needs no external tool for FASTQ input (`samtools` for BAM input). Its POA library `pyabpoa` builds from source and needs a C compiler and zlib. See the [installation guide](https://berntpopp.github.io/MucOneSpan/getting-started/installation/) for setup and container options.
 
 ## Run
 
@@ -21,14 +21,14 @@ The pipeline also requires minimap2, samtools, bcftools, and Clair3. See the [in
 muconespan run \
   --input reads.fastq \
   --output-dir results/ \
-  --clair3-model /path/to/clair3/models/hifi \
+  --platform ont \
   --threads 8 \
   --report
 ```
 
-For Oxford Nanopore reads, add `--platform ont` and use a matching Clair3 model.
+Since 0.17.0, `muconespan run` uses the read-centric **hybrid engine** by default for amplicon and genomic input (`--assay` is recorded for provenance only). Use `--platform hifi` (the default) for PacBio HiFi reads.
 
-Add `--engine hybrid` (needs the optional `hybrid` extra) for the experimental read-centric reconstruction engine; it is not the default, see the [configuration guide](https://berntpopp.github.io/MucOneSpan/guides/configuration/#hybrid-engine-experimental).
+The ladder engine (minimap2, Clair3 and bcftools) is **deprecated**: `--engine ladder` still works, prints a warning and records it in `summary.json`; it will be removed in a later release. See the [migration guide](https://berntpopp.github.io/MucOneSpan/guides/migration/) and the [configuration guide](https://berntpopp.github.io/MucOneSpan/guides/configuration/#hybrid-engine).
 
 ## Acknowledgment
 

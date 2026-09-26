@@ -6,7 +6,13 @@ Understanding the fundamental concepts behind MucOneSpan helps you interpret res
 
 ## Pipeline Architecture
 
-MucOneSpan executes five stages sequentially. Each stage produces intermediate files that feed into the next.
+Since 0.17.0 `muconespan run` uses the read-centric
+[hybrid engine](#hybrid-engine) by default. The five-stage ladder pipeline
+described below is the **deprecated** `--engine ladder` path; it stays
+available until a later release removes it (see the
+[migration guide](../guides/migration.md)). The ladder pipeline executes five
+stages sequentially. Each stage produces intermediate files that feed into the
+next.
 
 ```mermaid
 graph TD
@@ -133,24 +139,23 @@ The **allele confidence** is the mean of all per-repeat confidences. VCF cross-v
 
 ---
 
-## Hybrid Engine (Experimental)
+## Hybrid Engine
 
-`muconespan run --engine hybrid` replaces stages 2-5 above with a read-centric
-reconstruction that never invokes minimap2, Clair3 or bcftools for FASTQ input
-(a BAM input still needs `samtools` to extract primary reads). It is
-**experimental and not the default**: `ladder` remains the default engine until
-the benchmark decision rule is met on the sealed test split, and
-`--report-igv` is unavailable with `--engine hybrid` because a hybrid run
+`muconespan run` (default `--engine hybrid`) replaces ladder stages 2-5 above
+with a read-centric reconstruction that never invokes minimap2, Clair3 or
+bcftools for FASTQ input (a BAM input still needs `samtools` to extract
+primary reads). It is the default for amplicon and genomic input since 0.17.0.
+`--report-igv` is unavailable with the hybrid engine because a hybrid run
 produces no BAM alignment tracks.
 
-!!! warning "Experimental, not the default"
-    `--engine hybrid` is opt-in. Every `hybrid.*` setting default is
-    provisional (prototype-derived) and tuned on development/validation splits
-    only -- never on the sealed test split. See the
-    [configuration guide](../guides/configuration.md#hybrid-engine-experimental)
+!!! note "Defaults and validation"
+    Every `hybrid.*` setting default was tuned on the benchmark development
+    split and confirmed on the validation split -- never on the sealed test
+    split. See the
+    [configuration guide](../guides/configuration.md#hybrid-engine)
     for every setting and the
-    [known limitations](../reference/limitations.md#hybrid-engine-experimental)
-    for measured detection limits.
+    [known limitations](../reference/limitations.md#hybrid-engine)
+    for measured detection limits and validation numbers.
 
 ### Stages
 
@@ -204,9 +209,9 @@ staying silent:
   (`supported`/`insufficient_depth`/`discordant`/`not_supported`/
   `not_localized`) computed directly from the reads assigned to that allele.
 
-The [configuration guide](../guides/configuration.md#hybrid-engine-experimental)
+The [configuration guide](../guides/configuration.md#hybrid-engine)
 describes every field and setting; the
-[limitations page](../reference/limitations.md#hybrid-engine-experimental)
+[limitations page](../reference/limitations.md#hybrid-engine)
 describes measured detection limits and validation numbers.
 
 ---

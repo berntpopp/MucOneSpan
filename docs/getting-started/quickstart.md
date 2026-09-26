@@ -7,24 +7,48 @@ Get started with MucOneSpan in under 5 minutes. This tutorial walks through the 
 ## Prerequisites
 
 - MucOneSpan installed ([Installation Guide](installation.md))
-- External tools on PATH: minimap2, samtools, bcftools, Clair3
 - PacBio HiFi CCS reads or Oxford Nanopore (ONT) Q20+ reads from a MUC1 VNTR PCR amplicon
+  (genomic long reads also work; pass `--assay genomic` to record the library type)
+- `samtools` on PATH for BAM input; the deprecated ladder engine also needs minimap2,
+  bcftools and Clair3
 
 ---
 
 ## Full Pipeline (Recommended)
 
-Run all five stages in a single command:
+Run the default hybrid engine in a single command:
 
 ```bash
 muconespan run \
   --input reads.fastq \
   --output-dir results/ \
+  --platform hifi \
+  --threads 8 \
+  --report
+```
+
+**What happens** (see [Core Concepts](concepts.md#hybrid-engine)):
+
+1. Anchors every read on the conserved motifs and sorts spanning, partial and off-target reads
+2. Fits the allele lengths from the spanning reads (smear and PCR-dimer aware)
+3. Builds a partial-order-alignment consensus per allele and splits same-length alleles on linked sites
+4. Assigns every read, polishes the consensus and classifies each 60bp repeat unit
+5. Scores each detected mutation against the reads assigned to its allele
+
+### Ladder engine (deprecated)
+
+The previous five-stage pipeline stays available with `--engine ladder` until a
+later release removes it. It prints a deprecation warning and records it in
+`summary.json["deprecations"]`:
+
+```bash
+muconespan run \
+  --engine ladder \
+  --input reads.fastq \
+  --output-dir results/ \
   --clair3-model /path/to/clair3/models/hifi \
   --threads 8
 ```
-
-**What happens:**
 
 1. Generates a synthetic reference ladder (150 contigs, 1-150 repeat units)
 2. Maps reads to the ladder with minimap2
@@ -36,7 +60,7 @@ muconespan run \
 
 ## Step-by-Step Execution
 
-For more control, run each stage individually:
+For more control, run each ladder stage individually:
 
 ### 1. Generate Reference Ladder
 
@@ -94,7 +118,7 @@ muconespan classify \
 ## ONT Data
 
 To analyze Oxford Nanopore reads, add `--platform ont` to `run` or individual subcommands.
-The pipeline auto-selects `minimap2 -x lr:hq` and `Clair3 --platform=ont`:
+With `--engine ladder` the pipeline auto-selects `minimap2 -x lr:hq` and `Clair3 --platform=ont`:
 
 ```bash
 muconespan run \
