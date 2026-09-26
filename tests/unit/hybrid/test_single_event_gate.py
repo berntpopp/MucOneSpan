@@ -26,7 +26,6 @@ from muc_one_span.settings import DEFAULT_SETTINGS
 from tests.unit.hybrid import synth
 from tests.unit.hybrid import test_single_event as base
 
-pytest.importorskip("edlib", reason="edlib (extra 'hybrid') is not installed")
 S = base.S
 REPEAT = len(synth.PRE) + 1  # 1-based repeat of the first inner unit
 # Realistic ONT amplicon depth for the stress cell (reads on the one length peak).
@@ -124,7 +123,6 @@ def test_equally_likely_run_lengths_leave_a_read_unassigned() -> None:
 
 def test_unassigned_reads_of_a_single_event_split_are_reassigned(tmp_path: Path) -> None:
     """Reads the split leaves unassigned (ties) are placed by edit distance, not dropped."""
-    pytest.importorskip("pyabpoa", reason="pyabpoa (extra 'hybrid') is not installed")
     records = base._het_records(base.HET_SEEDS[0])
     tied = {r.name for r in records[:: len(records) // S.phase_min_minor_reads]}
     real = single_event.split_single_event

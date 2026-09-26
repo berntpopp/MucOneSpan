@@ -3,7 +3,6 @@
 from __future__ import annotations
 
 import random
-import sys
 
 import pytest
 
@@ -19,7 +18,6 @@ from muc_one_span.hybrid.spans import Anchors, SpanRead, categorize_reads
 from muc_one_span.settings import DEFAULT_SETTINGS, HybridSettings
 from tests.unit.hybrid import synth
 
-pytest.importorskip("edlib", reason="edlib (extra 'hybrid') is not installed")
 BACKEND = DEFAULT_SETTINGS.hybrid.poa_backend
 S = DEFAULT_SETTINGS.hybrid
 POLISH = {
@@ -57,7 +55,6 @@ def _members(seq: str, n: int, seed: int) -> list[SpanRead]:
 
 
 def test_poa_plus_polish_recovers_exact_allele_with_dupc() -> None:
-    pytest.importorskip("pyabpoa", reason="pyabpoa (extra 'hybrid') is not installed")
     members = _members(DUPC_ALLELE, 60, 11)
     cons = draft_consensus(members, S.n_poa, random.Random(S.seed), get_backend(BACKEND), **WINDOW)
     cons, info = polish(cons, [m.seq for m in members], **POLISH)
@@ -95,16 +92,12 @@ def test_polish_corrects_a_substitution_and_a_homopolymer_error_given_realistic_
 
 
 def test_pyspoa_backend_is_selectable() -> None:
-    pytest.importorskip("spoa", reason="pyspoa (extra 'hybrid') is not installed")
     backend = get_backend("pyspoa")
     assert backend.name == "pyspoa"
     assert backend.consensus(["ACGTACGT", "ACGTACGT", "ACGAACGT"]) == "ACGTACGT"
 
 
-def test_missing_backend_names_the_extra(monkeypatch: pytest.MonkeyPatch) -> None:
-    monkeypatch.setitem(sys.modules, "pyabpoa", None)
-    with pytest.raises(ImportError, match="hybrid"):
-        get_backend("pyabpoa")
+def test_unknown_backend_is_rejected() -> None:
     with pytest.raises(ValueError, match="unknown"):
         get_backend("medaka")
 

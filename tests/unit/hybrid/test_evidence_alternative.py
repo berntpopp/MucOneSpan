@@ -31,7 +31,6 @@ from muc_one_span.report import compute_clinical_decision
 from muc_one_span.settings import DEFAULT_SETTINGS, HybridSettings
 from tests.unit.hybrid import synth
 
-pytest.importorskip("edlib", reason="edlib (extra 'hybrid') is not installed")
 S = HybridSettings()
 X = synth.RD.repeats["X"]
 UNIT_I = synth.RD.repeats["I"]
@@ -171,7 +170,6 @@ def _fastq(path: Path, reads: list[ReadRecord]) -> Path:
 def test_heterozygous_dupc_at_three_to_one_imbalance_stays_pathogenic(
     tmp_path: Path, n_normal: int, n_carrier: int
 ) -> None:
-    pytest.importorskip("pyabpoa", reason="pyabpoa (extra 'hybrid') is not installed")
     normal = synth.allele(["X"] * 25)
     carrier = synth.allele(["X"] * 14 + [synth.dupc()] + ["X"] * 30)
     reads = synth.reads(normal, n_normal, err=ERR, seed=36) + synth.reads(

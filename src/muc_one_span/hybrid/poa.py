@@ -2,15 +2,16 @@
 
 There is no silent fallback: results must be reproducible from the recorded
 ``hybrid.poa_backend`` setting. The prototype evidence was produced with pyabpoa.
+Both backends are core dependencies since v0.17.0 and are imported at module load.
 """
 
 from __future__ import annotations
 
-import importlib
 from collections.abc import Callable
 from typing import Protocol
 
-from muc_one_span.hybrid.align import HYBRID_HINT
+import pyabpoa
+import spoa
 
 
 class PoaBackend(Protocol):
@@ -25,7 +26,7 @@ class _Abpoa:
     name = "pyabpoa"
 
     def __init__(self) -> None:
-        self._aligner = importlib.import_module("pyabpoa").msa_aligner(aln_mode="g")
+        self._aligner = pyabpoa.msa_aligner(aln_mode="g")
 
     def consensus(self, seqs: list[str]) -> str:
         res = self._aligner.msa(seqs, out_cons=True, out_msa=False)
@@ -36,7 +37,7 @@ class _Spoa:
     name = "pyspoa"
 
     def __init__(self) -> None:
-        self._poa = importlib.import_module("spoa").poa
+        self._poa = spoa.poa
 
     def consensus(self, seqs: list[str]) -> str:
         cons, _msa = self._poa(seqs, algorithm=1)  # global alignment
@@ -44,12 +45,8 @@ class _Spoa:
 
 
 def get_backend(name: str) -> PoaBackend:
-    """Return the named backend; raise ImportError naming the extra when unavailable."""
+    """Return the named backend; raise ValueError for an unknown name."""
     factories: dict[str, Callable[[], PoaBackend]] = {"pyabpoa": _Abpoa, "pyspoa": _Spoa}
     if name not in factories:
         raise ValueError(f"unknown POA backend {name!r}")
-    try:
-        backend = factories[name]()
-    except ImportError as exc:
-        raise ImportError(f"{HYBRID_HINT} ({name}: {exc})") from exc
-    return backend
+    return factories[name]()

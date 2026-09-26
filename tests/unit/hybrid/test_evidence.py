@@ -23,7 +23,6 @@ from muc_one_span.hybrid.spans import Anchors, categorize_reads
 from muc_one_span.settings import HybridSettings
 from tests.unit.hybrid import synth
 
-pytest.importorskip("edlib", reason="edlib (extra 'hybrid') is not installed")
 S = HybridSettings()
 UNIT = synth.RD.repeat_length_bp
 # Per-strand run-length profiles (index = observed length, 0..hp_max_run_len) around a

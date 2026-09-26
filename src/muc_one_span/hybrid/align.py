@@ -1,24 +1,16 @@
 """edlib-based alignment primitives shared by the hybrid engine stages.
 
-edlib is imported lazily: ``rc`` and ``cigar_ops`` (and the synthetic test factory)
-work without the optional ``hybrid`` extra, and alignment calls fail with a clear hint.
+edlib is a core dependency since v0.17.0 (the hybrid engine is the default), so it is
+imported at module load; a missing edlib is a broken installation, not an optional extra.
 """
 
 from __future__ import annotations
 
-import importlib
 from dataclasses import dataclass
-from types import ModuleType
 
-HYBRID_HINT = "The hybrid engine needs the 'hybrid' extra: pip install 'muc_one_span[hybrid]'"
+import edlib
+
 _COMP = str.maketrans("ACGTNacgtn", "TGCANtgcan")
-
-
-def _edlib() -> ModuleType:
-    try:
-        return importlib.import_module("edlib")
-    except ImportError as exc:
-        raise ImportError(HYBRID_HINT) from exc
 
 
 def rc(seq: str) -> str:
@@ -47,7 +39,7 @@ def _locate(query: str, target: str, k: int, *, task: str) -> tuple[int, int, in
     substring (for example a fragment read whose sequence ends exactly at an anchor).
     That is not a valid hit, so it is rejected here rather than propagated.
     """
-    res = _edlib().align(query, target, mode="HW", task=task, k=k)
+    res = edlib.align(query, target, mode="HW", task=task, k=k)
     if res["editDistance"] < 0 or not res["locations"]:
         return None
     start, end = res["locations"][0]
@@ -75,12 +67,12 @@ def infix_hit(query: str, target: str, k: int) -> tuple[int, int, int] | None:
 
 def edit_distance_infix(query: str, target: str) -> int:
     """Edit distance of query aligned fully inside target (semi-global)."""
-    return int(_edlib().align(query, target, mode="HW", task="distance")["editDistance"])
+    return int(edlib.align(query, target, mode="HW", task="distance")["editDistance"])
 
 
 def edit_distance(a: str, b: str) -> int:
     """Global edit distance."""
-    return int(_edlib().align(a, b, mode="NW", task="distance")["editDistance"])
+    return int(edlib.align(a, b, mode="NW", task="distance")["editDistance"])
 
 
 @dataclass
@@ -106,7 +98,7 @@ class Columns:
 
 def project(read: str, cons: str, *, partial: bool = False) -> Columns:
     """Project read onto consensus columns (global, or infix for partial reads)."""
-    res = _edlib().align(read, cons, mode="HW" if partial else "NW", task="path")
+    res = edlib.align(read, cons, mode="HW" if partial else "NW", task="path")
     n = len(cons)
     first = int(res["locations"][0][0]) if partial else 0
     cols: list[str | None] = [None] * n

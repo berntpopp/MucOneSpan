@@ -2,12 +2,7 @@
 
 from __future__ import annotations
 
-import sys
-
-import pytest
-
 from muc_one_span.classify import classify_sequence
-from muc_one_span.hybrid.align import infix_hit
 from muc_one_span.hybrid.spans import Anchors, ReadRecord, categorize_reads
 from muc_one_span.settings import HybridSettings
 from tests.unit.hybrid import synth
@@ -23,12 +18,6 @@ def test_dupc_template_is_classified() -> None:
         for m in classify_sequence(seq, synth.RD)["mutations_detected"]
     }
     assert ("dupC", True) in names
-
-
-def test_missing_edlib_names_the_extra(monkeypatch: pytest.MonkeyPatch) -> None:
-    monkeypatch.setitem(sys.modules, "edlib", None)
-    with pytest.raises(ImportError, match="hybrid"):
-        infix_hit("ACGT", "ACGT", 0)
 
 
 def test_spanning_reads_oriented_and_trimmed_to_motif1_motif9() -> None:

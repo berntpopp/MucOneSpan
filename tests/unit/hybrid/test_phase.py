@@ -16,8 +16,6 @@ from muc_one_span.hybrid.spans import Anchors, ReadRecord, SpanRead, categorize_
 from muc_one_span.settings import HybridSettings
 from tests.unit.hybrid import synth
 
-pytest.importorskip("edlib", reason="edlib (extra 'hybrid') is not installed")
-
 # Every phase tunable comes from S (HybridSettings defaults); nothing is duplicated here
 # as a bare literal (owner directive: fully config-driven, no magic numbers).
 S = HybridSettings()

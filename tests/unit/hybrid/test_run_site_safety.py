@@ -33,7 +33,6 @@ from tests.unit.hybrid import synth
 from tests.unit.hybrid import test_single_event as base
 from tests.unit.hybrid import test_stutter_guard as guard
 
-pytest.importorskip("edlib", reason="edlib (extra 'hybrid') is not installed")
 S = DEFAULT_SETTINGS.hybrid
 N_UNITS = 30
 # 0-based inner X unit carrying the dupC: near the end of the array, as in the case.

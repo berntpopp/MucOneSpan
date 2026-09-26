@@ -1120,6 +1120,9 @@ name = "muc-one-span"
 source = { editable = "." }
 dependencies = [
     { name = "click" },
+    { name = "edlib" },
+    { name = "pyabpoa" },
+    { name = "pyspoa" },
     { name = "pyyaml" },
 ]
 
@@ -1173,13 +1176,16 @@ test = [
 [package.metadata]
 requires-dist = [
     { name = "click", specifier = ">=8.3.3,<9.0" },
+    { name = "edlib", specifier = ">=1.3.9" },
     { name = "edlib", marker = "extra == 'bench'", specifier = ">=1.3.9" },
     { name = "edlib", marker = "extra == 'hybrid'", specifier = ">=1.3.9" },
     { name = "jinja2", marker = "extra == 'report'", specifier = ">=3.1.0" },
     { name = "mkdocs-click", marker = "extra == 'docs'", specifier = ">=0.8.0" },
     { name = "mkdocs-material", marker = "extra == 'docs'", specifier = ">=9.7.7" },
     { name = "mkdocstrings", extras = ["python"], marker = "extra == 'docs'", specifier = ">=0.24.0" },
+    { name = "pyabpoa", specifier = ">=1.5.7" },
     { name = "pyabpoa", marker = "extra == 'hybrid'", specifier = ">=1.5.7" },
+    { name = "pyspoa", specifier = ">=0.3.2" },
     { name = "pyspoa", marker = "extra == 'hybrid'", specifier = ">=0.3.2" },
     { name = "pyyaml", specifier = ">=6.0" },
 ]

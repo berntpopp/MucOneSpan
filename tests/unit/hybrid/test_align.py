@@ -51,7 +51,7 @@ def test_infix_hit_recovers_via_path_retry_when_locations_start_is_none(
         locations_result={"editDistance": 2, "locations": [(None, -1)], "cigar": None},
         path_result={"editDistance": 2, "locations": [(3, 8)], "cigar": "6="},
     )
-    monkeypatch.setattr(align, "_edlib", lambda: stub)
+    monkeypatch.setattr(align, "edlib", stub)
     assert align.infix_hit("ACGTAC", "NNNACGTACNN", 2) == (3, 9, 2)
     assert stub.calls == ["locations", "path"]
 
@@ -67,7 +67,7 @@ def test_infix_hit_returns_none_when_location_stays_unresolved_after_retry(
         locations_result={"editDistance": 30, "locations": [(None, -1)], "cigar": None},
         path_result={"editDistance": 30, "locations": [(None, -1)], "cigar": None},
     )
-    monkeypatch.setattr(align, "_edlib", lambda: stub)
+    monkeypatch.setattr(align, "edlib", stub)
     assert align.infix_hit("ACGTACGTACGTACGTACGTACGTACGTAC", "", 3) is None
     assert stub.calls == ["locations", "path"]
 
@@ -80,6 +80,6 @@ def test_infix_hit_returns_none_when_locations_list_is_empty(
         locations_result={"editDistance": 0, "locations": [], "cigar": None},
         path_result={"editDistance": 0, "locations": [], "cigar": None},
     )
-    monkeypatch.setattr(align, "_edlib", lambda: stub)
+    monkeypatch.setattr(align, "edlib", stub)
     assert align.infix_hit("ACGT", "ACGT", 0) is None
     assert stub.calls == ["locations", "path"]

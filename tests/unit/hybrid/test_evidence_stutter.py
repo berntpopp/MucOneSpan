@@ -25,7 +25,6 @@ from muc_one_span.settings import HybridSettings
 from tests.unit.hybrid import synth
 from tests.unit.hybrid import test_evidence_alternative as alt
 
-pytest.importorskip("edlib", reason="edlib (extra 'hybrid') is not installed")
 S = HybridSettings()
 N_READS = 200
 SEEDS = range(50, 53)

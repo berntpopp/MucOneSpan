@@ -20,7 +20,6 @@ from muc_one_span.settings import HybridSettings
 from tests.unit.hybrid import test_evidence_stutter as base
 from tests.unit.test_clinical_decision import BASE, _gated_summary
 
-pytest.importorskip("edlib", reason="edlib (extra 'hybrid') is not installed")
 S = HybridSettings()
 SHIFT = dataclasses.replace(S, hp_stutter_model="shift")
 # Deletion stutter per run length on real ONT "+" reads (MP1 probe): C6, C7 and the true

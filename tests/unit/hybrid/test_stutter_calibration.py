@@ -23,7 +23,6 @@ from muc_one_span.settings import HybridSettings
 from tests.unit.hybrid import test_evidence_stutter as base
 from tests.unit.hybrid import test_stutter_guard as guard
 
-pytest.importorskip("edlib", reason="edlib (extra 'hybrid') is not installed")
 S = HybridSettings()
 SHIFT = dataclasses.replace(S, hp_stutter_model="shift")
 FIELDS = ("n", "alt", "ref", "other", "alt_frac", "alternative_frac", "llr", "strand_llr")

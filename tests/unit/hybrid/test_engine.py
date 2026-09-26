@@ -21,8 +21,6 @@ from muc_one_span.run_status import InsufficientEvidenceError
 from muc_one_span.settings import DEFAULT_SETTINGS
 from tests.unit.hybrid import synth
 
-pytest.importorskip("edlib", reason="edlib (extra 'hybrid') is not installed")
-pytest.importorskip("pyabpoa", reason="pyabpoa (extra 'hybrid') is not installed")
 A = synth.allele(["X"] * 25)
 B = synth.allele(["X"] * 14 + [synth.dupc()] + ["X"] * 30)
 

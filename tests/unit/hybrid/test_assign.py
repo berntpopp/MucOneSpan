@@ -2,15 +2,11 @@
 
 from __future__ import annotations
 
-import pytest
-
 from muc_one_span.hybrid.align import rc
 from muc_one_span.hybrid.assign import OFF_TARGET, assign_read, assign_reads, hybrid_references
 from muc_one_span.hybrid.spans import ReadRecord
 from muc_one_span.settings import HybridSettings
 from tests.unit.hybrid import synth
-
-pytest.importorskip("edlib", reason="edlib (extra 'hybrid') is not installed")
 
 # S = HybridSettings() supplies margin/max_error_rate/flank_bp everywhere below, so no
 # assign tunable is duplicated as a bare literal in this test module (owner directive:

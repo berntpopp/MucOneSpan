@@ -34,7 +34,6 @@ from muc_one_span.report import compute_clinical_decision
 from muc_one_span.settings import DEFAULT_SETTINGS, HybridSettings
 from tests.unit.hybrid import synth
 
-pytest.importorskip("edlib", reason="edlib (extra 'hybrid') is not installed")
 S = HybridSettings()
 ANCH = Anchors.from_dictionary(synth.RD, S)
 ERR = 0.02
@@ -192,7 +191,6 @@ def test_single_event_mode_is_validated() -> None:
 
 
 def _run(tmp_path: Path, records: list[ReadRecord], settings: Any = DEFAULT_SETTINGS) -> Any:
-    pytest.importorskip("pyabpoa", reason="pyabpoa (extra 'hybrid') is not installed")
     fq = tmp_path / "in.fastq"
     fq.write_text("".join(f"@{r.name}\n{r.seq}\n+\n{r.qual}\n" for r in records))
     out = tmp_path / "out"
@@ -260,7 +258,6 @@ def _fastq(path: Path, records: list[ReadRecord]) -> Path:
 
 def test_second_length_peak_is_not_split_on_a_single_event(tmp_path: Path) -> None:
     """With two length peaks each peak is one allele; a single event does not split it."""
-    pytest.importorskip("pyabpoa", reason="pyabpoa (extra 'hybrid') is not installed")
     short = synth.reads(synth.allele(["X"] * 20), 2 * N_PER_ALLELE, err=ERR, seed=11)
     records = short + _het_records(HET_SEEDS[0])
     result = reconstruct_alleles(
@@ -275,7 +272,6 @@ def test_second_length_peak_is_not_split_on_a_single_event(tmp_path: Path) -> No
 
 def test_identical_drafts_keep_the_peak_unconfirmed() -> None:
     """A single-event split whose two drafts are equal is not used (no haplotype split)."""
-    pytest.importorskip("pyabpoa", reason="pyabpoa (extra 'hybrid') is not installed")
     members = _spans(WT, 2 * N_PER_ALLELE, 1000)
     cons = synth.allele(WT)
     unsplit = PhaseResult([members], "unconfirmed_single_site", [], candidate=None)
@@ -289,7 +285,6 @@ def test_identical_drafts_keep_the_peak_unconfirmed() -> None:
 
 def test_identical_polished_alleles_block_a_negative_call(tmp_path: Path) -> None:
     """If both single-event alleles polish to one sequence, the site stays unresolved."""
-    pytest.importorskip("pyabpoa", reason="pyabpoa (extra 'hybrid') is not installed")
     real = engine.polish
     wild_type = synth.allele(WT)
 
