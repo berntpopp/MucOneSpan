@@ -271,4 +271,31 @@ def test_engine_and_assay_come_from_hashed_settings(tmp_path: Path, monkeypatch)
             run_case(run, prep, tmp_path / root, {**base, **extra})
     # Settings hashed without an engine key predate engine selection: they ran the ladder.
     assert seen[0][-2:] == ["--engine", "ladder"]
+    for flag in ("--clair3-model", "--platform", "--threads"):
+        assert flag in seen[0] and flag not in seen[1]  # ladder-only options
     assert seen[1][-4:] == ["--engine", "hybrid", "--assay", "genomic"]
+
+
+def test_hybrid_needs_no_model_but_the_ladder_does(tmp_path, monkeypatch):
+    import contextlib
+    import json
+
+    from muc_one_span.clinical_provenance import sha256_file
+
+    reads = tmp_path / "reads.fastq"
+    reads.write_text("@a\nACGT\n+\nIIII\n")
+    seen: list[list[str]] = []
+
+    def execute(commands, **kwargs):
+        seen.append(json.loads(Path(commands[0][-1]).read_text())["argv"])
+        raise RuntimeError("stop after recording argv")
+
+    monkeypatch.setattr("muc_one_span.clinical_runner.run_tool_pipeline", execute)
+    run = {"run_accession": "ERR1", "arm": "primary_amplicon"}
+    prep = {"run_accession": "ERR1", "output_path": str(reads), "output_sha256": sha256_file(reads)}
+    base = {"threads": 2, "timeout": 10, "model": None}
+    with contextlib.suppress(RuntimeError):
+        run_case(run, prep, tmp_path / "hybrid", {**base, "engine": "hybrid"})
+    assert "--clair3-model" not in seen[0]
+    with pytest.raises(ValueError, match="model"):
+        run_case(run, prep, tmp_path / "ladder", base)

@@ -14,6 +14,7 @@ from unittest.mock import patch
 from click.testing import CliRunner
 
 from muc_one_span.config import RepeatDictionary, load_repeat_dictionary
+from muc_one_span.deprecations import LADDER_ENGINE
 from muc_one_span.evaluation import (
     TruthValidationError,
     aggregate,
@@ -119,7 +120,8 @@ def run_pipeline(
     ``measurement.json``. ``config`` (a runtime settings JSON) is
     passed as the global ``muconespan --config`` option and recorded; explicit
     run options (``--threads``, ``--platform``, ``--clair3-model``, ``--engine``)
-    still override its values.
+    still override its values. ``--threads``, ``--platform`` and ``--clair3-model`` are
+    ladder-only and passed only for the ladder engine (always recorded).
     """
     from muc_one_span.cli import main
 
@@ -132,12 +134,10 @@ def run_pipeline(
         str(input_path.resolve()),
         "--output-dir",
         str(output_dir.resolve()),
-        *(["--clair3-model", model] if model else []),
-        "--threads",
-        str(threads),
-        "--platform",
-        platform,
     ]
+    if engine == LADDER_ENGINE:  # ladder-only options; the hybrid engine ignores them
+        cli_args += [*(["--clair3-model", model] if model else []), "--threads", str(threads)]
+        cli_args += ["--platform", platform]
     cli_args += ["--engine", engine]
     timings: dict[str, float] = {}
     started = time.perf_counter()

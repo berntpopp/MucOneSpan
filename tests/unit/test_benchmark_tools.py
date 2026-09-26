@@ -157,7 +157,9 @@ def test_pipeline_controls_are_forwarded_and_recorded(tmp_path: Path) -> None:
     reads = tmp_path / "reads.fq.gz"
     reads.touch()
     model = tmp_path / "models" / "ont"
-    record = run_pipeline("sample", reads, tmp_path / "out", "ont", str(model), 7, runner=Runner())
+    record = run_pipeline(
+        "sample", reads, tmp_path / "out", "ont", str(model), 7, runner=Runner(), engine="ladder"
+    )
     assert record["platform"] == "ont"
     assert record["model"] == str(model)
     assert record["threads"] == 7
@@ -173,6 +175,18 @@ def test_pipeline_controls_are_forwarded_and_recorded(tmp_path: Path) -> None:
         "7",
         "--platform",
         "ont",
+        "--engine",
+        "ladder",
+    ]
+    hybrid = run_pipeline("sample", reads, tmp_path / "h", "ont", str(model), 7, runner=Runner())
+    # The hybrid engine ignores these, so they are recorded but not passed to the CLI.
+    assert (hybrid["platform"], hybrid["model"], hybrid["threads"]) == ("ont", str(model), 7)
+    assert hybrid["cli_args"] == [
+        "run",
+        "--input",
+        str(reads.resolve()),
+        "--output-dir",
+        str((tmp_path / "h").resolve()),
         "--engine",
         "hybrid",
     ]

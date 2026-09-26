@@ -15,6 +15,7 @@ WARNING = "is ignored by the hybrid engine; use --engine ladder (deprecated)"
 
 
 def _invoke(tmp_path: Path, *extra: str, config: dict | None = None):
+    tmp_path.mkdir(parents=True, exist_ok=True)
     reads = tmp_path / "reads.fastq"
     reads.write_text("@r\nACGT\n+\nIIII\n")
     prefix: list[str] = []
@@ -32,12 +33,50 @@ def _record(tmp_path: Path) -> dict:
     return json.loads((tmp_path / "out" / "run_configuration.json").read_text())
 
 
-def test_ladder_only_option_map_names_the_three_flags() -> None:
-    assert set(LADDER_ONLY_OPTIONS.values()) == {
-        "--clair3-model",
-        "--min-qual",
-        "--minimap2-preset",
-    }
+HYBRID_UNUSED_FLAGS = {
+    "--clair3-model",
+    "--min-qual",
+    "--minimap2-preset",
+    "--platform",
+    "--min-coverage",
+    "--threads",
+    "--mapping-timeout",
+    "--reference",
+}
+
+
+def test_ladder_only_option_map_names_every_option_the_hybrid_path_ignores() -> None:
+    assert set(LADDER_ONLY_OPTIONS.values()) == HYBRID_UNUSED_FLAGS
+
+
+def test_every_run_option_is_either_used_by_hybrid_or_listed() -> None:
+    from muc_one_span.cli_run import run
+
+    flags = {opt for p in run.params for opt in p.opts if opt.startswith("--")}
+    used = {"--input", "--output-dir", "--report", "--report-igv", "--engine", "--assay"}
+    assert flags - used == HYBRID_UNUSED_FLAGS
+
+
+def test_common_ladder_options_warn_on_a_hybrid_run(tmp_path: Path) -> None:
+    ref = tmp_path / "ref.fa"
+    ref.write_text(">c\nACGT\n")
+    args = ["--platform", "ont", "--min-coverage", "50", "--threads", "8"]
+    args += ["--mapping-timeout", "60", "--reference", str(ref)]
+    result, hybrid = _invoke(tmp_path, *args)
+    assert result.exit_code == 0, result.output
+    stderr = " ".join(result.stderr.split())
+    for flag in ("--platform", "--min-coverage", "--threads", "--mapping-timeout", "--reference"):
+        assert f"Warning: {flag} {WARNING}" in stderr
+    hybrid.assert_called_once()
+
+
+def test_custom_dictionary_does_not_require_a_reference_for_hybrid(tmp_path: Path) -> None:
+    layout = {"pre": ["1", "2", "3", "4"], "after": ["6", "7", "8", "9"]}
+    result, hybrid = _invoke(tmp_path, config={"reference_layout": layout})
+    assert result.exit_code == 0, result.output
+    hybrid.assert_called_once()
+    ladder, _ = _invoke(tmp_path / "l", "--engine", "ladder", config={"reference_layout": layout})
+    assert ladder.exit_code == 2 and "--reference" in ladder.output
 
 
 def test_explicit_ladder_options_warn_and_are_recorded_as_ignored(tmp_path: Path) -> None:
@@ -69,7 +108,9 @@ def test_default_hybrid_run_ignores_nothing(tmp_path: Path) -> None:
 
 
 def test_non_default_config_value_is_ignored_but_config_defaults_are_not(tmp_path: Path) -> None:
-    result, _ = _invoke(tmp_path, config={"run": {"min_qual": 20, "threads": 2}})
+    # A config file re-applies every run value through Click's default_map; only the
+    # non-default ladder-only value counts, and hybrid-used values (assay) never do.
+    result, _ = _invoke(tmp_path, config={"run": {"min_qual": 20, "assay": "genomic"}})
     assert result.exit_code == 0, result.output
     assert f"Warning: --min-qual {WARNING}" in " ".join(result.stderr.split())
     ignored = _record(tmp_path)["ignored_options"]

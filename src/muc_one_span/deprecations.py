@@ -25,11 +25,19 @@ LADDER_DEPRECATION_MESSAGE = (
     "removed in a future release; the hybrid engine is the default. See the migration "
     "guide in the documentation."
 )
-# run.<field> -> CLI flag, for options only the ladder engine uses.
+# run.<field> -> CLI flag, for every ``run`` option only the ladder engine uses. The hybrid
+# path reads its thresholds from ``hybrid.*`` and runs single-threaded in Python; it does
+# not map (no preset, platform or mapping timeout), call variants (no model, QUAL), gate on
+# ladder coverage, or read a reference FASTA (it builds its own hybrid references).
 LADDER_ONLY_OPTIONS = {
     "clair3_model": "--clair3-model",
     "min_qual": "--min-qual",
     "minimap2_preset": "--minimap2-preset",
+    "platform": "--platform",
+    "min_coverage": "--min-coverage",
+    "threads": "--threads",
+    "mapping_timeout": "--mapping-timeout",
+    "reference": "--reference",
 }
 IGNORED_OPTION_WARNING = (
     "{option} is ignored by the hybrid engine; use --engine ladder (deprecated)"

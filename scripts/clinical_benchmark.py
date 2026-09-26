@@ -13,6 +13,7 @@ from typing import Any
 from muc_one_span.clinical_data import fetch_inventory, prepare_run, validate_inventory
 from muc_one_span.clinical_provenance import (
     freeze_environment,
+    frozen_model_path,
     object_hash,
     sha256_file,
     verify_environment,
@@ -53,7 +54,9 @@ def parser() -> argparse.ArgumentParser:
     prepare.add_argument("--run", action="append", default=[])
     freeze = commands.add_parser("freeze")
     freeze.add_argument("--checkout", type=Path, default=Path.cwd())
-    freeze.add_argument("--model", type=Path, required=True)
+    freeze.add_argument(
+        "--model", type=Path, default=None, help="Clair3 model (ladder engine only)"
+    )
     freeze.add_argument("--output", type=Path, required=True)
     truth = commands.add_parser("truth")
     truth.add_argument("--ledger", type=Path, required=True)
@@ -126,10 +129,15 @@ def main(argv: list[str] | None = None) -> int:
                     environment = read(args.environment)
                     checkout = Path(__file__).resolve().parents[1]
                     verify_environment(environment, checkout)
+                    model = frozen_model_path(environment)
+                    if model is None and args.engine == LEGACY_UNHASHED_ENGINE:
+                        raise SystemExit(
+                            "the ladder engine needs a frozen Clair3 model; freeze with --model"
+                        )
                     settings = {
                         "threads": args.threads,
                         "timeout": args.timeout,
-                        "model": environment["model"]["path"],
+                        "model": model,
                         "environment": environment,
                         "environment_sha256": object_hash(environment),
                         "report_igv": "off",

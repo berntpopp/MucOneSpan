@@ -16,6 +16,8 @@ from muc_one_span.tools import run_tool_pipeline
 # The engine of hashed settings that carry no ``engine`` key (attempts made before engine
 # selection existed, and ladder attempts, which keep that hash so they stay resumable).
 LEGACY_UNHASHED_ENGINE = "ladder"
+# PRJEB92208 and the in-house cohorts are ONT; the ladder maps and calls with this platform.
+LADDER_PLATFORM = "ont"
 
 
 def _evidence(root: Path, exit_code: int | None) -> dict[str, Any]:
@@ -142,27 +144,19 @@ def run_case(
         or timeout <= 0
     ):
         raise ValueError("timeout must be finite and positive")
-    root.mkdir(parents=True)
-    argv = [
-        "run",
-        "--input",
-        str(input_path),
-        "--output-dir",
-        str(root),
-        "--platform",
-        "ont",
-        "--clair3-model",
-        settings["model"],
-        "--threads",
-        str(settings["threads"]),
-        "--report",
-        "--report-igv",
-        "off",
-    ]
     # Hashed settings: --resume cannot mix engines. Settings without an engine key were
     # hashed before engine selection existed and ran the ladder, which is no longer the
     # CLI default, so the engine is always passed explicitly.
-    argv += ["--engine", str(settings.get("engine", LEGACY_UNHASHED_ENGINE))]
+    engine = str(settings.get("engine", LEGACY_UNHASHED_ENGINE))
+    ladder = engine == LEGACY_UNHASHED_ENGINE
+    if ladder and not settings.get("model"):
+        raise ValueError("the ladder engine needs a frozen Clair3 model (freeze --model)")
+    root.mkdir(parents=True)
+    argv = ["run", "--input", str(input_path), "--output-dir", str(root)]
+    if ladder:  # options only the ladder uses; the hybrid engine would ignore them
+        argv += ["--platform", LADDER_PLATFORM, "--clair3-model", settings["model"]]
+        argv += ["--threads", str(settings["threads"])]
+    argv += ["--report", "--report-igv", "off", "--engine", engine]
     if settings.get("assay") is not None:
         argv += ["--assay", str(settings["assay"])]
     invocation = root / "invocation.json"
