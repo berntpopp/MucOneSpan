@@ -2,16 +2,19 @@
 
 There is no silent fallback: results must be reproducible from the recorded
 ``hybrid.poa_backend`` setting. The prototype evidence was produced with pyabpoa.
-Both backends are core dependencies since v0.17.0 and are imported at module load.
+pyabpoa (the default backend) is a core dependency since v0.17.0 and is imported at
+module load; pyspoa is optional (the ``hybrid`` extra) and imported only when selected.
 """
 
 from __future__ import annotations
 
+import importlib
 from collections.abc import Callable
 from typing import Protocol
 
 import pyabpoa
-import spoa
+
+SPOA_HINT = "The pyspoa POA backend needs the 'hybrid' extra: pip install 'muc_one_span[hybrid]'"
 
 
 class PoaBackend(Protocol):
@@ -37,7 +40,10 @@ class _Spoa:
     name = "pyspoa"
 
     def __init__(self) -> None:
-        self._poa = spoa.poa
+        try:
+            self._poa = importlib.import_module("spoa").poa
+        except ImportError as exc:
+            raise ImportError(f"{SPOA_HINT} ({exc})") from exc
 
     def consensus(self, seqs: list[str]) -> str:
         cons, _msa = self._poa(seqs, algorithm=1)  # global alignment

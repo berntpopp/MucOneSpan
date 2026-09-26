@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import random
+import sys
 
 import pytest
 
@@ -92,9 +93,16 @@ def test_polish_corrects_a_substitution_and_a_homopolymer_error_given_realistic_
 
 
 def test_pyspoa_backend_is_selectable() -> None:
+    pytest.importorskip("spoa", reason="pyspoa (extra 'hybrid') is not installed")
     backend = get_backend("pyspoa")
     assert backend.name == "pyspoa"
     assert backend.consensus(["ACGTACGT", "ACGTACGT", "ACGAACGT"]) == "ACGTACGT"
+
+
+def test_missing_pyspoa_names_the_hybrid_extra(monkeypatch: pytest.MonkeyPatch) -> None:
+    monkeypatch.setitem(sys.modules, "spoa", None)
+    with pytest.raises(ImportError, match=r"muc_one_span\[hybrid\]"):
+        get_backend("pyspoa")
 
 
 def test_unknown_backend_is_rejected() -> None:

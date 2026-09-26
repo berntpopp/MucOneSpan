@@ -27,17 +27,17 @@ classifiers = [
 dependencies = [
     "click>=8.3.3,<9.0",
     "pyyaml>=6.0",
-    # Hybrid engine (the default since 0.17.0).
+    # Hybrid engine (the default since 0.17.0) with its default POA backend.
     "edlib>=1.3.9",
     "pyabpoa>=1.5.7",
-    "pyspoa>=0.3.2",
 ]
 
 [project.optional-dependencies]
 report = [
     "jinja2>=3.1.0",
 ]
-# Kept so `pip install 'muc_one_span[hybrid]'` still works; since 0.17.0 these are core.
+# Optional pyspoa POA backend (hybrid.poa_backend = "pyspoa"); edlib and pyabpoa are core
+# since 0.17.0 and stay listed so older `pip install 'muc_one_span[hybrid]'` commands work.
 hybrid = [
     "edlib>=1.3.9",
     "pyabpoa>=1.5.7",

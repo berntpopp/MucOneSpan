@@ -1122,7 +1122,6 @@ dependencies = [
     { name = "click" },
     { name = "edlib" },
     { name = "pyabpoa" },
-    { name = "pyspoa" },
     { name = "pyyaml" },
 ]
 
@@ -1185,7 +1184,6 @@ requires-dist = [
     { name = "mkdocstrings", extras = ["python"], marker = "extra == 'docs'", specifier = ">=0.24.0" },
     { name = "pyabpoa", specifier = ">=1.5.7" },
     { name = "pyabpoa", marker = "extra == 'hybrid'", specifier = ">=1.5.7" },
-    { name = "pyspoa", specifier = ">=0.3.2" },
     { name = "pyspoa", marker = "extra == 'hybrid'", specifier = ">=0.3.2" },
     { name = "pyyaml", specifier = ">=6.0" },
 ]
