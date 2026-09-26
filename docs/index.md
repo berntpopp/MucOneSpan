@@ -55,8 +55,7 @@ Clair3 variant calls are cross-referenced against repeat classifications to adju
 ```bash
 muconespan run \
   --input reads.fastq \
-  --output-dir results/ \
-  --threads 8
+  --output-dir results/
 ```
 
 **Output:** Per-allele VNTR structure, mutation calls with exact repeat position, and confidence scores.

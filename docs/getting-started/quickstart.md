@@ -22,10 +22,15 @@ Run the default hybrid engine in a single command:
 muconespan run \
   --input reads.fastq \
   --output-dir results/ \
-  --platform hifi \
-  --threads 8 \
   --report
 ```
+
+The same command serves HiFi and ONT reads: the hybrid engine takes no platform,
+thread, coverage or reference option. Those are ladder-only; given to a hybrid run
+they print a warning and are listed in `summary.json["ignored_options"]`. BAM input
+is streamed read by read through `samtools fastq`, so subset a WGS BAM to the MUC1
+region first (for example `samtools view -b in.bam chr1:155185000-155195000` on hg38,
+which covers the MUC1 gene; adjust the coordinates for other builds).
 
 **What happens** (see [Core Concepts](concepts.md#hybrid-engine)):
 
@@ -117,11 +122,13 @@ muconespan classify \
 
 ## ONT Data
 
-To analyze Oxford Nanopore reads, add `--platform ont` to `run` or individual subcommands.
-With `--engine ladder` the pipeline auto-selects `minimap2 -x lr:hq` and `Clair3 --platform=ont`:
+The default hybrid engine needs no platform option for ONT reads. With the
+deprecated ladder engine, add `--platform ont` to `run` or individual subcommands;
+the pipeline then auto-selects `minimap2 -x lr:hq` and `Clair3 --platform=ont`:
 
 ```bash
 muconespan run \
+  --engine ladder \
   --input ont_reads.fastq \
   --output-dir results/ \
   --platform ont \
@@ -150,7 +157,11 @@ muconespan run --input reads.fastq --output-dir results/ --minimap2-preset map-o
 - Minimum recommended coverage: **10x per allele** (higher coverage improves confidence)
 
 !!! tip "Coverage recommendation"
-    For clinical-grade results, aim for 50-100x per allele. The `--min-coverage` flag (default: 10) controls the minimum read count threshold for allele detection.
+    For clinical-grade results, aim for 50-100x per allele. With the default hybrid engine
+    an allele needs `hybrid.depth_adequate_spanning` (default 30) spanning reads for an
+    adequate depth, and a length peak needs `hybrid.min_peak_reads` reads; see the
+    [configuration guide](../guides/configuration.md#hybrid-engine). The `--min-coverage`
+    flag (default: 10) applies only to the deprecated ladder engine's allele detection.
 
 ---
 

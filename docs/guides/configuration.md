@@ -14,7 +14,7 @@ Put the global `--config` option before the command:
 muconespan --config settings.json run \
   --input reads.bam \
   --output-dir results \
-  --threads 8
+  --assay genomic
 ```
 
 Values are selected in this order:
@@ -23,7 +23,7 @@ Values are selected in this order:
 2. The corresponding configuration-file value.
 3. The central default.
 
-Thus `--threads 8` overrides `run.threads` in the file. Omitted fields and sections
+Thus `--assay genomic` overrides `run.assay` in the file. Omitted fields and sections
 retain their central defaults. An explicit `--no-report` overrides
 `"report": true`. Input and output locations remain command arguments; they are
 not additional JSON fields. Use `muconespan COMMAND --help` for available flags.
@@ -237,8 +237,7 @@ detection limits and validation numbers, and the
 muconespan run \
   --input reads.fastq \
   --output-dir results/ \
-  --assay amplicon \
-  --threads 8
+  --assay amplicon
 ```
 
 `--engine` is `hybrid` (default) or `ladder` (`run.engine`, deprecated); `--assay` is `amplicon` or
@@ -246,11 +245,16 @@ muconespan run \
 (`summary["hybrid"]["assay"]`) -- it does not change any `hybrid.*` default
 and is never auto-detected. `--report-igv` is rejected by the hybrid engine (a
 hybrid run has no BAM alignment tracks to show; the error names `--engine
-ladder` (deprecated) and `--report-igv off`). `--clair3-model`, `--min-qual`
-and `--minimap2-preset` are unused by the hybrid path: given on the command
-line or with a non-default configuration value, each prints a warning and is
-listed in `summary.json["ignored_options"]` and
-`run_configuration.json["ignored_options"]`.
+ladder` (deprecated) and `--report-igv off`). The ladder-only options
+`--clair3-model`, `--min-qual`, `--minimap2-preset`, `--platform`,
+`--min-coverage`, `--threads`, `--mapping-timeout` and `--reference` (and their
+`run.*` values) are unused by the hybrid path: the engine takes its thresholds
+from `hybrid.*`, runs single-threaded, needs no platform and builds its own
+references (a custom dictionary or layout therefore needs no `--reference`).
+Given on the command line or with a non-default configuration value, each
+prints a warning and is listed in `summary.json["ignored_options"]` and
+`run_configuration.json["ignored_options"]`. BAM input is streamed through
+`samtools fastq` without a region, so subset a WGS BAM to the MUC1 locus first.
 
 | Section.field | Default | Meaning and validation |
 | --- | --- | --- |
@@ -342,7 +346,7 @@ no hardcoded thresholds in the hybrid engine.
 | `hybrid.het_af_min` | `0.2` | Minimum allele fraction for a candidate phase site (run-length sites use `max(het_af_min, phase_run_bg_multiplier * background)`); number in [0.01, 0.5]. A minor allele below this floor never forms a candidate: at the default, an **equal-length heterozygote with a minor allele at 15-20% produces a silent `none` split, not a flag** (`het_af_min` > `het_min_group`, so a group at the `het_min_group` edge can never form). |
 | `hybrid.het_min_group` | `0.15` | Minimum fraction of members the smaller phase group must reach, else `unconfirmed_group_size`; number in [0,1]. |
 | `hybrid.link_phi_min` | `0.5` | Minimum absolute phi correlation for two candidate sites to be linked; number in [0,1]. |
-| `hybrid.min_linked_sites` | `2` | Minimum linked events required to split a peak; fewer produces `unconfirmed_single_site`; integer >=0. |
+| `hybrid.min_linked_sites` | `2` | Minimum linked events required to split a peak; fewer produces `unconfirmed_single_site` (a single event goes through the single-event split and its share-bound gate instead); integer >=2. |
 | `hybrid.phase_max_site_reads` | `300` | Read cap for building the phase site table (sampled with the seeded RNG above the cap); integer >=1. |
 | `hybrid.phase_run_min_len` | `3` | Minimum homopolymer run length treated as a run-length candidate site; integer >=2. |
 | `hybrid.phase_run_bg_window` | `3` | Run-length background window (+/- d observed length) used to score a run site; integer >=1. |

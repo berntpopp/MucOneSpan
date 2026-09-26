@@ -367,7 +367,9 @@ supports PATHOGENIC only when all of these hold:
 - it is an exact dictionary template (`template_match` and `mutation_name`);
 - its localization is not ambiguous;
 - it has explicit support (exact VCF concordance or `read_support.status=supported`);
-- its allele's `depth_status` is not `low`.
+- its allele's `depth_status` is `adequate` (with a `depth_basis`, any other value,
+  including a missing or unknown one, blocks PATHOGENIC; legacy summaries without a basis
+  block `low` and `insufficient` only).
 
 NEGATIVE additionally requires:
 

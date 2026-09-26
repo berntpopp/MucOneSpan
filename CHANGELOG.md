@@ -35,12 +35,16 @@ not re-run.
 
 ### Changed
 
+- The `run` command moved from `cli.py` to `cli_run.py`; `from
+  muc_one_span.cli import run` keeps working.
 - **Default engine.** `muconespan run` now defaults to `--engine hybrid`
   (`run.engine = "hybrid"`) for amplicon and genomic input. A FASTQ run calls
   no external tool; a BAM input needs `samtools`. `--assay` stays recorded for
   provenance only; it is not auto-detected.
-- **Ladder-only options on a hybrid run.** `--clair3-model`, `--min-qual` and
-  `--minimap2-preset`, given on the command line or through a non-default
+- **Ladder-only options on a hybrid run.** `--clair3-model`, `--min-qual`,
+  `--minimap2-preset`, `--platform`, `--min-coverage`, `--threads`,
+  `--mapping-timeout` and `--reference` (every `run` option the hybrid path
+  does not use), given on the command line or through a non-default
   configuration value, print `Warning: <option> is ignored by the hybrid
   engine; use --engine ladder (deprecated)` and are listed in the new additive
   `ignored_options` field of `summary.json` and `run_configuration.json`. For a
@@ -48,7 +52,18 @@ not re-run.
   and `model_selection: "not used (hybrid engine)"`. `--report-igv
   embedded|sidecar` stays an error for the hybrid engine; it is now raised
   before `run_configuration.json` is written and names both remedies
-  (`--engine ladder` (deprecated) or `--report-igv off`).
+  (`--engine ladder` (deprecated) or `--report-igv off`). A custom repeat
+  dictionary, reference layout or flank length no longer requires `--reference`
+  with the hybrid engine, which reads no reference FASTA.
+- **Hybrid anchors follow the reference layout.** Read anchoring uses the
+  layout's outer fixed repeats (`reference_layout.left_anchor_id` /
+  `right_anchor_id`) instead of the literal repeat IDs "1" and "9"; the default
+  layout gives the same anchors.
+- **Hybrid output hygiene.** Reported hybrid fractions share one precision (3
+  decimals; the length-model fractions were 4). A resolved homozygote reports
+  `allele_multiplicity_status: "resolved"` (was `"unresolved"`). `alleles.json`
+  is written once per hybrid run. The FASTQ parser rejects a record without a
+  `+` separator line or with sequence and quality of different lengths.
 - **Dependencies.** `edlib` and `pyabpoa` (the default POA backend) are core
   dependencies, imported at load time; `pyabpoa` builds from source (C compiler
   and zlib). `pyspoa` (the alternative backend) stays in the optional `hybrid`
@@ -59,11 +74,13 @@ not re-run.
 - **Harness defaults.** `scripts/benchmark.py --engine`,
   `scripts/clinical_benchmark.py run --engine` and `scripts/benchsim.py
   run|evaluate --engines` default to `hybrid`. `benchmarking.run_pipeline`
-  always passes `--engine` and passes `--clair3-model` only when a model is
-  given; `benchsim run` looks up a Clair3 model only for the ladder engine.
-  `clinical_benchmark.py` keeps hashing ladder runs
-  without an `engine` key and passes `--engine ladder` to the worker
-  explicitly. `benchsim report --baseline` stays `ladder`.
+  always passes `--engine`, and passes `--clair3-model`, `--threads` and
+  `--platform` only to the ladder engine; `benchsim run` looks up a Clair3
+  model only for the ladder engine. `clinical_benchmark.py` keeps hashing ladder
+  runs without an `engine` key, passes `--engine ladder` to the worker
+  explicitly and the ladder-only options only for ladder runs; `freeze --model`
+  is optional (a model-less environment runs the hybrid engine only).
+  `benchsim report --baseline` stays `ladder`.
 - **Ladder-visible changes since 0.16.1.** Fail-closed depth rule: when an
   allele carries a `depth_basis`, any `depth_status` other than `adequate`
   (including an unknown or missing value) blocks a result. A ladder run in
@@ -203,6 +220,11 @@ not re-run.
 
 ### Fixed
 
+- `hybrid.min_linked_sites` now has a minimum of 2 (was 0). At 1 a single
+  heterozygous event became a `linked_sites` split that bypassed the
+  single-event share-bound gate, so a wild-type sample with a 30%
+  site-specific +1 excess at one C7 run could be called PATHOGENIC. A config
+  value below 2 is rejected.
 - `depth_status` values other than `"adequate"` (including `"insufficient"`,
   previously ungated), `allele_genotype_status ==
   "residual_heterogeneity"`, and a `read_support.status` other than
@@ -259,11 +281,6 @@ not re-run.
   name their `smear_region`. `benchsim calibrate --stage lengths` flags cases
   with a gate-relevant rejected peak (`gate_relevant_rejected_peak`), for use
   as a reason metric.
-
-### Changed
-
-- The `run` command moved from `cli.py` to `cli_run.py`; `from
-  muc_one_span.cli import run` keeps working.
 
 ## [0.16.1] - 2026-09-24
 

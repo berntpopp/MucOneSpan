@@ -367,6 +367,19 @@ the automated test suite.
 - **Inter-allele smear near long alleles.** The background of the smear test
   between the alleles can be inflated next to long alleles (above about 100
   units), which lowers the chance that a real minor allele there is flagged.
+- **A minor allele hidden in heavy smear.** In a synthetic probe at low depth
+  (60 spanning reads) with heavy PCR smear, a real minor length peak carrying
+  10-23% of the reads (6 reads at 10%) was called `smear` (not a significant
+  excess over the local background) and rejected without flagging the sample.
+  If such a peak is a real allele it is dropped silently, and a pathogenic event
+  on it could be missed: a possible false NEGATIVE.
+- **BAM input is streamed whole.** A BAM is read through `samtools fastq` with no
+  region, so a WGS BAM means a scan of every read in Python. Subset a WGS BAM to
+  the MUC1 locus before running.
+- **Event read support at very high depth (follow-up).** Per-event read support
+  and its polishing use every read assigned to the allele (no read cap), which is
+  slow at about 1000x and above. A configured cap is planned; results are not
+  affected, only run time.
 - **PRJEB92208 ONT amplicon runs.** Most amplicon runs carry clusters of
   PCR-product reads below or above the alleles, so `selection_status` is often
   `unresolved_rejected_peak`. That blocks a NEGATIVE result (no false

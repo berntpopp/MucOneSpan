@@ -3,7 +3,7 @@
 Owner directive: everything is config-driven, with no hardcoded thresholds, magic
 numbers or variables. Tunable thresholds get proper calibration commands.
 
-This adds **Task 15** to `.planning/2026-09-24-hybrid-engine-plan-v2.md` and a
+This adds **Task 15** to `.planning/archive/2026-09-24-hybrid-engine-plan-v2.md` and a
 constraint to every task (see `global-constraints.md` in the SDD workspace).
 
 ## Constraint (all tasks, both plans)

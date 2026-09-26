@@ -21,12 +21,10 @@ The default hybrid engine needs no external tool for FASTQ input (`samtools` for
 muconespan run \
   --input reads.fastq \
   --output-dir results/ \
-  --platform ont \
-  --threads 8 \
   --report
 ```
 
-Since 0.17.0, `muconespan run` uses the read-centric **hybrid engine** by default for amplicon and genomic input (`--assay` is recorded for provenance only). Use `--platform hifi` (the default) for PacBio HiFi reads.
+Since 0.17.0, `muconespan run` uses the read-centric **hybrid engine** by default for PacBio HiFi and ONT reads, amplicon and genomic input (`--assay` is recorded for provenance only). The hybrid engine needs no platform setting and runs single-threaded; the ladder-only options (`--platform`, `--threads`, `--min-coverage`, `--mapping-timeout`, `--reference`, `--clair3-model`, `--min-qual`, `--minimap2-preset`) are ignored with a warning and recorded in `summary.json["ignored_options"]`. For a WGS BAM, pass a BAM already subset to the MUC1 region: the hybrid engine streams every read of the BAM.
 
 The ladder engine (minimap2, Clair3 and bcftools) is **deprecated**: `--engine ladder` still works, prints a warning and records it in `summary.json`; it will be removed in a later release. See the [migration guide](https://berntpopp.github.io/MucOneSpan/guides/migration/) and the [configuration guide](https://berntpopp.github.io/MucOneSpan/guides/configuration/#hybrid-engine).
 

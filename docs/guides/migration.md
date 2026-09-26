@@ -16,8 +16,14 @@ behaviour while it is still available.
   support); see [Core Concepts](../getting-started/concepts.md#hybrid-engine).
 - A FASTQ run needs no external tool: minimap2, Clair3 and bcftools are not
   called. A BAM input still needs `samtools` to extract the primary reads.
-- `--clair3-model`, `--min-qual` and `--minimap2-preset` only apply to the
-  ladder engine. When a hybrid run gets one of them on the command line, or
+- `--clair3-model`, `--min-qual`, `--minimap2-preset`, `--platform`,
+  `--min-coverage`, `--threads`, `--mapping-timeout` and `--reference` only
+  apply to the ladder engine: the hybrid engine takes its thresholds from
+  `hybrid.*` (for example `hybrid.depth_adequate_spanning` and
+  `hybrid.min_peak_reads` instead of `--min-coverage`), runs single-threaded,
+  needs no platform and builds its own references. A custom dictionary or
+  reference layout therefore no longer needs `--reference` with the hybrid
+  engine. When a hybrid run gets one of these options on the command line, or
   through a non-default value in a `--config` file, it prints
   `Warning: <option> is ignored by the hybrid engine; use --engine ladder (deprecated)`
   on stderr and records the option in `summary.json["ignored_options"]` and
@@ -108,12 +114,16 @@ Two ladder behaviours changed together with the hybrid work:
 - `scripts/benchmark.py --engine`, `scripts/clinical_benchmark.py run --engine`
   and `scripts/benchsim.py run|evaluate --engines` default to `hybrid`.
 - `muc_one_span.benchmarking.run_pipeline` always passes `--engine` to the CLI,
-  so a ladder benchmark stays a ladder benchmark, and passes `--clair3-model`
-  only when a model is given.
+  so a ladder benchmark stays a ladder benchmark. It passes `--clair3-model`,
+  `--threads` and `--platform` only to the ladder engine (still recording them).
 - `benchsim run` looks up a Clair3 model only for the ladder engine; a hybrid
   run needs none.
 - `clinical_benchmark.py` hashes a ladder run without an `engine` key (the
-  pre-0.17 hash) and passes `--engine ladder` to the worker explicitly.
+  pre-0.17 hash) and passes `--engine ladder` to the worker explicitly. The
+  worker gets `--platform`, `--clair3-model` and `--threads` only for a ladder
+  run. `clinical_benchmark.py freeze --model` is optional: without it the frozen
+  environment has no Clair3 model (only `samtools` is frozen) and can run the
+  hybrid engine only; a ladder run on it stops with an error.
 - `benchsim report --baseline` stays `ladder`: the decision rule compares a
   candidate against the ladder baseline.
 
