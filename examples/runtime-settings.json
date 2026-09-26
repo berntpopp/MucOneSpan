@@ -11,7 +11,7 @@
     "mapping_timeout": 3600.0,
     "report": false,
     "report_igv": "off",
-    "engine": "ladder",
+    "engine": "hybrid",
     "assay": "amplicon"
   },
   "allele_selection": {

@@ -36,7 +36,7 @@ from muc_one_span.settings import DEFAULT_SETTINGS
     "--clair3-model",
     type=str,
     default=DEFAULT_SETTINGS.run.clair3_model,
-    help="Path to Clair3 model.",
+    help="Path to Clair3 model (ladder engine only).",
 )
 @click.option(
     "--threads", "-t", type=int, default=DEFAULT_SETTINGS.run.threads, help="Number of threads."
@@ -51,7 +51,10 @@ from muc_one_span.settings import DEFAULT_SETTINGS
     "--min-qual",
     type=float,
     default=DEFAULT_SETTINGS.run.min_qual,
-    help="Minimum VCF QUAL (default 5.0); see calling.haploid_min_qual for length-split calls.",
+    help=(
+        "Minimum VCF QUAL (default 5.0; ladder engine only); "
+        "see calling.haploid_min_qual for length-split calls."
+    ),
 )
 @click.option(
     "--report/--no-report",
@@ -62,7 +65,7 @@ from muc_one_span.settings import DEFAULT_SETTINGS
     "--report-igv",
     type=click.Choice(["embedded", "sidecar", "off"], case_sensitive=False),
     default="off",
-    help="IGV alignment browser mode in HTML report (default: off).",
+    help="IGV alignment browser mode in HTML report (ladder engine only; default: off).",
 )
 @click.option(
     "--platform",
@@ -80,13 +83,16 @@ from muc_one_span.settings import DEFAULT_SETTINGS
     "--minimap2-preset",
     type=str,
     default=None,
-    help="minimap2 -x preset (auto-selected from --platform if not set).",
+    help="minimap2 -x preset (ladder engine only; auto-selected from --platform if not set).",
 )
 @click.option(
     "--engine",
     type=click.Choice(["ladder", "hybrid"]),
     default=DEFAULT_SETTINGS.run.engine,
-    help="Allele reconstruction engine (hybrid is experimental; default: ladder).",
+    help=(
+        "Allele reconstruction engine (default: hybrid). The ladder engine is "
+        "deprecated and will be removed in a future release."
+    ),
 )
 @click.option(
     "--assay",

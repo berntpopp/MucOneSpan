@@ -74,12 +74,14 @@ from muc_one_span.benchsim.report_tables import build_tables, render_engine_tabl
 from muc_one_span.benchsim.run_cases import run_split
 from muc_one_span.benchsim.targets import render_targets, targets_by_set
 from muc_one_span.config import load_repeat_dictionary
+from muc_one_span.settings import DEFAULT_SETTINGS
 from muc_one_span.tools import run_tool
 
 DATA_DIR_NAME = "MucOneSpan-bench-data"
 SPLITS = sorted(DEFAULT_BENCH_CONFIG.design.split_sizes)
 DEFAULT_SALT = "mucsim-bench-v1"
 HERE = Path(__file__).resolve().parent
+DEFAULT_ENGINE = DEFAULT_SETTINGS.run.engine
 
 
 def _load_evaluate() -> ModuleType:
@@ -589,7 +591,9 @@ def parser() -> argparse.ArgumentParser:
     run_cmd.add_argument(
         "--manifest", type=Path, required=True, help="<out-root>/<split>/manifest.jsonl"
     )
-    run_cmd.add_argument("--engines", default="ladder", help="comma-separated (default: ladder)")
+    run_cmd.add_argument(
+        "--engines", default=DEFAULT_ENGINE, help=f"comma-separated (default: {DEFAULT_ENGINE})"
+    )
     run_cmd.add_argument("--results-root", type=Path, help="default: <out-root>/results/<split>")
     run_cmd.add_argument("--model-ont", help="caller model for ont (default: $CLAIR3_MODEL_ONT)")
     run_cmd.add_argument("--model-hifi", help="caller model for hifi (default: $CLAIR3_MODEL_HIFI)")
@@ -612,7 +616,7 @@ def parser() -> argparse.ArgumentParser:
         sp.add_argument("--out-root", type=Path, help=f"default: <repo parent>/{DATA_DIR_NAME}")
         sp.set_defaults(func=func)
         if name == "evaluate":
-            sp.add_argument("--engines", default="ladder", help="comma-separated engines")
+            sp.add_argument("--engines", default=DEFAULT_ENGINE, help="comma-separated engines")
         if name == "report":
             sp.add_argument("--baseline", default="ladder")
             sp.add_argument("--candidate", help="engine to decide on (omit: tables only)")

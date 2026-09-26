@@ -10,6 +10,7 @@ from typing import Any
 import click
 
 from muc_one_span.config import RepeatDictionary
+from muc_one_span.deprecations import run_deprecations
 from muc_one_span.settings import RuntimeSettings
 from muc_one_span.version import __version__
 
@@ -98,6 +99,7 @@ def finish_run(
         "tool_versions": tool_versions,
         "pipeline_version": __version__,
         "configuration": configuration_record,
+        "deprecations": run_deprecations(settings),
         **(extra_summary or {}),
     }
     (out / "summary.json").write_text(json.dumps(summary, indent=2) + "\n")

@@ -51,7 +51,7 @@ class RunSettings:
     mapping_timeout: float = 3600.0
     report: bool = False
     report_igv: str = "off"
-    engine: str = "ladder"
+    engine: str = "hybrid"
     assay: str = "amplicon"
 
     def __post_init__(self) -> None:

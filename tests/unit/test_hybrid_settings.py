@@ -30,7 +30,7 @@ def test_hybrid_defaults() -> None:
         0.2,
     )
     assert (h.rejected_peak_noise_reads, h.hp_min_strand_reads) == (2, 5)
-    assert (DEFAULT_SETTINGS.run.engine, DEFAULT_SETTINGS.run.assay) == ("ladder", "amplicon")
+    assert (DEFAULT_SETTINGS.run.engine, DEFAULT_SETTINGS.run.assay) == ("hybrid", "amplicon")
 
 
 def test_hybrid_length_model_and_anchor_tunables_default_unchanged() -> None:

@@ -173,10 +173,16 @@ def test_pipeline_controls_are_forwarded_and_recorded(tmp_path: Path) -> None:
         "7",
         "--platform",
         "ont",
+        "--engine",
+        "hybrid",
     ]
 
 
-def test_engine_is_forwarded_only_when_not_ladder(tmp_path: Path) -> None:
+def test_benchmark_script_defaults_to_hybrid() -> None:
+    assert script_module("benchmark").parser().parse_args([]).engine == "hybrid"
+
+
+def test_engine_is_always_forwarded_and_defaults_to_hybrid(tmp_path: Path) -> None:
     from muc_one_span.benchmarking import run_pipeline
 
     class Result:
@@ -191,16 +197,16 @@ def test_engine_is_forwarded_only_when_not_ladder(tmp_path: Path) -> None:
     reads = tmp_path / "reads.fastq"
     reads.touch()
     default_record = run_pipeline(
-        "sample", reads, tmp_path / "ladder", "ont", "model", 1, runner=Runner()
+        "sample", reads, tmp_path / "hybrid", "ont", "model", 1, runner=Runner()
     )
-    assert "--engine" not in default_record["cli_args"]
-    assert default_record["engine"] == "ladder"
+    assert default_record["cli_args"][-2:] == ["--engine", "hybrid"]
+    assert default_record["engine"] == "hybrid"
 
-    hybrid_record = run_pipeline(
-        "sample", reads, tmp_path / "hybrid", "ont", "model", 1, runner=Runner(), engine="hybrid"
+    ladder_record = run_pipeline(
+        "sample", reads, tmp_path / "ladder", "ont", "model", 1, runner=Runner(), engine="ladder"
     )
-    assert hybrid_record["cli_args"][-2:] == ["--engine", "hybrid"]
-    assert hybrid_record["engine"] == "hybrid"
+    assert ladder_record["cli_args"][-2:] == ["--engine", "ladder"]
+    assert ladder_record["engine"] == "ladder"
 
 
 def test_ambiguous_input_is_an_explicit_failure(tmp_path: Path) -> None:

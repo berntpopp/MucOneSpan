@@ -22,6 +22,7 @@ from muc_one_span.evaluation import (
     load_truth,
 )
 from muc_one_span.evaluation.artifacts import discover_input, read_inventory
+from muc_one_span.settings import DEFAULT_SETTINGS
 
 
 class Runner(Protocol):
@@ -108,14 +109,14 @@ def run_pipeline(
     threads: int,
     *,
     runner: Runner | None = None,
-    engine: str = "ladder",
+    engine: str = DEFAULT_SETTINGS.run.engine,
     config: Path | None = None,
 ) -> dict[str, Any]:
     """Run the real full CLI while timing its five scientific stages.
 
-    ``engine`` is appended to ``cli_args`` as ``--engine <engine>`` only when it
-    is not the default ``"ladder"``, and is always recorded in the returned
-    record and ``measurement.json``. ``config`` (a runtime settings JSON) is
+    ``engine`` (default: the runtime default, ``hybrid``) is always appended to
+    ``cli_args`` as ``--engine <engine>`` and recorded in the returned record and
+    ``measurement.json``. ``config`` (a runtime settings JSON) is
     passed as the global ``muconespan --config`` option and recorded; explicit
     run options (``--threads``, ``--platform``, ``--clair3-model``, ``--engine``)
     still override its values.
@@ -138,8 +139,7 @@ def run_pipeline(
         "--platform",
         platform,
     ]
-    if engine != "ladder":
-        cli_args += ["--engine", engine]
+    cli_args += ["--engine", engine]
     timings: dict[str, float] = {}
     started = time.perf_counter()
     with ExitStack() as stack:
@@ -227,7 +227,7 @@ def run_inventory(
     platform: str | None = None,
     model: str | None = None,
     threads: int | None = None,
-    engine: str = "ladder",
+    engine: str = DEFAULT_SETTINGS.run.engine,
 ) -> list[dict[str, Any]]:
     """Run or explicitly fail every inventory entry without dropping denominators."""
     records: list[dict[str, Any]] = []

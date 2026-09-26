@@ -10,6 +10,7 @@ import sys
 from pathlib import Path
 
 from muc_one_span.benchmarking import read_sample_inventory, run_inventory
+from muc_one_span.settings import DEFAULT_SETTINGS
 
 
 def parser() -> argparse.ArgumentParser:
@@ -33,7 +34,10 @@ def parser() -> argparse.ArgumentParser:
     )
     result.add_argument("--threads", type=int, default=None, help="Threads for every sample")
     result.add_argument(
-        "--engine", choices=("ladder", "hybrid"), default="ladder", help="Reconstruction engine"
+        "--engine",
+        choices=("ladder", "hybrid"),
+        default=DEFAULT_SETTINGS.run.engine,
+        help="Reconstruction engine (default: hybrid; ladder is deprecated)",
     )
     return result
 

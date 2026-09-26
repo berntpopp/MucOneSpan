@@ -249,10 +249,10 @@ def test_run_derives_engines_results_root_and_models(
     )
     assert rc == 0 and len(calls) == 1
     _, engines, results_root, threads, jobs = calls[0]
-    assert engines == ["ladder"] and threads == 4 and jobs == 1
+    assert engines == ["hybrid"] and threads == 4 and jobs == 1
     assert results_root == tmp_path / "data" / "results" / "dev"
-    caller = json.loads((results_root / "ladder" / "caller.json").read_text())
-    assert caller["engine"] == "ladder" and caller["caller_commit"]  # fake git output
+    caller = json.loads((results_root / "hybrid" / "caller.json").read_text())
+    assert caller["engine"] == "hybrid" and caller["caller_commit"]  # fake git output
     assert caller["caller_version"] == __version__
 
 

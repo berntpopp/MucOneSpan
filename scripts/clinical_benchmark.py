@@ -18,7 +18,8 @@ from muc_one_span.clinical_provenance import (
     verify_environment,
     write_json,
 )
-from muc_one_span.clinical_runner import run_case
+from muc_one_span.clinical_runner import LEGACY_UNHASHED_ENGINE, run_case
+from muc_one_span.settings import DEFAULT_SETTINGS
 
 
 def read(path: Path) -> dict[str, Any]:
@@ -67,7 +68,7 @@ def parser() -> argparse.ArgumentParser:
     run.add_argument("--timeout", type=float, default=3600)
     run.add_argument("--run", action="append", default=[])
     run.add_argument("--resume", action="store_true")
-    run.add_argument("--engine", choices=("ladder", "hybrid"), default="ladder")
+    run.add_argument("--engine", choices=("ladder", "hybrid"), default=DEFAULT_SETTINGS.run.engine)
     run.add_argument("--assay", choices=("amplicon", "genomic"), default=None)
     score = commands.add_parser("score")
     score.add_argument("--manifest", type=Path, required=True)
@@ -132,9 +133,11 @@ def main(argv: list[str] | None = None) -> int:
                         "environment": environment,
                         "environment_sha256": object_hash(environment),
                         "report_igv": "off",
-                        # Only non-default engine choices enter the hashed settings, so
-                        # existing ladder attempts stay resumable.
-                        **({"engine": args.engine} if args.engine != "ladder" else {}),
+                        # The ladder hashes without an engine key (the pre-0.17 hash),
+                        # so existing ladder attempts stay resumable.
+                        **(
+                            {"engine": args.engine} if args.engine != LEGACY_UNHASHED_ENGINE else {}
+                        ),
                         **({"assay": args.assay} if args.assay else {}),
                         "repeat_policy": "one observed execution per library",
                         "harness_sha256": {

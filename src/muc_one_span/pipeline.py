@@ -10,6 +10,7 @@ from typing import TYPE_CHECKING, Any
 import click
 
 from muc_one_span.cli_settings import effective_run_settings, write_run_configuration
+from muc_one_span.deprecations import warn_deprecations
 from muc_one_span.settings import DEFAULT_SETTINGS, RuntimeSettings
 
 if TYPE_CHECKING:
@@ -94,6 +95,7 @@ def execute_pipeline(
     configuration_record = write_run_configuration(
         settings, configuration, Path(input_path), ref, out
     )
+    warn_deprecations(settings)
     if settings.run.engine == "hybrid":
         _run_hybrid(out, input_path, rd, settings, configuration_record, report)
         return

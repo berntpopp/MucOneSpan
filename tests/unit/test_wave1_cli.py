@@ -163,7 +163,9 @@ def test_full_run_status_commits_only_after_report_success(tmp_path, pipeline_st
         return generate_report(summary, path, **kwargs)
 
     with patch("muc_one_span.report.generate_report", side_effect=render):
-        result = CliRunner().invoke(main, ["run", "-i", str(reads), "-o", str(output), "--report"])
+        result = CliRunner().invoke(
+            main, ["run", "-i", str(reads), "-o", str(output), "--report", "--engine", "ladder"]
+        )
     status = json.loads((output / "run_status.json").read_text())
     if failure:
         assert result.exit_code != 0

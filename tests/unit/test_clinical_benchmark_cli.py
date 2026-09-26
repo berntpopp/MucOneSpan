@@ -56,7 +56,7 @@ def test_preparation_error_does_not_skip_later_runs(tmp_path, monkeypatch):
     assert records[0]["error"] == "synthetic corrupt input"
 
 
-def test_run_hashes_engine_and_assay_only_when_non_default(tmp_path, monkeypatch):
+def test_run_defaults_to_hybrid_and_keeps_legacy_ladder_hash(tmp_path, monkeypatch):
     import json
 
     spec = spec_from_file_location("clinical_benchmark", Path("scripts/clinical_benchmark.py"))
@@ -103,8 +103,12 @@ def test_run_hashes_engine_and_assay_only_when_non_default(tmp_path, monkeypatch
         assert module.main(args) == 0
 
     invoke(tmp_path / "out_default", [])
-    assert "engine" not in captured[-1]
+    assert captured[-1]["engine"] == "hybrid"
     assert "assay" not in captured[-1]
+
+    # The ladder hashes without an engine key, so pre-0.17 ladder attempts stay resumable.
+    invoke(tmp_path / "out_ladder", ["--engine", "ladder"])
+    assert "engine" not in captured[-1]
 
     invoke(tmp_path / "out_hybrid", ["--engine", "hybrid", "--assay", "genomic"])
     assert captured[-1]["engine"] == "hybrid"

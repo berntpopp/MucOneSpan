@@ -13,6 +13,10 @@ from muc_one_span.clinical_provenance import now, object_hash, sha256_file, writ
 from muc_one_span.evaluation.artifacts import load_observation
 from muc_one_span.tools import run_tool_pipeline
 
+# The engine of hashed settings that carry no ``engine`` key (attempts made before engine
+# selection existed, and ladder attempts, which keep that hash so they stay resumable).
+LEGACY_UNHASHED_ENGINE = "ladder"
+
 
 def _evidence(root: Path, exit_code: int | None) -> dict[str, Any]:
     observation = load_observation(root, {"exit_code": exit_code})
@@ -155,9 +159,12 @@ def run_case(
         "--report-igv",
         "off",
     ]
-    for option in ("engine", "assay"):  # hashed settings: --resume cannot mix engines
-        if settings.get(option) is not None:
-            argv += [f"--{option}", str(settings[option])]
+    # Hashed settings: --resume cannot mix engines. Settings without an engine key were
+    # hashed before engine selection existed and ran the ladder, which is no longer the
+    # CLI default, so the engine is always passed explicitly.
+    argv += ["--engine", str(settings.get("engine", LEGACY_UNHASHED_ENGINE))]
+    if settings.get("assay") is not None:
+        argv += ["--assay", str(settings["assay"])]
     invocation = root / "invocation.json"
     write_json(invocation, {"argv": argv, "output": str(root)})
     command = [sys.executable, "-m", "muc_one_span.clinical_worker", str(invocation)]

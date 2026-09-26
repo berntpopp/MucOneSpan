@@ -269,5 +269,6 @@ def test_engine_and_assay_come_from_hashed_settings(tmp_path: Path, monkeypatch)
     for root, extra in (("ladder", {}), ("hybrid", {"engine": "hybrid", "assay": "genomic"})):
         with contextlib.suppress(RuntimeError):
             run_case(run, prep, tmp_path / root, {**base, **extra})
-    assert "--engine" not in seen[0]
+    # Settings hashed without an engine key predate engine selection: they ran the ladder.
+    assert seen[0][-2:] == ["--engine", "ladder"]
     assert seen[1][-4:] == ["--engine", "hybrid", "--assay", "genomic"]
