@@ -2,8 +2,8 @@
   "schema_version": 1,
   "study_accession": "PRJEB92208",
   "engine": "hybrid",
-  "caller_commit": "c4ab26cc45f7f02faa63a77538945af94fe76782",
-  "pipeline_version": "0.16.1",
+  "caller_commit": "a185ecc488672b1efd316b67bca5a2fe053ceb1e",
+  "pipeline_version": "0.17.0",
   "hybrid_extra_versions": {
     "edlib": "1.3.9.post1",
     "pyabpoa": "1.5.7.1"
@@ -12,7 +12,7 @@
   "settings": "defaults (no overlay)",
   "threads": 2,
   "timeout_seconds": 1800,
-  "environment_sha256": "f1435f77bfd117e13b66a256a6829d071a601101493513cc652046e5188db809",
+  "environment_sha256": "8fa76605afed3ad843c67ca698a54e7a3bec18ff366244733fded22c6fdfe2f8",
   "manifest_sha256": "a25ee98d13b522375a67365c7f84e25162323caf5db6e072160be15c2f52c27a",
   "truth_sha256": "72ef424557ae900dc691514f550ab1e38ad7442fa7dd6fe5727103f6f978cb7a",
   "expectations": {
@@ -25,7 +25,7 @@
       "assay": "amplicon",
       "runs_requested": "all eligible",
       "results_sha256": "2ce14efa85fe68a0346040666b4454e2ae2912a1c6b83f4dc549d4c390ded7a7",
-      "attempt_ledger_sha256": "f9b0dd6056963fd50d067282f85237350b1a5c975fdcf5812cd5fce28fe66812",
+      "attempt_ledger_sha256": "30bb34e7baa0c37a37f4cb00d60cb344b8360980f8e2991821566420369f7210",
       "poa_backend": "pyabpoa",
       "scores": {
         "execution_success": {
@@ -110,9 +110,9 @@
           "independent_exact_alleles": null,
           "sequence_edit_distance": null,
           "output_sha256": {
-            "summary.json": "039385414cb255f9e63b0e8f0ceca08a5e56db647cac0fa5977ff10d5f72ef6a",
+            "summary.json": "d2f4f8748f29ff37e08ef5c419102c489719e3c4fa797e15f17dc78e1d7abe39",
             "run_status.json": "6f922fc99c101e4c69006c9a81b8f211c38fedce064967782f32f652793c716a",
-            "run_configuration.json": "8029f54a132c31bd3dffae2aeb635ba5dd235658754a137c55eef09b2ea21d4b",
+            "run_configuration.json": "785cfcaddca18fed42b8134fefb3480d05aad7a46943c4d68247cb206746869a",
             "alleles.json": "c10c81b7d4edc9570bd148fec491ee2b3cfff3208dd9c2ded9e4c85bb0481e26"
           }
         },
@@ -158,9 +158,9 @@
           "independent_exact_alleles": null,
           "sequence_edit_distance": null,
           "output_sha256": {
-            "summary.json": "55d99735769dd50e02caf4d3c1caf56574b7b120a3718411289af9b5a9dfdbbd",
+            "summary.json": "ab720081fcbe4cb99c21621628c94e16dd6d9ea6b61350bad7f8416a377fdbb1",
             "run_status.json": "6f922fc99c101e4c69006c9a81b8f211c38fedce064967782f32f652793c716a",
-            "run_configuration.json": "d623586a3d2d1b925590bdc8bc29d4fd6cf167dc283bf313f393ac2c13d33b18",
+            "run_configuration.json": "dce87fce121687fe9a84356dfaa6ea1a48aad35a703c0bf2625564ae8d70b6dc",
             "alleles.json": "896ac6f7cb399d8d217ea31f66577b66bbd289bd1ce6629ed8741e6e08aa9a0b"
           }
         },
@@ -206,9 +206,9 @@
           "independent_exact_alleles": null,
           "sequence_edit_distance": null,
           "output_sha256": {
-            "summary.json": "2e5d9cc0f0caf76792b496e0ad0f4ea3b73d73d45af364e4947802c0e06a3d75",
+            "summary.json": "57294bf9573b373b1fd86cd2cb73c86d5925e40e243afb1d8dab0addfbe6cda4",
             "run_status.json": "6f922fc99c101e4c69006c9a81b8f211c38fedce064967782f32f652793c716a",
-            "run_configuration.json": "85adfa1d91a93638330729799dbc0fc4690022a8d7a04be3b3e0d36e75b7891f",
+            "run_configuration.json": "77406f3b6abffc51749e8318ff9fcc3db29bf5595ea1bbcc635f26372319bff3",
             "alleles.json": "36b31fb0acc4a4509c2f7fc0efb38314c911ba5168028878cdbf305d30f94ae2"
           }
         },
@@ -241,9 +241,9 @@
           "independent_exact_alleles": null,
           "sequence_edit_distance": null,
           "output_sha256": {
-            "summary.json": "6445ce5cb7aefdf4ab666c71e7eb1f6709efd194c19a1358be666f95e03bd1fa",
+            "summary.json": "b3f086835ce5436fa84b14295f699346fcfc3d78c72a92214eb74557e13d9739",
             "run_status.json": "6f922fc99c101e4c69006c9a81b8f211c38fedce064967782f32f652793c716a",
-            "run_configuration.json": "44a63c7ed1b41cdda2d8e6de15731c922e7ed7bc3e200057a2aa8452c798ac33",
+            "run_configuration.json": "408ff983a8152e92c8574d0ef90c6e6515b2b0287c5f02f2b520959c4d37f54f",
             "alleles.json": "7d27034237f1828cbfc387ec6bcfdc6bad659ed38fd467335025e7697463065e"
           }
         },
@@ -289,9 +289,9 @@
           "independent_exact_alleles": null,
           "sequence_edit_distance": null,
           "output_sha256": {
-            "summary.json": "4bae2c4266b5a61364aa4da4d97f1995ba7d839ea4264bdf2a102267de439934",
+            "summary.json": "74c5a4db712f66d4d82612b5ad4f601dec8189bf447d427e0932765bfbbc1a09",
             "run_status.json": "6f922fc99c101e4c69006c9a81b8f211c38fedce064967782f32f652793c716a",
-            "run_configuration.json": "979277f1264862db0cc2b0d6ee5759a528039d0c5b924391f33d099667c94755",
+            "run_configuration.json": "47a2267545c9920dc1f567a092f3f0a5f74c385d88ff3e479f0e718077a46c4e",
             "alleles.json": "1bc6483fce3acde7a45660115e2da0033d42fceba96f5968070af70bffb2cd95"
           }
         },
@@ -337,9 +337,9 @@
           "independent_exact_alleles": 0,
           "sequence_edit_distance": 0,
           "output_sha256": {
-            "summary.json": "5dfccd5c61c9beda5b95e6989d3e698d4543a3f46e6044c2c9c0b7385e9f0874",
+            "summary.json": "4526e15c4025f1cbebfa76a07ff66779f23647a3786daaca3b89689811a02ca5",
             "run_status.json": "6f922fc99c101e4c69006c9a81b8f211c38fedce064967782f32f652793c716a",
-            "run_configuration.json": "ac4d8c72d46a12e62a48f663c0dbe350b8c134a573523c8db60f9ac86dd49ad0",
+            "run_configuration.json": "7044d82f79cc3bf8c9d097cc9531df3ea9f76b9065ff25159b5c147905819524",
             "alleles.json": "20f0ce4d29742443701cc152ecf53695b4fb952b2eb83734c46f77d70df0a42b"
           }
         },
@@ -385,9 +385,9 @@
           "independent_exact_alleles": 0,
           "sequence_edit_distance": 0,
           "output_sha256": {
-            "summary.json": "b1e274d39f3012954b6d51bf44a553fafda19646703eb917c9e226e273ff4123",
+            "summary.json": "65f1a55e3ec173e9a3e29fbeb6c25af5d1461937e64b72e4fb8483ad477a069d",
             "run_status.json": "6f922fc99c101e4c69006c9a81b8f211c38fedce064967782f32f652793c716a",
-            "run_configuration.json": "3be56c58321e69d85a0307c121745b4ff6e46532dde70d0191a1bd09166738f7",
+            "run_configuration.json": "d5a0d2cd97686158a7f55cf244a6f6bdffe28a5f39a9dc41afb58c62b95f4583",
             "alleles.json": "1787f924a20ace8d2144bd8bbd6f3a2035ecf716a7c986f51a5f259db730fca8"
           }
         },
@@ -419,9 +419,9 @@
           "independent_exact_alleles": null,
           "sequence_edit_distance": null,
           "output_sha256": {
-            "summary.json": "e5fded4f0dd0add3dda0cf54af83c9337bc642c06d5aea26ecd7c79464c84b41",
+            "summary.json": "55bc83d35e4c1c8eebe997f91f89ea77ef734a1f3784d897dbf45cf01b27a4b0",
             "run_status.json": "6f922fc99c101e4c69006c9a81b8f211c38fedce064967782f32f652793c716a",
-            "run_configuration.json": "e2b924f3a0508441b5fe71301eba402170e7c5130d6cfd5ac155a083b8732fec",
+            "run_configuration.json": "658a5309b5e818cf58223d3eaebf6f38d2d617698e7c30db2e4a21ee9a21ccf0",
             "alleles.json": "b0517dd4148b66e7fcaa26286fe54c526917148e6fb86fd4e825933499da9aa2"
           }
         },
@@ -467,9 +467,9 @@
           "independent_exact_alleles": null,
           "sequence_edit_distance": null,
           "output_sha256": {
-            "summary.json": "c01a304a22a60da20ffd1426290478faded8b36ba4d0149e16d9fc67975d29cd",
+            "summary.json": "aaa0f8c4dec10ae0e474ac01a7501168fe21351f10525587c556d977858ef7e4",
             "run_status.json": "6f922fc99c101e4c69006c9a81b8f211c38fedce064967782f32f652793c716a",
-            "run_configuration.json": "198c408d467e5653f40717068da2d5a5e842782d800d56b64dbc8818c51b8889",
+            "run_configuration.json": "2473680bbdc387c64037f9aea2382cd3787a4662b1e0465c4c1985466e7c3491",
             "alleles.json": "3c374f7e5f5c2f692da6158656b09a6befefb7a71712c5494f43b3685b4084f1"
           }
         },
@@ -515,9 +515,9 @@
           "independent_exact_alleles": null,
           "sequence_edit_distance": null,
           "output_sha256": {
-            "summary.json": "010269134f2aa963c6e413ce2b6731c482c93a531c4a63e7b5e8ed980f966cff",
+            "summary.json": "e1cc4c104b9b0c9f2f5b349b852701b41655280ce505e284e752ef7d8f3f74c2",
             "run_status.json": "6f922fc99c101e4c69006c9a81b8f211c38fedce064967782f32f652793c716a",
-            "run_configuration.json": "80073e39cd4aed07fe17ae9d037b4f10a9e9e1cd7459f534dab9d19db36d5d38",
+            "run_configuration.json": "e7437a266d9bce37f10f2c648e30d1ea92ca7e6ca5dfa886dab20e662644c1da",
             "alleles.json": "54aac8658e5f3803e4853943a4795600d6adf3ab042c7a3382e733a9db2895a1"
           }
         },
@@ -563,9 +563,9 @@
           "independent_exact_alleles": null,
           "sequence_edit_distance": null,
           "output_sha256": {
-            "summary.json": "503d7a3bab9daa26fc1ed45a5b80599c0da337ec3d317f81ceb543bfb06f823d",
+            "summary.json": "102a8f7a027dc9e4ee465ccf3db2c3205a523c430fa86a40c5a734ef116b6368",
             "run_status.json": "6f922fc99c101e4c69006c9a81b8f211c38fedce064967782f32f652793c716a",
-            "run_configuration.json": "ee1882ec2673d2820a0ad6936814d32e04f78ff07762d686bd5fd7e6f8a0b48e",
+            "run_configuration.json": "9c033e7aa1a5c1508dd49cab563d3f1dadf6194c18d0b22dde1de0ca71edbfa4",
             "alleles.json": "dc218fa11e7357449abcf26753522177263597f030e9c500fe595830a5d9951d"
           }
         }
@@ -578,7 +578,7 @@
         "ERR15277553"
       ],
       "results_sha256": "8f03a57ec7aae9823c171eff662d6964e7f609aa23b7f719ac227e83ec856e20",
-      "attempt_ledger_sha256": "1304b33e232794179473873a72f57c71bc37806a19617a17d98540e462f6def2",
+      "attempt_ledger_sha256": "77c592d56da52fd2b6f0a5e7b95e7352adbec853f8a4dab381111fe58f6eb848",
       "poa_backend": "pyabpoa",
       "scores": {
         "execution_success": {
@@ -676,9 +676,9 @@
           "independent_exact_alleles": 0,
           "sequence_edit_distance": 0,
           "output_sha256": {
-            "summary.json": "26394d7c1a410b2c89ab742f49f5aa8f4551bd8becfd95887414da82a49a8412",
+            "summary.json": "b89dadf1d270482e0f2b2af024ab196d6d905ce5aa6ea66162f47287fb30673d",
             "run_status.json": "6f922fc99c101e4c69006c9a81b8f211c38fedce064967782f32f652793c716a",
-            "run_configuration.json": "626aa5e1e0f728045a79a21c6365c78fff44633883122ea373eefb277dc20919",
+            "run_configuration.json": "07b0a793215e9226e7f7560e831f381c7f368212e54a93f8768d6e2e32068b12",
             "alleles.json": "1787f924a20ace8d2144bd8bbd6f3a2035ecf716a7c986f51a5f259db730fca8"
           }
         },
@@ -710,9 +710,9 @@
           "independent_exact_alleles": null,
           "sequence_edit_distance": null,
           "output_sha256": {
-            "summary.json": "6635f44a5662ae902f4335cda0ca545804a0897ad54c70d1648349edc77bfeec",
+            "summary.json": "09738fe78e45779baa9e056cd80c30778a43f22ae6a07054733103b50de081bd",
             "run_status.json": "6f922fc99c101e4c69006c9a81b8f211c38fedce064967782f32f652793c716a",
-            "run_configuration.json": "8d7a85793631142c034b2c8a2e8bcafee1347e7a0e7e37af37988f69a2641744",
+            "run_configuration.json": "dcfbefdc203c6ab64627542f6d9042f9330f578c1bae0491f020ed1f720abbed",
             "alleles.json": "b0517dd4148b66e7fcaa26286fe54c526917148e6fb86fd4e825933499da9aa2"
           }
         }
