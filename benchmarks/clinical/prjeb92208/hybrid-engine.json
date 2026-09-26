@@ -2,8 +2,8 @@
   "schema_version": 1,
   "study_accession": "PRJEB92208",
   "engine": "hybrid",
-  "caller_commit": "1b6653071e2a563c1fd3c650fd98c68761811dec",
-  "pipeline_version": "0.16.0",
+  "caller_commit": "edd677d3e08873afd8e2a8a924a9843700fb3e7a",
+  "pipeline_version": "0.16.1",
   "hybrid_extra_versions": {
     "edlib": "1.3.9.post1",
     "pyabpoa": "1.5.7.1"
@@ -12,7 +12,7 @@
   "settings": "defaults (no overlay)",
   "threads": 2,
   "timeout_seconds": 1800,
-  "environment_sha256": "5092029d634f7993b86efede7547c8be7f2604c38d29e9ec64a779729825f4bd",
+  "environment_sha256": "7483991defc232d3742ab18dd29b8512dac2336ceed9262ddce275368db24d2f",
   "manifest_sha256": "a25ee98d13b522375a67365c7f84e25162323caf5db6e072160be15c2f52c27a",
   "truth_sha256": "72ef424557ae900dc691514f550ab1e38ad7442fa7dd6fe5727103f6f978cb7a",
   "expectations": {
@@ -24,8 +24,8 @@
     {
       "assay": "amplicon",
       "runs_requested": "all eligible",
-      "results_sha256": "1aeee2b6a14936a463bdd0a5be5ca33c7127b9ce8a1424071383aa7e11332d50",
-      "attempt_ledger_sha256": "8a1f954ac2a86800f657f15725ada076a46a7be2ea59a6bf620a135f2fbc7f77",
+      "results_sha256": "2ce14efa85fe68a0346040666b4454e2ae2912a1c6b83f4dc549d4c390ded7a7",
+      "attempt_ledger_sha256": "5c94b9386331aa9d2436b2ff93923eee056905d633ba60d2e84efa5d7e4c3b6b",
       "poa_backend": "pyabpoa",
       "scores": {
         "execution_success": {
@@ -35,9 +35,9 @@
           "reason": null
         },
         "callability": {
-          "numerator": 6,
+          "numerator": 7,
           "denominator": 11,
-          "value": 0.5454545454545454,
+          "value": 0.6363636363636364,
           "reason": null
         },
         "insufficient_evidence": {
@@ -75,9 +75,9 @@
         }
       },
       "reported_controls_dupC_primary_amplicon": {
-        "numerator": 3,
+        "numerator": 4,
         "denominator": 4,
-        "value": 0.75,
+        "value": 1.0,
         "reason": null
       },
       "runs": [
@@ -110,9 +110,9 @@
           "independent_exact_alleles": null,
           "sequence_edit_distance": null,
           "output_sha256": {
-            "summary.json": "69b3be81cc88f42a708ae0c5cd7333c3df4f9f7a66cc928fd070e1ee0d69ab52",
+            "summary.json": "d1eef6678cdf67e358a0e0fc8d20141ef1b61ba9c9e3d6e5ea8564118b461c41",
             "run_status.json": "6f922fc99c101e4c69006c9a81b8f211c38fedce064967782f32f652793c716a",
-            "run_configuration.json": "e6a2ad1d337c92b5077f636238b64c589adb206584433b30b945d8b22d89faa9",
+            "run_configuration.json": "18debc08dc6e0ad2d1031325ffcf271f376767e6c407a7d15c19ce56ed656d18",
             "alleles.json": "89bd83ad61a018930b37bfc0675f21d973dc7d98d2c0f9af63a9dd2b47797dc8"
           }
         },
@@ -149,18 +149,18 @@
               "frameshift": false,
               "localization_status": "ambiguous",
               "read_support_status": "supported",
-              "read_support_alt": 1751,
+              "read_support_alt": 1750,
               "read_support_n": 1757,
-              "read_support_alt_frac": 0.997
+              "read_support_alt_frac": 0.996
             }
           ],
           "literal_exact_alleles": null,
           "independent_exact_alleles": null,
           "sequence_edit_distance": null,
           "output_sha256": {
-            "summary.json": "179cdf53a6a59e50c632a170b7ac7eb3a0739482f70318f26615754ee83464d1",
+            "summary.json": "6a0cfcee7d684d1a3502eec56ac83b0570431da8c31ed9b793561e11063e7401",
             "run_status.json": "6f922fc99c101e4c69006c9a81b8f211c38fedce064967782f32f652793c716a",
-            "run_configuration.json": "68931224d1087e1c9b73f954d35bbd84ef4228a8caa479d63f4d00cc58f3aea5",
+            "run_configuration.json": "a9bda37f0ff49642489a42dfadaa0810aaff4ef5c31212548500280eec021d3f",
             "alleles.json": "6802749d6680bf85b2ba47eacd289b385c3d3a48c75dace02dc5f5dba45bd871"
           }
         },
@@ -197,18 +197,18 @@
               "frameshift": true,
               "localization_status": "resolved",
               "read_support_status": "supported",
-              "read_support_alt": 317,
+              "read_support_alt": 304,
               "read_support_n": 512,
-              "read_support_alt_frac": 0.619
+              "read_support_alt_frac": 0.594
             }
           ],
           "literal_exact_alleles": null,
           "independent_exact_alleles": null,
           "sequence_edit_distance": null,
           "output_sha256": {
-            "summary.json": "09dc4a89c8d3cb3ae81e6d392aeef06825c887cae723ca27e2e82d711bbe1917",
+            "summary.json": "16c7d9022f6736f458370e43ea288709384c258eca1da98562257821500b9ae3",
             "run_status.json": "6f922fc99c101e4c69006c9a81b8f211c38fedce064967782f32f652793c716a",
-            "run_configuration.json": "78a0894c65ded0c82e0c7e940cba6d4c30d8c0753ebea238bac20a72bead48a5",
+            "run_configuration.json": "5c93ac4678682070b5ba8d099fc8e9959bfa64e0b87e92d2a33e7e993ca2cde5",
             "alleles.json": "069bea97b40f36978956d42cdf12d88be62c13103b7049872a9adfefe6c63430"
           }
         },
@@ -241,9 +241,9 @@
           "independent_exact_alleles": null,
           "sequence_edit_distance": null,
           "output_sha256": {
-            "summary.json": "96621be3157c2025883389b6034012b5035282a0b8e32617f9b603f9a3fcdec2",
+            "summary.json": "e638ac9b1128a5fabb26face4e795ba9e203ad3b61967e7aea390e3106ef3f3b",
             "run_status.json": "6f922fc99c101e4c69006c9a81b8f211c38fedce064967782f32f652793c716a",
-            "run_configuration.json": "d684273f8d9d0214d6d5009d47ced08102bf67a8ae002fe88048c2be223a06ce",
+            "run_configuration.json": "59cb1e8eca9e3113f8a37ab5f7cb3fbae67253e9e5be25e005a20214f60b516e",
             "alleles.json": "6f27994fd672b29c0b5d7cdb64366e527a62a3ca9e2567516f0dd3f3b340034f"
           }
         },
@@ -289,9 +289,9 @@
           "independent_exact_alleles": null,
           "sequence_edit_distance": null,
           "output_sha256": {
-            "summary.json": "6b33d9bc0b762714991123dc03cdc4fe0df3fa1898e0d62a9ef187850576f1a8",
+            "summary.json": "083ed29edc8902484fa859ec2a3077121c60697a721290de8c42857e751e9cfd",
             "run_status.json": "6f922fc99c101e4c69006c9a81b8f211c38fedce064967782f32f652793c716a",
-            "run_configuration.json": "5440a091043735d06cdf0462a71fc98eaf0f91332bdeaefbd6a3865f1faf1982",
+            "run_configuration.json": "08bf8842189eb170eff31d8750d25164d2adefa172c5286589eb10cc15f70543",
             "alleles.json": "e1b65b77f00fb646c05d4642ace74b62aa7cc857865ab2e4070b8a9dde2422f6"
           }
         },
@@ -328,18 +328,18 @@
               "frameshift": false,
               "localization_status": "ambiguous",
               "read_support_status": "supported",
-              "read_support_alt": 2011,
+              "read_support_alt": 2009,
               "read_support_n": 2023,
-              "read_support_alt_frac": 0.994
+              "read_support_alt_frac": 0.993
             }
           ],
           "literal_exact_alleles": 2,
           "independent_exact_alleles": 0,
           "sequence_edit_distance": 0,
           "output_sha256": {
-            "summary.json": "e927b9e31a2b4920126ae75c0c88b776514f2d40ab9134f34d228d53ceb50044",
+            "summary.json": "4e0ecb4682a77de607ef9f08037b1b4c6009861f2c851cd6b6884ece70627a78",
             "run_status.json": "6f922fc99c101e4c69006c9a81b8f211c38fedce064967782f32f652793c716a",
-            "run_configuration.json": "22735282f4f341237a3a82cb9cf464838fc4daa2c94b2a90c336567f78f38baa",
+            "run_configuration.json": "1d5471b18f19fe9d75acb830ec9583f373baabc14c5122c873a46883c919d0fd",
             "alleles.json": "9472ee72da751f122f350c300572b8c559891511ffe6de021f9009d41f47b26e"
           }
         },
@@ -385,9 +385,9 @@
           "independent_exact_alleles": 0,
           "sequence_edit_distance": 0,
           "output_sha256": {
-            "summary.json": "35682de1c4677a3445d056bef9b36206e910cfa55aafa943232e20506919490f",
+            "summary.json": "fd28a130d21867cb4f416c7bb3a51d5d1362254a6a8118961364a1d8cd50306f",
             "run_status.json": "6f922fc99c101e4c69006c9a81b8f211c38fedce064967782f32f652793c716a",
-            "run_configuration.json": "9f4f9de3b975794fe32e5228e48c407e77d94f2e774d11c6f7cad5053d92f4c5",
+            "run_configuration.json": "2c6508dc8bee1d7442c4b0e74e761f1dbd7466e1b25a83627aa69914319dc631",
             "alleles.json": "1787f924a20ace8d2144bd8bbd6f3a2035ecf716a7c986f51a5f259db730fca8"
           }
         },
@@ -419,9 +419,9 @@
           "independent_exact_alleles": null,
           "sequence_edit_distance": null,
           "output_sha256": {
-            "summary.json": "ea61f07a229828f31bdbd6152a2a373c799fb7788c4eed663960282d8ac468a2",
+            "summary.json": "ae52594334e76c3eba16f384c0e82369b6c827466b35c262721ae2242612f644",
             "run_status.json": "6f922fc99c101e4c69006c9a81b8f211c38fedce064967782f32f652793c716a",
-            "run_configuration.json": "b8989c6d2caa7591953af3d4d56f75a87076b9018e323aa0af44dd01d5ca68e5",
+            "run_configuration.json": "dd39049a272d9835bb1625d30559b76f470a013de467832eb713ac9eddb87c07",
             "alleles.json": "b0517dd4148b66e7fcaa26286fe54c526917148e6fb86fd4e825933499da9aa2"
           }
         },
@@ -430,7 +430,7 @@
           "biological_sample": "MP3",
           "arm": "primary_amplicon",
           "assay": "amplicon",
-          "analysis_state": "ambiguous_reconstruction",
+          "analysis_state": "completed",
           "decision_state": "PATHOGENIC",
           "allele_lengths": [
             44,
@@ -444,9 +444,9 @@
             "adequate",
             "adequate"
           ],
-          "selection_status": "unresolved_single_site",
+          "selection_status": "unresolved_rejected_peak",
           "split_bases": [
-            "unconfirmed_single_site",
+            "none",
             "none"
           ],
           "events": [
@@ -458,19 +458,19 @@
               "frameshift": true,
               "localization_status": "resolved",
               "read_support_status": "supported",
-              "read_support_alt": 3984,
+              "read_support_alt": 3899,
               "read_support_n": 6551,
-              "read_support_alt_frac": 0.608
+              "read_support_alt_frac": 0.595
             }
           ],
           "literal_exact_alleles": null,
           "independent_exact_alleles": null,
           "sequence_edit_distance": null,
           "output_sha256": {
-            "summary.json": "62dd4f10e361c4f61bc6fc834219cad394944aaf763a6c8fef979ac58256d292",
+            "summary.json": "514de5c97dadb5646e4fd9a3eaff8f393afe3f7dde10e98c1bad2b80198efa87",
             "run_status.json": "6f922fc99c101e4c69006c9a81b8f211c38fedce064967782f32f652793c716a",
-            "run_configuration.json": "85ab3acfb10a9907ef6b8a12bfbb7f4968c95e19ecc83f532a42c861e0071555",
-            "alleles.json": "b9854e0c843edc0db87ed90e03010505aea4fdf4dad76d9835f8783bb6c47836"
+            "run_configuration.json": "9f6668e99a6aeadb13ad05b717493760ed6f3b4e164dcadc5489250634ba1f26",
+            "alleles.json": "7c4ef793efd1bab4d2eeabae3f6f7b3ecf53b4472ade4021148bc6bc29b2f896"
           }
         },
         {
@@ -506,18 +506,18 @@
               "frameshift": true,
               "localization_status": "resolved",
               "read_support_status": "supported",
-              "read_support_alt": 250,
+              "read_support_alt": 242,
               "read_support_n": 336,
-              "read_support_alt_frac": 0.744
+              "read_support_alt_frac": 0.72
             }
           ],
           "literal_exact_alleles": null,
           "independent_exact_alleles": null,
           "sequence_edit_distance": null,
           "output_sha256": {
-            "summary.json": "0c4001aa0336d77813001f3f468a0712de8a43ff7255add5c1659d22599b7ad6",
+            "summary.json": "5d9e0a563cb2add2f6fb58cd87e9c0f0bc58cae90bdc272af9d051c36306f2ae",
             "run_status.json": "6f922fc99c101e4c69006c9a81b8f211c38fedce064967782f32f652793c716a",
-            "run_configuration.json": "1966c73fcac90a91a5b62ba7a0c12d592422d6809e1d8906f8db27d85a1b7602",
+            "run_configuration.json": "c736ea768819ec006f739845c21355c5e4d53f4df55e7077f93e22563df927e1",
             "alleles.json": "6aafa100cdd5784b8d19678bb7c10dcbb3f39cc5f53f711636b79fd66b9fd3ef"
           }
         },
@@ -554,18 +554,18 @@
               "frameshift": true,
               "localization_status": "resolved",
               "read_support_status": "supported",
-              "read_support_alt": 412,
+              "read_support_alt": 396,
               "read_support_n": 652,
-              "read_support_alt_frac": 0.632
+              "read_support_alt_frac": 0.607
             }
           ],
           "literal_exact_alleles": null,
           "independent_exact_alleles": null,
           "sequence_edit_distance": null,
           "output_sha256": {
-            "summary.json": "da02ab2aa0f993c0ac7444c075f68fd26410803ad8dece97eda3d0ba23fc63ed",
+            "summary.json": "633ec3a6a6dbcbd368037e809d17bb2f583e8e35df014d5deef7b0f3e1da821e",
             "run_status.json": "6f922fc99c101e4c69006c9a81b8f211c38fedce064967782f32f652793c716a",
-            "run_configuration.json": "ca65377bac05d23fb2bbf9cdad659d9d03ed338b1b03f7674a3a79bf861ac440",
+            "run_configuration.json": "7e408a6b34601d4f6f9bd94665ecb747cf25d53057c6d24f7e4a378d2d7efc77",
             "alleles.json": "c9aed3c34886046146ca456524bb4bb1dfed94460e78edca0c4aa9099604dd56"
           }
         }
@@ -578,7 +578,7 @@
         "ERR15277553"
       ],
       "results_sha256": "8f03a57ec7aae9823c171eff662d6964e7f609aa23b7f719ac227e83ec856e20",
-      "attempt_ledger_sha256": "d31eb063349977a398886e351eebf33e1ee89dca68cf9f519a55c3ecee8e2f39",
+      "attempt_ledger_sha256": "1d55971a83d8d7c265351612f95df10158ae1ebcccda2c9c651260e439375387",
       "poa_backend": "pyabpoa",
       "scores": {
         "execution_success": {
@@ -676,9 +676,9 @@
           "independent_exact_alleles": 0,
           "sequence_edit_distance": 0,
           "output_sha256": {
-            "summary.json": "f048d73df4015038a9d4ff9f60f4e82a7b9706ca2786365701e265ba63ff41bf",
+            "summary.json": "38e554868fff0809eec1683dca17c6c3a38d11b5c4ba4a8fe0c1024c36716251",
             "run_status.json": "6f922fc99c101e4c69006c9a81b8f211c38fedce064967782f32f652793c716a",
-            "run_configuration.json": "025d6633570ea893bbec57c6b57f23cc39e1ef5feca44cc65e1d3443c73f2527",
+            "run_configuration.json": "38548167ba7011a51ee806169c75bb6fca70a0e76a6347e0f486e7df5abbe8e0",
             "alleles.json": "1787f924a20ace8d2144bd8bbd6f3a2035ecf716a7c986f51a5f259db730fca8"
           }
         },
@@ -710,9 +710,9 @@
           "independent_exact_alleles": null,
           "sequence_edit_distance": null,
           "output_sha256": {
-            "summary.json": "ae7ce3767b1da5999191b9c5f1c40b03c01e0fc1a0eb79805d5a98bc5a152494",
+            "summary.json": "ca5cd2b3a014e3d46d9310a269dd59e9086b772ad9c3c61f249a783cccc38974",
             "run_status.json": "6f922fc99c101e4c69006c9a81b8f211c38fedce064967782f32f652793c716a",
-            "run_configuration.json": "8d97fc7f4cfa9b365a1edd185ce64fdf6397de4fc5a6a9685506187c71f1689a",
+            "run_configuration.json": "6078e3358f9a70946951b8753e221525da0d2fcaff413893ee666d9678c5c7b9",
             "alleles.json": "b0517dd4148b66e7fcaa26286fe54c526917148e6fb86fd4e825933499da9aa2"
           }
         }
