@@ -14,13 +14,13 @@ The read-centric **hybrid engine is now the default** for every input type
 migration guide (`docs/guides/migration.md`) for what changes and how to keep
 the ladder for now.
 
-Hybrid validation at the 0.17.0 defaults (MucSim-Bench v4, commit `3162d22`;
+Hybrid validation at the 0.17.0 defaults (MucSim-Bench v4, `e324fa3` snapshot;
 development split for tuning, validation split for confirmation, sealed test
 split not run): `standard` PATHOGENIC 0.930 (dev) / 0.912 (val) and
 INCONCLUSIVE 0.122 / 0.178; `clean` PATHOGENIC 0.947 / 0.947 and
 INCONCLUSIVE 0.078 / 0.089; false positives 0 and NEGATIVE on a pathogenic
 case 0 on every set. Frozen panels (commit `e324fa3`): no false positive and no
-NEGATIVE on a pathogenic case. PRJEB92208 (re-run at `c4ab26c`): MP1-MP4
+NEGATIVE on a pathogenic case. PRJEB92208 (re-run at `a185ecc`): MP1-MP4
 PATHOGENIC with supported dupC read support, HG002 amplicon alleles literal
 sequence-exact, HG001-HG004 not PATHOGENIC.
 
@@ -37,24 +37,39 @@ not re-run.
 
 - **Default engine.** `muconespan run` now defaults to `--engine hybrid`
   (`run.engine = "hybrid"`) for amplicon and genomic input. A FASTQ run calls
-  no external tool; a BAM input needs `samtools`. `--report-igv` is rejected by
-  the hybrid engine, and `--clair3-model`, `--min-qual` and `--minimap2-preset`
-  apply to the ladder engine only. `--assay` stays recorded for provenance
-  only; it is not auto-detected.
-- **Dependencies.** `edlib`, `pyabpoa` and `pyspoa` are core dependencies; the
-  `hybrid` extra is kept with the same packages so
-  `pip install 'muc_one_span[hybrid]'` still works. `pyabpoa` builds from
-  source (C compiler and zlib); `pyspoa` has Linux wheels only. The hybrid
-  modules import the libraries at load time.
+  no external tool; a BAM input needs `samtools`. `--assay` stays recorded for
+  provenance only; it is not auto-detected.
+- **Ladder-only options on a hybrid run.** `--clair3-model`, `--min-qual` and
+  `--minimap2-preset`, given on the command line or through a non-default
+  configuration value, print `Warning: <option> is ignored by the hybrid
+  engine; use --engine ladder (deprecated)` and are listed in the new additive
+  `ignored_options` field of `summary.json` and `run_configuration.json`. For a
+  hybrid run `run_configuration.json` records `resolved_minimap2_preset: null`
+  and `model_selection: "not used (hybrid engine)"`. `--report-igv
+  embedded|sidecar` stays an error for the hybrid engine; it is now raised
+  before `run_configuration.json` is written and names both remedies
+  (`--engine ladder` (deprecated) or `--report-igv off`).
+- **Dependencies.** `edlib` and `pyabpoa` (the default POA backend) are core
+  dependencies, imported at load time; `pyabpoa` builds from source (C compiler
+  and zlib). `pyspoa` (the alternative backend) stays in the optional `hybrid`
+  extra, which also still lists `edlib` and `pyabpoa`, so older
+  `pip install 'muc_one_span[hybrid]'` commands keep working; selecting
+  `pyspoa` without it fails with an `ImportError` naming the extra. The
+  `benchsim` realism metrics no longer point to the `bench` extra for `edlib`.
 - **Harness defaults.** `scripts/benchmark.py --engine`,
   `scripts/clinical_benchmark.py run --engine` and `scripts/benchsim.py
   run|evaluate --engines` default to `hybrid`. `benchmarking.run_pipeline`
-  always passes `--engine`; `clinical_benchmark.py` keeps hashing ladder runs
+  always passes `--engine` and passes `--clair3-model` only when a model is
+  given; `benchsim run` looks up a Clair3 model only for the ladder engine.
+  `clinical_benchmark.py` keeps hashing ladder runs
   without an `engine` key and passes `--engine ladder` to the worker
   explicitly. `benchsim report --baseline` stays `ladder`.
-- **Ladder-visible changes since 0.16.1.** A ladder run in which one allele's
-  `depth_status` is `not_assessed` while another allele's depth is assessed is
-  now INCONCLUSIVE (0.16.1: NEGATIVE; fail-closed depth rule). The
+- **Ladder-visible changes since 0.16.1.** Fail-closed depth rule: when an
+  allele carries a `depth_basis`, any `depth_status` other than `adequate`
+  (including an unknown or missing value) blocks a result. A ladder run in
+  which one allele's `depth_status` is `not_assessed` while another allele's
+  depth is assessed is now INCONCLUSIVE instead of NEGATIVE, and a frameshift
+  on the `not_assessed` allele is no longer PATHOGENIC. The
   unresolved-selection reason no longer prints `secondary mode fraction None`
   when the fraction is unknown.
 - `benchmarks/clinical/prjeb92208/hybrid-engine.json` refreshed at the final
@@ -63,9 +78,9 @@ not re-run.
 ### Deprecated
 
 - The ladder engine (`--engine ladder`, `run.engine = "ladder"`). It still
-  works and keeps its output schema; a run prints a warning on stderr and
+  works and keeps its output schema; a run prints a warning on stderr,
   `summary.json` records it in the new additive `deprecations` list (empty for
-  hybrid runs). Removal happens no earlier than the next minor release and is
+  hybrid runs), and the HTML report shows a "Deprecated" banner. Removal happens no earlier than the next minor release and is
   announced in the changelog of the release before it.
 
 ### Added

@@ -17,10 +17,16 @@ behaviour while it is still available.
 - A FASTQ run needs no external tool: minimap2, Clair3 and bcftools are not
   called. A BAM input still needs `samtools` to extract the primary reads.
 - `--clair3-model`, `--min-qual` and `--minimap2-preset` only apply to the
-  ladder engine. A hybrid run accepts and ignores them.
+  ladder engine. When a hybrid run gets one of them on the command line, or
+  through a non-default value in a `--config` file, it prints
+  `Warning: <option> is ignored by the hybrid engine; use --engine ladder (deprecated)`
+  on stderr and records the option in `summary.json["ignored_options"]` and
+  `run_configuration.json["ignored_options"]` (additive). A hybrid run records
+  `resolved_minimap2_preset: null` and `model_selection: "not used (hybrid engine)"`
+  in `run_configuration.json`. The run still completes.
 - `--report-igv embedded|sidecar` is **rejected** by the hybrid engine (a
-  hybrid run has no alignment tracks). A script that passes `--report-igv`
-  must add `--engine ladder` or drop the option.
+  hybrid run has no alignment tracks) before any output is written. The error
+  names both remedies: `--engine ladder` (deprecated) or `--report-igv off`.
 - `--assay {amplicon,genomic}` is recorded for provenance only
   (`summary["hybrid"]["assay"]`); it does not change any setting and is not
   auto-detected.
@@ -33,6 +39,8 @@ behaviour while it is still available.
 - `summary.json` gains an additive field, `deprecations`: an empty list for a
   hybrid run, and for a ladder run one record
   `{"setting": "run.engine", "value": "ladder", "status": "deprecated", "replacement": "hybrid", "message": "..."}`.
+- The HTML report of a ladder run (`--report`) shows a "Deprecated" banner
+  with the same message.
 - **Removal policy.** The ladder engine and its ladder-only options stay
   available and tested throughout the 0.17 series. Removal happens no earlier
   than the next minor release, and it is announced in the changelog of the
@@ -50,7 +58,8 @@ behaviour while it is still available.
 - A hybrid run writes no `mapping.bam` and no per-allele VCF. Mutation
   support comes from `read_support` (`supported`, `insufficient_depth`,
   `discordant`, `not_supported`, `not_localized`) instead of VCF concordance.
-- `summary.json["deprecations"]` is new for both engines.
+- `summary.json["deprecations"]` and `summary.json["ignored_options"]` are new
+  for both engines (empty lists when nothing applies).
 
 ### Clinical decisions can differ from the ladder
 
@@ -70,29 +79,39 @@ different decision:
 
 Two ladder behaviours changed together with the hybrid work:
 
-1. **Fail-closed depth rule.** A ladder run in which one allele's
-   `depth_status` is `not_assessed` while another allele's depth is assessed is
-   now INCONCLUSIVE (0.16.1: NEGATIVE).
+1. **Fail-closed depth rule.** When an allele carries a `depth_basis`, any
+   `depth_status` other than `adequate` (including an unknown or missing
+   value) now blocks a result. In a ladder run where one allele's
+   `depth_status` is `not_assessed` while another allele's depth is assessed:
+   - a result that would have been NEGATIVE is INCONCLUSIVE (0.16.1: NEGATIVE);
+   - a frameshift on the `not_assessed` allele is no longer PATHOGENIC; it is
+     reported as uncertain and the result is INCONCLUSIVE.
 2. **Reason text.** The unresolved-selection reason no longer prints
    `secondary mode fraction None` when the fraction is missing; the fraction is
    printed only when it is known.
 
 ### Dependencies
 
-- `edlib`, `pyabpoa` and `pyspoa` are **core dependencies**; a plain
-  `pip install muc_one_span` installs them. The `hybrid` extra is kept, so
-  `pip install 'muc_one_span[hybrid]'` still works.
-- `pyabpoa` is published as a source distribution only and needs a C compiler
-  and zlib headers (`gcc`, `libc6-dev`, `zlib1g-dev` on Debian/Ubuntu).
-  `pyspoa` has Linux wheels only; on macOS it builds with cmake and a C++
-  compiler. See the [installation guide](../getting-started/installation.md).
+- `edlib` and `pyabpoa` (the default POA backend) are **core dependencies**; a
+  plain `pip install muc_one_span` installs them. `pyabpoa` is published as a
+  source distribution only and needs a C compiler and zlib headers (`gcc`,
+  `libc6-dev`, `zlib1g-dev` on Debian/Ubuntu).
+- `pyspoa`, the alternative backend (`hybrid.poa_backend: "pyspoa"`), stays in
+  the optional `hybrid` extra (`pip install 'muc_one_span[hybrid]'`). Selecting
+  it without the extra fails with an `ImportError` that names the extra; there
+  is no silent fallback. It has Linux wheels only; on macOS it builds with
+  cmake and a C++ compiler. See the
+  [installation guide](../getting-started/installation.md).
 
 ### Benchmark harnesses
 
 - `scripts/benchmark.py --engine`, `scripts/clinical_benchmark.py run --engine`
   and `scripts/benchsim.py run|evaluate --engines` default to `hybrid`.
 - `muc_one_span.benchmarking.run_pipeline` always passes `--engine` to the CLI,
-  so a ladder benchmark stays a ladder benchmark.
+  so a ladder benchmark stays a ladder benchmark, and passes `--clair3-model`
+  only when a model is given.
+- `benchsim run` looks up a Clair3 model only for the ladder engine; a hybrid
+  run needs none.
 - `clinical_benchmark.py` hashes a ladder run without an `engine` key (the
   pre-0.17 hash) and passes `--engine ladder` to the worker explicitly.
 - `benchsim report --baseline` stays `ladder`: the decision rule compares a

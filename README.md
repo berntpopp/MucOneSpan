@@ -10,7 +10,7 @@ MucOneSpan analyzes the MUC1 VNTR from PacBio HiFi and Oxford Nanopore amplicon 
 ## Install
 
 ```bash
-pip install 'muc_one_span[report] @ git+https://github.com/berntpopp/MucOneSpan.git@v0.13.0'
+pip install 'muc_one_span[report] @ git+https://github.com/berntpopp/MucOneSpan.git@v0.17.0'
 ```
 
 The default hybrid engine needs no external tool for FASTQ input (`samtools` for BAM input). Its POA library `pyabpoa` builds from source and needs a C compiler and zlib. See the [installation guide](https://berntpopp.github.io/MucOneSpan/getting-started/installation/) for setup and container options.

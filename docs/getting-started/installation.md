@@ -8,18 +8,19 @@ bioinformatics tools and a Clair3 model.
 ## Install the Python package
 
 ```bash
-pip install 'muc_one_span[report] @ git+https://github.com/berntpopp/MucOneSpan.git@v0.13.0'
+pip install 'muc_one_span[report] @ git+https://github.com/berntpopp/MucOneSpan.git@v0.17.0'
 muconespan --version
 ```
 
 The `[report]` extra enables HTML reports through Jinja2. Python installation
-includes Click, PyYAML, the hybrid engine's `edlib`, `pyabpoa` and `pyspoa`, and
-packaged reference/repeat data. `pyabpoa` is published as a source distribution
-only and needs a C compiler and zlib headers (`gcc`, `libc6-dev`, `zlib1g-dev` on
-Debian/Ubuntu); `pyspoa` has Linux wheels only and builds with cmake and a C++
-compiler elsewhere. The `[hybrid]` extra is kept as an alias for older install
-commands. External alignment and variant-calling tools for the ladder engine are
-installed separately.
+includes Click, PyYAML, the hybrid engine's `edlib` and `pyabpoa` (its default
+POA backend), and packaged reference/repeat data. `pyabpoa` is published as a
+source distribution only and needs a C compiler and zlib headers (`gcc`,
+`libc6-dev`, `zlib1g-dev` on Debian/Ubuntu). The optional `[hybrid]` extra adds
+`pyspoa`, the alternative POA backend (`hybrid.poa_backend: "pyspoa"`); it has
+Linux wheels only and builds with cmake and a C++ compiler elsewhere. External
+alignment and variant-calling tools for the ladder engine are installed
+separately.
 
 ## Install from source
 
@@ -90,7 +91,7 @@ docker run --rm \
   run --input /data/reads.bam --output-dir /data/results/
 ```
 
-Use a version tag such as `0.13.0` in place of `latest` to select a release.
+Use a version tag such as `0.17.0` in place of `latest` to select a release.
 
 ## Verify installation
 

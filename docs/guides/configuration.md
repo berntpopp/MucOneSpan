@@ -245,8 +245,12 @@ muconespan run \
 `genomic` (`run.assay`) and is recorded for provenance
 (`summary["hybrid"]["assay"]`) -- it does not change any `hybrid.*` default
 and is never auto-detected. `--report-igv` is rejected by the hybrid engine (a
-hybrid run has no BAM alignment tracks to show). `--clair3-model`,
-`--min-qual` and `--minimap2-preset` are accepted but unused by the hybrid path.
+hybrid run has no BAM alignment tracks to show; the error names `--engine
+ladder` (deprecated) and `--report-igv off`). `--clair3-model`, `--min-qual`
+and `--minimap2-preset` are unused by the hybrid path: given on the command
+line or with a non-default configuration value, each prints a warning and is
+listed in `summary.json["ignored_options"]` and
+`run_configuration.json["ignored_options"]`.
 
 | Section.field | Default | Meaning and validation |
 | --- | --- | --- |
@@ -255,11 +259,12 @@ hybrid run has no BAM alignment tracks to show). `--clair3-model`,
 
 ### Dependencies
 
-`edlib`, `pyabpoa` and `pyspoa` are core dependencies since 0.17.0, so a
-plain install includes them; the `hybrid` extra
-(`pip install 'muc_one_span[hybrid]'`) is kept as an alias for existing install
-commands. The engine imports them at module load and never silently falls back
-to another POA backend. All three packages are MIT-licensed; the hybrid engine
+`edlib` and `pyabpoa` (the default POA backend) are core dependencies since
+0.17.0 and are imported at module load. `pyspoa` is optional: install the
+`hybrid` extra (`pip install 'muc_one_span[hybrid]'`) to select
+`hybrid.poa_backend: "pyspoa"`; without it that selection fails with an
+`ImportError` naming the extra. The engine never silently falls back to another
+POA backend. All three packages are MIT-licensed; the hybrid engine
 does not use medaka or dorado.
 
 | Package | Wheels | Notes |

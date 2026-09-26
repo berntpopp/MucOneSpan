@@ -8,8 +8,10 @@
     removes it (see the [migration guide](../guides/migration.md)). Its
     measured behaviour is unchanged by 0.17.0 except for two gates: a ladder
     run where one allele's depth is `not_assessed` while another's is assessed
-    is now INCONCLUSIVE (0.16.1: NEGATIVE), and the unresolved-selection reason
-    no longer prints `secondary mode fraction None`.
+    is now INCONCLUSIVE (0.16.1: NEGATIVE) and a frameshift on the
+    `not_assessed` allele is no longer PATHOGENIC; any unknown depth status
+    fails closed when a `depth_basis` is present; and the unresolved-selection
+    reason no longer prints `secondary mode fraction None`.
 
 ## Allele Length Detection
 
@@ -350,8 +352,9 @@ the automated test suite.
 - **Equal-length normals with strong single-run stutter.** The
   `unresolved_run_site` safety tier above cannot tell a wild-type run with
   strong site-specific stutter from a heterozygous run, so such normals are
-  INCONCLUSIVE, not NEGATIVE (v4 development panels: 3 of 154 normals moved
-  NEGATIVE -> INCONCLUSIVE when the tier was added). The ratio is fixed and has
+  INCONCLUSIVE, not NEGATIVE (v4 normals of all three sets moved NEGATIVE ->
+  INCONCLUSIVE when the tier was added: 2 of 77 on the development split and 1
+  of 77 on the validation split). The ratio is fixed and has
   no depth term, so a low-depth ONT normal can be flagged too (one validation
   ONT genomic normal with 57 phase reads). Where the background falls back to
   shorter same-base runs it is under-estimated, which flags more, never less.
@@ -379,7 +382,7 @@ the automated test suite.
 ### Validation numbers
 
 **MucSim-Bench v4** (simulated; development split used for tuning, validation
-split for confirmation only; measured at commit `3162d22`, whose hybrid
+split for confirmation only; measured on the `e324fa3` snapshot, whose hybrid
 defaults are the 0.17.0 defaults). PATHOGENIC is the share of pathogenic
 cases called PATHOGENIC; INCONCLUSIVE is the share of all cases.
 
@@ -410,7 +413,7 @@ No false positive and no NEGATIVE on a pathogenic case. Sequence exactness on
 the 0.17.0 defaults.
 
 **PRJEB92208** (public ONT data; `benchmarks/clinical/prjeb92208/hybrid-engine.json`,
-re-run with the 0.17.0 defaults at commit `c4ab26c`, 2 threads):
+re-run with the 0.17.0 release candidate at commit `a185ecc`, 2 threads):
 
 | Check | Result |
 | --- | --- |
