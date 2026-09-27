@@ -160,6 +160,16 @@ class HybridSettings:
     smear_test_inter_allele: bool = True
     dimer_recognition: bool = True
     dimer_max_parent_frac: float = 0.05
+    # Task 15i read-support guard: a below-top or inter-allele candidate holding at least
+    # smear_guard_top_frac x the top peak's reads is never smear-tested (it faces the
+    # allele support rules instead: accepted, or gate-relevant). A real 93-unit allele
+    # with 0.99 x the top's reads, 2.9 units below it, was relabelled smear (its
+    # background side next to the top was clipped to a 0.36 bp sliver). Smear clusters
+    # on the v4 dev/val panels reached at most 0.085 x the top; on the synthetic
+    # homozygous-smear grid (Task 5 criterion (b)) 0.2 made low-depth debris
+    # gate-relevant (30% at D=60, smear 0.54) and 0.3 passed; 0.5 keeps a margin, and a
+    # near-length allele (little PCR length bias) is near the top's support. In (0, 1].
+    smear_guard_top_frac: float = 0.5
     # S4 (Task 8) linked-site phase split: site-table read cap, homopolymer-run site
     # length and background window, minor-allele read floor, run background multiplier
     # (D6), gap-allele AF factor and pairwise-linkage read floor. Strand consistency is
@@ -306,6 +316,9 @@ class HybridSettings:
         _boolean("hybrid.smear_test_inter_allele", self.smear_test_inter_allele)
         _boolean("hybrid.dimer_recognition", self.dimer_recognition)
         _number("hybrid.dimer_max_parent_frac", self.dimer_max_parent_frac, 0, 1)
+        _number("hybrid.smear_guard_top_frac", self.smear_guard_top_frac, 0, 1)
+        if self.smear_guard_top_frac == 0:
+            raise ValueError("hybrid.smear_guard_top_frac must be > 0")
         for name, minimum in (
             ("phase_max_site_reads", 1),
             ("phase_run_min_len", 2),

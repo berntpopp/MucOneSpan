@@ -281,6 +281,23 @@ not re-run.
   name their `smear_region`. `benchsim calibrate --stage lengths` flags cases
   with a gate-relevant rejected peak (`gate_relevant_rejected_peak`), for use
   as a reason metric.
+- Hybrid engine (safety): two false NEGATIVE paths on pathogenic samples are
+  closed. (1) An equal-length heterozygous insertion next to a stuttering
+  homopolymer run (dupA after an X unit's C7 run, ONT) was refused by the
+  column strand-bias test, because stuttered carrier reads align the inserted
+  base into the run on the heavier-stutter strand; nothing blocked NEGATIVE.
+  Such a column or insertion site, refused only for strand bias in an unsplit
+  single length peak, now gives the phase basis
+  `unconfirmed_strand_biased_site` and selection status
+  `unresolved_strand_biased_site`: INCONCLUSIVE with the located site, never an
+  event. (2) The below-top smear test relabelled a real near-length allele
+  (93 units, 531 reads, next to a 96-unit top with 537) as smear, because its
+  background side next to the top was clipped to a 0.36 bp sliver. A length
+  candidate with at least `hybrid.smear_guard_top_frac` (new setting, default
+  0.5) of the top peak's reads is never smear-tested (below-top or between the
+  alleles). The engine's one-group allele fields now come from one builder
+  (`allele_fields.single_group_fields`), and an audit test checks every
+  unresolved status the engine emits through `compute_clinical_decision`.
 
 ## [0.16.1] - 2026-09-24
 

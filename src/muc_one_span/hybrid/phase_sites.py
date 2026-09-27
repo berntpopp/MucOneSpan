@@ -293,6 +293,43 @@ def run_excess_sites(
     return [site for _excess, site in out]
 
 
+def strand_biased_sites(
+    feats: list[dict[Site, Any]], strands: list[str], meta: Meta, settings: HybridSettings
+) -> list[dict[str, Any]]:
+    """Column and insertion sites refused as candidates only for strand bias (Task 15i).
+
+    Their minor allele clears the candidate floor (``_column_minor``: het_af_min, gap
+    alleles phase_gap_af_factor x het_af_min, phase_min_minor_reads) but fails the
+    strand test (``_column_consistent``). A heterozygous insertion next to a stuttering
+    homopolymer run is such a site: a carrier read whose run lost a base can align the
+    inserted base into the run, so the insertion is under-counted on the strand with
+    heavier stutter. A site here is never split on or scored as an event; the engine
+    uses it only to keep an unsplit equal-length peak from a negative call. Run sites
+    are the run-site tier's (``run_excess_sites``). Largest allele fraction first.
+    """
+    counts = site_counts(feats)
+    out = []
+    for site, c in counts.items():
+        if site[0] == "run":
+            continue
+        major, _ = c.most_common(1)[0]
+        pick = _column_minor(c, major, settings)
+        if pick is None or _column_consistent(feats, strands, site, pick[0], settings):
+            continue
+        tot = sum(c.values())
+        out.append(
+            {
+                "site": site,
+                "major": major,
+                "minor": pick[0],
+                "af": round(pick[1] / tot, AF_DECIMALS),
+                "n": tot,
+            }
+        )
+    out.sort(key=lambda site: -site["af"])
+    return out
+
+
 def top_site(sites: list[dict[str, Any]]) -> dict[str, Any]:
     """The most balanced site (largest af * (1 - af)); the reference for orientation."""
     return max(sites, key=lambda s: s["af"] * (1 - s["af"]))

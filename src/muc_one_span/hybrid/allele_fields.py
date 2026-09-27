@@ -28,6 +28,7 @@ PHASE_STATUS = {
     "unconfirmed_group_size": "unresolved_group_size",
     "single_event": "phased_single_event",
     "unconfirmed_run_site": "unresolved_run_site",
+    "unconfirmed_strand_biased_site": "unresolved_strand_biased_site",
 }
 # A single-event split (Task 15e) separates the reads by their allele at the only
 # heterozygous event, so it is read-level haplotype evidence like a linked-site split.
@@ -39,6 +40,9 @@ SINGLE_SITE = "unresolved_single_site"
 GROUP_SIZE = "unresolved_group_size"
 # Task 15g: an unsplit equal-length peak with a run above the lower safety floor.
 RUN_SITE = "unresolved_run_site"
+# Task 15i: an unsplit equal-length peak with a column/insertion site refused only for
+# strand bias.
+BIASED_SITE = "unresolved_strand_biased_site"
 REJECTED_PEAK = "unresolved_rejected_peak"
 UNASSIGNED_SPANNING = "unresolved_unassigned_spanning"
 # Length-model rejection reason that means "a third allele-like peak" (lengths.py).
@@ -47,7 +51,12 @@ UNCONFIRMED_SPLIT_STATUS = {
     "unconfirmed_single_site": SINGLE_SITE,
     "unconfirmed_group_size": GROUP_SIZE,
     "unconfirmed_run_site": RUN_SITE,
+    "unconfirmed_strand_biased_site": BIASED_SITE,
 }
+# Every selection status other than RESOLVED; each blocks a negative call.
+UNRESOLVED_SELECTION_STATUSES = frozenset(
+    {MAX_ALLELES, *UNCONFIRMED_SPLIT_STATUS.values(), REJECTED_PEAK, UNASSIGNED_SPANNING}
+)
 
 
 def depth_status(spanning: int, h: HybridSettings) -> str:
@@ -68,8 +77,9 @@ def selection_status(
 
     Precedence: more than two allele groups (or a rejected third peak), an unconfirmed
     linked-site split, an unsplit peak with a run above the safety floor
-    (``unconfirmed_run_site``), any other gate-relevant rejected length peak (including
-    ``smear_ambiguous``), then too many spanning reads assigned to no allele.
+    (``unconfirmed_run_site``) or a strand-biased heterozygous-level site
+    (``unconfirmed_strand_biased_site``), any other gate-relevant rejected length peak
+    (including ``smear_ambiguous``), then too many spanning reads assigned to no allele.
     """
     reasons = {r["reason"] for r in model.gate_relevant_rejections}
     if n_groups > PLOIDY or MAX_ALLELES_REASON in reasons:
@@ -175,4 +185,32 @@ def allele_info(
         "vcf_path": None,
         "consensus_concordance_fraction": concordance,
         "classification_confidence_status": "not_applicable_dictionary_fit_heuristic",
+    }
+
+
+def single_group_fields(
+    allele_1: dict[str, Any], selection: str, residual_any: bool
+) -> dict[str, Any]:
+    """Allele-level fields of a sample whose reads formed one allele group.
+
+    The group is a resolved homozygote only when the selection is ``resolved`` and no
+    allele has residual heterogeneity. ``allele_2`` is then reported as a duplicate of
+    ``allele_1`` with independent haplotype evidence; otherwise the duplicate carries
+    none and identity and multiplicity stay ``unresolved``, so the reconstruction gate
+    blocks a negative call even if the selection status were resolved.
+    """
+    homozygous = selection == RESOLVED and not residual_any
+    status = "resolved" if homozygous else "unresolved"
+    return {
+        "allele_1": allele_1,
+        "allele_2": {
+            **allele_1,
+            "candidate_duplicate_of": "allele_1",
+            "reconstruction_status": "not_separately_resolved",
+            "independent_haplotype_evidence": homozygous,
+        },
+        "sequence_identity_status": status,
+        "homozygous": homozygous,
+        "same_length": True,
+        "allele_multiplicity_status": status,
     }

@@ -86,6 +86,32 @@ def _count_within(lengths: list[float], c: float, w: float) -> int:
     return sum(abs(x - c) <= w for x in lengths)
 
 
+class _SmearContext(NamedTuple):
+    """Below-top smear region ``(lo, hi)``, its tested-candidate count (the correction
+    family) and the top peak's support (``smear_guard_top_frac``)."""
+
+    region: tuple[float, float]
+    n_tests: int
+    top_support: int
+
+
+def _allele_min(c: float, top: float, n_total: int, settings: HybridSettings, unit: int) -> float:
+    """Allele support threshold: ``max(min_peak_reads, frac * n_total)`` (far or near)."""
+    far = abs(c - top) >= settings.peak_far_near_boundary_units * unit
+    frac = settings.far_peak_min_frac if far else settings.near_peak_min_frac
+    return max(settings.min_peak_reads, frac * n_total)
+
+
+def smear_guarded(support: int, top_support: int, settings: HybridSettings) -> bool:
+    """True when a candidate holds too many reads to be relabelled smear (Task 15i)."""
+    return support >= settings.smear_guard_top_frac * top_support
+
+
+def _smear_label(verdict: str) -> str | None:
+    """Rejection reason for a smear-test verdict, or None when it is significant."""
+    return {"smear": "smear", "borderline": "smear_ambiguous"}.get(verdict)
+
+
 def _reason(
     c: float,
     top: float,
@@ -94,7 +120,7 @@ def _reason(
     lengths: list[float],
     settings: HybridSettings,
     unit_bp: int,
-    smear_ctx: tuple[tuple[float, float], int],
+    ctx: _SmearContext,
 ) -> str | None:
     """None when the candidate is accepted, else the rejection reason.
 
@@ -102,25 +128,23 @@ def _reason(
     first face the smear significance test (``hybrid.smear``, C4.2 fix round 4):
     not significant -> silent 'smear', whatever the absolute read count (smear debris
     grows with depth); in the configured borderline band around alpha ->
-    'smear_ambiguous' (gate-relevant). Significant candidates, and every candidate that
-    is not below-top, then need ``support >= max(min_peak_reads, frac * n_total)`` --
-    total depth, not the top peak's own support (spec S2: "n_min, f_far/near * N") --
-    else 'support_below_threshold' (gate-relevant). ``smear_ctx`` is the below-top
-    region ``(lo, hi)`` and the number of candidates tested there (the correction family).
+    'smear_ambiguous' (gate-relevant). A candidate with at least
+    ``smear_guard_top_frac`` of the top peak's reads is never smear-tested (Task 15i).
+    Significant and guarded candidates, and every candidate that is not below-top,
+    then need ``support >= max(min_peak_reads, frac * n_total)`` -- total depth, not
+    the top peak's own support (spec S2: "n_min, f_far/near * N") -- else
+    'support_below_threshold' (gate-relevant).
     """
     if support <= settings.rejected_peak_noise_reads:
         return "noise"
-    region, n_tests = smear_ctx
-    if c < region[1]:
-        test = smear_test(c, window_bp(c, settings, unit_bp), lengths, region, settings, unit_bp)
-        verdict = smear_verdict(test.p_value, n_tests, settings)
-        if verdict == "smear":
-            return "smear"
-        if verdict == "borderline":
-            return "smear_ambiguous"
-    far = abs(c - top) >= settings.peak_far_near_boundary_units * unit_bp
-    frac = settings.far_peak_min_frac if far else settings.near_peak_min_frac
-    if support < max(settings.min_peak_reads, frac * len(lengths)):
+    allele_min = _allele_min(c, top, len(lengths), settings, unit_bp)
+    if c < ctx.region[1] and not smear_guarded(support, ctx.top_support, settings):
+        window = window_bp(c, settings, unit_bp)
+        test = smear_test(c, window, lengths, ctx.region, settings, unit_bp)
+        label = _smear_label(smear_verdict(test.p_value, ctx.n_tests, settings))
+        if label is not None:
+            return label
+    if support < allele_min:
         return "support_below_threshold"
     return "max_alleles" if n_kept >= 2 else None
 
@@ -162,9 +186,8 @@ def _select(lengths: list[float], settings: HybridSettings, unit_bp: int) -> _Se
     for c in sorted(centers, key=lambda c: -support[c]):
         if c == top:
             continue
-        reason = _reason(
-            c, top, support[c], len(kept), lengths, settings, unit_bp, (region, n_tests)
-        )
+        ctx = _SmearContext(region, n_tests, support[top])
+        reason = _reason(c, top, support[c], len(kept), lengths, settings, unit_bp, ctx)
         if reason is None:
             kept.append(c)
             continue
@@ -193,7 +216,8 @@ def _inter_allele_smear(
     region from the shorter allele's window edge to ``smear_short_product_units`` below
     the longer allele, with the tested candidates as the correction family. Only
     ``support_below_threshold`` candidates are re-judged (a ``max_alleles`` third peak
-    is never relabelled); a significant candidate keeps its gate-relevant reason.
+    is never relabelled) and never one guarded by ``smear_guard_top_frac`` of the top
+    allele's reads; a significant candidate keeps its gate-relevant reason.
     """
     if len(sel.kept) < 2 or sel.kept[0] != min(sel.kept):
         return
@@ -202,13 +226,17 @@ def _inter_allele_smear(
         shorter + window_bp(shorter, settings, unit_bp),
         longer - settings.smear_short_product_units * unit_bp,
     )
+    top_support = max(sel.support[c] for c in sel.kept)
     tested = [
         (c, entry)
         for c, entry in sel.rejected
-        if entry["reason"] == "support_below_threshold" and region[0] < c < region[1]
+        if entry["reason"] == "support_below_threshold"
+        and region[0] < c < region[1]
+        and not smear_guarded(entry["support"], top_support, settings)
     ]
     for c, entry in tested:
-        test = smear_test(c, window_bp(c, settings, unit_bp), lengths, region, settings, unit_bp)
+        window = window_bp(c, settings, unit_bp)
+        test = smear_test(c, window, lengths, region, settings, unit_bp)
         verdict = smear_verdict(test.p_value, len(tested), settings)
         if verdict != "significant":
             entry["reason"] = "smear" if verdict == "smear" else "smear_ambiguous"

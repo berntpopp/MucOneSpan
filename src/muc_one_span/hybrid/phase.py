@@ -29,6 +29,7 @@ from muc_one_span.hybrid.phase_sites import (
     events,
     features,
     run_excess_sites,
+    strand_biased_sites,
     top_site,
 )
 from muc_one_span.hybrid.spans import SpanRead
@@ -44,8 +45,10 @@ class PhaseResult:
     group is below ``het_min_group``). ``unassigned`` holds members of a split that are
     informative at no linked event or tie between the groups; the caller reassigns them.
     ``run_excess`` holds, for a peak with no candidate site ("none"), the run sites that
-    clear only the lower safety floor (``phase_sites.run_excess_sites``); they never
-    split the peak, and the engine uses them only to block a negative call.
+    clear only the lower safety floor (``phase_sites.run_excess_sites``), and
+    ``strand_biased`` its column and insertion sites refused only for strand bias
+    (``phase_sites.strand_biased_sites``); they never split the peak, and the engine
+    uses them only to block a negative call.
     """
 
     groups: list[list[SpanRead]]
@@ -54,6 +57,7 @@ class PhaseResult:
     candidate: dict[str, Any] | None = None
     unassigned: list[SpanRead] = field(default_factory=list)
     run_excess: list[dict[str, Any]] = field(default_factory=list)
+    strand_biased: list[dict[str, Any]] = field(default_factory=list)
 
 
 def _signed_phi(pairs: list[tuple[int, int]]) -> float:
@@ -168,9 +172,15 @@ def split_by_linked_sites(
     cap = settings.phase_max_site_reads
     sample = members if len(members) <= cap else rng.sample(members, cap)
     feats, meta = features(cons, [m.seq for m in sample], settings)
-    sites = candidates(feats, [m.strand for m in sample], meta, settings)
+    strands = [m.strand for m in sample]
+    sites = candidates(feats, strands, meta, settings)
     if not sites:
-        return PhaseResult([members], "none", run_excess=run_excess_sites(feats, meta, settings))
+        return PhaseResult(
+            [members],
+            "none",
+            run_excess=run_excess_sites(feats, meta, settings),
+            strand_biased=strand_biased_sites(feats, strands, meta, settings),
+        )
     ori = _linked(feats, sites, meta, settings) if len(sites) > 1 else {0: 1}
     order = sorted(ori)
     linked = [sites[k] for k in order]

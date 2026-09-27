@@ -78,6 +78,7 @@ LENGTH_STAGE_KEYS = frozenset(
         "smear_background_flank_units",
         "smear_test_correction",
         "smear_test_alpha",
+        "smear_guard_top_frac",
         "smear_test_borderline_factor",
         "smear_test_inter_allele",
         "dimer_recognition",

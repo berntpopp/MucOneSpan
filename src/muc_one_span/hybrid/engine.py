@@ -23,12 +23,12 @@ from typing import Any, TypeVar
 from muc_one_span.config import RepeatDictionary
 from muc_one_span.hybrid.allele_fields import (
     PLOIDY,
-    RESOLVED,
     SINGLE_SITE,
     UNCONFIRMED_SPLIT_STATUS,
     allele_info,
     selection_detail,
     selection_status,
+    single_group_fields,
 )
 from muc_one_span.hybrid.assign import (
     OFF_TARGET,
@@ -61,8 +61,9 @@ __all__ = [
     "reconstruct_alleles",
 ]
 T = TypeVar("T")
-# Split basis of an unsplit equal-length peak held back by the run-site safety tier.
+# Split bases of an unsplit equal-length peak held back by a safety tier.
 RUN_SITE_BASIS = "unconfirmed_run_site"
+BIASED_SITE_BASIS = "unconfirmed_strand_biased_site"
 
 
 @dataclass
@@ -139,18 +140,25 @@ def _single_event(
 
 
 def _run_site_tier(split: PhaseResult) -> PhaseResult:
-    """Keep an unsplit equal-length peak from a negative call on a sub-floor run site.
+    """Keep an unsplit equal-length peak from a negative call on a sub-floor site.
 
     A peak with no candidate site ("none") whose runs include one above the lower
-    safety floor (``PhaseResult.run_excess``) becomes ``unconfirmed_run_site``: still
-    one group and no event, but its selection status blocks a negative call and the
-    site with the largest excess is named in the reason.
+    safety floor (``PhaseResult.run_excess``) becomes ``unconfirmed_run_site``; one
+    with a column or insertion site refused only for strand bias
+    (``PhaseResult.strand_biased``, Task 15i) becomes
+    ``unconfirmed_strand_biased_site``. Either stays one group with no event, but its
+    selection status blocks a negative call and the site (largest excess or allele
+    fraction) is named in the reason.
     """
-    if split.basis != "none" or not split.run_excess:
+    if split.basis != "none":
         return split
-    return PhaseResult(
-        split.groups, RUN_SITE_BASIS, split.run_excess, candidate=split.run_excess[0]
-    )
+    for basis, sites in (
+        (RUN_SITE_BASIS, split.run_excess),
+        (BIASED_SITE_BASIS, split.strand_biased),
+    ):
+        if sites:
+            return PhaseResult(split.groups, basis, sites, candidate=sites[0])
+    return split
 
 
 def located_site(candidate: dict[str, Any], unit_bp: int) -> str:
@@ -299,26 +307,18 @@ def reconstruct_alleles(
         for n in names:
             alleles[n].update(selection_status=selection, selection_detail=detail)
     residual_any = any(alleles[n]["residual_sites"] for n in names)
-    homozygous = len(kept) == 1 and selection == RESOLVED and not residual_any
     if len(kept) == 1:
-        alleles["allele_2"] = {
-            **alleles["allele_1"],
-            "candidate_duplicate_of": "allele_1",
-            "reconstruction_status": "not_separately_resolved",
-            "independent_haplotype_evidence": homozygous,
-        }
-        alleles["sequence_identity_status"] = "resolved" if homozygous else "unresolved"
-    lengths = [alleles[n]["length"] for n in names]
-    alleles.update(
-        {
-            "homozygous": homozygous,
-            "same_length": len(set(lengths)) == 1,
-            "observed_length_candidates": [round(p.center_bp / unit_bp) for p in model.peaks],
-            "allele_multiplicity_status": "resolved"
-            if len(kept) == PLOIDY or homozygous
-            else "unresolved",
-        }
-    )
+        alleles.update(single_group_fields(alleles["allele_1"], selection, residual_any))
+    else:
+        lengths = [alleles[n]["length"] for n in names]
+        alleles.update(
+            homozygous=False,
+            same_length=len(set(lengths)) == 1,
+            allele_multiplicity_status="resolved",
+        )
+    alleles["observed_length_candidates"] = [round(p.center_bp / unit_bp) for p in model.peaks]
+    # Keep the historical key order (multiplicity last).
+    alleles["allele_multiplicity_status"] = alleles.pop("allele_multiplicity_status")
     block = {
         "engine": "hybrid",
         "assay": settings.run.assay,

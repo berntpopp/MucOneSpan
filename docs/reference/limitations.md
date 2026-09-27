@@ -349,6 +349,32 @@ the automated test suite.
     to NEGATIVE with its allele lengths correct; no false positive and no
     NEGATIVE on a pathogenic case. A simulated long allele with PCR dropout
     (102 units, 1% of reads) stays a gate-relevant peak.
+- **Strand-biased heterozygous sites (Task 15i).** A column or insertion site
+  whose minor allele clears `het_af_min` but fails the strand-bias test is not
+  a split candidate (strand-specific systematic errors look the same), so an
+  equal-length heterozygote whose only difference is such a site is not split
+  and its event is not called. In an unsplit single length peak the site now
+  blocks a negative call (`unresolved_strand_biased_site`, INCONCLUSIVE with
+  the located site), so such a carrier is INCONCLUSIVE, not PATHOGENIC. The
+  known shape is dupA (one A appended to an X unit before the next unit's G):
+  on ONT reads with heavy C7 deletion stutter on one strand, a stuttered carrier
+  read aligns the extra A into the run, so the insertion is seen in ~50% of
+  "+" but ~90% of "-" carrier reads. With two length peaks each peak is one
+  allele and the tier does not apply. A wild-type strand-specific systematic
+  error at or above `het_af_min` (gap alleles `phase_gap_af_factor` x
+  `het_af_min`) makes an equal-length normal INCONCLUSIVE the same way.
+- **Smear test next to the top peak (Task 15i).** A below-top candidate just
+  past its own assignment window from the top has its background side towards
+  the top clipped by the region edge, sometimes to a sliver with no reads that
+  still sets the p value above alpha. A candidate with at least
+  `hybrid.smear_guard_top_frac` (0.5) of the top peak's reads is therefore
+  never smear-tested; a real near-length allele with less support than that
+  still depends on the smear test and can be relabelled smear in this
+  geometry. Skipping such an uninformative side was evaluated and not adopted
+  (it made low-depth smear debris near the top gate-relevant in 30% of
+  synthetic homozygous seeds at D=60, smear 0.54). A guard at the allele
+  threshold was not adopted either: at low depth that threshold is a handful of
+  reads, which smear debris reaches.
 - **Equal-length normals with strong single-run stutter.** The
   `unresolved_run_site` safety tier above cannot tell a wild-type run with
   strong site-specific stutter from a heterozygous run, so such normals are
