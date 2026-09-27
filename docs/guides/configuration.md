@@ -274,12 +274,14 @@ does not use medaka or dorado.
 | Package | Wheels | Notes |
 | --- | --- | --- |
 | `edlib` | manylinux/musllinux/macOS wheels on 3.10-3.13 | No wheel on 3.14 yet; the sdist builds and imports from source with a C compiler. |
-| `pyabpoa` (default backend) | **sdist only** | Always builds from source; needs a C compiler and zlib (`gcc`, `libc6-dev`, `zlib1g-dev` on Debian/Ubuntu). Bioconda ships binaries. |
+| `pyabpoa` (default backend) | **sdist only** | Always builds from source; needs a C compiler and zlib (`gcc`, `libc6-dev`, `zlib1g-dev` on Debian/Ubuntu). On x86-64 Linux it compiles for the local CPU unless `SSE4=1` is set; see [portable builds](../getting-started/installation.md#portable-pyabpoa-builds). Bioconda ships binaries. |
 | `pyspoa` (alternative backend, `hybrid.poa_backend: "pyspoa"`) | manylinux wheels (x86_64, aarch64) | **No macOS wheel**; the sdist needs cmake and a C++ compiler. |
 
 The project's own Docker image installs `gcc`, `libc6-dev` and `zlib1g-dev`
-in the builder stage to build `pyabpoa`; only the built virtual environment
-is copied into the runtime image.
+in the builder stage to build `pyabpoa` with `SSE4=1` (portable SSE4.1, not
+`-march=native`), rejects the build if its extension contains AVX-family
+instructions, and copies only the built virtual environment into the runtime
+image.
 
 ### Hybrid settings (`hybrid.*`)
 

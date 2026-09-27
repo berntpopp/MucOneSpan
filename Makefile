@@ -4,8 +4,10 @@ UV_TEST = $(UV_RUN) --group test --extra report --extra hybrid --extra bench
 UV_QUALITY = $(UV_RUN) --group quality --extra report --extra hybrid --extra bench
 PYTHON_PATHS = src tests scripts
 DOCKER_IMAGE ?= muconespan:local
+# sdist-only compiled extensions that must not be built for the local CPU.
+PORTABLE_EXTENSIONS ?= pyabpoa
 
-.PHONY: help init install-uv install dev conda-setup test test-fast test-unit test-int lint lint-fix format format-check type-check file-size workflow-check quality check ci-check docs-check security-check build-check hooks clean generate-testdata lock sync docker-build docker-test docker-smoke
+.PHONY: help init install-uv install dev conda-setup test test-fast test-unit test-int portable-check lint lint-fix format format-check type-check file-size workflow-check quality check ci-check docs-check security-check build-check hooks clean generate-testdata lock sync docker-build docker-test docker-smoke
 
 help:  ## Show available commands
 	@awk 'BEGIN {FS = ":.*## "} /^[a-zA-Z_-]+:.*## / {printf "%-22s %s\n", $$1, $$2}' $(MAKEFILE_LIST)
@@ -66,6 +68,9 @@ test-unit:  ## Run unit tests with the CI coverage gate
 
 test-int:  ## Run bioinformatics tool integration tests
 	$(UV_TEST) pytest tests/integration -m integration --no-cov
+
+portable-check:  ## Fail if an sdist-built extension uses AVX-family instructions (x86-64; needs objdump)
+	$(UV_RUN) python scripts/check_portable_build.py $(PORTABLE_EXTENSIONS)
 
 ci-check: quality test-unit  ## Run CI static checks and unit coverage gate locally
 

@@ -36,6 +36,7 @@ When intentionally changing dependencies, edit
 | `make docs-check` | Strict documentation build |
 | `make security-check` | Audit all locked extras against published Python advisories |
 | `make build-check` | Distribution build and package validation |
+| `make portable-check` | Fail if `pyabpoa` was compiled for the local CPU (x86-64; needs `objdump`) |
 | `make docker-test` | BuildKit runtime checks without image export/load |
 | `make docker-build docker-smoke` | Build and test an image through Docker |
 | `make format` | Apply Ruff formatting |
