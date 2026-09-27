@@ -305,8 +305,9 @@ not re-run.
   quality share systematic errors (short-run length changes, single columns)
   that reach just above `hybrid.het_af_min`. Such a site is dropped from site
   detection only when its minor carriers have significantly lower mean base
-  quality than its major carriers (new `hybrid.phase_quality_alpha`, default
-  0.001) and its minor allele fraction among the best
+  quality than its major carriers (new `hybrid.phase_quality_alpha`; opt-in and
+  experimental, default 0 = off since Task 15k, 0.001 is the dev-calibrated level
+  to opt in with) and its minor allele fraction among the best
   `hybrid.phase_quality_keep_frac` (new, default 0.5) of reads is significantly
   below `het_af_min` (exact binomial upper bound, new
   `hybrid.phase_quality_af_alpha`, default 0.001); it is kept when fewer than
@@ -339,10 +340,18 @@ not re-run.
   share of the highest-quality reads is significantly below `het_af_min`
   (confidence bound), it has no distinct length, and its draft differs from the
   other group's by substitutions only (new `hybrid.phase_quality_group_exclusion`,
-  default on; it reuses the `phase_quality_*` levels). The group never joins an
+  opt-in and experimental, default off; it needs `phase_quality_alpha` > 0 and
+  reuses the `phase_quality_*` levels). The group never joins an
   allele consensus; its reads count as spanning reads assigned to no allele and
   it is reported in `summary["hybrid"]["quality_excluded_groups"]`. A group
   carrying an insertion or deletion (dupC, any frameshift) is never excluded.
+- Hybrid engine: the Task 15j low-accuracy-subset site drop and the Task 15k
+  group exclusion ship **off** (opt-in, experimental; controller ruling). The
+  15j rule gained 1 development case and 0 validation cases against a
+  demonstrated synthetic NEGATIVE path (a two-peak dupC minority whose reads are
+  all low quality and whose dupC run stays below both run tiers); the group
+  exclusion has no development-split evidence. At the defaults HiFi
+  INCONCLUSIVE returns to the pre-15j level.
 
 ## [0.16.1] - 2026-09-24
 

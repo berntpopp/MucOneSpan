@@ -29,9 +29,11 @@ from tests.unit.hybrid import test_quality_single_event as single
 from tests.unit.hybrid import test_quality_sites as quality
 from tests.unit.hybrid import test_single_event as base
 
-S = DEFAULT_SETTINGS.hybrid
+S = quality.S  # the quality rules are opt-in since Task 15k: switched on explicitly
+OPT_IN = quality.OPT_IN
 NEGATIVE = "NO_PATHOGENIC_VARIANT_DETECTED"
 FOUND = ("ont", 0.15, 1)  # (profile, minority AF, seed) of the shape found in the sweep
+FLOOR_SHAPE = (0.20, 2)  # (minority AF, seed) of the 15j/15l shape below
 SWEEP_AFS = (0.15, 0.20, 0.25)
 SWEEP_SEEDS = (0, 1, 2, 3)
 
@@ -79,7 +81,7 @@ def test_all_poor_dupc_minority_is_not_released_to_negative(tmp_path: Path) -> N
         (tmp_path / sub).mkdir()
     _off_summary, off = base._run(tmp_path / "off", records, _off())
     assert off["state"] == "INCONCLUSIVE", "precondition: the site blocks NEGATIVE without the rule"
-    summary, decision = base._run(tmp_path / "on", records)
+    summary, decision = base._run(tmp_path / "on", records, OPT_IN)
     assert decision["state"] != NEGATIVE, summary["hybrid"]["quality_associated_sites"]
     assert not any(
         s["kind"] == "run" and s["minor"] > s["major"]
@@ -104,13 +106,14 @@ def test_an_explained_substitution_is_still_dropped() -> None:
 # a candidate or safety-tier site (the within-peak detection floor under repair in
 # Task 15l), so its only visible marker is one substitution site. All its carriers are
 # low quality, so the 15j two-peak test explains that site away and the sample is
-# NEGATIVE; with every quality rule off it is INCONCLUSIVE. Strict: 15l must revisit.
+# NEGATIVE; with every quality rule off (the shipped defaults since Task 15k) it is
+# INCONCLUSIVE. Strict: 15l must revisit it with the opt-in rule on.
 FLOOR_15L = pytest.mark.xfail(
     strict=True, reason="15j drop of the only marker of an invisible dupC minority (15l)"
 )
 SWEEP = [
     pytest.param(profile, af, seed, marks=FLOOR_15L)
-    if (af, seed) == (0.20, 2)
+    if (af, seed) == FLOOR_SHAPE
     else (profile, af, seed)
     for profile in sorted(single.PROFILES)
     for af in SWEEP_AFS
@@ -122,12 +125,21 @@ SWEEP = [
 def test_quality_rules_never_release_an_all_poor_dupc_minority(
     tmp_path: Path, profile: str, af: float, seed: int
 ) -> None:
-    """Never NEGATIVE unless it is NEGATIVE with every quality rule off as well (the
-    pre-existing within-peak detection floor below the candidate tiers)."""
+    """With the opt-in quality rule on: never NEGATIVE unless it is NEGATIVE with every
+    quality rule off as well (the pre-existing within-peak detection floor below the
+    candidate tiers)."""
     records = groups._minority(profile, af, seed, dupc=True)
     for sub in ("off", "on"):
         (tmp_path / sub).mkdir()
-    summary, decision = base._run(tmp_path / "on", records)
+    summary, decision = base._run(tmp_path / "on", records, OPT_IN)
     if decision["state"] == NEGATIVE:
         _s, off = base._run(tmp_path / "off", records, _off())
         assert off["state"] == NEGATIVE, summary["hybrid"]["quality_associated_sites"]
+
+
+@pytest.mark.parametrize("profile", sorted(single.PROFILES))
+def test_floor_shape_is_inconclusive_at_the_defaults(tmp_path: Path, profile: str) -> None:
+    """The 15l shape at the shipped defaults (quality rules off): the minority's
+    substitution site stays and blocks a negative call."""
+    summary, decision = base._run(tmp_path, groups._minority(profile, *FLOOR_SHAPE, dupc=True))
+    assert decision["state"] == "INCONCLUSIVE", summary["hybrid"]["selection_detail"]

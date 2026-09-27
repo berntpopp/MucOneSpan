@@ -33,7 +33,9 @@ from tests.unit.hybrid import test_quality_single_event as single
 from tests.unit.hybrid import test_quality_sites as quality
 from tests.unit.hybrid import test_single_event as base
 
-S = DEFAULT_SETTINGS.hybrid
+# Both the 15j test and this rule are opt-in since Task 15k: switched on explicitly.
+S = dataclasses.replace(quality.S, phase_quality_group_exclusion=True)
+OPT_IN = dataclasses.replace(DEFAULT_SETTINGS, hybrid=S)
 UNIT_BP = synth.RD.repeat_length_bp
 NEGATIVE = "NO_PATHOGENIC_VARIANT_DETECTED"
 N_PER_ALLELE = quality.N_PER_ALLELE
@@ -103,7 +105,7 @@ def test_poor_linked_group_is_not_a_third_allele(tmp_path: Path, seed: int) -> N
     records = _records(seed)
     off = _reconstruct(tmp_path / "off", records, _settings(phase_quality_group_exclusion=False))
     assert off.block["selection_status"] == "unresolved_max_alleles", "precondition"
-    on = _reconstruct(tmp_path / "on", records, DEFAULT_SETTINGS)
+    on = _reconstruct(tmp_path / "on", records, OPT_IN)
     assert on.block["selection_status"] == "resolved", on.block["selection_detail"]
     excluded = on.block["quality_excluded_groups"]
     assert len(excluded) == 1 and excluded[0]["share_high_quality"] < S.het_af_min
@@ -115,13 +117,13 @@ def test_poor_linked_group_is_not_a_third_allele(tmp_path: Path, seed: int) -> N
 
 
 def test_excluded_group_gives_a_negative_decision(tmp_path: Path) -> None:
-    summary, decision = base._run(tmp_path, _records(SEEDS[0]))
+    summary, decision = base._run(tmp_path, _records(SEEDS[0]), OPT_IN)
     assert summary["hybrid"]["quality_excluded_groups"], summary["hybrid"]
     assert decision["state"] == NEGATIVE, decision["details"]
 
 
 def test_linked_group_on_good_reads_stays_a_third_allele(tmp_path: Path) -> None:
-    result = _reconstruct(tmp_path, _records(SEEDS[0], subset_q=quality.GOOD_Q), DEFAULT_SETTINGS)
+    result = _reconstruct(tmp_path, _records(SEEDS[0], subset_q=quality.GOOD_Q), OPT_IN)
     assert result.block["selection_status"] == "unresolved_max_alleles"
     assert not result.block["quality_excluded_groups"]
 
@@ -259,7 +261,7 @@ def test_dupc_minority_group_is_never_excluded(
     records = _minority(profile, af, seed, dupc=True)
     for sub in ("on", "off"):
         (tmp_path / sub).mkdir()
-    summary, decision = base._run(tmp_path / "on", records)
+    summary, decision = base._run(tmp_path / "on", records, OPT_IN)
     assert not summary["hybrid"]["quality_excluded_groups"], summary["hybrid"]
     if decision["state"] == NEGATIVE:
         _s, off = base._run(
@@ -274,5 +276,5 @@ def test_dupc_minority_group_is_never_excluded(
 def test_wild_type_minority_group_is_never_pathogenic(
     tmp_path: Path, profile: str, af: float, seed: int
 ) -> None:
-    summary, decision = base._run(tmp_path, _minority(profile, af, seed, dupc=False))
+    summary, decision = base._run(tmp_path, _minority(profile, af, seed, dupc=False), OPT_IN)
     assert decision["state"] != "PATHOGENIC", summary["hybrid"]["split_bases"]

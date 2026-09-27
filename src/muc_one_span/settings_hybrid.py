@@ -244,10 +244,13 @@ class HybridSettings:
     # ceil(phase_min_minor_reads / het_af_min) reads or any read lacks base qualities.
     # The rule never changes group membership (peak support, allele consensus, event
     # evidence) and never applies to a single-peak (equal-length) genotype.
-    # phase_quality_alpha 0 turns it off. Defaults: v4 dev calibration and the
-    # adversarial run-minor tests (docs/guides/configuration.md). Ranges [0, 1), (0, 1),
-    # (0, 1].
-    phase_quality_alpha: float = 0.001
+    # phase_quality_alpha 0 turns it off. Since Task 15k (controller ruling) the rule is
+    # opt-in and experimental, default 0 (off): it gained 1 v4 dev and 0 val cases
+    # against a demonstrated synthetic NEGATIVE path (an all-low-quality dupC minority);
+    # 0.001 is the v4 dev-calibrated level to opt in with. The other two levels keep
+    # their dev-calibrated defaults (docs/guides/configuration.md). Ranges [0, 1),
+    # (0, 1), (0, 1].
+    phase_quality_alpha: float = 0.0
     phase_quality_af_alpha: float = 0.001
     phase_quality_keep_frac: float = 0.5
     # Task 15k. phase_quality_single_event: in a single-peak (equal-length) genotype
@@ -268,9 +271,11 @@ class HybridSettings:
     # het_af_min (phase_quality_af_alpha), its median length is within
     # peak_min_separation_units of the other group's, and its draft differs from the
     # other group's by substitutions only (no insertion or deletion, so no frameshift
-    # event). Both need phase_quality_alpha > 0. See docs/guides/configuration.md.
+    # event). Off by default (controller ruling): no v4 dev evidence, and defaults are
+    # calibrated on dev only. Both need phase_quality_alpha > 0 (opt-in, experimental).
+    # See docs/guides/configuration.md.
     phase_quality_single_event: bool = False
-    phase_quality_group_exclusion: bool = True
+    phase_quality_group_exclusion: bool = False
     # Engine orchestration (Task 11). Polishing and residual QC use at most
     # polish_max_reads / qc_residual_max_reads spanning members per allele (sampled with
     # the seeded RNG when a group is larger); an assigned non-spanning fragment joins the

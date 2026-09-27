@@ -26,11 +26,11 @@ import pytest
 
 from muc_one_span.hybrid.align import rc
 from muc_one_span.hybrid.spans import PHRED_OFFSET, ReadRecord
-from muc_one_span.settings import DEFAULT_SETTINGS
 from tests.unit.hybrid import synth
+from tests.unit.hybrid import test_quality_sites as quality
 from tests.unit.hybrid import test_single_event as base
 
-S = DEFAULT_SETTINGS.hybrid
+S = quality.OPT_IN.hybrid  # the 15j rule is opt-in since Task 15k
 SHORT = ["X"] * 20
 LONG = ["X"] * 30
 CARRIER = ["X"] * 5 + [synth.dupc()] + ["X"] * 24  # dupC: the X unit's C7 -> C8
@@ -81,5 +81,5 @@ def _sample(profile: str, af: float, seed: int) -> list[ReadRecord]:
 def test_true_within_peak_run_minor_is_never_negative(
     tmp_path: Path, profile: str, af: float, seed: int
 ) -> None:
-    summary, decision = base._run(tmp_path, _sample(profile, af, seed))
+    summary, decision = base._run(tmp_path, _sample(profile, af, seed), quality.OPT_IN)
     assert decision["state"] != "NO_PATHOGENIC_VARIANT_DETECTED", summary["hybrid"]

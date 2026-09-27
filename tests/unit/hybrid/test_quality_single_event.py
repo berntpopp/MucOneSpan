@@ -41,7 +41,7 @@ from tests.unit.hybrid import test_quality_sites as quality
 from tests.unit.hybrid import test_single_event as base
 from tests.unit.hybrid import test_single_event_gate as gate
 
-S = DEFAULT_SETTINGS.hybrid
+S = quality.S  # the 15j test is opt-in since Task 15k: switched on explicitly
 NEGATIVE = "NO_PATHOGENIC_VARIANT_DETECTED"
 N_PER_ALLELE = base.N_PER_ALLELE
 # Share of all reads in the low-accuracy subset carrying the artefact column (the

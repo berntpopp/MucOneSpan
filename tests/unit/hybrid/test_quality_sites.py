@@ -40,7 +40,14 @@ from muc_one_span.settings import DEFAULT_SETTINGS, HybridSettings, RuntimeSetti
 from tests.unit.hybrid import synth
 from tests.unit.hybrid import test_single_event as base
 
-S = DEFAULT_SETTINGS.hybrid
+# The 15j level calibrated on v4 dev; since Task 15k the rule is opt-in (default 0, off),
+# so these tests switch it on explicitly.
+QUALITY_ALPHA = 0.001
+OPT_IN = dataclasses.replace(
+    DEFAULT_SETTINGS,
+    hybrid=dataclasses.replace(DEFAULT_SETTINGS.hybrid, phase_quality_alpha=QUALITY_ALPHA),
+)
+S = OPT_IN.hybrid
 SHORT = ["X"] * 20  # allele 1 (its own length peak)
 LONG = ["X"] * 30  # allele 2; the artefact or minor haplotype sits inside its peak
 ARTEFACT_UNIT = 15  # inner unit of LONG carrying the shared error / minor base
@@ -222,7 +229,7 @@ def test_low_accuracy_subset_site_is_dropped_in_a_two_peak_model(seed: int) -> N
 
 @pytest.mark.parametrize("seed", SEEDS)
 def test_low_accuracy_subset_artefact_leaves_a_resolved_negative(tmp_path: Path, seed: int) -> None:
-    summary, decision = base._run(tmp_path, _sample(seed))
+    summary, decision = base._run(tmp_path, _sample(seed), OPT_IN)
     block = summary["hybrid"]
     assert block["selection_status"] == "resolved", block["selection_detail"]
     assert block["split_bases"] == ["none", "none"]
@@ -261,13 +268,8 @@ def test_a_linked_split_is_never_undone(tmp_path: Path) -> None:
     )
     assert res.basis == "linked_sites", res.sites
     assert not res.quality_associated
-    # Task 15k: with phase_quality_group_exclusion (test_quality_groups) this poor group
-    # is no longer counted as an allele; the split itself is unchanged either way.
-    no_exclusion = dataclasses.replace(
-        DEFAULT_SETTINGS, hybrid=_with(phase_quality_group_exclusion=False)
-    )
     result = reconstruct_alleles(
-        base._fastq(tmp_path / "in.fastq", records), tmp_path, synth.RD, no_exclusion
+        base._fastq(tmp_path / "in.fastq", records), tmp_path, synth.RD, DEFAULT_SETTINGS
     )
     assert result.block["selection_status"] == "unresolved_max_alleles"
 
@@ -278,7 +280,7 @@ def test_a_linked_split_is_never_undone(tmp_path: Path) -> None:
 @pytest.mark.parametrize("seed", SEEDS)
 def test_minor_on_good_reads_is_still_a_site(tmp_path: Path, seed: int) -> None:
     records = _sample(seed, subset_q=GOOD_Q, subset_err_factor=1)
-    summary, decision = base._run(tmp_path, records)
+    summary, decision = base._run(tmp_path, records, OPT_IN)
     assert summary["hybrid"]["selection_status"] == "unresolved_single_site"
     assert not summary["hybrid"]["quality_associated_sites"]
     assert decision["state"] == "INCONCLUSIVE"
@@ -303,7 +305,7 @@ def test_minor_on_good_reads_survives_a_separate_poor_subset(seed: int) -> None:
 def test_event_on_an_allele_is_still_called(tmp_path: Path, seed: int) -> None:
     """The rule never touches consensus or event evidence: a dupC allele stays called."""
     carrier = ["X"] * 5 + [synth.dupc()] + ["X"] * 24
-    summary, decision = base._run(tmp_path, _sample(seed, long_inner=carrier))
+    summary, decision = base._run(tmp_path, _sample(seed, long_inner=carrier), OPT_IN)
     assert summary["hybrid"]["quality_associated_sites"], summary["hybrid"]
     mutations = [m for c in summary["classifications"].values() for m in c["mutations"]]
     assert any(m.get("mutation_name") == "dupC" for m in mutations), mutations
@@ -325,7 +327,7 @@ def test_minor_event_on_good_reads_blocks_a_negative(tmp_path: Path) -> None:
         (tmp_path / sub).mkdir()
     off, off_decision = base._run(tmp_path / "off", records, _settings_off())
     assert off["hybrid"]["selection_status"] == "unresolved_single_site", "precondition"
-    summary, decision = base._run(tmp_path / "on", records)
+    summary, decision = base._run(tmp_path / "on", records, OPT_IN)
     assert not summary["hybrid"]["quality_associated_sites"]
     assert decision["state"] == off_decision["state"] == "INCONCLUSIVE", summary["hybrid"]
 
@@ -353,7 +355,7 @@ def test_too_few_kept_reads_fail_closed(tmp_path: Path) -> None:
     lower = _with(phase_quality_af_alpha=LOOSE_AF_ALPHA, phase_min_minor_reads=1)
     assert quality_floor_reads(lower) < quality_floor_reads(S)
     assert quality_sites(sites, feats, quals, lower)[1]
-    summary, decision = base._run(tmp_path, records)
+    summary, decision = base._run(tmp_path, records, OPT_IN)
     assert summary["hybrid"]["selection_status"] == "unresolved_single_site"
     assert decision["state"] == "INCONCLUSIVE"
 
@@ -375,7 +377,7 @@ def test_single_peak_is_out_of_scope(tmp_path: Path) -> None:
         LONG, 2 * N_PER_ALLELE - n_sub, 31, q=GOOD_Q, err=base.ERR, altered=False
     ) + _records(LONG, n_sub, 32, q=POOR_Q, err=POOR_ERR_FACTOR * base.ERR, altered=True)
     result = reconstruct_alleles(
-        base._fastq(tmp_path / "in.fastq", records), tmp_path, synth.RD, DEFAULT_SETTINGS
+        base._fastq(tmp_path / "in.fastq", records), tmp_path, synth.RD, OPT_IN
     )
     assert result.block["split_bases"] == ["unconfirmed_single_site"]
     assert not result.block["quality_associated_sites"]

@@ -363,7 +363,10 @@ the automated test suite.
   allele and the tier does not apply. A wild-type strand-specific systematic
   error at or above `het_af_min` (gap alleles `phase_gap_af_factor` x
   `het_af_min`) makes an equal-length normal INCONCLUSIVE the same way.
-- **Low-accuracy read subsets (Task 15j).** Inside one peak of a two-peak
+- **Low-accuracy read subsets (Task 15j; opt-in and experimental, off by
+  default since Task 15k).** With `hybrid.phase_quality_alpha` > 0 (off by
+  default: a gain of 1 development case and 0 validation cases against the
+  synthetic NEGATIVE path below), inside one peak of a two-peak
   sample, a candidate site whose minor carriers have significantly lower mean
   base quality than its major carriers, and whose minor allele fraction among
   the best `hybrid.phase_quality_keep_frac` of reads is significantly below
@@ -386,9 +389,10 @@ the automated test suite.
   - Still open (under repair in Task 15l): when a within-peak dupC minority's
     run stays below both run tiers ("Heterozygous homopolymer runs below the
     split floor" above), its only visible marker may be a substitution site.
-    If every carrier is a low-quality read, that site is explained away and
-    the sample can be NEGATIVE (synthetic two-peak shape, minority 20% of one
-    allele: 1 of 4 seeds, HiFi- and ONT-like; INCONCLUSIVE with the rule off).
+    With the opt-in rule on and every carrier a low-quality read, that site is
+    explained away and the sample can be NEGATIVE (synthetic two-peak shape,
+    minority 20% of one allele: 1 of 4 seeds, HiFi- and ONT-like). At the
+    defaults (rule off) this shape is INCONCLUSIVE.
   - The rule changes only the basis of a peak left unsplit. A linked split is
     never undone and no split is created, so every allele consensus is built
     from the same reads as without it. Where low-quality reads form a third
@@ -415,7 +419,8 @@ the automated test suite.
     INCONCLUSIVE; no event in either allele). The same artefact alone, without
     a second site, passes the same gates of the existing single-event path, and
     a C-insertion form of it at that run (C6AA -> C7AA) would read as dupA.
-  - Two-peak samples (`hybrid.phase_quality_group_exclusion`): a linked-site
+  - Two-peak samples (`hybrid.phase_quality_group_exclusion`, **opt-in,
+    experimental**, off by default: no development-split evidence): a linked-site
     group that is the smaller group, has significantly lower base quality, has
     a share of the highest-quality reads significantly below `het_af_min`, has
     no distinct length and differs from the other group's draft by
@@ -442,8 +447,9 @@ the automated test suite.
   is not relaxed). The remaining equal-length dupC carrier (validation) and the
   equal-length normals flagged by the run-site tier depend on the run floors
   (Task 15l). HiFi INCONCLUSIVE therefore stays above the per-profile targets
-  at the 15k defaults: dev `clean` 5/30 (target 0.10) and `standard` 8/30
-  (target 0.20); val `clean` 6/30 and `standard` 6/30 (validation numbers).
+  at the defaults (both quality rules off, the pre-15j level): dev `clean` 6/30
+  (target 0.10) and `standard` 8/30 (target 0.20); val `clean` 6/30 and
+  `standard` 7/30 (validation numbers).
 - **Smear test next to the top peak (Task 15i).** A below-top candidate just
   past its own assignment window from the top has its background side towards
   the top clipped by the region edge, sometimes to a sliver with no reads that
@@ -519,7 +525,7 @@ cases called PATHOGENIC; INCONCLUSIVE is the share of all cases.
 `clean2` is one case short of the 0.90 PATHOGENIC target on both splits. The
 sealed test split has not been run.
 
-With the Task 15j low-accuracy-subset rule (`hybrid.phase_quality_alpha`,
+With the Task 15j low-accuracy-subset rule opted in (`hybrid.phase_quality_alpha`,
 with the confidence-bound safety fix), one development case changes: a HiFi
 normal (`clean`) goes from INCONCLUSIVE (`unresolved_single_site`) to NEGATIVE
 with both alleles sequence-exact, so dev `clean` INCONCLUSIVE is 6/90 = 0.067
@@ -527,13 +533,14 @@ with both alleles sequence-exact, so dev `clean` INCONCLUSIVE is 6/90 = 0.067
 unchanged; PATHOGENIC counts, sequence exactness, false positives (0) and
 NEGATIVE on pathogenic cases (0) are unchanged.
 
-With the Task 15k defaults (linked low-quality groups excluded, known
-insertions protected, the single-peak rule off) every development decision is
-unchanged. One validation HiFi normal (`standard`) goes from INCONCLUSIVE
-(`unresolved_max_alleles`) to NEGATIVE with both alleles sequence-exact, so val
-`standard` INCONCLUSIVE is 15/90 = 0.167 (HiFi 7 -> 6 of 30). PATHOGENIC counts,
-sequence exactness, false positives (0) and NEGATIVE on pathogenic cases (0)
-are unchanged on every set, and the frozen panels are unchanged.
+Since Task 15k the 15j rule and the 15k quality rules are opt-in and off by
+default (controller ruling). At these defaults every development and validation
+decision equals the pre-15j code (`b24a677`): dev `clean` INCONCLUSIVE is again
+7/90 = 0.078 (HiFi 6 of 30), the 15j gain above is not in the defaults.
+Opted in (15j at 0.001 plus the group exclusion), one validation HiFi normal
+(`standard`, `unresolved_max_alleles`) becomes NEGATIVE with both alleles
+sequence-exact. PATHOGENIC counts, sequence exactness, false positives (0),
+NEGATIVE on pathogenic cases (0) and the frozen panels are unchanged.
 
 **Frozen simulated panels** (commit `e324fa3`, same hybrid defaults;
 PATHOGENIC/INCONCLUSIVE/NEGATIVE counts):
