@@ -16,10 +16,17 @@ A candidate site is dropped only when both hold:
 1. its minor carriers have lower mean base quality than its major carriers
    (one-sided Mann-Whitney rank-sum test at ``phase_quality_alpha``), and
 2. among the ``phase_quality_keep_frac`` of the site's reads with the highest mean base
-   quality, the minor allele fraction is below ``het_af_min``.
+   quality, the minor allele fraction is significantly below ``het_af_min``: the
+   one-sided upper confidence bound (exact binomial, level ``phase_quality_af_alpha``)
+   lies below it. A point estimate would drop a true minor at an allele fraction just
+   above ``het_af_min`` by sampling noise alone about half the time whenever condition 1
+   holds, for example when insertion stutter of low-quality non-carrier reads enriches
+   the minor set of a real homopolymer-run minor in poor reads.
 
 It fails closed: when that high-quality subset has fewer than
-``quality_floor_reads(settings)`` reads, or the qualities do not vary, the site is kept.
+``quality_floor_reads(settings)`` reads, when the qualities do not vary, or when any
+read of the site table carries no base-quality information (mean Phred 0), the site is
+kept.
 The caller applies the rule only to a peak of a two-peak model. Reads are never removed
 from peak support, allele consensus or event evidence; only the site list changes.
 """
@@ -35,8 +42,10 @@ from muc_one_span.settings import HybridSettings
 # Continuity correction of the normal approximation to the rank-sum statistic
 # (half a unit of U; part of the test's definition, not a tunable).
 CONTINUITY = 0.5
-# Reporting precision (significant digits) of a dropped site's rank-sum p value.
+# Reporting precision (significant digits) of a dropped site's p values.
 P_DIGITS = 3
+# Mean Phred of a read without base-quality information ('!' or missing qualities).
+NO_QUALITY = 0.0
 
 
 def _ranks(values: list[float]) -> tuple[list[float], list[int]]:
@@ -76,6 +85,23 @@ def rank_sum_p_lower(x: list[float], y: list[float]) -> float:
     return 0.5 * math.erfc(-z / math.sqrt(2))
 
 
+def binomial_lower_tail(k: int, n: int, p: float) -> float:
+    """P(X <= k) for X ~ Binomial(n, p), summed in log space (exact)."""
+    if k >= n:
+        return 1.0
+    log_p, log_q = math.log(p), math.log1p(-p)
+    return sum(
+        math.exp(
+            math.lgamma(n + 1)
+            - math.lgamma(i + 1)
+            - math.lgamma(n - i + 1)
+            + i * log_p
+            + (n - i) * log_q
+        )
+        for i in range(k + 1)
+    )
+
+
 def quality_floor_reads(settings: HybridSettings) -> int:
     """Fewest high-quality reads that can re-test a site (fail closed below it).
 
@@ -89,6 +115,8 @@ def _explained(
     site: dict[str, Any], feats: list[dict[Site, Any]], quals: list[float], s: HybridSettings
 ) -> dict[str, Any] | None:
     """The site with its quality evidence when a low-accuracy subset explains it."""
+    if any(q <= NO_QUALITY for q in quals):
+        return None
     alleles = [(f[site["site"]], q) for f, q in zip(feats, quals, strict=True) if site["site"] in f]
     minor = [q for a, q in alleles if a == site["minor"]]
     major = [q for a, q in alleles if a == site["major"]]
@@ -99,13 +127,15 @@ def _explained(
     kept = ranked[: math.ceil(s.phase_quality_keep_frac * len(ranked))]
     if len(kept) < quality_floor_reads(s):
         return None
-    af_kept = sum(a == site["minor"] for a, _q in kept) / len(kept)
-    if af_kept >= s.het_af_min:
+    k = sum(a == site["minor"] for a, _q in kept)
+    tail = binomial_lower_tail(k, len(kept), s.het_af_min)
+    if tail >= s.phase_quality_af_alpha:
         return None
     return {
         **site,
-        "af_high_quality": round(af_kept, AF_DECIMALS),
+        "af_high_quality": round(k / len(kept), AF_DECIMALS),
         "quality_p": float(f"{p:.{P_DIGITS}g}"),
+        "af_bound_p": float(f"{tail:.{P_DIGITS}g}"),
     }
 
 

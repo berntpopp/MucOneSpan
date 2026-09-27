@@ -366,7 +366,8 @@ the automated test suite.
 - **Low-accuracy read subsets (Task 15j).** Inside one peak of a two-peak
   sample, a candidate site whose minor carriers have significantly lower mean
   base quality than its major carriers, and whose minor allele fraction among
-  the best `hybrid.phase_quality_keep_frac` of reads is below `het_af_min`, is
+  the best `hybrid.phase_quality_keep_frac` of reads is significantly below
+  `het_af_min` (upper confidence bound, `hybrid.phase_quality_af_alpha`), is
   dropped from site detection (`quality_associated_sites`). Consequences:
   - A real within-peak minor (mosaicism, contamination, a third haplotype)
     carried mainly by lower-quality reads is not flagged. On real data base
@@ -380,9 +381,13 @@ the automated test suite.
     from the same reads as without it. Low-quality reads therefore stay in the
     allele consensus: where they formed a third group before
     (`unresolved_max_alleles`), that result stays.
-  - Input without informative base qualities (all equal) never triggers it.
+  - Input without informative base qualities (all equal, or any read with
+    mean Phred 0) never triggers it.
+  - The confidence bound makes the rule act only on clear cases: after the
+    safety fix it resolved one development HiFi normal (versus three with the
+    earlier point estimate). The gain on the development split is small.
   - HiFi INCONCLUSIVE on the development panels stays above the per-profile
-    targets (dev `clean` 4/30 against 0.10, `standard` 7/30 against 0.20; see
+    targets (dev `clean` 5/30 against 0.10, `standard` 8/30 against 0.20; see
     the validation numbers). The remaining HiFi normals are
     residual read heterogeneity on a called allele (`qc_residual_af`), the
     `unresolved_run_site` tier, and within-peak sites that are not
@@ -462,15 +467,13 @@ cases called PATHOGENIC; INCONCLUSIVE is the share of all cases.
 `clean2` is one case short of the 0.90 PATHOGENIC target on both splits. The
 sealed test split has not been run.
 
-With the Task 15j low-accuracy-subset rule (`hybrid.phase_quality_alpha`), the
-INCONCLUSIVE share becomes dev `standard` 10/90 = 0.111 and `clean` 5/90 =
-0.056, val `clean` 7/90 = 0.078 (val `standard` and both `clean2` sets
-unchanged). Every changed case is a HiFi normal going from INCONCLUSIVE
-(`unresolved_single_site`) to NEGATIVE with both alleles sequence-exact (3 dev,
-1 val); PATHOGENIC counts, sequence exactness, false positives (0) and
-NEGATIVE on pathogenic cases (0) are unchanged. HiFi INCONCLUSIVE per profile:
-dev `standard` 8 -> 7 of 30, `clean` 6 -> 4; val `standard` 7 of 30
-unchanged, `clean` 6 -> 5.
+With the Task 15j low-accuracy-subset rule (`hybrid.phase_quality_alpha`,
+with the confidence-bound safety fix), one development case changes: a HiFi
+normal (`clean`) goes from INCONCLUSIVE (`unresolved_single_site`) to NEGATIVE
+with both alleles sequence-exact, so dev `clean` INCONCLUSIVE is 6/90 = 0.067
+(HiFi 6 -> 5 of 30). Every other set, including all validation sets, is
+unchanged; PATHOGENIC counts, sequence exactness, false positives (0) and
+NEGATIVE on pathogenic cases (0) are unchanged.
 
 **Frozen simulated panels** (commit `e324fa3`, same hybrid defaults;
 PATHOGENIC/INCONCLUSIVE/NEGATIVE counts):

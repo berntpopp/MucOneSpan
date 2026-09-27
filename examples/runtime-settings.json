@@ -181,7 +181,8 @@
     "phase_single_event_bound_reads": 300,
     "phase_run_error_cap": 16,
     "phase_quality_alpha": 0.001,
-    "phase_quality_keep_frac": 0.3,
+    "phase_quality_af_alpha": 0.001,
+    "phase_quality_keep_frac": 0.5,
     "polish_max_reads": 120,
     "polish_partial_min_units": 1.0,
     "qc_residual_max_reads": 200

@@ -125,7 +125,8 @@ def test_hybrid_phase_tunables_default_unchanged() -> None:
     # Task 15g: the NEGATIVE-blocking run-site tier uses half the split multiplier.
     assert h.phase_run_safety_multiplier == 2.0
     # Task 15j: low-accuracy-subset site rule, calibrated on v4 dev.
-    assert (h.phase_quality_alpha, h.phase_quality_keep_frac) == (0.001, 0.3)
+    assert (h.phase_quality_alpha, h.phase_quality_af_alpha) == (0.001, 0.001)
+    assert h.phase_quality_keep_frac == 0.5
 
 
 @pytest.mark.parametrize(

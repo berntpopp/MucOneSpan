@@ -237,17 +237,19 @@ class HybridSettings:
     # detection when a low-accuracy read subset explains it: its minor carriers have
     # lower mean base quality than its major carriers (one-sided rank-sum test at
     # phase_quality_alpha) and, among the phase_quality_keep_frac of the site's reads
-    # with the highest mean base quality, the minor allele fraction is below het_af_min.
+    # with the highest mean base quality, the minor allele fraction is significantly
+    # below het_af_min (exact binomial lower tail at het_af_min below
+    # phase_quality_af_alpha, i.e. the one-sided upper confidence bound lies below it).
     # The site is kept (fail closed) when that high-quality subset has fewer than
-    # ceil(phase_min_minor_reads / het_af_min) reads. The rule never removes a read from
-    # peak support, allele consensus or event evidence, and never applies to a
-    # single-peak (equal-length) genotype. phase_quality_alpha 0 turns it off.
-    # Defaults from the v4 dev grid (alpha 1e-4/1e-3/1e-2 x keep 0.3/0.5/0.7): keep 0.3
-    # gave the fewest INCONCLUSIVE (HiFi 14 -> 11 of 60 on standard + clean) with no
-    # false positive or NEGATIVE on a pathogenic case at any point; alpha 1e-3 and 1e-2
-    # tied, and the stricter 1e-3 was taken. In [0, 1) and (0, 1].
+    # ceil(phase_min_minor_reads / het_af_min) reads or any read lacks base qualities.
+    # The rule never changes group membership (peak support, allele consensus, event
+    # evidence) and never applies to a single-peak (equal-length) genotype.
+    # phase_quality_alpha 0 turns it off. Defaults: v4 dev calibration and the
+    # adversarial run-minor tests (docs/guides/configuration.md). Ranges [0, 1), (0, 1),
+    # (0, 1].
     phase_quality_alpha: float = 0.001
-    phase_quality_keep_frac: float = 0.3
+    phase_quality_af_alpha: float = 0.001
+    phase_quality_keep_frac: float = 0.5
     # Engine orchestration (Task 11). Polishing and residual QC use at most
     # polish_max_reads / qc_residual_max_reads spanning members per allele (sampled with
     # the seeded RNG when a group is larger); an assigned non-spanning fragment joins the
@@ -358,6 +360,7 @@ class HybridSettings:
         _number("hybrid.phase_quality_alpha", self.phase_quality_alpha, 0, 1)
         if self.phase_quality_alpha == 1:
             raise ValueError("hybrid.phase_quality_alpha must be < 1")
+        _open_unit_interval("hybrid.phase_quality_af_alpha", self.phase_quality_af_alpha)
         _number("hybrid.phase_quality_keep_frac", self.phase_quality_keep_frac, 0, 1)
         if self.phase_quality_keep_frac == 0:
             raise ValueError("hybrid.phase_quality_keep_frac must be > 0")

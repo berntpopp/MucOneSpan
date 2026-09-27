@@ -307,11 +307,13 @@ not re-run.
   detection only when its minor carriers have significantly lower mean base
   quality than its major carriers (new `hybrid.phase_quality_alpha`, default
   0.001) and its minor allele fraction among the best
-  `hybrid.phase_quality_keep_frac` (new, default 0.3) of reads is below
-  `het_af_min`; it is kept when fewer than
-  `ceil(phase_min_minor_reads / het_af_min)` high-quality reads remain. The rule
-  never removes reads from peak support, consensus or event evidence and never
-  applies to a single-peak genotype. Dropped sites are reported in
+  `hybrid.phase_quality_keep_frac` (new, default 0.5) of reads is significantly
+  below `het_af_min` (exact binomial upper bound, new
+  `hybrid.phase_quality_af_alpha`, default 0.001); it is kept when fewer than
+  `ceil(phase_min_minor_reads / het_af_min)` high-quality reads remain or any
+  read lacks base qualities. The rule changes only the basis of an unsplit peak:
+  it never changes group membership (peak support, consensus, event evidence)
+  and never applies to a single-peak genotype. Dropped sites are reported in
   `summary["hybrid"]["quality_associated_sites"]`.
 
 ## [0.16.1] - 2026-09-24

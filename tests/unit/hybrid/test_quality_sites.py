@@ -28,13 +28,15 @@ from muc_one_span.hybrid.align import rc
 from muc_one_span.hybrid.engine import reconstruct_alleles
 from muc_one_span.hybrid.phase import split_by_linked_sites
 from muc_one_span.hybrid.phase_quality import (
+    NO_QUALITY,
+    binomial_lower_tail,
     quality_floor_reads,
     quality_sites,
     rank_sum_p_lower,
 )
 from muc_one_span.hybrid.phase_sites import candidates, features
-from muc_one_span.hybrid.spans import PHRED_OFFSET, ReadRecord, categorize_reads
-from muc_one_span.settings import DEFAULT_SETTINGS, HybridSettings
+from muc_one_span.hybrid.spans import PHRED_OFFSET, ReadRecord, SpanRead, categorize_reads
+from muc_one_span.settings import DEFAULT_SETTINGS, HybridSettings, RuntimeSettings
 from tests.unit.hybrid import synth
 from tests.unit.hybrid import test_single_event as base
 
@@ -54,6 +56,8 @@ GOOD_Q = (30, 40)
 POOR_Q = (22, 33)
 POOR_ERR_FACTOR = 2
 SEEDS = (0, 1)
+# A permissive AF-bound level, to isolate the kept-read floor in its test.
+LOOSE_AF_ALPHA = 0.5
 # Units between the artefact unit and each of two linked artefact columns (non-touching
 # events, so they count as two linked sites).
 LINKED_UNIT_GAP = 5
@@ -137,13 +141,13 @@ def _with(**changes: object) -> HybridSettings:
     return dataclasses.replace(S, **changes)  # type: ignore[arg-type]
 
 
-def _long_peak(records: list[ReadRecord]) -> list:
+def _long_peak(records: list[ReadRecord]) -> list[SpanRead]:
     spans = categorize_reads(records, base.ANCH, S).spanning
     cut = (len(synth.allele(SHORT)) + len(synth.allele(LONG))) // 2
     return [m for m in spans if m.length > cut]
 
 
-def _settings_off() -> object:
+def _settings_off() -> RuntimeSettings:
     return dataclasses.replace(DEFAULT_SETTINGS, hybrid=_with(phase_quality_alpha=0.0))
 
 
@@ -162,6 +166,26 @@ def test_rank_sum_without_quality_variance_is_no_evidence() -> None:
     """Constant qualities (uninformative input) can never drop a site."""
     assert rank_sum_p_lower([30.0] * 20, [30.0] * 80) == 1.0
     assert rank_sum_p_lower([], [30.0, 31.0]) == 1.0
+
+
+def test_binomial_lower_tail_is_exact() -> None:
+    n, p = 10, S.het_af_min
+    assert binomial_lower_tail(0, n, p) == pytest.approx((1 - p) ** n)
+    assert binomial_lower_tail(n, n, p) == 1.0
+    assert binomial_lower_tail(1, n, p) == pytest.approx((1 - p) ** n + n * p * (1 - p) ** (n - 1))
+
+
+def test_a_read_without_qualities_keeps_every_site() -> None:
+    """Mixed input: a quality-less read (mean Phred 0) would rank last; fail closed."""
+    members = _long_peak(_sample(SEEDS[0]))
+    cons = synth.allele(LONG)
+    feats, meta = features(cons, [m.seq for m in members], S)
+    sites = candidates(feats, [m.strand for m in members], meta, S)
+    quals = [m.mean_q for m in members]
+    assert quality_sites(sites, feats, quals, S)[1], "precondition: dropped with qualities"
+    quals[0] = float(NO_QUALITY)
+    kept, dropped = quality_sites(sites, feats, quals, S)
+    assert kept == sites and not dropped
 
 
 def test_quality_floor_is_derived_from_the_candidate_floors() -> None:
@@ -317,8 +341,11 @@ def test_too_few_kept_reads_fail_closed(tmp_path: Path) -> None:
     quals = [m.mean_q for m in members]
     kept, dropped = quality_sites(sites, feats, quals, S)
     assert kept == sites and not dropped
-    # Only the floor keeps it: with a lower floor the same site is dropped.
-    lower = _with(phase_min_minor_reads=1)
+    # The floor alone keeps it: with the AF bound made permissive the site is still
+    # kept, and with a lower floor as well it is dropped.
+    loose = _with(phase_quality_af_alpha=LOOSE_AF_ALPHA)
+    assert not quality_sites(sites, feats, quals, loose)[1]
+    lower = _with(phase_quality_af_alpha=LOOSE_AF_ALPHA, phase_min_minor_reads=1)
     assert quality_floor_reads(lower) < quality_floor_reads(S)
     assert quality_sites(sites, feats, quals, lower)[1]
     summary, decision = base._run(tmp_path, records)
@@ -358,6 +385,8 @@ def test_single_peak_is_out_of_scope(tmp_path: Path) -> None:
         ("phase_quality_alpha", -0.1),
         ("phase_quality_alpha", 1.0),
         ("phase_quality_keep_frac", 0.0),
+        ("phase_quality_af_alpha", 0.0),
+        ("phase_quality_af_alpha", 1.0),
         ("phase_quality_keep_frac", 1.5),
     ],
 )

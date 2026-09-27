@@ -176,7 +176,10 @@ def quality_site(site: dict[str, Any], unit_bp: int) -> dict[str, Any]:
     return {
         "repeat": pos // unit_bp + 1,
         "kind": kind,
-        **{k: site[k] for k in ("major", "minor", "af", "af_high_quality", "quality_p")},
+        **{
+            k: site[k]
+            for k in ("major", "minor", "af", "af_high_quality", "quality_p", "af_bound_p")
+        },
     }
 
 
