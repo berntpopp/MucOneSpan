@@ -94,8 +94,8 @@ STRATA = (
 ALLELE_UNIT = ("sample", "allele")
 
 _RULE_TEMPLATE = (
-    "MucSim-Bench decision rule v5 (spec section 6, plus the task 12e absolute targets and "
-    "the task C1 owner ruling). Adopt the candidate engine over the baseline only if both "
+    "MucSim-Bench decision rule v6 (spec section 6, plus the task 12e absolute targets, "
+    "the task C1 owner ruling and the task 15o owner decision). Adopt the candidate engine over the baseline only if both "
     "parts hold. Part 1, the relative rule, is decided on the `{headline}` benchmark set "
     "only (other sets are reported descriptively and never decide it): for every profile, "
     "(1) the candidate is superior on per-allele exact sequence (unit: each truth allele of "
@@ -113,8 +113,11 @@ _RULE_TEMPLATE = (
     "design_id ({replicates} replicates, seed {seed}). Failed or unattempted runs count as "
     "NO_CALL with every truth allele not exact; no case or allele is dropped. Part 2, the "
     "absolute targets (`targets.by_set`), {targets_text}, on the candidate alone (no "
-    "baseline comparison), pooled over every profile of that set and on each profile "
-    "separately; a bench set named in `targets.by_set` with no candidate cases is reported "
+    'baseline comparison). Each target binds on the scope stated with it: "pooled and per '
+    "profile\" means the rate pooled over every profile of that set and each profile's own "
+    'rate must both clear it; "pooled only" means only the pooled rate must clear it, while '
+    "each profile's rate is still computed and reported but is informational and never "
+    "fails a target. A bench set named in `targets.by_set` with no candidate cases is reported "
     "as not present and blocks adoption. A bench set not named in `targets.by_set` (for "
     "example `stress`) is reported without a target. Adopt only if the relative rule and "
     "every target of every named set pass."

@@ -166,3 +166,45 @@ def test_render_markdown_shows_the_absolute_targets_table() -> None:
     assert "| standard | pooled | pathogenic_rate |" in text
     assert "Set verdict: standard=True, clean=True" in text
     assert "**ADOPT**" in text
+
+
+def _inconclusive_heavy_profile(n_path: int, n_inconclusive: int) -> tuple[list[Any], list[Any]]:
+    """(baseline, candidate) `hifi_amplicon` rows: candidate superior, INCONCLUSIVE on normals."""
+    base, cand = [], []
+    for i in range(n_path):
+        sample = f"hp{i}"
+        base.append(_target_row(sample, "hifi_amplicon", "standard", 0, "pathogenic", "NO_CALL"))
+        cand.append(_target_row(sample, "hifi_amplicon", "standard", 1, "pathogenic", "PATHOGENIC"))
+    for i in range(n_inconclusive):
+        sample = f"hn{i}"
+        base.append(_target_row(sample, "hifi_amplicon", "standard", 0, "normal", "NO_CALL"))
+        cand.append(_target_row(sample, "hifi_amplicon", "standard", 1, "normal", "INCONCLUSIVE"))
+    return base, cand
+
+
+def test_decide_v6_inconclusive_binds_on_the_pooled_set_only() -> None:
+    # Task 15o (rule v6, owner decision 2026-09-27): one profile at 10/30 INCONCLUSIVE
+    # (> 0.20) no longer fails adoption while the pooled rate (10/340) clears 0.20.
+    base, cand = _standard_fixture(n_path=30, n_normal=280)
+    hifi_base, hifi_cand = _inconclusive_heavy_profile(n_path=20, n_inconclusive=10)
+    reports = {"ladder": base + hifi_base, "hybrid": cand + hifi_cand}
+    result = decide(reports, "ladder", "hybrid", _STANDARD_ONLY)
+    table = result["targets"]["standard"]["table"]
+    hifi_inc = next(
+        r for r in table if r["grouping"] == "hifi_amplicon" and r["metric"] == "inconclusive_rate"
+    )
+    assert hifi_inc["pass"] is False and hifi_inc["binding"] is False
+    assert result["targets"]["standard"]["pass"] is True
+    assert all(p["pass"] for p in result["profiles"].values())
+    assert result["adopt"] is True
+    assert "info only" in render_markdown(result)
+
+    # The pre-v6 scope (every profile binding) would have refused the same rows.
+    per_profile = {
+        m: replace(t, scope="pooled_and_profiles")
+        for m, t in DEFAULT_BENCH_CONFIG.targets.by_set["standard"].items()
+    }
+    old = BenchConfig(targets=TargetsConfig(by_set={"standard": per_profile}))
+    refused = decide(reports, "ladder", "hybrid", old)
+    assert refused["targets"]["standard"]["pass"] is False and refused["adopt"] is False
+    assert refused["rule_sha256"] != result["rule_sha256"]

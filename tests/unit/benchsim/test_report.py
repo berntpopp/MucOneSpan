@@ -392,14 +392,25 @@ def test_rule_text_names_the_per_allele_endpoint() -> None:
 
 
 def test_default_rule_text_is_unchanged_by_the_config_refactor() -> None:
-    # SHA-256 of the v5 rule text (v4 plus the task C1 owner ruling dropping the
-    # relative FP non-inferiority margin; FP is now judged only by the absolute
-    # targets and reported informationally). A changed default would silently
-    # invalidate existing pre-registrations. No real pre-registration exists yet
-    # (task C1), so this is simply re-pinned to the current text.
-    pinned = "9249bf485f3c7b11b5415e07f2165bad743df17b476f42a0ece98a9bcbfa96f0"
+    # SHA-256 of the v6 rule text (task 15o, owner decision 2026-09-27: v5 with the
+    # INCONCLUSIVE targets binding on the pooled set only). A changed default would
+    # silently invalidate existing pre-registrations; v5 (9249bf48...) was registered
+    # on a sealed split before this change, and v6 is registered next to it.
+    pinned = "85c869a66928627fd21e0f8a0d6e0fb84fc2e90d24cead37647f135cf5bd6e2c"
     assert rule_text(DEFAULT_BENCH_CONFIG.report) == RULE_TEXT
     assert rule_sha256(RULE_TEXT) == pinned
+
+
+def test_rule_text_v6_states_the_scope_of_every_target() -> None:
+    assert RULE_TEXT.startswith("MucSim-Bench decision rule v6 ")
+    assert "decision rule v5" not in RULE_TEXT
+    assert "inconclusive_rate <= 0.1 (pooled only; per-profile rates for information)" in (
+        RULE_TEXT
+    )
+    assert "pathogenic_rate >= 0.8 (pooled and per profile)" in RULE_TEXT
+    assert "false_positive_rate <= 0 (pooled and per profile)" in RULE_TEXT
+    assert "pooled over every profile of that set and on each profile separately" not in (RULE_TEXT)
+    assert "informational and never fails a target" in RULE_TEXT
 
 
 def test_rule_text_and_decision_follow_the_report_config() -> None:
