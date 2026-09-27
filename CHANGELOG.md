@@ -220,6 +220,18 @@ not re-run.
 
 ### Fixed
 
+- **Portable `pyabpoa` builds.** `pyabpoa` compiles with `-march=native` on
+  x86-64 Linux by default, so a build reused on another CPU (a cached CI
+  environment, a container image, a shared cluster install) could crash with
+  `Illegal instruction` on import. uv now builds it with `SSE4=1` (portable
+  `-msse4.1`; `[tool.uv.extra-build-variables]` in `pyproject.toml`), and so do
+  the Docker builder stage and hence the Apptainer image. The CI uv caches are
+  re-keyed (`UV_CACHE_EPOCH`) so native builds are never restored. The new
+  `scripts/check_portable_build.py` (`make portable-check`) fails when the
+  installed extension contains AVX-family instructions; CI and the Docker
+  build run it. aarch64 Linux builds were already portable
+  (`armv8-a+simd`). Existing uv environments need `uv cache clean pyabpoa`
+  and a reinstall; the installation guide documents `SSE4=1` for pip.
 - `hybrid.min_linked_sites` now has a minimum of 2 (was 0). At 1 a single
   heterozygous event became a `linked_sites` split that bypassed the
   single-event share-bound gate, so a wild-type sample with a 30%

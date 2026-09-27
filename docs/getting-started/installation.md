@@ -22,6 +22,36 @@ Linux wheels only and builds with cmake and a C++ compiler elsewhere. External
 alignment and variant-calling tools for the ladder engine are installed
 separately.
 
+### Portable `pyabpoa` builds
+
+On x86-64 Linux, `pyabpoa`'s build compiles for the **local CPU** by default
+(`-march=native`). Such a build crashes with `Illegal instruction` on a CPU
+without the build host's instruction set extensions (for example AVX-512).
+Build it with the portable SSE4.1 baseline wherever the environment may run on
+another machine: shared or heterogeneous clusters, container images, network
+home directories, and cached CI environments. Set `SSE4=1` and bypass cached
+builds:
+
+```bash
+SSE4=1 pip install --no-cache-dir 'muc_one_span[report] @ git+https://github.com/berntpopp/MucOneSpan.git@v0.17.0'
+```
+
+The project's uv configuration (`[tool.uv.extra-build-variables]` in
+`pyproject.toml`) and its Docker and Apptainer images already build with
+`SSE4=1`. uv reuses built wheels from its cache, and a cached native build can
+be reused even after the setting changes, so remove it before rebuilding an
+existing uv environment:
+
+```bash
+uv cache clean pyabpoa
+uv sync --locked --reinstall-package pyabpoa
+make portable-check   # fails if pyabpoa contains AVX-family instructions
+```
+
+On aarch64 Linux `pyabpoa` always builds for the portable `armv8-a+simd`
+baseline and `SSE4` has no effect. On macOS its build uses `-march=native` and
+ignores `SSE4`; build on each Mac that runs it.
+
 ## Install from source
 
 ```bash

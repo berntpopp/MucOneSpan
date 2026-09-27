@@ -9,6 +9,10 @@ on:
 permissions:
   contents: read
 
+env:
+  # Part of the uv cache key; bump to discard cached source builds (see test.yml).
+  UV_CACHE_EPOCH: 'portable-1'
+
 concurrency:
   group: docs-${{ github.ref }}
   cancel-in-progress: ${{ github.event_name == 'pull_request' }}
@@ -25,7 +29,7 @@ jobs:
           python-version: '3.12'
           enable-cache: true
           cache-dependency-glob: uv.lock
-          cache-suffix: docs
+          cache-suffix: docs-${{ env.UV_CACHE_EPOCH }}
       - run: make docs-check
       - name: Upload Pages artifact
         if: github.event_name != 'pull_request'

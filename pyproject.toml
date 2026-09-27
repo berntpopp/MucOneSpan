@@ -92,6 +92,16 @@ constraint-dependencies = [
     "pymdown-extensions>=11.0.1",
 ]
 
+# pyabpoa is sdist-only and its setup.py compiles with -march=native on x86-64
+# Linux unless SSE4 (or SSE2) is set; a native build crashes with "Illegal
+# instruction" on other CPUs (cached CI wheels, images, clusters). SSE4 selects
+# the portable -msse4.1 baseline; aarch64 builds ignore it (armv8-a+simd).
+# uv keys built wheels on this table, but setuptools may reuse a stale native
+# object from the unpacked sdist: run `uv cache clean pyabpoa` after changing it.
+# scripts/check_portable_build.py verifies the installed extension.
+[tool.uv.extra-build-variables]
+pyabpoa = { SSE4 = "1" }
+
 [tool.hatch.version]
 path = "src/muc_one_span/version.py"
 

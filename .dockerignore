@@ -14,3 +14,4 @@ conda/*
 !scripts/
 scripts/*
 !scripts/check_container.sh
+!scripts/check_portable_build.py

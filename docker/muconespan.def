@@ -6,6 +6,9 @@ From: ghcr.io/berntpopp/muconespan:0.13.0
     Version 0.13.0
     Description MucOneSpan: MUC1 VNTR analysis pipeline for PacBio HiFi and ONT amplicon data
 
+# Portability is inherited: this image copies the published Docker image, whose
+# builder compiles pyabpoa with SSE4=1 (not -march=native) and verifies it.
+
 %help
     MucOneSpan: MUC1 VNTR analysis pipeline for PacBio HiFi and ONT amplicon data.
 

@@ -15,6 +15,10 @@ concurrency:
 
 env:
   UV_VERSION: '0.11.28'
+  # Part of every uv cache key. setup-uv restores exact keys only, so bumping
+  # this discards cached source builds; it was bumped when pyabpoa switched from
+  # -march=native to the portable SSE4.1 build (pyproject.toml).
+  UV_CACHE_EPOCH: 'portable-1'
 
 jobs:
   quality:
@@ -80,7 +84,7 @@ jobs:
           python-version: '3.10'
           enable-cache: true
           cache-dependency-glob: uv.lock
-          cache-suffix: quality
+          cache-suffix: quality-${{ env.UV_CACHE_EPOCH }}
       - run: make quality
 
   test:
@@ -101,12 +105,15 @@ jobs:
           python-version: ${{ matrix.python }}
           enable-cache: true
           cache-dependency-glob: uv.lock
-          cache-suffix: test-${{ matrix.python }}
+          cache-suffix: test-${{ matrix.python }}-${{ env.UV_CACHE_EPOCH }}
       # Measure coverage on the fastest supported interpreter; all versions run every unit.
       - if: matrix.python == '3.14'
         run: make test-unit
       - if: matrix.python != '3.14'
         run: make test-fast
+      # A cached or restored -march=native build may only crash on another CPU.
+      - name: Verify portable compiled extensions
+        run: make portable-check
       - name: Upload coverage
         if: matrix.python == '3.14'
         uses: codecov/codecov-action@303a32d7a59b442fa8d48b6a1cc6825c09c847a5 # v7
@@ -141,7 +148,7 @@ jobs:
           python-version: '3.10'
           enable-cache: true
           cache-dependency-glob: uv.lock
-          cache-suffix: integration
+          cache-suffix: integration-${{ env.UV_CACHE_EPOCH }}
       - name: Verify tools and run integration tests
         shell: bash -el {0}
         run: |
@@ -164,7 +171,7 @@ jobs:
           python-version: '3.12'
           enable-cache: true
           cache-dependency-glob: uv.lock
-          cache-suffix: package
+          cache-suffix: package-${{ env.UV_CACHE_EPOCH }}
       - run: make build-check
 
   security:
@@ -181,7 +188,7 @@ jobs:
           python-version: '3.10'
           enable-cache: true
           cache-dependency-glob: uv.lock
-          cache-suffix: security
+          cache-suffix: security-${{ env.UV_CACHE_EPOCH }}
       - run: make security-check
 
   gate:
