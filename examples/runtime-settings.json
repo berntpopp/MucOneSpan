@@ -183,6 +183,8 @@
     "phase_quality_alpha": 0.001,
     "phase_quality_af_alpha": 0.001,
     "phase_quality_keep_frac": 0.5,
+    "phase_quality_single_event": false,
+    "phase_quality_group_exclusion": true,
     "polish_max_reads": 120,
     "polish_partial_min_units": 1.0,
     "qc_residual_max_reads": 200

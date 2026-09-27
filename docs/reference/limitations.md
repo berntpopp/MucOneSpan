@@ -374,24 +374,76 @@ the automated test suite.
     quality does not depend on the haplotype; on simulated reads it can
     (MucOneUp simulates each haplotype separately, and on the v4 dev HiFi
     equal-length heterozygotes the minor haplotype's reads had significantly
-    lower mean quality in 2 of 10 samples). This is why the rule never applies
-    to a single-peak genotype, where the second allele sits inside the peak.
+    lower mean quality in 2 of 10 samples). This is why the rule never drops a
+    site of a single-peak genotype, where the second allele sits inside the
+    peak, except to enable a single-event split that keeps the selection
+    unresolved (Task 15k, below).
+  - A site whose minor allele is a dictionary insertion in its run context
+    (dupC's C7 -> C8, insC_pos23's C4 -> C5, an insertion slot adding a
+    template's sequence) is never dropped (Task 15k). A synthetic dupC
+    minority carried only by low-quality reads was otherwise explained away
+    and reported NEGATIVE.
+  - Still open (under repair in Task 15l): when a within-peak dupC minority's
+    run stays below both run tiers ("Heterozygous homopolymer runs below the
+    split floor" above), its only visible marker may be a substitution site.
+    If every carrier is a low-quality read, that site is explained away and
+    the sample can be NEGATIVE (synthetic two-peak shape, minority 20% of one
+    allele: 1 of 4 seeds, HiFi- and ONT-like; INCONCLUSIVE with the rule off).
   - The rule changes only the basis of a peak left unsplit. A linked split is
     never undone and no split is created, so every allele consensus is built
-    from the same reads as without it. Low-quality reads therefore stay in the
-    allele consensus: where they formed a third group before
-    (`unresolved_max_alleles`), that result stays.
+    from the same reads as without it. Where low-quality reads form a third
+    group (`unresolved_max_alleles`), the group stays out of every consensus;
+    Task 15k may stop counting it as an allele (below).
   - Input without informative base qualities (all equal, or any read with
     mean Phred 0) never triggers it.
   - The confidence bound makes the rule act only on clear cases: after the
     safety fix it resolved one development HiFi normal (versus three with the
     earlier point estimate). The gain on the development split is small.
-  - HiFi INCONCLUSIVE on the development panels stays above the per-profile
-    targets (dev `clean` 5/30 against 0.10, `standard` 8/30 against 0.20; see
-    the validation numbers). The remaining HiFi normals are
-    residual read heterogeneity on a called allele (`qc_residual_af`), the
-    `unresolved_run_site` tier, and within-peak sites that are not
-    quality-associated. Residual heterogeneity is not changed by this rule.
+- **Low-accuracy artefacts in equal-length peaks and third groups (Task 15k).**
+  - Equal-length genotypes (`hybrid.phase_quality_single_event`, **off by
+    default**): when a single peak has more than one candidate event and the
+    sites the 15j test keeps form exactly one event, the peak is split on that
+    event under the unchanged single-event gates. The selection stays
+    `unresolved_single_site`, so the sample is PATHOGENIC (the event's read
+    support must pass as usual) or INCONCLUSIVE, never NEGATIVE. It is off
+    because the split inherits the single-event limit below (a wild-type +1 C
+    excess of about 0.35 or more at one C7 run is called like a real minor):
+    a second, low-accuracy site used to keep such a peak INCONCLUSIVE, and with
+    the rule on the synthetic stress shape at 0.35-0.40 plus an artefact subset
+    is PATHOGENIC. On the frozen `simpanel` the homozygous normal `H1_hifi` was
+    split on a 0.327 HiFi run artefact at a C unit's C6 run (it stayed
+    INCONCLUSIVE; no event in either allele). The same artefact alone, without
+    a second site, passes the same gates of the existing single-event path, and
+    a C-insertion form of it at that run (C6AA -> C7AA) would read as dupA.
+  - Two-peak samples (`hybrid.phase_quality_group_exclusion`): a linked-site
+    group that is the smaller group, has significantly lower base quality, has
+    a share of the highest-quality reads significantly below `het_af_min`, has
+    no distinct length and differs from the other group's draft by
+    substitutions only is not counted as an allele
+    (`quality_excluded_groups`). A real third haplotype without an insertion
+    or deletion that is carried only by lower-quality reads is excluded the
+    same way and can then be NEGATIVE (synthetic ONT-like shapes, 22-30% of
+    one allele, disjoint quality ranges); a group carrying dupC or any other
+    insertion or deletion is never excluded. The development split holds no
+    such case, so this rule rests on the 15j levels and the synthetic tests;
+    it acts on one validation HiFi normal.
+- **Remaining HiFi INCONCLUSIVE (Task 15k diagnosis).** On the v4 simulated
+  HiFi amplicons most remaining INCONCLUSIVE results trace to systematic,
+  position-specific read errors of the simulated reads rather than to the
+  sample: a base next to a C run read as C (A>C, G>C) in 20-57% of reads at
+  some positions (enough to enter the consensus at a few), and C3/G3 run
+  errors (3>2, 3>4) at 20-24% in a few sequence contexts, while the
+  leave-one-out background of all runs of the same base and length stays at
+  about 0.01. They surface as residual heterogeneity on a called allele
+  (`qc_residual_af`; the high-quality allele fraction is still 0.15-0.29, so no
+  confidence-bound rule can discount them), as within-peak single sites, and on
+  two dev pathogenic carriers as an insG read-support alternative share of
+  0.262-0.267 against `event_max_alternative_frac` 0.25 (the read-support gate
+  is not relaxed). The remaining equal-length dupC carrier (validation) and the
+  equal-length normals flagged by the run-site tier depend on the run floors
+  (Task 15l). HiFi INCONCLUSIVE therefore stays above the per-profile targets
+  at the 15k defaults: dev `clean` 5/30 (target 0.10) and `standard` 8/30
+  (target 0.20); val `clean` 6/30 and `standard` 6/30 (validation numbers).
 - **Smear test next to the top peak (Task 15i).** A below-top candidate just
   past its own assignment window from the top has its background side towards
   the top clipped by the region edge, sometimes to a sliver with no reads that
@@ -474,6 +526,14 @@ with both alleles sequence-exact, so dev `clean` INCONCLUSIVE is 6/90 = 0.067
 (HiFi 6 -> 5 of 30). Every other set, including all validation sets, is
 unchanged; PATHOGENIC counts, sequence exactness, false positives (0) and
 NEGATIVE on pathogenic cases (0) are unchanged.
+
+With the Task 15k defaults (linked low-quality groups excluded, known
+insertions protected, the single-peak rule off) every development decision is
+unchanged. One validation HiFi normal (`standard`) goes from INCONCLUSIVE
+(`unresolved_max_alleles`) to NEGATIVE with both alleles sequence-exact, so val
+`standard` INCONCLUSIVE is 15/90 = 0.167 (HiFi 7 -> 6 of 30). PATHOGENIC counts,
+sequence exactness, false positives (0) and NEGATIVE on pathogenic cases (0)
+are unchanged on every set, and the frozen panels are unchanged.
 
 **Frozen simulated panels** (commit `e324fa3`, same hybrid defaults;
 PATHOGENIC/INCONCLUSIVE/NEGATIVE counts):

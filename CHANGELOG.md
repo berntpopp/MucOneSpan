@@ -315,6 +315,34 @@ not re-run.
   it never changes group membership (peak support, consensus, event evidence)
   and never applies to a single-peak genotype. Dropped sites are reported in
   `summary["hybrid"]["quality_associated_sites"]`.
+- Hybrid engine: the low-accuracy-subset test no longer drops a site whose minor
+  allele is a dictionary insertion in its run context (a run of a template's base
+  and parent-unit length gaining the template's copies, such as dupC's C7 -> C8,
+  or an insertion slot adding a template's sequence). A synthetic two-peak sample
+  whose dupC minority (15% of one allele) was carried only by low-quality reads,
+  with insertion stutter of other low-quality reads at that run, had its dupC run
+  site explained away and was reported NEGATIVE; it is now INCONCLUSIVE.
+- Hybrid engine: new opt-in `hybrid.phase_quality_single_event` (default off,
+  owner ruling pending). When an equal-length (single-peak) peak has more than
+  one candidate event and the sites the low-accuracy test keeps form exactly one
+  event, the peak is split on that event under every single-event gate (share
+  bound, group size, differing drafts); the selection stays
+  `unresolved_single_site` with the dropped sites named, so it can turn
+  INCONCLUSIVE into PATHOGENIC but never into NEGATIVE. It recovers one v4 dev
+  HiFi dupA carrier, but it also lets a wild-type site-specific +1 C excess of
+  0.35-0.40 at one C7 run (beyond the single-event split's validated range)
+  become PATHOGENIC where a second, low-accuracy site kept it INCONCLUSIVE, so
+  it is off by default.
+- Hybrid engine: in a two-peak sample, a linked-site group of low-quality reads
+  is no longer counted as a third allele (`unresolved_max_alleles`) when it is
+  the smaller group, its reads have significantly lower mean base quality, its
+  share of the highest-quality reads is significantly below `het_af_min`
+  (confidence bound), it has no distinct length, and its draft differs from the
+  other group's by substitutions only (new `hybrid.phase_quality_group_exclusion`,
+  default on; it reuses the `phase_quality_*` levels). The group never joins an
+  allele consensus; its reads count as spanning reads assigned to no allele and
+  it is reported in `summary["hybrid"]["quality_excluded_groups"]`. A group
+  carrying an insertion or deletion (dupC, any frameshift) is never excluded.
 
 ## [0.16.1] - 2026-09-24
 

@@ -250,6 +250,27 @@ class HybridSettings:
     phase_quality_alpha: float = 0.001
     phase_quality_af_alpha: float = 0.001
     phase_quality_keep_frac: float = 0.5
+    # Task 15k. phase_quality_single_event: in a single-peak (equal-length) genotype
+    # whose unsplit peak has more than one candidate event, the same low-accuracy test
+    # is applied to its sites; when the sites it keeps form exactly one event, the peak
+    # is split on that event under every single-event gate (share bound, group size,
+    # differing drafts), and the selection stays unresolved_single_site, so the rule
+    # can turn INCONCLUSIVE into PATHOGENIC but never into NEGATIVE. Off by default
+    # (owner ruling pending): it recovers one v4 dev HiFi dupA carrier, but a wild-type
+    # site-specific +1 C excess of 0.35-0.40 at one C7 run, which the single-event
+    # split already cannot tell from a real minor, then becomes PATHOGENIC where the
+    # second (low-accuracy) site kept it INCONCLUSIVE.
+    # phase_quality_group_exclusion: in a peak of a two-peak model, a linked-site group
+    # is excluded from the allele count (it never joins an allele consensus: its reads
+    # count as spanning reads assigned to no allele) when it is the smaller group, its
+    # reads have lower mean base quality (rank-sum test, phase_quality_alpha), its share
+    # of the phase_quality_keep_frac highest-quality reads is significantly below
+    # het_af_min (phase_quality_af_alpha), its median length is within
+    # peak_min_separation_units of the other group's, and its draft differs from the
+    # other group's by substitutions only (no insertion or deletion, so no frameshift
+    # event). Both need phase_quality_alpha > 0. See docs/guides/configuration.md.
+    phase_quality_single_event: bool = False
+    phase_quality_group_exclusion: bool = True
     # Engine orchestration (Task 11). Polishing and residual QC use at most
     # polish_max_reads / qc_residual_max_reads spanning members per allele (sampled with
     # the seeded RNG when a group is larger); an assigned non-spanning fragment joins the
@@ -364,6 +385,8 @@ class HybridSettings:
         _number("hybrid.phase_quality_keep_frac", self.phase_quality_keep_frac, 0, 1)
         if self.phase_quality_keep_frac == 0:
             raise ValueError("hybrid.phase_quality_keep_frac must be > 0")
+        _boolean("hybrid.phase_quality_single_event", self.phase_quality_single_event)
+        _boolean("hybrid.phase_quality_group_exclusion", self.phase_quality_group_exclusion)
         _choice("hybrid.hp_stutter_model", self.hp_stutter_model, STUTTER_MODELS)
         _integer("hybrid.hp_stutter_min_class_runs", self.hp_stutter_min_class_runs, 1)
         _integer("hybrid.hp_stutter_min_class_reads", self.hp_stutter_min_class_reads, 1)

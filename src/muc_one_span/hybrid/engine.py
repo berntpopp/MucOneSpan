@@ -16,13 +16,14 @@ from __future__ import annotations
 import json
 import random
 import statistics
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any, TypeVar
 
 from muc_one_span.config import RepeatDictionary
 from muc_one_span.hybrid.allele_fields import (
     PLOIDY,
+    RESOLVED,
     SINGLE_SITE,
     UNCONFIRMED_SPLIT_STATUS,
     allele_info,
@@ -45,6 +46,8 @@ from muc_one_span.hybrid.evidence import (
 )
 from muc_one_span.hybrid.lengths import LengthModel, fit_length_model
 from muc_one_span.hybrid.phase import PhaseResult, split_by_linked_sites
+from muc_one_span.hybrid.phase_groups import explained_group
+from muc_one_span.hybrid.phase_quality import KnownInsertions, known_insertions
 from muc_one_span.hybrid.poa import PoaBackend, get_backend
 from muc_one_span.hybrid.polish import consensus_concordance, draft_consensus, polish
 from muc_one_span.hybrid.reads_io import extra_versions, read_input
@@ -83,6 +86,27 @@ class _Group:
     members: list[SpanRead]
     basis: str
     draft: str
+
+
+@dataclass
+class _Phased:
+    """The allele groups of every length peak and what the phase stage recorded.
+
+    ``split_bases`` holds each peak's split basis, ``leftover`` the spanning reads no
+    group took, ``located`` the located sites (``located_site``) keyed by split basis,
+    ``dropped`` the sites dropped as explained by a low-accuracy read subset
+    (``quality_site``), ``quality_split`` those among them whose removal let an
+    equal-length peak be split on its remaining event, and ``excluded`` the linked
+    groups of a two-peak model not counted as alleles (``phase_groups``; both Task 15k).
+    """
+
+    groups: list[_Group] = field(default_factory=list)
+    split_bases: list[str] = field(default_factory=list)
+    leftover: list[SpanRead] = field(default_factory=list)
+    located: dict[str, list[str]] = field(default_factory=dict)
+    dropped: list[dict[str, Any]] = field(default_factory=list)
+    quality_split: list[dict[str, Any]] = field(default_factory=list)
+    excluded: list[dict[str, Any]] = field(default_factory=list)
 
 
 def _cap(items: list[T], limit: int, rng: random.Random) -> list[T]:
@@ -184,15 +208,16 @@ def quality_site(site: dict[str, Any], unit_bp: int) -> dict[str, Any]:
 
 
 def _groups(
-    model: LengthModel, h: HybridSettings, rng: random.Random, backend: PoaBackend, unit_bp: int
-) -> tuple[list[_Group], list[str], list[SpanRead], dict[str, list[str]], list[dict[str, Any]]]:
+    model: LengthModel,
+    h: HybridSettings,
+    rng: random.Random,
+    backend: PoaBackend,
+    unit_bp: int,
+    insertions: KnownInsertions,
+) -> _Phased:
     """Split each length peak by linked sites (or its single event).
 
-    Returns the groups, the split basis per peak, the reads no group took, the
-    located sites (``located_site``) keyed by the peak's split basis (the sites of
-    peaks left unconfirmed and of peaks split on their single event) and the sites
-    dropped from site detection as explained by a low-accuracy read subset
-    (``quality_site``). That rule (Task 15j) applies only when the length model found
+    The low-accuracy-subset rule (Task 15j) applies only when the length model found
     ``PLOIDY`` peaks: each allele then has its own peak, and a within-peak site is not
     a further allele.
 
@@ -201,34 +226,86 @@ def _groups(
     already is one allele, so a within-peak single-site mixture is not a further
     haplotype, and splitting it would only move stutter or error reads out of an allele
     and make that allele's read support circular. Such a peak stays unconfirmed. The
-    run-site safety tier (``_run_site_tier``) applies under the same condition.
+    run-site safety tier (``_run_site_tier``) applies under the same condition. When
+    more than one event leaves such a peak unconfirmed and the sites the 15j test keeps
+    form exactly one event (``phase_quality_single_event``, Task 15k), the split is
+    tried on that event under the same gates; the dropped sites are then recorded in
+    ``quality_split`` and the caller keeps the selection unresolved. Neither quality
+    rule drops a site whose minor is a dictionary insertion (``insertions``).
     """
-    groups: list[_Group] = []
-    split_bases: list[str] = []
-    leftover: list[SpanRead] = []
-    located: dict[str, list[str]] = {}
-    dropped: list[dict[str, Any]] = []
+    out = _Phased()
     two_peaks = len(model.peaks) == PLOIDY
     for peak in model.peaks:
         draft = _draft(peak.members, h, rng, backend)
-        split = split_by_linked_sites(draft, peak.members, h, rng, quality_filter=two_peaks)
-        dropped.extend(quality_site(site, unit_bp) for site in split.quality_associated)
+        split = split_by_linked_sites(
+            draft,
+            peak.members,
+            h,
+            rng,
+            quality_filter=two_peaks,
+            single_event_quality=not two_peaks and h.phase_quality_single_event,
+            insertions=insertions,
+        )
         sub: list[_Group] | None = None
         if len(model.peaks) < PLOIDY:
+            alternative = split.quality_single_event
             split, sub = _single_event(draft, peak.members, split, h, rng, backend)
+            if sub is None and alternative is not None:
+                promoted, sub = _single_event(draft, peak.members, alternative, h, rng, backend)
+                if sub is not None:
+                    split = promoted
+                    split.quality_associated = alternative.quality_associated
+                    out.quality_split.extend(
+                        quality_site(site, unit_bp) for site in alternative.quality_associated
+                    )
             split = _run_site_tier(split)
-        split_bases.append(split.basis)
+        out.dropped.extend(quality_site(site, unit_bp) for site in split.quality_associated)
+        out.split_bases.append(split.basis)
         if split.candidate is not None and (sub is not None or len(split.groups) == 1):
-            located.setdefault(split.basis, []).append(located_site(split.candidate, unit_bp))
+            out.located.setdefault(split.basis, []).append(located_site(split.candidate, unit_bp))
         if sub is None and len(split.groups) == 1:
             by_length = split.basis == "none" and two_peaks
-            groups.append(_Group(split.groups[0], "length" if by_length else split.basis, draft))
+            out.groups.append(
+                _Group(split.groups[0], "length" if by_length else split.basis, draft)
+            )
             continue
         if sub is None:
             sub = [_Group(g, split.basis, _draft(g, h, rng, backend)) for g in split.groups if g]
-        leftover.extend(_reassign(split.unassigned, sub, h))
-        groups.extend(sub)
-    return groups, split_bases, leftover, located, dropped
+        out.leftover.extend(_reassign(split.unassigned, sub, h))
+        if two_peaks and split.basis == "linked_sites":
+            sub = _exclude_explained(sub, out, h, unit_bp)
+        out.groups.extend(sub)
+    return out
+
+
+def _exclude_explained(
+    sub: list[_Group], out: _Phased, h: HybridSettings, unit_bp: int
+) -> list[_Group]:
+    """Drop a linked group explained by low-accuracy reads from the allele count.
+
+    Its reads join no allele and are counted with the reads assigned to no allele
+    (``out.leftover``); the evidence goes to ``out.excluded`` (``phase_groups``).
+    """
+    hit = explained_group([g.members for g in sub], [g.draft for g in sub], h, unit_bp)
+    if hit is None:
+        return sub
+    index, record = hit
+    out.leftover.extend(sub[index].members)
+    out.excluded.append(record)
+    return [g for i, g in enumerate(sub) if i != index]
+
+
+def quality_split_detail(sites: list[dict[str, Any]]) -> str:
+    """Selection-detail sentence for a single-event split made after dropping sites."""
+    named = "; ".join(
+        f"repeat {s['repeat']} ({s['kind']} {s['major']!r}>{s['minor']!r}, AF {s['af']}, "
+        f"high-quality AF {s['af_high_quality']})"
+        for s in sites
+    )
+    return (
+        " The equal-length peak was split on its single event after dropping site(s) "
+        f"explained by low-accuracy reads: {named}; a negative call stays blocked."
+    )
 
 
 def _write_allele(output_dir: Path, name: str, cons: str, n_reads: int) -> Path:
@@ -254,9 +331,9 @@ def reconstruct_alleles(
     model = fit_length_model(cats.spanning, h, anchors)
     if not model.peaks:
         raise InsufficientEvidenceError("hybrid: no allele length peak passed the thresholds")
-    groups, split_bases, phase_leftover, located, quality_dropped = _groups(
-        model, h, rng, backend, unit_bp
-    )
+    phased = _groups(model, h, rng, backend, unit_bp, known_insertions(rd))
+    groups, split_bases, phase_leftover = phased.groups, phased.split_bases, phased.leftover
+    located, quality_dropped = phased.located, phased.dropped
     unresolved = [site for basis in UNCONFIRMED_SPLIT_STATUS for site in located.get(basis, [])]
     n_unassigned = len(model.unassigned) + len(phase_leftover)
     unassigned_fraction = n_unassigned / model.total
@@ -264,6 +341,10 @@ def reconstruct_alleles(
     detail = selection_detail(
         model, len(groups), n_unassigned, unassigned_fraction, unresolved_sites=unresolved
     )
+    if phased.quality_split:
+        # Task 15k: the split may turn INCONCLUSIVE into PATHOGENIC, never NEGATIVE.
+        selection = SINGLE_SITE if selection == RESOLVED else selection
+        detail += quality_split_detail(phased.quality_split)
     ranked = sorted(groups, key=lambda g: -len(g.members))
     kept, dropped = ranked[:PLOIDY], ranked[PLOIDY:]
     kept.sort(key=lambda g: statistics.median(m.length for m in g.members))  # allele_1 shorter
@@ -360,6 +441,7 @@ def reconstruct_alleles(
         "selection_detail": detail,
         "split_bases": split_bases,
         "quality_associated_sites": quality_dropped,
+        "quality_excluded_groups": phased.excluded,
         "dropped_groups": [
             {
                 "spanning_reads": len(g.members),

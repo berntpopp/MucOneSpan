@@ -261,8 +261,13 @@ def test_a_linked_split_is_never_undone(tmp_path: Path) -> None:
     )
     assert res.basis == "linked_sites", res.sites
     assert not res.quality_associated
+    # Task 15k: with phase_quality_group_exclusion (test_quality_groups) this poor group
+    # is no longer counted as an allele; the split itself is unchanged either way.
+    no_exclusion = dataclasses.replace(
+        DEFAULT_SETTINGS, hybrid=_with(phase_quality_group_exclusion=False)
+    )
     result = reconstruct_alleles(
-        base._fastq(tmp_path / "in.fastq", records), tmp_path, synth.RD, DEFAULT_SETTINGS
+        base._fastq(tmp_path / "in.fastq", records), tmp_path, synth.RD, no_exclusion
     )
     assert result.block["selection_status"] == "unresolved_max_alleles"
 

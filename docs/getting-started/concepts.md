@@ -200,8 +200,11 @@ staying silent:
   smear-tested entries name their `smear_region`), `undecided_reads`,
   `off_target_reads`, `unassigned_spanning_fraction`, `short_product_fraction`,
   `dimer_product_reads`, `dimer_product_fraction`,
-  `quality_associated_sites` (within-peak sites of a two-peak sample dropped
-  from site detection as explained by low-quality reads),
+  `quality_associated_sites` (within-peak sites dropped from site detection
+  as explained by low-quality reads: in a two-peak sample, or in an
+  equal-length peak to allow a single-event split),
+  `quality_excluded_groups` (linked groups of low-quality reads in a two-peak
+  sample that are not counted as an allele),
   `selection_status`, `poa_backend`.
 - **Per allele**: `spanning_reads`, `assigned_reads`, `depth_status`
   (`adequate`/`low`/`insufficient`), `selection_status`

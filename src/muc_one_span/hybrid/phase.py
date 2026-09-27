@@ -22,7 +22,7 @@ from collections import deque
 from dataclasses import dataclass, field
 from typing import Any
 
-from muc_one_span.hybrid.phase_quality import quality_sites
+from muc_one_span.hybrid.phase_quality import KnownInsertions, quality_sites
 from muc_one_span.hybrid.phase_sites import (
     Meta,
     Site,
@@ -35,6 +35,9 @@ from muc_one_span.hybrid.phase_sites import (
 )
 from muc_one_span.hybrid.spans import SpanRead
 from muc_one_span.settings import HybridSettings
+
+# Basis of a peak left unsplit with fewer linked events than min_linked_sites.
+UNCONFIRMED_SINGLE_SITE = "unconfirmed_single_site"
 
 
 @dataclass
@@ -52,6 +55,9 @@ class PhaseResult:
     uses them only to block a negative call. ``quality_associated`` holds the candidate
     sites of an unsplit peak dropped as explained by a low-accuracy read subset
     (``phase_quality.quality_sites``, only when ``quality_filter`` was set).
+    ``quality_single_event`` (Task 15k, only when ``single_event_quality`` was set) is
+    the unconfirmed result of the same peak without such sites, offered when the sites
+    kept form exactly one event; the caller may split on it (``single_event``).
     """
 
     groups: list[list[SpanRead]]
@@ -62,6 +68,7 @@ class PhaseResult:
     run_excess: list[dict[str, Any]] = field(default_factory=list)
     strand_biased: list[dict[str, Any]] = field(default_factory=list)
     quality_associated: list[dict[str, Any]] = field(default_factory=list)
+    quality_single_event: PhaseResult | None = None
 
 
 def _signed_phi(pairs: list[tuple[int, int]]) -> float:
@@ -171,6 +178,8 @@ def split_by_linked_sites(
     rng: random.Random,
     *,
     quality_filter: bool = False,
+    single_event_quality: bool = False,
+    insertions: KnownInsertions | None = None,
 ) -> PhaseResult:
     """Return one group (no split) unless >= min_linked_sites linked events support two.
 
@@ -180,21 +189,32 @@ def split_by_linked_sites(
 
     With ``quality_filter`` (the caller sets it for a peak of a two-peak model only), a
     peak left unsplit is re-examined without the candidate sites explained by a
-    low-accuracy read subset (``phase_quality.quality_sites``), and that result is used
+    low-accuracy read subset (``phase_quality.quality_sites``; a site adding one of the
+    dictionary insertions ``insertions`` is never dropped), and that result is used
     when it also leaves the peak as one group. A linked split is never undone and no
     split is created, so the members of every group, and hence every allele consensus,
     are the same as without the filter; only the unsplit peak's basis can change.
+
+    With ``single_event_quality`` (Task 15k; the caller sets it for a single-peak
+    model only), a peak left ``unconfirmed_single_site`` by more than one event is
+    re-examined without the sites the same test explains. When the sites kept form
+    exactly one event, that unconfirmed result is attached as ``quality_single_event``
+    (with the dropped sites in its ``quality_associated``); the returned result itself
+    is unchanged, so the caller decides whether a single-event split is made on it.
     """
     cap = settings.phase_max_site_reads
     sample = members if len(members) <= cap else rng.sample(members, cap)
     feats, meta = features(cons, [m.seq for m in sample], settings)
     strands = [m.strand for m in sample]
     sites = candidates(feats, strands, meta, settings)
-    table = _SiteTable(cons, members, sample, feats, meta, strands)
+    known = insertions or KnownInsertions()
+    table = _SiteTable(cons, members, sample, feats, meta, strands, known)
     result = _split(table, sites, settings)
+    if single_event_quality and result.basis == UNCONFIRMED_SINGLE_SITE:
+        result.quality_single_event = _single_event_alternative(table, sites, settings)
     if not quality_filter or len(result.groups) > 1:
         return result
-    kept, dropped = quality_sites(sites, feats, [m.mean_q for m in sample], settings)
+    kept, dropped = table.quality(sites, settings)
     if not dropped:
         return result
     filtered = _split(table, kept, settings)
@@ -214,6 +234,37 @@ class _SiteTable:
     feats: list[dict[Site, Any]]
     meta: Meta
     strands: list[str]
+    insertions: KnownInsertions
+
+    def quality(
+        self, sites: list[dict[str, Any]], settings: HybridSettings
+    ) -> tuple[list[dict[str, Any]], list[dict[str, Any]]]:
+        """``phase_quality.quality_sites`` on this table's sampled reads."""
+        quals = [m.mean_q for m in self.sample]
+        return quality_sites(
+            sites, self.feats, quals, settings, meta=self.meta, insertions=self.insertions
+        )
+
+
+def _single_event_alternative(
+    t: _SiteTable, sites: list[dict[str, Any]], settings: HybridSettings
+) -> PhaseResult | None:
+    """The unconfirmed one-event result without low-accuracy sites, or None.
+
+    Only for a peak whose candidate sites form more than one event: the sites the
+    15j test explains (``phase_quality.quality_sites``) are dropped, and the result
+    is offered only when the sites kept form exactly one event.
+    """
+    if len(events(sites, t.meta)) == 1:
+        return None  # one event already: the ordinary single-event split applies
+    kept, dropped = t.quality(sites, settings)
+    if not dropped or len(events(kept, t.meta)) != 1:
+        return None
+    alternative = _split(t, kept, settings)
+    if alternative.basis != UNCONFIRMED_SINGLE_SITE:
+        return None
+    alternative.quality_associated = dropped
+    return alternative
 
 
 def _split(t: _SiteTable, sites: list[dict[str, Any]], settings: HybridSettings) -> PhaseResult:
@@ -231,7 +282,7 @@ def _split(t: _SiteTable, sites: list[dict[str, Any]], settings: HybridSettings)
     linked = [sites[k] for k in order]
     evs = events(linked, meta)
     if len(evs) < settings.min_linked_sites:
-        return PhaseResult([members], "unconfirmed_single_site", sites, candidate=top_site(sites))
+        return PhaseResult([members], UNCONFIRMED_SINGLE_SITE, sites, candidate=top_site(sites))
     orient = [ori[k] for k in order]
     all_feats = (
         feats if t.sample is members else features(t.cons, [m.seq for m in members], settings)[0]

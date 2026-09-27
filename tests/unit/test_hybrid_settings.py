@@ -127,6 +127,9 @@ def test_hybrid_phase_tunables_default_unchanged() -> None:
     # Task 15j: low-accuracy-subset site rule, calibrated on v4 dev.
     assert (h.phase_quality_alpha, h.phase_quality_af_alpha) == (0.001, 0.001)
     assert h.phase_quality_keep_frac == 0.5
+    # Task 15k: linked low-quality groups are excluded by default; the single-peak
+    # rule is off by default (it widens the single-event split's FP exposure).
+    assert not h.phase_quality_single_event and h.phase_quality_group_exclusion
 
 
 @pytest.mark.parametrize(
