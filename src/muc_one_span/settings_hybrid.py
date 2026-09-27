@@ -232,6 +232,22 @@ class HybridSettings:
     # every modelled run's full range of errors distinct, so no observation of a run
     # up to hp_max_run_len is merged with a larger error.
     phase_run_error_cap: int = 16
+    # Task 15j: in a peak of a two-peak model (each allele has its own length peak, so a
+    # within-peak minor is not a further allele), a candidate site is dropped from site
+    # detection when a low-accuracy read subset explains it: its minor carriers have
+    # lower mean base quality than its major carriers (one-sided rank-sum test at
+    # phase_quality_alpha) and, among the phase_quality_keep_frac of the site's reads
+    # with the highest mean base quality, the minor allele fraction is below het_af_min.
+    # The site is kept (fail closed) when that high-quality subset has fewer than
+    # ceil(phase_min_minor_reads / het_af_min) reads. The rule never removes a read from
+    # peak support, allele consensus or event evidence, and never applies to a
+    # single-peak (equal-length) genotype. phase_quality_alpha 0 turns it off.
+    # Defaults from the v4 dev grid (alpha 1e-4/1e-3/1e-2 x keep 0.3/0.5/0.7): keep 0.3
+    # gave the fewest INCONCLUSIVE (HiFi 14 -> 11 of 60 on standard + clean) with no
+    # false positive or NEGATIVE on a pathogenic case at any point; alpha 1e-3 and 1e-2
+    # tied, and the stricter 1e-3 was taken. In [0, 1) and (0, 1].
+    phase_quality_alpha: float = 0.001
+    phase_quality_keep_frac: float = 0.3
     # Engine orchestration (Task 11). Polishing and residual QC use at most
     # polish_max_reads / qc_residual_max_reads spanning members per allele (sampled with
     # the seeded RNG when a group is larger); an assigned non-spanning fragment joins the
@@ -339,6 +355,12 @@ class HybridSettings:
         )
         _open_unit_interval("hybrid.phase_single_event_alpha", self.phase_single_event_alpha)
         _integer("hybrid.phase_run_error_cap", self.phase_run_error_cap, 1)
+        _number("hybrid.phase_quality_alpha", self.phase_quality_alpha, 0, 1)
+        if self.phase_quality_alpha == 1:
+            raise ValueError("hybrid.phase_quality_alpha must be < 1")
+        _number("hybrid.phase_quality_keep_frac", self.phase_quality_keep_frac, 0, 1)
+        if self.phase_quality_keep_frac == 0:
+            raise ValueError("hybrid.phase_quality_keep_frac must be > 0")
         _choice("hybrid.hp_stutter_model", self.hp_stutter_model, STUTTER_MODELS)
         _integer("hybrid.hp_stutter_min_class_runs", self.hp_stutter_min_class_runs, 1)
         _integer("hybrid.hp_stutter_min_class_reads", self.hp_stutter_min_class_reads, 1)

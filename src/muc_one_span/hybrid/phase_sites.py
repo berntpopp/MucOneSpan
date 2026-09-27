@@ -305,7 +305,8 @@ def strand_biased_sites(
     inserted base into the run, so the insertion is under-counted on the strand with
     heavier stutter. A site here is never split on or scored as an event; the engine
     uses it only to keep an unsplit equal-length peak from a negative call. Run sites
-    are the run-site tier's (``run_excess_sites``). Largest allele fraction first.
+    are not tested here: the run-site safety tier (``run_excess_sites``) covers them.
+    Largest allele fraction first.
     """
     counts = site_counts(feats)
     out = []

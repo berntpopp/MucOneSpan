@@ -11,14 +11,15 @@ was clipped to a sliver (0.36 bp, no reads). With 441 core reads, "same density 
 tell smear from an allele, decided the verdict, the real allele became silent 'smear'
 and the sample was NEGATIVE with the variant-carrying allele lost.
 
-Fixes: (1) a background side clipped by the region edge that holds fewer than
-``smear_background_min_reads`` reads and could not make the candidate significant even
-with no reads carries no information and is skipped while the other side can decide; (2) a candidate with at least
-``smear_guard_top_frac`` of the top peak's reads is never smear-tested (it faces the
-allele support rules: accepted, or gate-relevant). A guard at the allele threshold
-(``max(min_peak_reads, frac * N)``) was evaluated and not adopted: at low depth that
-threshold is a handful of reads and smear debris clusters reach it, so homozygous
-smear would become gate-relevant far beyond the Task 5 criterion (b).
+Fix: a candidate with at least ``smear_guard_top_frac`` of the top peak's reads is
+never smear-tested (it faces the allele support rules: accepted, or gate-relevant).
+
+Evaluated and not adopted: (1) skipping a background side clipped by the region edge
+that holds too few reads to make the candidate significant (it made low-depth smear
+debris near the top gate-relevant in 30% of synthetic homozygous seeds at D=60, smear
+0.54); (2) a guard at the allele threshold (``max(min_peak_reads, frac * N)``): at low
+depth that threshold is a handful of reads and smear debris clusters reach it, so
+homozygous smear would become gate-relevant far beyond the Task 5 criterion (b).
 """
 
 from __future__ import annotations

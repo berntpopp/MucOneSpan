@@ -1,0 +1,130 @@
+"""Task 15j: drop within-peak candidate sites explained by a low-accuracy read subset.
+
+On simulated HiFi amplicons, a subset of reads with lower base quality can share a
+systematic error at one site, whose minor allele then reaches just above ``het_af_min``
+inside one length peak. When each allele already has its own peak, such a site is not
+a further allele, yet it left the peak ``unconfirmed_single_site`` (or, with several
+such sites linked by the same reads, split it into a third group).
+
+The measure is the read's mean base quality (``SpanRead.mean_q``), which is measured
+independently of the consensus. Per-read discordance to the peak draft was rejected:
+reads of a second haplotype differ from a majority draft at many sites that are not
+candidates, so a true minor haplotype carried by accurate reads would look inaccurate.
+
+A candidate site is dropped only when both hold:
+
+1. its minor carriers have lower mean base quality than its major carriers
+   (one-sided Mann-Whitney rank-sum test at ``phase_quality_alpha``), and
+2. among the ``phase_quality_keep_frac`` of the site's reads with the highest mean base
+   quality, the minor allele fraction is below ``het_af_min``.
+
+It fails closed: when that high-quality subset has fewer than
+``quality_floor_reads(settings)`` reads, or the qualities do not vary, the site is kept.
+The caller applies the rule only to a peak of a two-peak model. Reads are never removed
+from peak support, allele consensus or event evidence; only the site list changes.
+"""
+
+from __future__ import annotations
+
+import math
+from typing import Any
+
+from muc_one_span.hybrid.phase_sites import AF_DECIMALS, Site
+from muc_one_span.settings import HybridSettings
+
+# Continuity correction of the normal approximation to the rank-sum statistic
+# (half a unit of U; part of the test's definition, not a tunable).
+CONTINUITY = 0.5
+# Reporting precision (significant digits) of a dropped site's rank-sum p value.
+P_DIGITS = 3
+
+
+def _ranks(values: list[float]) -> tuple[list[float], list[int]]:
+    """Mid-ranks (1-based) of ``values`` and the sizes of their tie groups."""
+    order = sorted(range(len(values)), key=lambda i: values[i])
+    ranks = [0.0] * len(values)
+    ties = []
+    i = 0
+    while i < len(order):
+        j = i
+        while j < len(order) and values[order[j]] == values[order[i]]:
+            j += 1
+        for k in order[i:j]:
+            ranks[k] = (i + j + 1) / 2
+        ties.append(j - i)
+        i = j
+    return ranks, ties
+
+
+def rank_sum_p_lower(x: list[float], y: list[float]) -> float:
+    """One-sided p value that ``x`` tends to be lower than ``y`` (Mann-Whitney U).
+
+    Normal approximation with tie correction and continuity correction. Without
+    variance (an empty sample, or every value tied) there is no evidence: 1.0.
+    """
+    n1, n2 = len(x), len(y)
+    n = n1 + n2
+    if not n1 or not n2:
+        return 1.0
+    ranks, ties = _ranks(x + y)
+    u = sum(ranks[:n1]) - n1 * (n1 + 1) / 2
+    tie_term = sum(t**3 - t for t in ties) / (n * (n - 1))
+    var = n1 * n2 / 12 * ((n + 1) - tie_term)
+    if var <= 0:
+        return 1.0
+    z = (u - n1 * n2 / 2 + CONTINUITY) / math.sqrt(var)
+    return 0.5 * math.erfc(-z / math.sqrt(2))
+
+
+def quality_floor_reads(settings: HybridSettings) -> int:
+    """Fewest high-quality reads that can re-test a site (fail closed below it).
+
+    Enough reads to hold ``phase_min_minor_reads`` minor reads at ``het_af_min``, the
+    candidate floors themselves.
+    """
+    return math.ceil(settings.phase_min_minor_reads / settings.het_af_min)
+
+
+def _explained(
+    site: dict[str, Any], feats: list[dict[Site, Any]], quals: list[float], s: HybridSettings
+) -> dict[str, Any] | None:
+    """The site with its quality evidence when a low-accuracy subset explains it."""
+    alleles = [(f[site["site"]], q) for f, q in zip(feats, quals, strict=True) if site["site"] in f]
+    minor = [q for a, q in alleles if a == site["minor"]]
+    major = [q for a, q in alleles if a == site["major"]]
+    p = rank_sum_p_lower(minor, major)
+    if p >= s.phase_quality_alpha:
+        return None
+    ranked = sorted(alleles, key=lambda aq: -aq[1])  # stable: input order breaks ties
+    kept = ranked[: math.ceil(s.phase_quality_keep_frac * len(ranked))]
+    if len(kept) < quality_floor_reads(s):
+        return None
+    af_kept = sum(a == site["minor"] for a, _q in kept) / len(kept)
+    if af_kept >= s.het_af_min:
+        return None
+    return {
+        **site,
+        "af_high_quality": round(af_kept, AF_DECIMALS),
+        "quality_p": float(f"{p:.{P_DIGITS}g}"),
+    }
+
+
+def quality_sites(
+    sites: list[dict[str, Any]],
+    feats: list[dict[Site, Any]],
+    quals: list[float],
+    settings: HybridSettings,
+) -> tuple[list[dict[str, Any]], list[dict[str, Any]]]:
+    """Split candidate ``sites`` into (kept, dropped as explained by poor reads).
+
+    ``feats`` and ``quals`` are the site table's reads and their mean base qualities, in
+    the same order. ``phase_quality_alpha`` 0 keeps every site.
+    """
+    kept, dropped = [], []
+    for site in sites:
+        explained = _explained(site, feats, quals, settings)
+        if explained is None:
+            kept.append(site)
+        else:
+            dropped.append(explained)
+    return kept, dropped

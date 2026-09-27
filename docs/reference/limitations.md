@@ -363,6 +363,30 @@ the automated test suite.
   allele and the tier does not apply. A wild-type strand-specific systematic
   error at or above `het_af_min` (gap alleles `phase_gap_af_factor` x
   `het_af_min`) makes an equal-length normal INCONCLUSIVE the same way.
+- **Low-accuracy read subsets (Task 15j).** Inside one peak of a two-peak
+  sample, a candidate site whose minor carriers have significantly lower mean
+  base quality than its major carriers, and whose minor allele fraction among
+  the best `hybrid.phase_quality_keep_frac` of reads is below `het_af_min`, is
+  dropped from site detection (`quality_associated_sites`). Consequences:
+  - A real within-peak minor (mosaicism, contamination, a third haplotype)
+    carried mainly by lower-quality reads is not flagged. On real data base
+    quality does not depend on the haplotype; on simulated reads it can
+    (MucOneUp simulates each haplotype separately, and on the v4 dev HiFi
+    equal-length heterozygotes the minor haplotype's reads had significantly
+    lower mean quality in 2 of 10 samples). This is why the rule never applies
+    to a single-peak genotype, where the second allele sits inside the peak.
+  - The rule changes only the basis of a peak left unsplit. A linked split is
+    never undone and no split is created, so every allele consensus is built
+    from the same reads as without it. Low-quality reads therefore stay in the
+    allele consensus: where they formed a third group before
+    (`unresolved_max_alleles`), that result stays.
+  - Input without informative base qualities (all equal) never triggers it.
+  - HiFi INCONCLUSIVE on the development panels stays above the per-profile
+    targets (dev `clean` 4/30 against 0.10, `standard` 7/30 against 0.20; see
+    the validation numbers). The remaining HiFi normals are
+    residual read heterogeneity on a called allele (`qc_residual_af`), the
+    `unresolved_run_site` tier, and within-peak sites that are not
+    quality-associated. Residual heterogeneity is not changed by this rule.
 - **Smear test next to the top peak (Task 15i).** A below-top candidate just
   past its own assignment window from the top has its background side towards
   the top clipped by the region edge, sometimes to a sliver with no reads that
@@ -374,7 +398,8 @@ the automated test suite.
   (it made low-depth smear debris near the top gate-relevant in 30% of
   synthetic homozygous seeds at D=60, smear 0.54). A guard at the allele
   threshold was not adopted either: at low depth that threshold is a handful of
-  reads, which smear debris reaches.
+  reads, which smear debris reaches. The synthetic evidence for the 0.5 guard
+  covers depths of 60 spanning reads and more; below that it is untested.
 - **Equal-length normals with strong single-run stutter.** The
   `unresolved_run_site` safety tier above cannot tell a wild-type run with
   strong site-specific stutter from a heterozygous run, so such normals are
@@ -436,6 +461,16 @@ cases called PATHOGENIC; INCONCLUSIVE is the share of all cases.
 
 `clean2` is one case short of the 0.90 PATHOGENIC target on both splits. The
 sealed test split has not been run.
+
+With the Task 15j low-accuracy-subset rule (`hybrid.phase_quality_alpha`), the
+INCONCLUSIVE share becomes dev `standard` 10/90 = 0.111 and `clean` 5/90 =
+0.056, val `clean` 7/90 = 0.078 (val `standard` and both `clean2` sets
+unchanged). Every changed case is a HiFi normal going from INCONCLUSIVE
+(`unresolved_single_site`) to NEGATIVE with both alleles sequence-exact (3 dev,
+1 val); PATHOGENIC counts, sequence exactness, false positives (0) and
+NEGATIVE on pathogenic cases (0) are unchanged. HiFi INCONCLUSIVE per profile:
+dev `standard` 8 -> 7 of 30, `clean` 6 -> 4; val `standard` 7 of 30
+unchanged, `clean` 6 -> 5.
 
 **Frozen simulated panels** (commit `e324fa3`, same hybrid defaults;
 PATHOGENIC/INCONCLUSIVE/NEGATIVE counts):

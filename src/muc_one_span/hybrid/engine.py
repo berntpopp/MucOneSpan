@@ -170,14 +170,28 @@ def located_site(candidate: dict[str, Any], unit_bp: int) -> str:
     )
 
 
+def quality_site(site: dict[str, Any], unit_bp: int) -> dict[str, Any]:
+    """Report record of a site dropped as explained by a low-accuracy read subset."""
+    kind, pos = site["site"]
+    return {
+        "repeat": pos // unit_bp + 1,
+        "kind": kind,
+        **{k: site[k] for k in ("major", "minor", "af", "af_high_quality", "quality_p")},
+    }
+
+
 def _groups(
     model: LengthModel, h: HybridSettings, rng: random.Random, backend: PoaBackend, unit_bp: int
-) -> tuple[list[_Group], list[str], list[SpanRead], dict[str, list[str]]]:
+) -> tuple[list[_Group], list[str], list[SpanRead], dict[str, list[str]], list[dict[str, Any]]]:
     """Split each length peak by linked sites (or its single event).
 
-    Returns the groups, the split basis per peak, the reads no group took and the
-    located sites (``located_site``) keyed by the peak's split basis: the sites of
-    peaks left unconfirmed and of peaks split on their single event.
+    Returns the groups, the split basis per peak, the reads no group took, the
+    located sites (``located_site``) keyed by the peak's split basis (the sites of
+    peaks left unconfirmed and of peaks split on their single event) and the sites
+    dropped from site detection as explained by a low-accuracy read subset
+    (``quality_site``). That rule (Task 15j) applies only when the length model found
+    ``PLOIDY`` peaks: each allele then has its own peak, and a within-peak site is not
+    a further allele.
 
     A single-event split is tried only when the length model found fewer than
     ``PLOIDY`` peaks (the equal-length heterozygote): with two length peaks each peak
@@ -190,9 +204,12 @@ def _groups(
     split_bases: list[str] = []
     leftover: list[SpanRead] = []
     located: dict[str, list[str]] = {}
+    dropped: list[dict[str, Any]] = []
+    two_peaks = len(model.peaks) == PLOIDY
     for peak in model.peaks:
         draft = _draft(peak.members, h, rng, backend)
-        split = split_by_linked_sites(draft, peak.members, h, rng)
+        split = split_by_linked_sites(draft, peak.members, h, rng, quality_filter=two_peaks)
+        dropped.extend(quality_site(site, unit_bp) for site in split.quality_associated)
         sub: list[_Group] | None = None
         if len(model.peaks) < PLOIDY:
             split, sub = _single_event(draft, peak.members, split, h, rng, backend)
@@ -201,14 +218,14 @@ def _groups(
         if split.candidate is not None and (sub is not None or len(split.groups) == 1):
             located.setdefault(split.basis, []).append(located_site(split.candidate, unit_bp))
         if sub is None and len(split.groups) == 1:
-            two_peaks = split.basis == "none" and len(model.peaks) == PLOIDY
-            groups.append(_Group(split.groups[0], "length" if two_peaks else split.basis, draft))
+            by_length = split.basis == "none" and two_peaks
+            groups.append(_Group(split.groups[0], "length" if by_length else split.basis, draft))
             continue
         if sub is None:
             sub = [_Group(g, split.basis, _draft(g, h, rng, backend)) for g in split.groups if g]
         leftover.extend(_reassign(split.unassigned, sub, h))
         groups.extend(sub)
-    return groups, split_bases, leftover, located
+    return groups, split_bases, leftover, located, dropped
 
 
 def _write_allele(output_dir: Path, name: str, cons: str, n_reads: int) -> Path:
@@ -234,7 +251,9 @@ def reconstruct_alleles(
     model = fit_length_model(cats.spanning, h, anchors)
     if not model.peaks:
         raise InsufficientEvidenceError("hybrid: no allele length peak passed the thresholds")
-    groups, split_bases, phase_leftover, located = _groups(model, h, rng, backend, unit_bp)
+    groups, split_bases, phase_leftover, located, quality_dropped = _groups(
+        model, h, rng, backend, unit_bp
+    )
     unresolved = [site for basis in UNCONFIRMED_SPLIT_STATUS for site in located.get(basis, [])]
     n_unassigned = len(model.unassigned) + len(phase_leftover)
     unassigned_fraction = n_unassigned / model.total
@@ -337,6 +356,7 @@ def reconstruct_alleles(
         "selection_status": selection,
         "selection_detail": detail,
         "split_bases": split_bases,
+        "quality_associated_sites": quality_dropped,
         "dropped_groups": [
             {
                 "spanning_reads": len(g.members),

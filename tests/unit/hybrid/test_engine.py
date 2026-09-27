@@ -206,10 +206,12 @@ def _split_first_peak(unassigned_extra: list[SpanRead]) -> Any:
     real = engine.split_by_linked_sites
     seen: list[int] = []
 
-    def fake(cons: str, members: list[SpanRead], settings: Any, rng: Any) -> PhaseResult:
+    def fake(
+        cons: str, members: list[SpanRead], settings: Any, rng: Any, **kwargs: Any
+    ) -> PhaseResult:
         seen.append(1)
         if len(seen) > 1:
-            return real(cons, members, settings, rng)
+            return real(cons, members, settings, rng, **kwargs)
         half = len(members) // 2
         return PhaseResult(
             [members[:half], members[half:]],

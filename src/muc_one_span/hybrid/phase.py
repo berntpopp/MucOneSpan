@@ -22,6 +22,7 @@ from collections import deque
 from dataclasses import dataclass, field
 from typing import Any
 
+from muc_one_span.hybrid.phase_quality import quality_sites
 from muc_one_span.hybrid.phase_sites import (
     Meta,
     Site,
@@ -48,7 +49,9 @@ class PhaseResult:
     clear only the lower safety floor (``phase_sites.run_excess_sites``), and
     ``strand_biased`` its column and insertion sites refused only for strand bias
     (``phase_sites.strand_biased_sites``); they never split the peak, and the engine
-    uses them only to block a negative call.
+    uses them only to block a negative call. ``quality_associated`` holds the candidate
+    sites of an unsplit peak dropped as explained by a low-accuracy read subset
+    (``phase_quality.quality_sites``, only when ``quality_filter`` was set).
     """
 
     groups: list[list[SpanRead]]
@@ -58,6 +61,7 @@ class PhaseResult:
     unassigned: list[SpanRead] = field(default_factory=list)
     run_excess: list[dict[str, Any]] = field(default_factory=list)
     strand_biased: list[dict[str, Any]] = field(default_factory=list)
+    quality_associated: list[dict[str, Any]] = field(default_factory=list)
 
 
 def _signed_phi(pairs: list[tuple[int, int]]) -> float:
@@ -161,25 +165,66 @@ def _vote(
 
 
 def split_by_linked_sites(
-    cons: str, members: list[SpanRead], settings: HybridSettings, rng: random.Random
+    cons: str,
+    members: list[SpanRead],
+    settings: HybridSettings,
+    rng: random.Random,
+    *,
+    quality_filter: bool = False,
 ) -> PhaseResult:
     """Return one group (no split) unless >= min_linked_sites linked events support two.
 
     Sites are found on at most ``phase_max_site_reads`` members (sampled with ``rng``);
     every member is then placed by its oriented event votes. Members with no informative
     event or a tied vote go to ``unassigned``.
+
+    With ``quality_filter`` (the caller sets it for a peak of a two-peak model only), a
+    peak left unsplit is re-examined without the candidate sites explained by a
+    low-accuracy read subset (``phase_quality.quality_sites``), and that result is used
+    when it also leaves the peak as one group. A linked split is never undone and no
+    split is created, so the members of every group, and hence every allele consensus,
+    are the same as without the filter; only the unsplit peak's basis can change.
     """
     cap = settings.phase_max_site_reads
     sample = members if len(members) <= cap else rng.sample(members, cap)
     feats, meta = features(cons, [m.seq for m in sample], settings)
     strands = [m.strand for m in sample]
     sites = candidates(feats, strands, meta, settings)
+    table = _SiteTable(cons, members, sample, feats, meta, strands)
+    result = _split(table, sites, settings)
+    if not quality_filter or len(result.groups) > 1:
+        return result
+    kept, dropped = quality_sites(sites, feats, [m.mean_q for m in sample], settings)
+    if not dropped:
+        return result
+    filtered = _split(table, kept, settings)
+    if len(filtered.groups) > 1:
+        return result
+    filtered.quality_associated = dropped
+    return filtered
+
+
+@dataclass
+class _SiteTable:
+    """The phase site table of one peak: its members, the sampled reads and their sites."""
+
+    cons: str
+    members: list[SpanRead]
+    sample: list[SpanRead]
+    feats: list[dict[Site, Any]]
+    meta: Meta
+    strands: list[str]
+
+
+def _split(t: _SiteTable, sites: list[dict[str, Any]], settings: HybridSettings) -> PhaseResult:
+    """The phase result of one peak from its candidate ``sites`` (see split_by_linked_sites)."""
+    members, feats, meta = t.members, t.feats, t.meta
     if not sites:
         return PhaseResult(
             [members],
             "none",
             run_excess=run_excess_sites(feats, meta, settings),
-            strand_biased=strand_biased_sites(feats, strands, meta, settings),
+            strand_biased=strand_biased_sites(feats, t.strands, meta, settings),
         )
     ori = _linked(feats, sites, meta, settings) if len(sites) > 1 else {0: 1}
     order = sorted(ori)
@@ -189,7 +234,7 @@ def split_by_linked_sites(
         return PhaseResult([members], "unconfirmed_single_site", sites, candidate=top_site(sites))
     orient = [ori[k] for k in order]
     all_feats = (
-        feats if sample is members else features(cons, [m.seq for m in members], settings)[0]
+        feats if t.sample is members else features(t.cons, [m.seq for m in members], settings)[0]
     )
     groups: list[list[SpanRead]] = [[], []]
     unassigned: list[SpanRead] = []

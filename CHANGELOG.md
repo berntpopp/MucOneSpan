@@ -298,6 +298,21 @@ not re-run.
   alleles). The engine's one-group allele fields now come from one builder
   (`allele_fields.single_group_fields`), and an audit test checks every
   unresolved status the engine emits through `compute_clinical_decision`.
+- Hybrid engine: within one peak of a two-peak sample, a candidate phase site
+  explained by a low-accuracy read subset no longer leaves the sample
+  `unresolved_single_site` (or splits the peak into a third group,
+  `unresolved_max_alleles`). On simulated HiFi amplicons, reads with lower base
+  quality share systematic errors (short-run length changes, single columns)
+  that reach just above `hybrid.het_af_min`. Such a site is dropped from site
+  detection only when its minor carriers have significantly lower mean base
+  quality than its major carriers (new `hybrid.phase_quality_alpha`, default
+  0.001) and its minor allele fraction among the best
+  `hybrid.phase_quality_keep_frac` (new, default 0.3) of reads is below
+  `het_af_min`; it is kept when fewer than
+  `ceil(phase_min_minor_reads / het_af_min)` high-quality reads remain. The rule
+  never removes reads from peak support, consensus or event evidence and never
+  applies to a single-peak genotype. Dropped sites are reported in
+  `summary["hybrid"]["quality_associated_sites"]`.
 
 ## [0.16.1] - 2026-09-24
 
