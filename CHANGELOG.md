@@ -217,6 +217,17 @@ not re-run.
   reported per profile with a Clopper-Pearson interval for information only.
   A bench config still naming `report.ni_margin` is rejected. The decision
   rule is now v5; a fresh `test` pre-registration is required.
+- Task 15o owner decision (2026-09-27), decision rule v6: every absolute
+  target has a `scope` (`targets.by_set.<set>.<metric>.scope`):
+  `pooled_and_profiles` (the default, and the behaviour of files without a
+  scope) or `pooled`. The default INCONCLUSIVE targets (`standard` <= 0.20,
+  `clean` <= 0.10) now bind on the pooled set only; per-profile INCONCLUSIVE
+  rates are still reported, marked `info only`, and never fail a set. The
+  false-positive target (0), the PATHOGENIC floors and the whole of Part 1
+  still bind per profile. The rule text states each target's scope (SHA-256
+  `85c869a6...`), so a fresh pre-registration is required; a sealed split
+  registered under v5 can append v6 before its first evaluation
+  (`docs/benchmark.md`). Scopes do not enter the generation hash.
 
 ### Fixed
 

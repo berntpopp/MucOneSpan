@@ -8,9 +8,12 @@ a fixed number the candidate's own rate must clear, whatever the baseline does.
 Input is `report.normalize_rows` output (case rows) of one engine and one bench set.
 `evaluate_targets` reduces it to a pass/fail table, pooled over every profile present
 plus one grouping per profile, using the same Clopper-Pearson interval as
-`report.stratified_table`. `targets_text` renders the configured targets into
-`report.rule_text`, so a pre-registered rule's SHA-256 changes whenever a target
-(threshold, comparator, judging basis or bench-set membership) does.
+`report.stratified_table`. Each row is *binding* (it can fail the set's verdict) when it
+is the pooled row or its target's ``scope`` is ``"pooled_and_profiles"``; a per-profile
+row of a ``"pooled"``-scope target (decision rule v6: the INCONCLUSIVE targets) is still
+computed and shown, but is informational only. `targets_text` renders the configured
+targets into `report.rule_text`, so a pre-registered rule's SHA-256 changes whenever a
+target (threshold, comparator, scope, judging basis or bench-set membership) does.
 
 Metric cohorts (`_cohort`, `TARGET_METRIC_NAMES`):
 
@@ -32,10 +35,20 @@ from __future__ import annotations
 from collections.abc import Sequence
 from typing import Any
 
-from muc_one_span.benchsim.bench_config import Target, TargetsConfig
+from muc_one_span.benchsim.bench_config import (
+    SCOPE_POOLED,
+    SCOPE_POOLED_AND_PROFILES,
+    Target,
+    TargetsConfig,
+)
 from muc_one_span.benchsim.stats import clopper_pearson
 
 _COMPARATOR_SYMBOL = {"ge": ">=", "le": "<="}
+POOLED = "pooled"  # the grouping of every row of a bench set
+_SCOPE_TEXT = {
+    SCOPE_POOLED_AND_PROFILES: "pooled and per profile",
+    SCOPE_POOLED: "pooled only; per-profile rates for information",
+}
 _BASIS_TEXT = {
     "point": "the pooled/per-profile point estimate",
     "ci_bound": (
@@ -59,11 +72,21 @@ def _cohort(rows: Sequence[dict[str, Any]], metric: str) -> tuple[int, int]:
 
 
 def _judge(
-    rows: Sequence[dict[str, Any]], metric: str, target: Target, basis: str, alpha: float
+    rows: Sequence[dict[str, Any]],
+    metric: str,
+    target: Target,
+    basis: str,
+    alpha: float,
+    binding: bool = True,
 ) -> dict[str, Any]:
-    """Pass/fail for one (grouping, metric): cohort counts, rate, CI and judged value."""
+    """Pass/fail for one (grouping, metric): cohort counts, rate, CI and judged value.
+
+    ``binding`` is False for an informational row (a per-profile row of a pooled-scope
+    target): its ``pass`` is still computed but does not enter the set's verdict.
+    """
     k, n = _cohort(rows, metric)
     base = {"metric": metric, "comparator": target.comparator, "threshold": target.threshold}
+    scope = {"scope": target.scope, "binding": binding}
     if n == 0:
         return base | {
             "k": k,
@@ -73,6 +96,7 @@ def _judge(
             "ci_high": None,
             "judged": None,
             "pass": False,
+            **scope,
             "reason": "no cases in this cohort",
         }
     rate = k / n
@@ -87,6 +111,7 @@ def _judge(
         "ci_high": high,
         "judged": judged,
         "pass": passed,
+        **scope,
     }
 
 
@@ -98,16 +123,28 @@ def evaluate_targets(
     ``None`` when `set_name` is absent from ``config.by_set`` or maps to no metrics
     (for example `stress`): reported descriptively, never gated on a target. Otherwise
     one table row per (grouping, metric): ``"pooled"`` (every row) plus one grouping per
-    profile present in `rows`.
+    profile present in `rows`. The set passes when every *binding* row passes (module
+    docstring); informational rows are reported with their own ``pass`` but never
+    fail the set.
     """
     metrics = config.by_set.get(set_name) or {}
     if not metrics:
         return None
     profiles = sorted({str(r.get("profile")) for r in rows})
-    groups = {"pooled": list(rows)}
+    groups = {POOLED: list(rows)}
     groups.update({p: [r for r in rows if str(r.get("profile")) == p] for p in profiles})
     table = [
-        {"grouping": grouping, **_judge(group, metric, target, config.basis, alpha)}
+        {
+            "grouping": grouping,
+            **_judge(
+                group,
+                metric,
+                target,
+                config.basis,
+                alpha,
+                binding=grouping == POOLED or target.scope == SCOPE_POOLED_AND_PROFILES,
+            ),
+        }
         for metric, target in sorted(metrics.items())
         for grouping, group in groups.items()
     ]
@@ -117,7 +154,7 @@ def evaluate_targets(
         "present": True,
         "profiles": profiles,
         "table": table,
-        "pass": all(row["pass"] for row in table),
+        "pass": all(row["pass"] for row in table if row["binding"]),
     }
 
 
@@ -157,7 +194,7 @@ def targets_text(targets: TargetsConfig) -> str:
     clauses = [
         f"`{name}` requires "
         + ", ".join(
-            f"{metric} {_COMPARATOR_SYMBOL[t.comparator]} {t.threshold:g}"
+            f"{metric} {_COMPARATOR_SYMBOL[t.comparator]} {t.threshold:g} ({_SCOPE_TEXT[t.scope]})"
             for metric, t in sorted(metrics.items())
         )
         for name, metrics in sets_with_targets.items()
@@ -173,12 +210,12 @@ def render_targets(by_set: dict[str, dict[str, Any] | None]) -> str:
     lines = [
         "### Absolute targets (task 12e)",
         "",
-        "| set | grouping | metric | target | k/n | rate | judged | pass |",
-        "|---|---|---|---|---|---|---|---|",
+        "| set | grouping | metric | target | k/n | rate | judged | pass | gates verdict |",
+        "|---|---|---|---|---|---|---|---|---|",
     ]
     for set_name, res in entries:
         if not res.get("present", True):
-            lines.append(f"| {set_name} | - | - | - | 0 cases | n/a | n/a | not present |")
+            lines.append(f"| {set_name} | - | - | - | 0 cases | n/a | n/a | not present | - |")
         for row in res["table"]:
             symbol = _COMPARATOR_SYMBOL[row["comparator"]]
             rate = "n/a" if row["rate"] is None else f"{row['rate']:.4g}"
@@ -186,9 +223,14 @@ def render_targets(by_set: dict[str, dict[str, Any] | None]) -> str:
             lines.append(
                 f"| {set_name} | {row['grouping']} | {row['metric']} | "
                 f"{symbol} {row['threshold']:g} | {row['k']}/{row['n']} | {rate} | "
-                f"{judged} | {row['pass']} |"
+                f"{judged} | {row['pass']} | "
+                f"{'binding' if row.get('binding', True) else 'info only'} |"
             )
     verdict = ", ".join(
         f"{name}={'not present' if res['pass'] is None else res['pass']}" for name, res in entries
     )
-    return "\n".join([*lines, "", f"Set verdict: {verdict}", ""])
+    note = (
+        "Rows marked `info only` (a per-profile row of a pooled-only target) are shown "
+        "for information and never fail the set verdict."
+    )
+    return "\n".join([*lines, "", note, "", f"Set verdict: {verdict}", ""])
