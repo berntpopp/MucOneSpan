@@ -173,13 +173,11 @@ def test_a_quality_enabled_split_never_resolves_the_selection(tmp_path: Path, se
     assert decision["state"] == "INCONCLUSIVE", decision["details"]
 
 
-def test_rule_needs_the_quality_test(tmp_path: Path) -> None:
-    """With the 15j test off (phase_quality_alpha 0) no site is dropped."""
-    off = _settings(phase_quality_single_event=True, phase_quality_alpha=0.0)
-    summary, decision = base._run(tmp_path, _het(SEEDS[0]), off)
-    assert summary["hybrid"]["split_bases"] == ["unconfirmed_single_site"]
-    assert not summary["hybrid"]["quality_associated_sites"]
-    assert decision["state"] == "INCONCLUSIVE"
+def test_rule_needs_the_quality_test() -> None:
+    """With the 15j test off (phase_quality_alpha 0) the rule would be a silent no-op:
+    the configuration is refused, naming both keys."""
+    with pytest.raises(ValueError, match=r"phase_quality_single_event.*phase_quality_alpha"):
+        _settings(phase_quality_single_event=True, phase_quality_alpha=0.0)
 
 
 def test_artefact_on_good_reads_keeps_the_peak_unsplit(tmp_path: Path) -> None:

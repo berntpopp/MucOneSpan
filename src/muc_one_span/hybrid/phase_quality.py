@@ -23,12 +23,12 @@ A candidate site is dropped only when both hold:
    holds, for example when insertion stutter of low-quality non-carrier reads enriches
    the minor set of a real homopolymer-run minor in poor reads.
 
-A site whose minor allele is a dictionary insertion in its context (``known_insertions``:
-a run of a template's base and parent-unit length gaining the template's copies, e.g.
-dupC's C7 -> C8, or an insertion slot adding a template's sequence) is never dropped
-(Task 15k): a real dupC minority carried only by low-quality reads, plus insertion
-stutter of other low-quality reads at that run, was otherwise explained away and
-released to NEGATIVE.
+A site whose change is the site-table signature of a dictionary template
+(``known_events``: derived by running every template, insertions and deletions, through
+the site table; e.g. dupC's C7 -> C8, insG's C7 -> C6, delinsAT's C7 -> C4, dupA's
+inserted A) is never dropped (Task 15k): a real dupC minority carried only by
+low-quality reads, plus insertion stutter of other low-quality reads at that run, was
+otherwise explained away and released to NEGATIVE.
 
 It fails closed: when that high-quality subset has fewer than
 ``quality_floor_reads(settings)`` reads, when the qualities do not vary, or when any
@@ -41,10 +41,9 @@ from peak support, allele consensus or event evidence; only the site list change
 from __future__ import annotations
 
 import math
-from dataclasses import dataclass
 from typing import Any
 
-from muc_one_span.config import RepeatDictionary
+from muc_one_span.hybrid.known_events import KnownEventSites, is_known_event_site
 from muc_one_span.hybrid.phase_sites import AF_DECIMALS, Site
 from muc_one_span.settings import HybridSettings
 
@@ -148,69 +147,6 @@ def _explained(
     }
 
 
-@dataclass(frozen=True)
-class KnownInsertions:
-    """Insertion events of the repeat dictionary, as the site table sees them.
-
-    ``runs`` holds (base, run length, inserted copies) for a homopolymer insertion
-    that lengthens a run of its own base in a parent unit (dupC: ("C", 7, 1));
-    ``inserted`` holds every inserted sequence, for insertion-slot sites.
-    """
-
-    runs: frozenset[tuple[str, int, int]] = frozenset()
-    inserted: frozenset[str] = frozenset()
-
-
-def _run_at(parent: str, point: int, base: str) -> int:
-    """Length of the run of ``base`` in ``parent`` touching the gap before ``point``."""
-    lo = point
-    while lo > 0 and parent[lo - 1] == base:
-        lo -= 1
-    hi = point
-    while hi < len(parent) and parent[hi] == base:
-        hi += 1
-    return hi - lo
-
-
-def known_insertions(rd: RepeatDictionary) -> KnownInsertions:
-    """The dictionary's insertion templates, with each parent unit's run context."""
-    runs: set[tuple[str, int, int]] = set()
-    inserted: set[str] = set()
-    for template in rd.mutations.values():
-        for change in template.get("changes") or []:
-            seq = str(change.get("sequence") or "").upper()
-            if change.get("type") != "insert" or not seq:
-                continue
-            inserted.add(seq)
-            if len(set(seq)) != 1:
-                continue
-            point = int(change["start"]) - 1  # dictionary coordinates are 1-based
-            for unit in template.get("allowed_repeats") or []:
-                parent = rd.repeats.get(unit, "").upper()
-                length = _run_at(parent, point, seq[0]) if 0 <= point <= len(parent) else 0
-                if length:
-                    runs.add((seq[0], length, len(seq)))
-    return KnownInsertions(frozenset(runs), frozenset(inserted))
-
-
-def inserts_known_event(
-    site: dict[str, Any], meta: dict[Site, tuple[str, int]], known: KnownInsertions
-) -> bool:
-    """True when the site's minor allele is a dictionary insertion in its context.
-
-    A run site matches when its base, major length and gained copies are those of a
-    template's run (dupC: a C7 run read as C8); an insertion slot matches when its
-    minor adds exactly a template's inserted sequence. Column sites never match.
-    """
-    kind = site["site"][0]
-    if kind == "run" and site["site"] in meta and site["minor"] > site["major"]:
-        base = meta[site["site"]][0]
-        return (base, site["major"], site["minor"] - site["major"]) in known.runs
-    if kind == "ins" and str(site["minor"]).startswith(str(site["major"])):
-        return str(site["minor"])[len(str(site["major"])) :] in known.inserted
-    return False
-
-
 def quality_sites(
     sites: list[dict[str, Any]],
     feats: list[dict[Site, Any]],
@@ -218,19 +154,19 @@ def quality_sites(
     settings: HybridSettings,
     *,
     meta: dict[Site, tuple[str, int]] | None = None,
-    insertions: KnownInsertions = KnownInsertions(),
+    insertions: KnownEventSites = KnownEventSites(),
 ) -> tuple[list[dict[str, Any]], list[dict[str, Any]]]:
     """Split candidate ``sites`` into (kept, dropped as explained by poor reads).
 
     ``feats`` and ``quals`` are the site table's reads and their mean base qualities, in
-    the same order. ``phase_quality_alpha`` 0 keeps every site. A site whose minor
-    allele is a dictionary insertion in its context (``insertions``, from
-    ``known_insertions``; run sites need the site table's ``meta`` for their base) is
-    always kept (Task 15k).
+    the same order. ``phase_quality_alpha`` 0 keeps every site. A site whose change is
+    the site-table signature of a dictionary template (``insertions``, from
+    ``known_events.known_event_sites``; run sites need the site table's ``meta`` for
+    their base) is always kept (Task 15k).
     """
     kept, dropped = [], []
     for site in sites:
-        if inserts_known_event(site, meta or {}, insertions):
+        if is_known_event_site(site, meta or {}, insertions):
             kept.append(site)
             continue
         explained = _explained(site, feats, quals, settings)

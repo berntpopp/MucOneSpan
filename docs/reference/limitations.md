@@ -381,11 +381,18 @@ the automated test suite.
     site of a single-peak genotype, where the second allele sits inside the
     peak, except to enable a single-event split that keeps the selection
     unresolved (Task 15k, below).
-  - A site whose minor allele is a dictionary insertion in its run context
-    (dupC's C7 -> C8, insC_pos23's C4 -> C5, an insertion slot adding a
-    template's sequence) is never dropped (Task 15k). A synthetic dupC
-    minority carried only by low-quality reads was otherwise explained away
-    and reported NEGATIVE.
+  - A site whose change is the site-table signature of a dictionary template
+    is never dropped (Task 15k). The signatures come from running every
+    template (insertions, deletions, delete-inserts) in each allowed unit
+    through the site table: dupC lengthens the C7 run (C7 -> C8); insG,
+    insG_pos54, insG_pos58 and delinsAT place a non-C base inside it, which
+    the table sees only as a shorter run (C7 -> C6, C5, C4); the deletions
+    shorten C3/C4 runs; dupA adds an insertion slot. A synthetic dupC minority
+    carried only by low-quality reads was otherwise explained away and
+    reported NEGATIVE. Column changes are not signatures, and **insG_pos54 in
+    unit J changes no site of the table at all** (pre-existing site-table
+    blindness): the quality rules cannot protect it, and the rest of the site
+    detection does not see it either.
   - Still open (under repair in Task 15l): when a within-peak dupC minority's
     run stays below both run tiers ("Heterozygous homopolymer runs below the
     split floor" above), its only visible marker may be a substitution site.

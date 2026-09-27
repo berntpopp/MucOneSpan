@@ -392,6 +392,13 @@ class HybridSettings:
             raise ValueError("hybrid.phase_quality_keep_frac must be > 0")
         _boolean("hybrid.phase_quality_single_event", self.phase_quality_single_event)
         _boolean("hybrid.phase_quality_group_exclusion", self.phase_quality_group_exclusion)
+        for name in ("phase_quality_single_event", "phase_quality_group_exclusion"):
+            if getattr(self, name) and self.phase_quality_alpha == 0:
+                # Both rules reuse the low-accuracy test; with it off they do nothing.
+                raise ValueError(
+                    f"hybrid.{name} needs hybrid.phase_quality_alpha > 0 "
+                    "(it applies the low-accuracy test, which 0 turns off)"
+                )
         _choice("hybrid.hp_stutter_model", self.hp_stutter_model, STUTTER_MODELS)
         _integer("hybrid.hp_stutter_min_class_runs", self.hp_stutter_min_class_runs, 1)
         _integer("hybrid.hp_stutter_min_class_reads", self.hp_stutter_min_class_reads, 1)

@@ -224,3 +224,12 @@ def test_partial_hybrid_section_keeps_other_defaults(tmp_path: Path) -> None:
     path.write_text('{"schema_version": 1, "hybrid": {"poa_backend": "pyspoa"}}')
     loaded = load_settings(path)
     assert loaded.hybrid.poa_backend == "pyspoa" and loaded.hybrid.n_poa == 40
+
+
+@pytest.mark.parametrize("rule", ["phase_quality_single_event", "phase_quality_group_exclusion"])
+def test_quality_rules_need_the_low_accuracy_test(rule: str) -> None:
+    """Task 15k: switching a quality rule on while phase_quality_alpha is 0 would be a
+    silent no-op; it is refused with an error naming both keys."""
+    with pytest.raises(ValueError, match=f"hybrid.{rule} needs hybrid.phase_quality_alpha"):
+        HybridSettings(**{rule: True})  # type: ignore[arg-type]
+    assert getattr(HybridSettings(**{rule: True, "phase_quality_alpha": 0.001}), rule)

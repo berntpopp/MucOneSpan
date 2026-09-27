@@ -22,7 +22,8 @@ from collections import deque
 from dataclasses import dataclass, field
 from typing import Any
 
-from muc_one_span.hybrid.phase_quality import KnownInsertions, quality_sites
+from muc_one_span.hybrid.known_events import KnownEventSites
+from muc_one_span.hybrid.phase_quality import quality_sites
 from muc_one_span.hybrid.phase_sites import (
     Meta,
     Site,
@@ -179,7 +180,7 @@ def split_by_linked_sites(
     *,
     quality_filter: bool = False,
     single_event_quality: bool = False,
-    insertions: KnownInsertions | None = None,
+    insertions: KnownEventSites | None = None,
 ) -> PhaseResult:
     """Return one group (no split) unless >= min_linked_sites linked events support two.
 
@@ -190,7 +191,7 @@ def split_by_linked_sites(
     With ``quality_filter`` (the caller sets it for a peak of a two-peak model only), a
     peak left unsplit is re-examined without the candidate sites explained by a
     low-accuracy read subset (``phase_quality.quality_sites``; a site adding one of the
-    dictionary insertions ``insertions`` is never dropped), and that result is used
+    dictionary event signatures ``insertions`` is never dropped), and that result is used
     when it also leaves the peak as one group. A linked split is never undone and no
     split is created, so the members of every group, and hence every allele consensus,
     are the same as without the filter; only the unsplit peak's basis can change.
@@ -207,7 +208,7 @@ def split_by_linked_sites(
     feats, meta = features(cons, [m.seq for m in sample], settings)
     strands = [m.strand for m in sample]
     sites = candidates(feats, strands, meta, settings)
-    known = insertions or KnownInsertions()
+    known = insertions or KnownEventSites()
     table = _SiteTable(cons, members, sample, feats, meta, strands, known)
     result = _split(table, sites, settings)
     if single_event_quality and result.basis == UNCONFIRMED_SINGLE_SITE:
@@ -234,7 +235,7 @@ class _SiteTable:
     feats: list[dict[Site, Any]]
     meta: Meta
     strands: list[str]
-    insertions: KnownInsertions
+    insertions: KnownEventSites
 
     def quality(
         self, sites: list[dict[str, Any]], settings: HybridSettings

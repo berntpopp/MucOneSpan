@@ -44,10 +44,10 @@ from muc_one_span.hybrid.evidence import (
     event_read_support,
     residual_sites,
 )
+from muc_one_span.hybrid.known_events import KnownEventSites, known_event_sites
 from muc_one_span.hybrid.lengths import LengthModel, fit_length_model
 from muc_one_span.hybrid.phase import PhaseResult, split_by_linked_sites
 from muc_one_span.hybrid.phase_groups import explained_group
-from muc_one_span.hybrid.phase_quality import KnownInsertions, known_insertions
 from muc_one_span.hybrid.poa import PoaBackend, get_backend
 from muc_one_span.hybrid.polish import consensus_concordance, draft_consensus, polish
 from muc_one_span.hybrid.reads_io import extra_versions, read_input
@@ -213,7 +213,7 @@ def _groups(
     rng: random.Random,
     backend: PoaBackend,
     unit_bp: int,
-    insertions: KnownInsertions,
+    insertions: KnownEventSites,
 ) -> _Phased:
     """Split each length peak by linked sites (or its single event).
 
@@ -231,7 +231,7 @@ def _groups(
     form exactly one event (``phase_quality_single_event``, Task 15k), the split is
     tried on that event under the same gates; the dropped sites are then recorded in
     ``quality_split`` and the caller keeps the selection unresolved. Neither quality
-    rule drops a site whose minor is a dictionary insertion (``insertions``).
+    rule drops a site carrying a dictionary event signature (``insertions``).
     """
     out = _Phased()
     two_peaks = len(model.peaks) == PLOIDY
@@ -331,7 +331,7 @@ def reconstruct_alleles(
     model = fit_length_model(cats.spanning, h, anchors)
     if not model.peaks:
         raise InsufficientEvidenceError("hybrid: no allele length peak passed the thresholds")
-    phased = _groups(model, h, rng, backend, unit_bp, known_insertions(rd))
+    phased = _groups(model, h, rng, backend, unit_bp, known_event_sites(rd, h))
     groups, split_bases, phase_leftover = phased.groups, phased.split_bases, phased.leftover
     located, quality_dropped = phased.located, phased.dropped
     unresolved = [site for basis in UNCONFIRMED_SPLIT_STATUS for site in located.get(basis, [])]

@@ -272,6 +272,17 @@ def test_a_linked_split_is_never_undone(tmp_path: Path) -> None:
         base._fastq(tmp_path / "in.fastq", records), tmp_path, synth.RD, DEFAULT_SETTINGS
     )
     assert result.block["selection_status"] == "unresolved_max_alleles"
+    # The same with the 15j rule opted in (the group exclusion stays off).
+    (tmp_path / "opt_in").mkdir()
+    opted = reconstruct_alleles(
+        base._fastq(tmp_path / "opt_in" / "in.fastq", records),
+        tmp_path / "opt_in",
+        synth.RD,
+        OPT_IN,
+    )
+    assert not OPT_IN.hybrid.phase_quality_group_exclusion
+    assert opted.block["selection_status"] == "unresolved_max_alleles"
+    assert not opted.block["quality_associated_sites"]
 
 
 # --- (a) a true minor carried by good reads -------------------------------------------

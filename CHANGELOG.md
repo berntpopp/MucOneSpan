@@ -316,10 +316,16 @@ not re-run.
   it never changes group membership (peak support, consensus, event evidence)
   and never applies to a single-peak genotype. Dropped sites are reported in
   `summary["hybrid"]["quality_associated_sites"]`.
-- Hybrid engine: the low-accuracy-subset test no longer drops a site whose minor
-  allele is a dictionary insertion in its run context (a run of a template's base
-  and parent-unit length gaining the template's copies, such as dupC's C7 -> C8,
-  or an insertion slot adding a template's sequence). A synthetic two-peak sample
+- Hybrid engine: the low-accuracy-subset test no longer drops a site whose change
+  is the site-table signature of a bundled-dictionary template. The signatures
+  are derived by running every template (insertions, deletions and
+  delete-inserts) in each allowed unit through the site table: run lengthenings
+  and shortenings with their base and lengths (dupC C7 -> C8; insG, insG_pos54,
+  insG_pos58 and delinsAT split the C7 run, seen as C7 -> C6, C5 or C4; the
+  deletions shorten C3/C4 runs) and inserted strings of insertion slots (dupA).
+  insG_pos54 in unit J changes no site and cannot be protected. Switching
+  `phase_quality_single_event` or `phase_quality_group_exclusion` on while
+  `phase_quality_alpha` is 0 is now a configuration error. A synthetic two-peak sample
   whose dupC minority (15% of one allele) was carried only by low-quality reads,
   with insertion stutter of other low-quality reads at that run, had its dupC run
   site explained away and was reported NEGATIVE; it is now INCONCLUSIVE.

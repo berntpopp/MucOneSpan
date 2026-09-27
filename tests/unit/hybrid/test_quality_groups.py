@@ -128,9 +128,11 @@ def test_linked_group_on_good_reads_stays_a_third_allele(tmp_path: Path) -> None
     assert not result.block["quality_excluded_groups"]
 
 
-def test_rule_needs_the_quality_test(tmp_path: Path) -> None:
-    result = _reconstruct(tmp_path, _records(SEEDS[0]), _settings(phase_quality_alpha=0.0))
-    assert result.block["selection_status"] == "unresolved_max_alleles"
+def test_rule_needs_the_quality_test() -> None:
+    """Without the 15j test (phase_quality_alpha 0) the rule would be a silent no-op:
+    the configuration is refused, naming both keys."""
+    with pytest.raises(ValueError, match=r"phase_quality_group_exclusion.*phase_quality_alpha"):
+        _settings(phase_quality_alpha=0.0)
 
 
 def test_setting_is_validated() -> None:
@@ -249,25 +251,37 @@ def quality_read(template: str, rng: random.Random, name: str, q: tuple[int, int
     return single._read(template, strand, rng.randrange(1 << 30), name, q)
 
 
-@pytest.mark.parametrize("profile", sorted(single.PROFILES))
-@pytest.mark.parametrize("af", MINOR_AFS)
-@pytest.mark.parametrize("seed", SWEEP_SEEDS)
+# NEGATIVE-on-pathogenic shapes of the sweep below, enumerated (never accepted
+# silently): the within-peak floor (Task 15l), and with the opt-in 15j rule the drop of
+# the only visible marker; the group exclusion itself never fires on them.
+FLOOR_NEGATIVE: tuple[tuple[str, float, int], ...] = (
+    ("hifi", 0.15, 0),
+    ("hifi", 0.15, 2),
+    ("hifi", 0.20, 2),
+    ("ont", 0.15, 0),
+    ("ont", 0.15, 2),
+    ("ont", 0.20, 2),
+)
+
+
+def _dupc_sweep() -> list[object]:
+    mark = pytest.mark.xfail(strict=True, reason="within-peak floor, Task 15l")
+    return [
+        pytest.param(p, af, seed, marks=mark) if (p, af, seed) in FLOOR_NEGATIVE else (p, af, seed)
+        for p in sorted(single.PROFILES)
+        for af in MINOR_AFS
+        for seed in SWEEP_SEEDS
+    ]
+
+
+@pytest.mark.parametrize(("profile", "af", "seed"), _dupc_sweep())
 def test_dupc_minority_group_is_never_excluded(
     tmp_path: Path, profile: str, af: float, seed: int
 ) -> None:
-    """A group carrying dupC is never excluded, so the rule never releases it to
-    NEGATIVE (a NEGATIVE here must equally be NEGATIVE with the rule off: the
-    pre-existing within-peak floor, see test_quality_known_events)."""
-    records = _minority(profile, af, seed, dupc=True)
-    for sub in ("on", "off"):
-        (tmp_path / sub).mkdir()
-    summary, decision = base._run(tmp_path / "on", records, OPT_IN)
+    """A group carrying dupC is never excluded, and the sample is never NEGATIVE."""
+    summary, decision = base._run(tmp_path, _minority(profile, af, seed, dupc=True), OPT_IN)
     assert not summary["hybrid"]["quality_excluded_groups"], summary["hybrid"]
-    if decision["state"] == NEGATIVE:
-        _s, off = base._run(
-            tmp_path / "off", records, _settings(phase_quality_group_exclusion=False)
-        )
-        assert off["state"] == NEGATIVE
+    assert decision["state"] != NEGATIVE, summary["hybrid"]["selection_detail"]
 
 
 @pytest.mark.parametrize("profile", sorted(single.PROFILES))
