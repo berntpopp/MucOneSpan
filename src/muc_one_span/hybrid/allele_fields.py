@@ -29,6 +29,7 @@ PHASE_STATUS = {
     "single_event": "phased_single_event",
     "unconfirmed_run_site": "unresolved_run_site",
     "unconfirmed_strand_biased_site": "unresolved_strand_biased_site",
+    "unconfirmed_run_minor": "unresolved_run_minor",
 }
 # A single-event split (Task 15e) separates the reads by their allele at the only
 # heterozygous event, so it is read-level haplotype evidence like a linked-site split.
@@ -43,6 +44,9 @@ RUN_SITE = "unresolved_run_site"
 # Task 15i: an unsplit equal-length peak with a column/insertion site refused only for
 # strand bias.
 BIASED_SITE = "unresolved_strand_biased_site"
+# Task 15l: an unsplit peak (any peak count) with a run whose minority length is
+# significantly above its expected stutter.
+RUN_MINOR = "unresolved_run_minor"
 REJECTED_PEAK = "unresolved_rejected_peak"
 UNASSIGNED_SPANNING = "unresolved_unassigned_spanning"
 # Length-model rejection reason that means "a third allele-like peak" (lengths.py).
@@ -52,6 +56,7 @@ UNCONFIRMED_SPLIT_STATUS = {
     "unconfirmed_group_size": GROUP_SIZE,
     "unconfirmed_run_site": RUN_SITE,
     "unconfirmed_strand_biased_site": BIASED_SITE,
+    "unconfirmed_run_minor": RUN_MINOR,
 }
 # Every selection status other than RESOLVED; each blocks a negative call.
 UNRESOLVED_SELECTION_STATUSES = frozenset(
@@ -77,8 +82,9 @@ def selection_status(
 
     Precedence: more than two allele groups (or a rejected third peak), an unconfirmed
     linked-site split, an unsplit peak with a run above the safety floor
-    (``unconfirmed_run_site``) or a strand-biased heterozygous-level site
-    (``unconfirmed_strand_biased_site``), any other gate-relevant rejected length peak
+    (``unconfirmed_run_site``), a strand-biased heterozygous-level site
+    (``unconfirmed_strand_biased_site``) or a run minority above its expected stutter
+    (``unconfirmed_run_minor``), any other gate-relevant rejected length peak
     (including ``smear_ambiguous``), then too many spanning reads assigned to no allele.
     """
     reasons = {r["reason"] for r in model.gate_relevant_rejections}

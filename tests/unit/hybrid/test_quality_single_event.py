@@ -73,6 +73,10 @@ def _settings(**changes: object) -> RuntimeSettings:
 # The rule is off by default (owner ruling pending, see settings_hybrid); these tests
 # switch it on.
 ON = _settings(phase_quality_single_event=True)
+# The split mechanism tests run at the pre-15l single-event share floor (het_af_min):
+# at this depth (N_PER_ALLELE per allele) the Task 15l floor phase_single_event_min_share
+# refuses the split. The never-PATHOGENIC tests keep the default floor (ON).
+ON_SPLIT = _settings(phase_quality_single_event=True, phase_single_event_min_share=S.het_af_min)
 
 
 def _read(template: str, strand: str, seed: int, name: str, q: tuple[int, int]) -> ReadRecord:
@@ -150,7 +154,7 @@ def test_artefact_adds_a_second_event_and_blocks_the_split(tmp_path: Path, seed:
 def test_carrier_event_is_split_and_called_after_the_artefact_is_dropped(
     tmp_path: Path, seed: int
 ) -> None:
-    summary, decision = base._run(tmp_path, _het(seed), ON)
+    summary, decision = base._run(tmp_path, _het(seed), ON_SPLIT)
     block = summary["hybrid"]
     assert block["split_bases"] == ["single_event"], block
     assert block["quality_associated_sites"], "the dropped artefact must be recorded"
@@ -165,7 +169,7 @@ def test_carrier_event_is_split_and_called_after_the_artefact_is_dropped(
 def test_a_quality_enabled_split_never_resolves_the_selection(tmp_path: Path, seed: int) -> None:
     """Wild-type equal-length heterozygote (X vs C: a run-length difference, no event):
     the split is made, but the sample stays INCONCLUSIVE, never NEGATIVE."""
-    summary, decision = base._run(tmp_path, _het(seed, carrier=["X"] * len(base.WT)), ON)
+    summary, decision = base._run(tmp_path, _het(seed, carrier=["X"] * len(base.WT)), ON_SPLIT)
     block = summary["hybrid"]
     assert block["split_bases"] == ["single_event"], block
     assert block["selection_status"] == "unresolved_single_site"

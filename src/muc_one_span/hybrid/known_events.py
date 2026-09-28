@@ -16,8 +16,9 @@ signature:
 
 Column sites are not signatures: a column substitution or gap is not specific to an
 event. A template/unit pair whose mutation changes no run or insertion slot is
-listed in ``KnownEventSites.blind``; the rules cannot protect it (for the bundled
-dictionary: insG_pos54 in unit J, which changes no site at all).
+listed in ``KnownEventSites.blind``; the rules cannot protect it. The bundled
+dictionary has none since Task 15l: insG_pos54 in unit J inserts a G into the slot
+right before a C run, which the site table did not record before.
 """
 
 from __future__ import annotations

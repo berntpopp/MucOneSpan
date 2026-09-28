@@ -86,7 +86,8 @@ def test_low_share_single_event_is_not_split() -> None:
     reads = synth.reads(one_q, minor, err=base.ERR, seed=3)
     reads += synth.reads(wild, n - minor, err=base.ERR, seed=4)
     members = categorize_reads(reads, base.ANCH, S).spanning
-    s = dataclasses.replace(S, phase_single_event_split="all")
+    # The pre-15l share floor (het_af_min) isolates the bound's alpha.
+    s = dataclasses.replace(base.SPLIT_S, phase_single_event_split="all")
     res = split_by_linked_sites(wild, members, s, random.Random(S.seed))
     assert res.basis == "unconfirmed_single_site", res.basis
     assert single_event.split_single_event(wild, members, res, s) is None
@@ -137,7 +138,7 @@ def test_unassigned_reads_of_a_single_event_split_are_reassigned(tmp_path: Path)
 
     fq = base._fastq(tmp_path / "in.fastq", records)
     with patch("muc_one_span.hybrid.engine.split_single_event", with_ties):
-        result = reconstruct_alleles(fq, tmp_path, synth.RD, DEFAULT_SETTINGS)
+        result = reconstruct_alleles(fq, tmp_path, synth.RD, base.SPLIT_SETTINGS)
     assert result.block["split_bases"] == ["single_event"]
     assert result.block["phase_unassigned_spanning_reads"] < len(tied)
     assigned = sum(result.alleles[k]["spanning_reads"] for k in ("allele_1", "allele_2"))
@@ -151,14 +152,20 @@ def test_share_bound_sample_is_its_own_setting() -> None:
     At four times the bound's sample size a share of 1.25 x het_af_min is significant
     over every read but not over the bound's fixed sample.
     """
-    n = 4 * S.phase_single_event_bound_reads
+    # The pre-15l share floor (het_af_min) and sample size (the phase_max_site_reads
+    # default) isolate the sample-size behaviour and keep the read count small.
+    s = dataclasses.replace(
+        base.SPLIT_S,
+        phase_single_event_split="all",
+        phase_single_event_bound_reads=S.phase_max_site_reads,
+    )
+    n = 4 * s.phase_single_event_bound_reads
     minor = round(n * (S.het_af_min + S.het_af_min / 4))
     one_q = synth.allele(["X"] * 10 + ["Q"] + ["X"] * 19)
     wild = synth.allele(["X"] * 30)
     reads = synth.reads(one_q, minor, err=base.ERR, seed=5)
     reads += synth.reads(wild, n - minor, err=base.ERR, seed=6)
     members = categorize_reads(reads, base.ANCH, S).spanning
-    s = dataclasses.replace(S, phase_single_event_split="all")
     res = split_by_linked_sites(wild, members, s, random.Random(S.seed))
     assert res.basis == "unconfirmed_single_site", res.basis
     assert single_event.split_single_event(wild, members, res, s) is None

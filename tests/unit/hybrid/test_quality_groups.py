@@ -251,30 +251,15 @@ def quality_read(template: str, rng: random.Random, name: str, q: tuple[int, int
     return single._read(template, strand, rng.randrange(1 << 30), name, q)
 
 
-# NEGATIVE-on-pathogenic shapes of the sweep below, enumerated (never accepted
-# silently): the within-peak floor (Task 15l), and with the opt-in 15j rule the drop of
-# the only visible marker; the group exclusion itself never fires on them.
-FLOOR_NEGATIVE: tuple[tuple[str, float, int], ...] = (
-    ("hifi", 0.15, 0),
-    ("hifi", 0.15, 2),
-    ("hifi", 0.20, 2),
-    ("ont", 0.15, 0),
-    ("ont", 0.15, 2),
-    ("ont", 0.20, 2),
-)
+# Task 15l: these shapes (two-peak dupC minority, all carriers low quality) were
+# NEGATIVE-on-pathogenic strict xfails for the within-peak floor; the run-minority tier
+# (hybrid.run_minor) now blocks them, so every case must pass.
+DUPC_SWEEP = [
+    (p, af, seed) for p in sorted(single.PROFILES) for af in MINOR_AFS for seed in SWEEP_SEEDS
+]
 
 
-def _dupc_sweep() -> list[object]:
-    mark = pytest.mark.xfail(strict=True, reason="within-peak floor, Task 15l")
-    return [
-        pytest.param(p, af, seed, marks=mark) if (p, af, seed) in FLOOR_NEGATIVE else (p, af, seed)
-        for p in sorted(single.PROFILES)
-        for af in MINOR_AFS
-        for seed in SWEEP_SEEDS
-    ]
-
-
-@pytest.mark.parametrize(("profile", "af", "seed"), _dupc_sweep())
+@pytest.mark.parametrize(("profile", "af", "seed"), DUPC_SWEEP)
 def test_dupc_minority_group_is_never_excluded(
     tmp_path: Path, profile: str, af: float, seed: int
 ) -> None:

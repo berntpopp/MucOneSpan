@@ -67,6 +67,9 @@ T = TypeVar("T")
 # Split bases of an unsplit equal-length peak held back by a safety tier.
 RUN_SITE_BASIS = "unconfirmed_run_site"
 BIASED_SITE_BASIS = "unconfirmed_strand_biased_site"
+# Split basis of an unsplit peak (any peak count) held back by the Task 15l run-minority
+# tier.
+RUN_MINOR_BASIS = "unconfirmed_run_minor"
 
 
 @dataclass
@@ -163,23 +166,23 @@ def _single_event(
     return promoted, sub
 
 
-def _run_site_tier(split: PhaseResult) -> PhaseResult:
-    """Keep an unsplit equal-length peak from a negative call on a sub-floor site.
+def _run_site_tier(split: PhaseResult, single_peak: bool) -> PhaseResult:
+    """Keep an unsplit peak from a negative call on a sub-floor site.
 
-    A peak with no candidate site ("none") whose runs include one above the lower
-    safety floor (``PhaseResult.run_excess``) becomes ``unconfirmed_run_site``; one
-    with a column or insertion site refused only for strand bias
-    (``PhaseResult.strand_biased``, Task 15i) becomes
-    ``unconfirmed_strand_biased_site``. Either stays one group with no event, but its
-    selection status blocks a negative call and the site (largest excess or allele
-    fraction) is named in the reason.
+    For a single-peak model, a peak with no candidate site ("none") whose runs include
+    one above the lower safety floor (``PhaseResult.run_excess``) becomes
+    ``unconfirmed_run_site``; one with a column or insertion site refused only for
+    strand bias (``PhaseResult.strand_biased``, Task 15i) becomes
+    ``unconfirmed_strand_biased_site``. In any peak (Task 15l), a run whose minority
+    length is significantly above its expected stutter (``PhaseResult.run_minor``)
+    makes it ``unconfirmed_run_minor``. Each stays one group with no event, but its
+    selection status blocks a negative call and the site (largest excess, allele
+    fraction or share bound) is named in the reason.
     """
     if split.basis != "none":
         return split
-    for basis, sites in (
-        (RUN_SITE_BASIS, split.run_excess),
-        (BIASED_SITE_BASIS, split.strand_biased),
-    ):
+    tiers = [(RUN_SITE_BASIS, split.run_excess), (BIASED_SITE_BASIS, split.strand_biased)]
+    for basis, sites in [*(tiers if single_peak else []), (RUN_MINOR_BASIS, split.run_minor)]:
         if sites:
             return PhaseResult(split.groups, basis, sites, candidate=sites[0])
     return split
@@ -258,7 +261,7 @@ def _groups(
                     out.quality_split.extend(
                         quality_site(site, unit_bp) for site in alternative.quality_associated
                     )
-            split = _run_site_tier(split)
+        split = _run_site_tier(split, single_peak=not two_peaks)
         out.dropped.extend(quality_site(site, unit_bp) for site in split.quality_associated)
         out.split_bases.append(split.basis)
         if split.candidate is not None and (sub is not None or len(split.groups) == 1):

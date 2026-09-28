@@ -5,7 +5,10 @@ spec-S4 additions: a candidate must show no strand bias (a strand-bias test, not
 per-strand AF floor, so unbiased imbalanced heterozygotes pass), and features that touch on
 the consensus (adjacent columns, a homopolymer run and its neighbouring column, an
 insertion slot and its neighbouring column) are merged into one event, so one sequence
-change never counts as two linked sites.
+change never counts as two linked sites. Since Task 15l the insertion slots next to a
+run are recorded too (without the run's own base, which lengthens the run), and
+``features`` can return each read's clean run observations for the run-minority tier
+(``run_minor``).
 
 Every tunable is a validated ``HybridSettings`` field taken from the ``settings``
 argument; nothing is defaulted from ``DEFAULT_SETTINGS``.
@@ -19,7 +22,7 @@ from collections import Counter
 from typing import Any
 
 from muc_one_span.hybrid.align import global_columns
-from muc_one_span.hybrid.polish import _runs, read_run_length
+from muc_one_span.hybrid.polish import _runs, read_run_length, run_observation
 from muc_one_span.hybrid.run_strand import run_mixture
 from muc_one_span.settings import HybridSettings
 
@@ -33,11 +36,24 @@ Meta = dict[Site, tuple[str, int]]
 
 
 def features(
-    cons: str, reads: list[str], settings: HybridSettings
+    cons: str,
+    reads: list[str],
+    settings: HybridSettings,
+    *,
+    clean: list[dict[Site, int]] | None = None,
 ) -> tuple[list[dict[Site, Any]], Meta]:
-    """Per-read alleles at every column, insertion slot and homopolymer-run site."""
+    """Per-read alleles at every column, insertion slot and homopolymer-run site.
+
+    A run site's allele is the longest stretch of the run's base around it
+    (``read_run_length``). When ``clean`` is given, each read also appends its clean
+    run observations (``polish.run_observation``: both bounding bases kept, nothing
+    but the run's base between them), keyed by run site; a read that does not observe
+    a run cleanly has no entry for it (Task 15l, ``run_minor``).
+    """
     runs = _runs(cons, settings.phase_run_min_len)
     in_run = {i for s, e, _ in runs for i in range(s, e)}
+    before = {s: b for s, _e, b in runs}  # slot before a run's first base -> its base
+    after = {e: b for _s, e, b in runs}  # slot after a run's last base -> its base
     feats = []
     for read in reads:
         proj = global_columns(read, cons)
@@ -45,12 +61,36 @@ def features(
         for pos, base in enumerate(proj.cols):
             if pos not in in_run:
                 f[("col", pos)] = base
-                if pos - 1 not in in_run:
-                    f[("ins", pos)] = proj.ins.get(pos, "")
+            if pos in before or pos in after:
+                f[("ins", pos)] = _boundary_insert(
+                    proj.ins.get(pos, ""), after.get(pos), before.get(pos)
+                )
+            elif pos not in in_run:
+                f[("ins", pos)] = proj.ins.get(pos, "")
         for s, e, b in runs:
             f[("run", s)] = read_run_length(read, proj.t2q, s, e, b)
+        if clean is not None:
+            observed = {("run", s): run_observation(read, proj, cons, s, e) for s, e, _ in runs}
+            clean.append({site: k for site, k in observed.items() if k is not None})
         feats.append(f)
     return feats, {("run", s): (b, e - s) for s, e, b in runs}
+
+
+def _boundary_insert(inserted: str, left: str | None, right: str | None) -> str:
+    """An insertion slot's allele next to a run: the bases that do not lengthen it.
+
+    A slot that touches a run (before its first base or after its last) holds the
+    inserted bases without those of the run's base on the side next to the run
+    (``left``: a run ending before the slot, ``right``: one starting after it); those
+    lengthen the run, which its run site already counts. An insertion of another base
+    at a run boundary (insG_pos54 in unit J: ``GCG|CCC`` read as ``GCGG|CCC``, the
+    aligner placing the extra G right before the C run) is a distinct event (Task 15l).
+    """
+    if left:
+        inserted = inserted.lstrip(left)
+    if right:
+        inserted = inserted.rstrip(right)
+    return inserted
 
 
 def site_counts(feats: list[dict[Site, Any]]) -> dict[Site, Counter[Any]]:

@@ -39,6 +39,13 @@ S = HybridSettings()
 ANCH = Anchors.from_dictionary(synth.RD, S, LAYOUT)
 ERR = 0.02
 N_PER_ALLELE = S.phase_max_site_reads // 2
+# The split mechanism is tested at the phase-sample depth (N_PER_ALLELE per allele) with
+# the pre-15l share floor (het_af_min): at this depth the one-sided bound of a 50%
+# share stays below the Task 15l floor phase_single_event_min_share (0.4), which has
+# its own tests (test_run_minor_sweep; test_low_depth_heterozygote_..., and
+# test_equal_length_heterozygote_is_pathogenic_at_the_defaults at the bound's sample).
+SPLIT_S = dataclasses.replace(S, phase_single_event_min_share=S.het_af_min)
+SPLIT_SETTINGS = dataclasses.replace(DEFAULT_SETTINGS, hybrid=SPLIT_S)
 DUPA = next(
     seq
     for seq, (parent, name) in synth.RD.mutated_sequences.items()
@@ -146,8 +153,8 @@ def test_single_indel_event_splits_into_two_haplotypes(seed: int) -> None:
     cons = synth.allele(WT)
     first = _spans(MUT, N_PER_ALLELE, 2 * seed + 1)
     members = first + _spans(WT, N_PER_ALLELE, 2 * seed + 2)
-    res = split_by_linked_sites(cons, members, S, random.Random(S.seed))
-    split = split_single_event(cons, members, res, S)
+    res = split_by_linked_sites(cons, members, SPLIT_S, random.Random(S.seed))
+    split = split_single_event(cons, members, res, SPLIT_S)
     assert split is not None and split.basis == "single_event"
     names = {m.name for m in first}
     origin = [sum(m.name in names for m in g) / len(g) for g in split.groups]
@@ -170,7 +177,7 @@ def _one_q() -> tuple[str, list[SpanRead]]:
 @pytest.mark.parametrize(("mode", "splits"), [("off", False), ("indel", False), ("all", True)])
 def test_single_event_mode_is_read_from_settings(mode: str, splits: bool) -> None:
     cons, members = _one_q()
-    s = dataclasses.replace(S, phase_single_event_split=mode)
+    s = dataclasses.replace(SPLIT_S, phase_single_event_split=mode)
     res = split_by_linked_sites(cons, members, s, random.Random(S.seed))
     assert res.basis == "unconfirmed_single_site"
     assert (split_single_event(cons, members, res, s) is not None) is splits
@@ -220,12 +227,30 @@ def _het_records(seed: int) -> list[ReadRecord]:
 
 @pytest.mark.parametrize("seed", HET_SEEDS[:2])
 def test_equal_length_dupa_heterozygote_is_pathogenic(tmp_path: Path, seed: int) -> None:
-    summary, decision = _run(tmp_path, _het_records(seed))
+    summary, decision = _run(tmp_path, _het_records(seed), SPLIT_SETTINGS)
     assert summary["hybrid"]["split_bases"] == ["single_event"]
     mutations = [m for c in summary["classifications"].values() for m in c["mutations"]]
     dupa = [m for m in mutations if m.get("mutation_name") == "dupA"]
     assert len(dupa) == 1 and dupa[0]["read_support"]["status"] == "supported", dupa
     assert decision["state"] == "PATHOGENIC"
+
+
+def test_equal_length_heterozygote_is_pathogenic_at_the_defaults(tmp_path: Path) -> None:
+    """Task 15l: with the share bound's full sample (phase_single_event_bound_reads
+    reads) the 50% share clears the default floor phase_single_event_min_share."""
+    seed, per_allele = HET_SEEDS[0], S.phase_single_event_bound_reads // 2
+    records = _records(MUT, per_allele, 2 * seed + 1) + _records(WT, per_allele, 2 * seed + 2)
+    summary, decision = _run(tmp_path, records)
+    assert summary["hybrid"]["split_bases"] == ["single_event"]
+    assert decision["state"] == "PATHOGENIC"
+
+
+def test_low_depth_heterozygote_is_inconclusive_at_the_defaults(tmp_path: Path) -> None:
+    """Task 15l: at the phase-sample depth the bound of a 50% share stays below 0.4, so
+    the carrier is not called, and the located site blocks a negative call."""
+    summary, decision = _run(tmp_path, _het_records(HET_SEEDS[0]))
+    assert summary["hybrid"]["split_bases"] == ["unconfirmed_single_site"]
+    assert decision["state"] == "INCONCLUSIVE"
 
 
 @pytest.mark.parametrize("seed", WT_SEEDS[:2])
@@ -294,7 +319,7 @@ def test_identical_polished_alleles_block_a_negative_call(tmp_path: Path) -> Non
 
     fq = _fastq(tmp_path / "in.fastq", _het_records(HET_SEEDS[0]))
     with patch("muc_one_span.hybrid.engine.polish", same):
-        result = reconstruct_alleles(fq, tmp_path, synth.RD, DEFAULT_SETTINGS)
+        result = reconstruct_alleles(fq, tmp_path, synth.RD, SPLIT_SETTINGS)
     assert result.block["split_bases"] == ["single_event"]
     assert result.block["selection_status"] == "unresolved_single_site"
     repeat = len(synth.PRE) + 1
@@ -304,10 +329,10 @@ def test_identical_polished_alleles_block_a_negative_call(tmp_path: Path) -> Non
 
 def test_single_event_split_needs_both_groups_above_het_min_group() -> None:
     cons, members = synth.allele(WT), _het(HET_SEEDS[0])
-    res = split_by_linked_sites(cons, members, S, random.Random(S.seed))
-    assert split_single_event(cons, members, res, S) is not None
+    res = split_by_linked_sites(cons, members, SPLIT_S, random.Random(S.seed))
+    assert split_single_event(cons, members, res, SPLIT_S) is not None
     # No split can give both groups more than half of the members.
-    strict = dataclasses.replace(S, het_min_group=0.6)
+    strict = dataclasses.replace(SPLIT_S, het_min_group=0.6)
     assert split_single_event(cons, members, res, strict) is None
 
 

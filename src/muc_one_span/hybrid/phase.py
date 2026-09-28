@@ -34,6 +34,7 @@ from muc_one_span.hybrid.phase_sites import (
     strand_biased_sites,
     top_site,
 )
+from muc_one_span.hybrid.run_minor import Clean, run_minor_sites
 from muc_one_span.hybrid.spans import SpanRead
 from muc_one_span.settings import HybridSettings
 
@@ -68,6 +69,7 @@ class PhaseResult:
     unassigned: list[SpanRead] = field(default_factory=list)
     run_excess: list[dict[str, Any]] = field(default_factory=list)
     strand_biased: list[dict[str, Any]] = field(default_factory=list)
+    run_minor: list[dict[str, Any]] = field(default_factory=list)
     quality_associated: list[dict[str, Any]] = field(default_factory=list)
     quality_single_event: PhaseResult | None = None
 
@@ -205,11 +207,12 @@ def split_by_linked_sites(
     """
     cap = settings.phase_max_site_reads
     sample = members if len(members) <= cap else rng.sample(members, cap)
-    feats, meta = features(cons, [m.seq for m in sample], settings)
+    clean: Clean = []
+    feats, meta = features(cons, [m.seq for m in sample], settings, clean=clean)
     strands = [m.strand for m in sample]
     sites = candidates(feats, strands, meta, settings)
     known = insertions or KnownEventSites()
-    table = _SiteTable(cons, members, sample, feats, meta, strands, known)
+    table = _SiteTable(cons, members, sample, feats, meta, strands, known, clean)
     result = _split(table, sites, settings)
     if single_event_quality and result.basis == UNCONFIRMED_SINGLE_SITE:
         result.quality_single_event = _single_event_alternative(table, sites, settings)
@@ -236,6 +239,22 @@ class _SiteTable:
     meta: Meta
     strands: list[str]
     insertions: KnownEventSites
+    clean: Clean
+
+    def tier_reads(self, settings: HybridSettings) -> tuple[Clean, list[str]]:
+        """Clean run observations and strands for the run-minority tier (Task 15l).
+
+        At most ``phase_run_minor_max_reads`` members: the site table's own sample when
+        it already holds that many (or every member), else a fresh sample drawn with
+        ``random.Random(settings.seed)``, independent of the site table.
+        """
+        cap = settings.phase_run_minor_max_reads
+        if len(self.sample) >= min(cap, len(self.members)):
+            return self.clean[:cap], self.strands[:cap]
+        reads = random.Random(settings.seed).sample(self.members, min(cap, len(self.members)))
+        clean: Clean = []
+        features(self.cons, [m.seq for m in reads], settings, clean=clean)
+        return clean, [m.strand for m in reads]
 
     def quality(
         self, sites: list[dict[str, Any]], settings: HybridSettings
@@ -277,6 +296,7 @@ def _split(t: _SiteTable, sites: list[dict[str, Any]], settings: HybridSettings)
             "none",
             run_excess=run_excess_sites(feats, meta, settings),
             strand_biased=strand_biased_sites(feats, t.strands, meta, settings),
+            run_minor=run_minor_sites(*t.tier_reads(settings), meta, settings, t.insertions),
         )
     ori = _linked(feats, sites, meta, settings) if len(sites) > 1 else {0: 1}
     order = sorted(ori)

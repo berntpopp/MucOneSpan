@@ -44,6 +44,7 @@ validated ``HybridSettings`` field.
 from __future__ import annotations
 
 from collections import Counter
+from collections.abc import Callable
 
 from muc_one_span.hybrid.align import Columns
 from muc_one_span.hybrid.polish import _runs, run_observation
@@ -133,6 +134,49 @@ def length_profile(
     return [x / total for x in raw]
 
 
+Measured = Callable[[int], list[float] | None]
+
+
+def nearest_profile(measured: Measured, length: int, s: HybridSettings) -> list[float] | None:
+    """Rules 1-3 for one base and strand; None when no length of the base is measured.
+
+    ``measured(m)`` returns the smoothed profile of length ``m`` when that length is
+    measured (enough peer runs and clean observations on the strand), else None. The
+    measured lengths nearest to ``length`` (ties to the shorter) are searched until
+    ``length`` itself or two lengths are found (``length_profile``).
+    """
+    found: dict[int, list[float]] = {}
+    order = sorted(range(MIN_RUN, s.hp_max_run_len + 1), key=lambda m: (abs(m - length), m))
+    for m in order:
+        p = measured(m)
+        if p is not None:
+            found[m] = p
+            if m == length or len(found) == 2:
+                break
+    return length_profile(found, length, s.hp_stutter_max_growth)
+
+
+def event_profile(
+    measured: Measured, none_profile: list[float], event_len: int, none_len: int, s: HybridSettings
+) -> list[float]:
+    """Profile of the event length, with the identifiability guard (module docstring).
+
+    A measured event length is used as is; an unmeasured one (rules 2-3) only when it
+    puts at most ``hp_stutter_max_event_confusion`` of its mass on ``none_len``;
+    otherwise (and when no length is measured) the no-event profile moved to the event
+    length (rule 4).
+    """
+    fallback = shift(none_profile, event_len - none_len)
+    candidate = nearest_profile(measured, event_len, s)
+    if candidate is None:
+        return fallback
+    if measured(event_len) is not None or (
+        candidate[min(none_len, len(candidate) - 1)] <= s.hp_stutter_max_event_confusion
+    ):
+        return candidate
+    return fallback
+
+
 def allele_profiles(
     cons: str,
     reads: list[tuple[str, str, Columns]],
@@ -158,24 +202,18 @@ def allele_profiles(
             cache[length] = class_counts(cons, reads, base, length, start, s)
         return cache[length]
 
-    def measured(length: int, strand: str) -> list[float] | None:
-        n_runs, per = counts(length)
-        c = per.get(strand, Counter())
-        if n_runs < s.hp_stutter_min_class_runs or sum(c.values()) < s.hp_stutter_min_class_reads:
-            return None
-        return smooth(c, s)
+    def measured_on(strand: str) -> Measured:
+        def measured(length: int) -> list[float] | None:
+            n_runs, per = counts(length)
+            c = per.get(strand, Counter())
+            if (
+                n_runs < s.hp_stutter_min_class_runs
+                or sum(c.values()) < s.hp_stutter_min_class_reads
+            ):
+                return None
+            return smooth(c, s)
 
-    def profile(strand: str, length: int) -> list[float] | None:
-        """Rules 1-3; None when no length of the base is measured on the strand."""
-        found: dict[int, list[float]] = {}
-        order = sorted(range(MIN_RUN, s.hp_max_run_len + 1), key=lambda m: (abs(m - length), m))
-        for m in order:
-            p = measured(m, strand)
-            if p is not None:
-                found[m] = p
-                if m == length or len(found) == 2:
-                    break
-        return length_profile(found, length, s.hp_stutter_max_growth)
+        return measured
 
     _n, per_none = counts(none_len)
     names = sorted({*STRANDS, *per_none, *strands})
@@ -184,15 +222,7 @@ def allele_profiles(
     if s.hp_stutter_model == "shift":
         return event, none
     for st in sorted(strands):
-        none[st] = profile(st, none_len) or none[st]
-        fallback = shift(none[st], d)
-        candidate = profile(st, event_len)
-        if candidate is None:
-            event[st] = fallback
-        elif measured(event_len, st) is not None or (
-            candidate[min(none_len, len(candidate) - 1)] <= s.hp_stutter_max_event_confusion
-        ):
-            event[st] = candidate
-        else:
-            event[st] = fallback
+        measured = measured_on(st)
+        none[st] = nearest_profile(measured, none_len, s) or none[st]
+        event[st] = event_profile(measured, none[st], event_len, none_len, s)
     return event, none

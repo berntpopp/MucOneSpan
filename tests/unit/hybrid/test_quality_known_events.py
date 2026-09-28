@@ -13,7 +13,7 @@ derived by running every template (insertions, deletions, delete-inserts) in eac
 allowed unit through the site table: dupC lengthens the X unit's C7 run, insG and
 delinsAT shorten it (the inserted G splits the run), the deletions shorten C3/C4 runs,
 dupA adds an insertion slot. Column sites are never signatures; insG_pos54 in unit J
-changes no site at all and is listed as blind.
+changed no site at all until Task 15l recorded the insertion slots next to a run.
 """
 
 from __future__ import annotations
@@ -39,14 +39,6 @@ OPT_IN = quality.OPT_IN
 NEGATIVE = "NO_PATHOGENIC_VARIANT_DETECTED"
 FOUND = ("ont", 0.15, 1)  # (profile, minority AF, seed) of the shape found in the sweep
 FLOOR_SHAPE = (0.20, 2)  # (minority AF, seed) of the 15j/15l shape below
-# (profile, minority AF, seed) that are NEGATIVE in the sweep below (enumerated).
-FLOOR_DEFAULTS: tuple[tuple[str, float, int], ...] = (
-    ("hifi", 0.15, 0),
-    ("hifi", 0.15, 2),
-    ("ont", 0.15, 0),
-    ("ont", 0.15, 2),
-)
-FLOOR_OPT_IN: tuple[tuple[str, float, int], ...] = (("hifi", *FLOOR_SHAPE), ("ont", *FLOOR_SHAPE))
 SWEEP_AFS = (0.15, 0.20, 0.25)
 SWEEP_SEEDS = (0, 1, 2, 3)
 
@@ -60,8 +52,9 @@ def _off() -> RuntimeSettings:
 KNOWN = known_event_sites(synth.RD, S)
 CONTEXT = synth.RD.repeats[synth.RD.canonical_repeat]
 # Template/unit pairs whose mutation changes no run or insertion slot of the site
-# table (pre-existing site-table blindness, not fixed here; see limitations.md).
-BLIND = (("insG_pos54", "J"),)
+# table. insG_pos54 in unit J was one until Task 15l (its G lands in the insertion slot
+# right before a C run, which the site table did not record); none is left.
+BLIND: tuple[tuple[str, str], ...] = ()
 TEMPLATE_UNITS = [
     (name, unit)
     for name, template in synth.RD.mutations.items()
@@ -98,7 +91,7 @@ def test_every_template_signature_is_protected(name: str, unit: str) -> None:
 
 
 def test_blind_templates_are_listed() -> None:
-    """insG_pos54 in unit J changes no site of the table: the rules cannot protect it."""
+    """Every template changes a run or an insertion slot of the table (Task 15l)."""
     assert KNOWN.blind == BLIND
 
 
@@ -145,33 +138,16 @@ def test_an_explained_substitution_is_still_dropped() -> None:
     assert dropped and not kept
 
 
-# NEGATIVE-on-pathogenic shapes of this synthetic sweep, enumerated (never accepted
-# silently): with every quality rule off (the defaults) the minority's dupC run and its
-# substitutions stay below the candidate tiers at 15% of one allele (the within-peak
-# floor, Task 15l). With the opt-in 15j rule on, FLOOR_SHAPE adds: its only visible
-# marker, one substitution site, is explained away. Strict: 15l must turn them green.
-NEGATIVE_AT_DEFAULTS = frozenset(FLOOR_DEFAULTS)
-NEGATIVE_OPT_IN = NEGATIVE_AT_DEFAULTS | frozenset(FLOOR_OPT_IN)
-FLOOR_15L = pytest.mark.xfail(strict=True, reason="within-peak floor, Task 15l")
-QUALITY_15L = pytest.mark.xfail(
-    strict=True, reason="within-peak floor, Task 15l (opt-in 15j drops the only marker)"
-)
+# Task 15l: with every quality rule off (the defaults) the minority's dupC run and its
+# substitutions stayed below the candidate tiers at 15% of one allele (the within-peak
+# floor), and with the opt-in 15j rule FLOOR_SHAPE's only visible marker, one
+# substitution site, was explained away: 16 strict xfails in 15k. The run-minority
+# tier (hybrid.run_minor) now makes the dupC run visible and the known-event guard
+# keeps it, so every case must pass, with and without the opt-in rule.
+SWEEP = [(p, af, seed) for p in sorted(single.PROFILES) for af in SWEEP_AFS for seed in SWEEP_SEEDS]
 
 
-def _sweep(negative: frozenset[tuple[str, float, int]]) -> list[object]:
-    return [
-        pytest.param(
-            p, af, seed, marks=FLOOR_15L if (p, af, seed) in NEGATIVE_AT_DEFAULTS else QUALITY_15L
-        )
-        if (p, af, seed) in negative
-        else (p, af, seed)
-        for p in sorted(single.PROFILES)
-        for af in SWEEP_AFS
-        for seed in SWEEP_SEEDS
-    ]
-
-
-@pytest.mark.parametrize(("profile", "af", "seed"), _sweep(NEGATIVE_AT_DEFAULTS))
+@pytest.mark.parametrize(("profile", "af", "seed"), SWEEP)
 def test_all_poor_dupc_minority_is_never_negative_at_the_defaults(
     tmp_path: Path, profile: str, af: float, seed: int
 ) -> None:
@@ -180,7 +156,7 @@ def test_all_poor_dupc_minority_is_never_negative_at_the_defaults(
     assert decision["state"] != NEGATIVE, summary["hybrid"]["selection_detail"]
 
 
-@pytest.mark.parametrize(("profile", "af", "seed"), _sweep(NEGATIVE_OPT_IN))
+@pytest.mark.parametrize(("profile", "af", "seed"), SWEEP)
 def test_all_poor_dupc_minority_is_never_negative_opted_in(
     tmp_path: Path, profile: str, af: float, seed: int
 ) -> None:

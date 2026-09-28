@@ -129,6 +129,10 @@ def test_hybrid_phase_tunables_default_unchanged() -> None:
     assert h.phase_quality_keep_frac == 0.5
     # Task 15k: both quality rules are opt-in (controller ruling).
     assert not h.phase_quality_single_event and not h.phase_quality_group_exclusion
+    # Task 15l: run-minority tier (dev-calibrated floor) and the single-event share floor.
+    assert (h.phase_run_minor_scope, h.phase_run_minor_alpha) == ("all", 0.001)
+    assert (h.phase_run_minor_min_share, h.phase_run_minor_max_reads) == (0.09, 2000)
+    assert (h.phase_single_event_min_share, h.phase_single_event_bound_reads) == (0.4, 1000)
 
 
 @pytest.mark.parametrize(
@@ -146,6 +150,9 @@ def test_hybrid_phase_tunables_default_unchanged() -> None:
         ("phase_strand_bias_alpha", 1.0),
         ("phase_quality_alpha", 1.0),
         ("phase_quality_keep_frac", 0.0),
+        ("phase_run_minor_max_reads", 0),
+        ("phase_single_event_min_share", 0.1),
+        ("phase_single_event_min_share", 1.0),
         ("phase_max_site_reads", 1.5),
         ("n_poa", 0),
         ("assign_margin", -1),

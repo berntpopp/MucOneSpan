@@ -25,6 +25,10 @@ SMEAR_CORRECTIONS = ("bonferroni", "none")
 # "off" never, "indel" only length-changing events (every frameshift), "all" any event.
 SINGLE_EVENT_SPLIT_MODES = ("off", "indel", "all")
 STUTTER_MODELS = ("length", "shift")
+# Which runs the within-peak run-minority tier tests (hybrid.run_minor, Task 15l): none,
+# only a run whose major -> minor change is the site-table signature of a dictionary
+# template (hybrid.known_events), or every run.
+RUN_MINOR_SCOPES = ("off", "known_events", "all")
 # Structural: a "linked" split needs at least two events that agree. A single event goes
 # through the single-event split and its share-bound gate (hybrid.single_event), never
 # through the linked-site path, so min_linked_sites may not go below this.
@@ -202,6 +206,28 @@ class HybridSettings:
     # 0.21-0.30 of reads at one length, at or above het_af_min. Minimum 1: below 1 the
     # floor would sit under the background itself.
     phase_run_safety_multiplier: float = 2.0
+    # Task 15l (NEGATIVE-blocking tier, hybrid.run_minor): in any unsplit peak (one or
+    # two length peaks), a run whose stutter-deconvolved minority share (each length
+    # convolved with the Task 15f stutter profile of its own length, from the peak's
+    # peer runs of the same base, clean observations only) has a one-sided lower
+    # confidence bound at phase_run_minor_alpha of at least phase_run_minor_min_share
+    # keeps the sample from a negative call (phase basis unconfirmed_run_minor,
+    # INCONCLUSIVE with the located site); it never splits a peak or creates an event.
+    # The bound uses at most phase_run_minor_max_reads members (a fresh seeded sample).
+    # phase_run_minor_scope picks the runs tested (RUN_MINOR_SCOPES); "off" disables.
+    # alpha 0.001: about 10^2 (run, length) tests per peak, so a wild-type peak whose
+    # stutter matches its peers is flagged by chance far below 1%. min_share 0.09: the
+    # lowest floor of the v4 dev grid (0.06-0.12, step 0.015) that keeps the pooled
+    # INCONCLUSIVE rates within decision rule v6 (dev clean 9/90); it flags 2 dev clean
+    # and 1 dev standard HiFi normal (position-specific simulated HiFi run errors,
+    # share 0.13-0.39) and keeps every 15k two-peak all-low-quality dupC minority
+    # shape (15% of one allele, bound >= 0.095) blocked. max_reads 2000: the largest
+    # depth of the synthetic detection sweep; above it the detection floor stays that
+    # of 2000 reads (docs/reference/limitations.md).
+    phase_run_minor_scope: str = "all"
+    phase_run_minor_alpha: float = 0.001
+    phase_run_minor_min_share: float = 0.09
+    phase_run_minor_max_reads: int = 2000
     phase_gap_af_factor: float = 1.5
     phase_min_pair_reads: int = 10
     phase_strand_bias_alpha: float = 0.001
@@ -219,14 +245,26 @@ class HybridSettings:
     # support is conditional on the split. The split is made only when the one-sided
     # lower confidence bound (at phase_single_event_alpha; profile likelihood of the
     # stutter-deconvolved minor share over a fresh seeded sample of at most
-    # phase_single_event_bound_reads reads) reaches het_af_min; otherwise the peak stays
-    # unconfirmed_single_site. The fixed sample keeps the bound's power independent of
-    # depth: a systematic artefact does not shrink with depth, so a bound over every
-    # read would pass any artefact slightly above het_af_min at high depth. The sample
-    # size is its own setting (300 = the phase_max_site_reads default it used to share),
-    # so raising that compute cap cannot weaken this safety gate.
+    # phase_single_event_bound_reads reads) reaches phase_single_event_min_share;
+    # otherwise the peak stays unconfirmed_single_site. Task 15l (FP margin): a
+    # site-specific wild-type run artefact is indistinguishable from a real minor allele
+    # of the same share (a C inserted into a C unit's C6 run reads exactly like an X
+    # unit carrying dupA; the simulated HiFi homozygous normal simpanel H1_hifi carries
+    # one at 0.327, and synthetic normals with such an artefact at 0.30-0.40 were
+    # PATHOGENIC at the former floor het_af_min). The floor 0.4 (>= het_af_min) makes
+    # a split need a share significantly above 0.40 at any depth; a run site's bound
+    # must also reach it with Task 15f length-aware profiles (hybrid.run_minor),
+    # because the pooled error profiles under-estimate the stutter of a run length
+    # without peers (one C unit's C6 run) and inflate its share. The sample size is
+    # its own setting, so raising the phase_max_site_reads compute cap cannot change
+    # this gate; 1000 (formerly 300): with the 0.4 floor, 300 reads cost 3 v4 dev
+    # clean equal-length carriers (bounds 0.36-0.39), 1000, 2000 and 5000 gave the
+    # same dev result and 1000 is the smallest (least power for an artefact above
+    # 0.40). One dev standard carrier (ONT genomic, 189 reads, bound 0.375) becomes
+    # INCONCLUSIVE at every sample size.
     phase_single_event_alpha: float = 0.001
-    phase_single_event_bound_reads: int = 300
+    phase_single_event_bound_reads: int = 1000
+    phase_single_event_min_share: float = 0.4
     # Run-length error profiles (hybrid.run_strand) pool errors beyond
     # +/- phase_run_error_cap bases into their edge bins. 16 (= hp_max_run_len) keeps
     # every modelled run's full range of errors distinct, so no observation of a run
@@ -382,7 +420,19 @@ class HybridSettings:
             SINGLE_EVENT_SPLIT_MODES,
         )
         _open_unit_interval("hybrid.phase_single_event_alpha", self.phase_single_event_alpha)
+        _number(
+            "hybrid.phase_single_event_min_share",
+            self.phase_single_event_min_share,
+            self.het_af_min,
+            1,
+        )
+        if self.phase_single_event_min_share == 1:
+            raise ValueError("hybrid.phase_single_event_min_share must be < 1")
         _integer("hybrid.phase_run_error_cap", self.phase_run_error_cap, 1)
+        _choice("hybrid.phase_run_minor_scope", self.phase_run_minor_scope, RUN_MINOR_SCOPES)
+        _open_unit_interval("hybrid.phase_run_minor_alpha", self.phase_run_minor_alpha)
+        _open_unit_interval("hybrid.phase_run_minor_min_share", self.phase_run_minor_min_share)
+        _integer("hybrid.phase_run_minor_max_reads", self.phase_run_minor_max_reads, 1)
         _number("hybrid.phase_quality_alpha", self.phase_quality_alpha, 0, 1)
         if self.phase_quality_alpha == 1:
             raise ValueError("hybrid.phase_quality_alpha must be < 1")

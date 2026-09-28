@@ -145,10 +145,18 @@ def test_wild_type_under_realistic_stutter_stays_negative(
 
 
 def test_safety_tier_is_its_own_setting(tmp_path: Path) -> None:
-    """At the split multiplier the tier adds nothing here: NEGATIVE, as before 15g."""
+    """At the split multiplier the tier adds nothing here: NEGATIVE, as before 15g.
+
+    Since Task 15l the run-minority tier (``phase_run_minor_scope``) also blocks this
+    shape, so it is switched off too to isolate the 15g setting.
+    """
     off = dataclasses.replace(
         DEFAULT_SETTINGS,
-        hybrid=dataclasses.replace(S, phase_run_safety_multiplier=S.phase_run_bg_multiplier),
+        hybrid=dataclasses.replace(
+            S,
+            phase_run_safety_multiplier=S.phase_run_bg_multiplier,
+            phase_run_minor_scope="off",
+        ),
     )
     _summary, decision = base._run(tmp_path, _het(SEEDS[0]), off)
     assert decision["state"] == "NO_PATHOGENIC_VARIANT_DETECTED"

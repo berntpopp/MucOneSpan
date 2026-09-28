@@ -381,6 +381,45 @@ not re-run.
   all low quality and whose dupC run stays below both run tiers); the group
   exclusion has no development-split evidence. At the defaults HiFi
   INCONCLUSIVE returns to the pre-15j level.
+- **Hybrid engine: a within-peak run-length minority blocks NEGATIVE (Task 15l).**
+  A minority haplotype inside a length peak (mosaicism, a third haplotype)
+  carrying dupC at 15-30% of an allele stayed below the candidate floor and the
+  single-peak-only run-site tier, so a two-peak sample could be NEGATIVE
+  (synthetic, 15% of one allele; 16 strict expected failures of Task 15k). In
+  every unsplit length peak each homopolymer run's clean observations are now
+  explained as a mixture of its modal length and each other length, each
+  convolved with the Task 15f stutter profile of its own length from the
+  peak's peer runs; when the one-sided lower bound of the minority share
+  (`hybrid.phase_run_minor_alpha`, 0.001) reaches
+  `hybrid.phase_run_minor_min_share` (0.09, dev-calibrated) the result is
+  INCONCLUSIVE with the located site (new phase basis `unconfirmed_run_minor`,
+  selection status `unresolved_run_minor`); it never splits a peak or creates
+  an event. New settings `phase_run_minor_scope` (`all`), `phase_run_minor_alpha`,
+  `phase_run_minor_min_share`, `phase_run_minor_max_reads` (2000). v4 dev:
+  2 clean and 1 standard HiFi normals become INCONCLUSIVE (position-specific
+  simulated HiFi run errors). The detection floors per stutter shape and depth
+  are in `docs/reference/limitations.md`.
+- **Hybrid engine: a wild-type run artefact of 30-40% is never PATHOGENIC
+  (Task 15l).** A C inserted into a C unit's C6 run reads exactly like an X unit
+  carrying dupA; synthetic HiFi-like normals with such a site-specific artefact
+  in 30-40% of reads were split on it and called PATHOGENIC (the simulated HiFi
+  normal `simpanel/H1_hifi` carries one at 0.327). The single-event split now
+  needs its share bound to reach the new `hybrid.phase_single_event_min_share`
+  (0.4, was `het_af_min` 0.2), for a run site also with Task 15f length-aware
+  stutter profiles (the pooled per-strand error profiles inflated the share of
+  a C unit's single C6 run),
+  and `hybrid.phase_single_event_bound_reads` changes from 300 to 1000 so
+  equal-length heterozygotes at adequate depth keep their call. An equal-length heterozygote with fewer than about 350 reads in
+  its peak is now INCONCLUSIVE instead of PATHOGENIC (v4 dev: one standard ONT
+  genomic carrier, 189 reads).
+- **Hybrid engine: insertion slots next to a homopolymer run are recorded (Task
+  15l).** insG_pos54 in unit J inserts a G right before a C run, where the
+  phase site table recorded no insertion slot, so the event was invisible to
+  site detection: a synthetic HiFi-like equal-length heterozygote was NEGATIVE
+  and a within-peak minority carrying it was never flagged. Slots before and
+  after a run now hold the inserted bases other than the run's own base (which
+  lengthen the run). Every dictionary template now has a site-table signature
+  (the known-event guard of the opt-in quality rules covers insG_pos54 in J).
 
 ## [0.16.1] - 2026-09-24
 

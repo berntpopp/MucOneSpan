@@ -236,10 +236,12 @@ the automated test suite.
 ### Detection limits
 
 - **Equal-length heterozygotes near the `het_af_min` floor.** A minor allele
-  fraction below `hybrid.het_af_min` (default 0.2, valid range [0.01, 0.5])
-  never forms a phase-split candidate site. At the default, a minor allele at
-  roughly 15-20% of an equal-length pair produces a silent `none` split (no
-  flag), because `het_af_min` is set above `het_min_group` (0.15) by design.
+  fraction below `hybrid.het_af_min` (default 0.2, valid range [0.01, 0.5];
+  at most `phase_single_event_min_share`) never forms a phase-split candidate
+  site. At the default, a minor allele at roughly 15-20% of an equal-length
+  pair produces a silent `none` split (no flag), because `het_af_min` is set
+  above `het_min_group` (0.15) by design; since Task 15l a run-length minor
+  above the run-minority detection floor (below) is flagged.
   Detecting or at least flagging that edge needs either a lower `het_af_min`
   (calibration) or an explicit low-AF flag rule.
 - **Equal-length heterozygotes with a single differing event.** When both
@@ -254,13 +256,25 @@ the automated test suite.
   bias, `het_min_group`) and the peak-level share gate: the one-sided lower
   confidence bound (`phase_single_event_alpha`) of the stutter-deconvolved
   minor share, over a fresh seeded sample of at most
-  `phase_single_event_bound_reads` reads, must reach `het_af_min`. On synthetic wild-type ONT-like reads (1200 reads) with a
-  site-specific one-base excess at one C7 run on both strands, excess shares
-  of 0.10-0.30 were never PATHOGENIC. From about 0.35 such an artefact cannot
-  be told apart from a real minor allele of that share and is called like one.
-  That stress test used a C7 run inside a canonical `X` unit; a symmetric
-  excess of 0.35 or more at a C7 run in a variant unit or at the edge units of
-  the array is untested. A
+  `phase_single_event_bound_reads` (1000) reads, must reach
+  `phase_single_event_min_share` (0.4 since Task 15l; `het_af_min` before). A
+  site-specific wild-type run artefact cannot be told apart from a real minor
+  allele of the same share: a C inserted into a C unit's C6 run reads exactly
+  like an X unit carrying dupA. At the former floor (0.2) synthetic HiFi-like
+  normals with such an artefact in 30-40% of reads were PATHOGENIC (the
+  simulated HiFi normal `simpanel/H1_hifi` carries one at 0.327). At 0.4, and
+  with a run site's bound also computed with each length's own Task 15f
+  stutter profile (the site table's error profiles pool every run of the base
+  when the major length has no peer run and then under-estimate that run's
+  stutter), synthetic artefacts
+  at 0.30/0.35/0.40 (HiFi-like, ONT-like and ONT-like saturating stutter,
+  600-2000 reads, 5 seeds) are never PATHOGENIC. **An artefact above about 0.45
+  (1000-read bound) is still called like a real minor allele**, and the
+  guarantee rests on the stutter model's share estimate being unbiased. The cost: an
+  equal-length heterozygote (share about 0.5) needs roughly 350 or more reads
+  in its peak for the bound to reach 0.4; with fewer it stays INCONCLUSIVE
+  (located), never NEGATIVE (v4 dev: one standard ONT genomic carrier with 189
+  reads). A
   single substitution-only event (not split at the default) and any split
   that yields identical alleles keep the phase basis `unconfirmed_single_site`
   (selection status `unresolved_single_site`) with the
@@ -284,7 +298,68 @@ the automated test suite.
   - The tier keeps `het_af_min` as its share floor, so a heterozygous run whose
     minor length is seen in fewer than `het_af_min` of the reads (strong
     allele imbalance combined with heavy stutter) is still not flagged.
-  - With two length peaks the tier does not apply: each peak is one allele.
+  - With two length peaks the tier does not apply: each peak is one allele. The
+    Task 15l run-minority tier below covers both peak counts.
+- **Within-peak run-length minorities (Task 15l).** A minority haplotype inside
+  a length peak (mosaicism, a third haplotype, a chimera) that carries a
+  run-length frameshift (dupC: an X unit's C7 run read as C8) at 15-30% of one
+  allele stays below the candidate floor (`max(het_af_min,
+  phase_run_bg_multiplier x peer background)`) and the 15g tier above (single
+  peak only, `max(het_af_min, phase_run_safety_multiplier x background)`): both
+  compare the raw share of one length with a multiple of the peers' raw share,
+  and part of the minority's own reads stutter back to the major length. Such a
+  sample was NEGATIVE. The run-minority tier (`hybrid.phase_run_minor_*`)
+  explains each run's clean observations as a mixture of its modal length and
+  another length, each convolved with the Task 15f stutter profile of its own
+  length from the peak's peer runs, and makes the result INCONCLUSIVE (located,
+  `unresolved_run_minor`) when the one-sided lower bound (alpha 0.001) of the
+  minority share reaches 0.09. It never splits a peak or creates an event, so a
+  minority is never called PATHOGENIC through it. **Detection floor** (smallest
+  minority AF of the event allele from which no larger AF was NEGATIVE; synthetic
+  sweep, dupC in one X unit, AF 0.10-0.30 in steps of 0.05, 5 seeds; stutter:
+  HiFi-like C7 +1 14% / -1 8%, C8 -1 20%, shorter runs less; ONT-like "+" -1 35%
+  / +1 10%, "-" 3% / 3%; ONT-like saturating: "+" -1 at C6 10%, C7 26%, C8 21%,
+  +1 10%, "-" 3% / 3%;
+  40% of reads low quality with twice the stutter and error; "two peaks" = two
+  alleles of 20 and 30 units, depth split evenly; "one peak" = one 30-unit
+  allele):
+
+  | stutter shape | layout | 60 reads | 150 | 300 | 600 | 2000 |
+  | --- | --- | --- | --- | --- | --- | --- |
+  | HiFi-like | two peaks | >0.30 | >0.30 | >0.30 | 0.30 | 0.30 |
+  | HiFi-like | one peak | >0.30 | >0.30 | >0.30 | 0.30 | 0.25 |
+  | ONT-like | two peaks | 0.10 | 0.25 | 0.25 | 0.10 | 0.15 |
+  | ONT-like | one peak | 0.20 | 0.10 | 0.25 | 0.10 | 0.10 |
+  | ONT-like saturating | two peaks | 0.30 | >0.30 | 0.30 | 0.25 | 0.15 |
+  | ONT-like saturating | one peak | >0.30 | 0.30 | 0.25 | 0.20 | 0.15 |
+
+  (Where an ONT-like floor is low at low depth, the sample is INCONCLUSIVE for
+  other reasons, not by this tier.) Below the floor a minority can be NEGATIVE:
+  the HiFi-like shape needs at least 300 reads per allele and a minority of
+  about 30% (25% with 2000 reads in one peak). The bound uses at most
+  `phase_run_minor_max_reads` (2000) reads, so the floor does not improve
+  beyond that depth. Costs: on v4 dev the tier flags 2 clean and 1 standard HiFi
+  normal (position-specific simulated HiFi run errors of share 0.13-0.39 at a C3,
+  G3 or C7 run), none on ONT or genomic reads; on the frozen `heldout` panel one
+  HiFi normal (C4 -> C3 at 0.15). A wild-type run with site-specific stutter of
+  similar share is flagged the same way. On synthetic wild-type samples (150;
+  the three shapes, both layouts, 60-2000 reads) it never turned a NEGATIVE into
+  an INCONCLUSIVE; it fired on 7 ONT-like strand-asymmetric samples that were
+  INCONCLUSIVE anyway (the draft run was a base short under 35-50% "+" strand
+  deletion stutter).
+- **Minorities at columns and insertion slots.** A substitution, gap or
+  insertion carried by a within-peak minority has no stutter model; it becomes
+  a candidate site only at `het_af_min` (0.2; gap alleles 0.3), so a minority
+  below that (for example a mosaic dupA at 15% of an allele) is not flagged and
+  can be NEGATIVE.
+- **Insertions next to a homopolymer run (Task 15l).** The site table recorded no
+  insertion slot right before or after a homopolymer run, so an insertion the
+  aligner places there was invisible: insG_pos54 in unit J (`GCG|CCC` read as
+  `GCGG|CCC`). A synthetic HiFi-like equal-length heterozygote carrying it was
+  NEGATIVE and a two-peak minority carrying it (25% of one allele) NEGATIVE.
+  These slots are now recorded with the inserted bases other than the run's own
+  base (a run base lengthens the run, which its run site counts); the shapes
+  are INCONCLUSIVE or PATHOGENIC.
 - **True dupC with high deletion stutter.** `hybrid.event_max_alternative_frac`
   (default 0.25) rejects a homopolymer event whose no-event mixture weight
   exceeds it. The mixture convolves each allele with the stutter profile of its
@@ -389,17 +464,18 @@ the automated test suite.
     the table sees only as a shorter run (C7 -> C6, C5, C4); the deletions
     shorten C3/C4 runs; dupA adds an insertion slot. A synthetic dupC minority
     carried only by low-quality reads was otherwise explained away and
-    reported NEGATIVE. Column changes are not signatures, and **insG_pos54 in
-    unit J changes no site of the table at all** (pre-existing site-table
-    blindness): the quality rules cannot protect it, and the rest of the site
-    detection does not see it either.
-  - Still open (under repair in Task 15l): when a within-peak dupC minority's
-    run stays below both run tiers ("Heterozygous homopolymer runs below the
-    split floor" above), its only visible marker may be a substitution site.
-    With the opt-in rule on and every carrier a low-quality read, that site is
-    explained away and the sample can be NEGATIVE (synthetic two-peak shape,
-    minority 20% of one allele: 1 of 4 seeds, HiFi- and ONT-like). At the
-    defaults (rule off) this shape is INCONCLUSIVE.
+    reported NEGATIVE. Column changes are not signatures. insG_pos54 in unit J
+    changed no site of the table until Task 15l (its G lands in the insertion
+    slot right before a C run, which was not recorded; see "Insertions next to
+    a homopolymer run" below).
+  - Fixed in Task 15l: a within-peak dupC minority whose run stayed below both
+    run tiers could show a substitution site as its only marker; with the
+    opt-in rule on and every carrier a low-quality read, that site was
+    explained away and the sample could be NEGATIVE. The run-minority tier
+    ("Within-peak run-length minorities" below) now flags the dupC run itself,
+    and the known-event guard keeps it; the 15k synthetic shapes (15-25% of
+    one allele, HiFi- and ONT-like, 4 seeds, rule on and off) are never
+    NEGATIVE.
   - The rule changes only the basis of a peak left unsplit. A linked split is
     never undone and no split is created, so every allele consensus is built
     from the same reads as without it. Where low-quality reads form a third
@@ -424,8 +500,10 @@ the automated test suite.
     is PATHOGENIC. On the frozen `simpanel` the homozygous normal `H1_hifi` was
     split on a 0.327 HiFi run artefact at a C unit's C6 run (it stayed
     INCONCLUSIVE; no event in either allele). The same artefact alone, without
-    a second site, passes the same gates of the existing single-event path, and
-    a C-insertion form of it at that run (C6AA -> C7AA) would read as dupA.
+    a second site, passed the same gates of the existing single-event path, and
+    a C-insertion form of it at that run (C6AA -> C7AA) reads as dupA: since
+    Task 15l the single-event share floor (`phase_single_event_min_share` 0.4)
+    keeps such an artefact up to 0.40 from a split.
   - Two-peak samples (`hybrid.phase_quality_group_exclusion`, **opt-in,
     experimental**, off by default: no development-split evidence): a linked-site
     group that is the smaller group, has significantly lower base quality, has
@@ -452,8 +530,8 @@ the automated test suite.
   two dev pathogenic carriers as an insG read-support alternative share of
   0.262-0.267 against `event_max_alternative_frac` 0.25 (the read-support gate
   is not relaxed). The remaining equal-length dupC carrier (validation) and the
-  equal-length normals flagged by the run-site tier depend on the run floors
-  (Task 15l). HiFi INCONCLUSIVE therefore stays above the per-profile targets
+  equal-length normals flagged by the run-site tier depend on the run floors;
+  Task 15l left both unchanged (its tier adds flags, it removes none). HiFi INCONCLUSIVE therefore stays above the per-profile targets
   at the defaults (both quality rules off, the pre-15j level): dev `clean` 6/30
   (target 0.10) and `standard` 8/30 (target 0.20); val `clean` 6/30 and
   `standard` 7/30 (validation numbers).
