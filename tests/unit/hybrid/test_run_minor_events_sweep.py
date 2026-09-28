@@ -100,3 +100,17 @@ def test_draft_following_an_artefact_is_never_pathogenic(tmp_path: Path) -> None
     records = rms.minority(shape, share, ARTEFACT_DEPTH, seed, "one_peak", event)
     summary, decision = base._run(tmp_path, records)
     assert decision["state"] != "PATHOGENIC", summary["hybrid"]["split_bases"]
+
+
+# Seeds of the saturating ONT-like artefact sweep: wild-type reads misaligned next to
+# the stuttering run showed neither allele at the delinsAT column and were skipped, so
+# both shares of a 40% artefact were bounded above the floor. Every observing read
+# counts now.
+NEITHER_ALLELE_SEEDS = (20, 29)
+
+
+@pytest.mark.parametrize("seed", NEITHER_ALLELE_SEEDS)
+def test_reads_with_neither_allele_do_not_inflate_an_artefact(tmp_path: Path, seed: int) -> None:
+    records = rms.minority("ont_saturating", 0.40, ARTEFACT_DEPTH, seed, "one_peak", "delinsAT")
+    summary, decision = base._run(tmp_path, records)
+    assert decision["state"] != "PATHOGENIC", summary["hybrid"]["split_bases"]

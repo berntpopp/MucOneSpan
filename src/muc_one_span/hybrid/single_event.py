@@ -160,29 +160,40 @@ def _share_bounds(
 
     At most ``phase_single_event_bound_reads`` reads (a fresh sample drawn with
     ``random.Random(s.seed)``), so the bound's power does not grow with depth. Run
-    reads contribute their likelihood under each run length (stutter profiles);
-    column reads their allele (reads with neither allele are skipped). The minor
-    allele is the site's non-draft allele; a draft that follows an artefact makes
-    the artefact the major allele, so both shares are bounded and both must reach the
-    floor: the smaller group of a split is then at least the floor, whichever allele
-    the draft took.
+    reads contribute their likelihood under each run length (stutter profiles). At a
+    column or insertion site each share is the share of that allele among every read
+    that observes the site: a read with neither allele (a gap or another base, e.g. a
+    wild-type read misaligned next to a stuttering run) counts against both, since
+    skipping such reads inflates both shares. The minor allele is the site's non-draft
+    allele; a draft that follows an artefact makes the artefact the major allele, so
+    both shares are bounded and both must reach the floor: the smaller group of a
+    split is then at least the floor, whichever allele the draft took.
     """
-    obs: list[tuple[float, float]] = []
+    alpha = s.phase_single_event_alpha
+    runs: list[tuple[float, float]] = []
+    observed_alleles: list[Any] = []
     for i in _bound_sample(len(feats), s):
         observed = feats[i].get(site["site"])
         if observed is None:
             continue
         if profiles is not None:
-            obs.append(
+            runs.append(
                 (
                     length_prob(profiles[1], strands[i], observed, site["minor"]),
                     length_prob(profiles[0], strands[i], observed, site["major"]),
                 )
             )
-        elif observed in (site["minor"], site["major"]):
-            obs.append((float(observed == site["minor"]), float(observed == site["major"])))
-    alpha = s.phase_single_event_alpha
-    return share_lower_bound(obs, alpha), share_lower_bound([(b, a) for a, b in obs], alpha)
+        else:
+            observed_alleles.append(observed)
+    if profiles is not None:
+        return share_lower_bound(runs, alpha), share_lower_bound([(b, a) for a, b in runs], alpha)
+
+    def share(allele: Any) -> float:
+        return share_lower_bound(
+            [(float(o == allele), float(o != allele)) for o in observed_alleles], alpha
+        )
+
+    return share(site["minor"]), share(site["major"])
 
 
 def split_single_event(
