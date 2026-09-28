@@ -1,7 +1,7 @@
-"""benchsim.report.decide: the task 12e absolute targets and the task C1 FP ruling.
+"""benchsim.report.decide: the absolute targets and the false-positive rule of v5 on.
 
 Split out of ``test_report.py`` (file-size gate): this covers Part 2 of the decision
-rule (``targets.by_set``) and, since task C1, the false-positive criterion that now
+rule (``targets.by_set``) and, since decision rule v5, the false-positive criterion that now
 lives there instead of in Part 1's relative comparison.
 """
 
@@ -11,7 +11,7 @@ from typing import Any
 from muc_one_span.benchsim.bench_config import DEFAULT_BENCH_CONFIG, BenchConfig, TargetsConfig
 from muc_one_span.benchsim.report import decide, render_markdown
 
-# Bypasses the task 12e absolute targets (part 2) so a fixture that exercises only the
+# Bypasses the absolute targets (part 2) so a fixture that exercises only the
 # relative rule (part 1) does not also need pathogenic/decision/inconclusive fields.
 NO_TARGETS = BenchConfig(targets=TargetsConfig(by_set={}))
 
@@ -111,7 +111,7 @@ _STANDARD_ONLY = BenchConfig(
 
 def test_decide_adopts_at_planned_test_size_with_zero_fp() -> None:
     # Task C1, the exact final-review scenario: 280 normals/profile, 0 FP in both
-    # engines. Before the owner's ruling this could never ADOPT (the Newcombe
+    # engines. Under the former relative rule this could never ADOPT (the Newcombe
     # non-inferiority upper bound, 0.00957, exceeded the 0.005 margin even at 0
     # observed FP). FP is now judged only by the absolute `false_positive_rate <= 0`
     # target, which 0 FP clears, so this now adopts.
@@ -125,7 +125,7 @@ def test_decide_adopts_at_planned_test_size_with_zero_fp() -> None:
 
 
 def test_decide_candidate_fp_on_a_target_set_still_fails_adoption() -> None:
-    # The relative rule no longer looks at FP at all (task C1); a single candidate
+    # The relative rule no longer looks at FP at all (decision rule v5); a single candidate
     # false positive on a targeted, headline-set profile still fails adoption
     # through part 2's absolute `false_positive_rate` target.
     base, cand = _standard_fixture(n_path=30, n_normal=280)
@@ -183,7 +183,7 @@ def _inconclusive_heavy_profile(n_path: int, n_inconclusive: int) -> tuple[list[
 
 
 def test_decide_v6_inconclusive_binds_on_the_pooled_set_only() -> None:
-    # Task 15o (rule v6, owner decision 2026-09-27): one profile at 10/30 INCONCLUSIVE
+    # Rule v6 onwards: one profile at 10/30 INCONCLUSIVE
     # (> 0.20) no longer fails adoption while the pooled rate (10/340) clears 0.20.
     base, cand = _standard_fixture(n_path=30, n_normal=280)
     hifi_base, hifi_cand = _inconclusive_heavy_profile(n_path=20, n_inconclusive=10)
@@ -211,7 +211,7 @@ def test_decide_v6_inconclusive_binds_on_the_pooled_set_only() -> None:
 
 
 def test_decide_v7_clean_inconclusive_ceiling_is_0_15_pooled() -> None:
-    # Task 15n (rule v7, owner decision 2026-09-28): the pooled clean INCONCLUSIVE rate
+    # Rule v7: the pooled clean INCONCLUSIVE rate
     # 3/24 (0.125) passes v7 while it failed the v6 ceiling 0.10.
     base, cand = _standard_fixture(n_path=30, n_normal=280)
     clean = _clean_fixture(18, 6)

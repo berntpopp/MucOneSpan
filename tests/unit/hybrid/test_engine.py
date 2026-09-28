@@ -59,7 +59,7 @@ def test_heterozygous_dupc_sample_is_reconstructed(tmp_path: Path) -> None:
 
 
 def test_dimer_products_are_recorded_and_kept_out_of_the_alleles(tmp_path: Path) -> None:
-    # Task 15h: head-to-tail PCR dimers (A+A, A+B, B+B) make length peaks near L_a + L_b;
+    # Head-to-tail PCR dimers (A+A, A+B, B+B) make length peaks near L_a + L_b;
     # they are recorded as 'dimer' rejected peaks, not gate-relevant, and never polished.
     reads = (
         synth.reads(A, 150, err=0.02, seed=1)

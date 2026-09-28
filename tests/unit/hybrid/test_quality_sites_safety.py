@@ -1,4 +1,4 @@
-"""Task 15j fix round 1: the low-accuracy-subset rule must never release a real minor.
+"""The low-accuracy-subset rule must never release a real minor.
 
 The failure shape (review of the first 15j commit): two length peaks, and inside the
 long allele's peak a real minority haplotype carrying dupC (C7 -> C8 in one X unit).
@@ -33,7 +33,7 @@ from tests.unit.hybrid import test_single_event as base
 # Heavy synthetic safety sweep: its own CI job and make test-unit (never skipped).
 pytestmark = pytest.mark.safety_sweep
 
-S = quality.OPT_IN.hybrid  # the 15j rule is opt-in since Task 15k
+S = quality.OPT_IN.hybrid  # the 15j rule is opt-in
 SHORT = ["X"] * 20
 LONG = ["X"] * 30
 CARRIER = ["X"] * 5 + [synth.dupc()] + ["X"] * 24  # dupC: the X unit's C7 -> C8

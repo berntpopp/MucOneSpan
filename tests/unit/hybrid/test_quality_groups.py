@@ -1,10 +1,10 @@
-"""Task 15k: a linked group of low-accuracy reads is not a further allele.
+"""A linked group of low-accuracy reads is not a further allele.
 
 Reproduces the validation HiFi normals reported INCONCLUSIVE (``unresolved_max_alleles``):
 two length peaks, and inside one peak a subset of lower-quality reads shares two
 systematic substitutions a few bases apart. The two sites are linked through the same
 reads, so the peak splits into two groups and the sample holds three allele groups.
-Task 15j keeps that split (the poor reads must never rejoin the allele consensus).
+The low-accuracy site rule keeps that split (the poor reads must never rejoin the allele consensus).
 
 With ``phase_quality_group_exclusion`` the poor group still never joins an allele; it
 only stops counting as a further allele when it is the smaller group, its reads have
@@ -33,10 +33,10 @@ from tests.unit.hybrid import test_quality_single_event as single
 from tests.unit.hybrid import test_quality_sites as quality
 from tests.unit.hybrid import test_single_event as base
 
-# Heavy synthetic safety sweep: its own CI job and make test-unit (never skipped).
-pytestmark = pytest.mark.safety_sweep
+# The heavy synthetic sweeps below carry the safety_sweep marker (their own CI job and
+# make test-unit, never skipped); the cheap tests run in the core suite.
 
-# Both the 15j test and this rule are opt-in since Task 15k: switched on explicitly.
+# Both the 15j test and this rule are opt-in since switched on explicitly.
 S = dataclasses.replace(quality.S, phase_quality_group_exclusion=True)
 OPT_IN = dataclasses.replace(DEFAULT_SETTINGS, hybrid=S)
 UNIT_BP = synth.RD.repeat_length_bp
@@ -103,6 +103,7 @@ def _reconstruct(tmp_path: Path, records: list[ReadRecord], settings: RuntimeSet
 # --- the rule, end to end -----------------------------------------------------------
 
 
+@pytest.mark.safety_sweep
 @pytest.mark.parametrize("seed", SEEDS)
 def test_poor_linked_group_is_not_a_third_allele(tmp_path: Path, seed: int) -> None:
     records = _records(seed)
@@ -119,12 +120,14 @@ def test_poor_linked_group_is_not_a_third_allele(tmp_path: Path, seed: int) -> N
     assert on.block["unassigned_spanning_reads"] >= excluded[0]["spanning_reads"]
 
 
+@pytest.mark.safety_sweep
 def test_excluded_group_gives_a_negative_decision(tmp_path: Path) -> None:
     summary, decision = base._run(tmp_path, _records(SEEDS[0]), OPT_IN)
     assert summary["hybrid"]["quality_excluded_groups"], summary["hybrid"]
     assert decision["state"] == NEGATIVE, decision["details"]
 
 
+@pytest.mark.safety_sweep
 def test_linked_group_on_good_reads_stays_a_third_allele(tmp_path: Path) -> None:
     result = _reconstruct(tmp_path, _records(SEEDS[0], subset_q=quality.GOOD_Q), OPT_IN)
     assert result.block["selection_status"] == "unresolved_max_alleles"
@@ -180,6 +183,7 @@ def test_substitutions_only_needs_equal_length_and_no_indel() -> None:
     assert not substitutions_only("ACGTA", "CGTAA")  # shift: two indels beat four mismatches
 
 
+@pytest.mark.safety_sweep
 def test_group_explained_by_poor_reads() -> None:
     small_seq = LARGE_SEQ[:100] + ("A" if LARGE_SEQ[100] != "A" else "C") + LARGE_SEQ[101:]
     groups = _groups(
@@ -189,6 +193,7 @@ def test_group_explained_by_poor_reads() -> None:
     assert hit is not None and hit[0] == 1, hit
 
 
+@pytest.mark.safety_sweep
 @pytest.mark.parametrize(
     "case", ["indel", "distinct_length", "no_quality", "good_quality", "too_few", "off"]
 )
@@ -254,7 +259,7 @@ def quality_read(template: str, rng: random.Random, name: str, q: tuple[int, int
     return single._read(template, strand, rng.randrange(1 << 30), name, q)
 
 
-# Task 15l: these shapes (two-peak dupC minority, all carriers low quality) were
+# These shapes (two-peak dupC minority, all carriers low quality) were
 # NEGATIVE-on-pathogenic strict xfails for the within-peak floor; the run-minority tier
 # (hybrid.run_minor) now blocks them, so every case must pass.
 DUPC_SWEEP = [
@@ -262,6 +267,7 @@ DUPC_SWEEP = [
 ]
 
 
+@pytest.mark.safety_sweep
 @pytest.mark.parametrize(("profile", "af", "seed"), DUPC_SWEEP)
 def test_dupc_minority_group_is_never_excluded(
     tmp_path: Path, profile: str, af: float, seed: int
@@ -272,6 +278,7 @@ def test_dupc_minority_group_is_never_excluded(
     assert decision["state"] != NEGATIVE, summary["hybrid"]["selection_detail"]
 
 
+@pytest.mark.safety_sweep
 @pytest.mark.parametrize("profile", sorted(single.PROFILES))
 @pytest.mark.parametrize("af", MINOR_AFS)
 @pytest.mark.parametrize("seed", SWEEP_SEEDS)

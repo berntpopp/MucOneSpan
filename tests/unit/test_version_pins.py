@@ -1,4 +1,4 @@
-"""Version values outside Python that must follow ``muc_one_span.version`` (ledger L258)."""
+"""Version values outside Python that must follow ``muc_one_span.version``."""
 
 from __future__ import annotations
 

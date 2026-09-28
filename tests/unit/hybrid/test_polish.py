@@ -252,7 +252,7 @@ def test_polish_rounds_come_from_the_caller() -> None:
 
 
 def test_homopolymer_vote_ignores_reads_whose_run_boundary_base_differs() -> None:
-    """Task 13b root cause (M3_hifi): a separator base lost or substituted in a read
+    """Root cause of a simulated HiFi consensus error (M3_hifi): a separator base lost or substituted in a read
     merges two runs (unit I ``GCG C5 A`` -> ``G C7 A``); that merged length is not a
     run-length observation and must not vote, or the median lands on a length present
     in neither read population (C6) and a correct consensus is rewritten wrongly.
@@ -269,7 +269,7 @@ def test_homopolymer_vote_ignores_reads_whose_run_boundary_base_differs() -> Non
 
 
 def test_homopolymer_vote_ignores_reads_that_interrupt_a_merged_draft_run() -> None:
-    """Task 13b (D2_hifi): the draft lost unit A's separator G (``GCG CCC G`` drafted
+    """Simulated HiFi D2_hifi: the draft lost unit A's separator G (``GCG CCC G`` drafted
     as ``G C5 G``). Reads that carry the G interrupt the drafted run; their longest C
     stretch (3) is not a length of that run, so they must not vote it down to C3 (the
     pileup round, not the vote, restores the G). The full polish recovers the truth.

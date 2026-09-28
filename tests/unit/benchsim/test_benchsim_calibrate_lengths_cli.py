@@ -1,4 +1,4 @@
-"""scripts/benchsim.py ``calibrate --stage lengths`` (Task 15d).
+"""scripts/benchsim.py ``calibrate --stage lengths``.
 
 Unlike `test_benchsim_calibrate_cli.py`, the engine run itself is not mocked here:
 these tests build tiny real cases (real bundled repeat dictionary, synthetic

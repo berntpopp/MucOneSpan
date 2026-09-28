@@ -1,4 +1,4 @@
-"""Task 15e: an equal-length heterozygote with one indel event must never be NEGATIVE.
+"""An equal-length heterozygote with one indel event must never be NEGATIVE.
 
 Reproduces the shape of a simulated ONT amplicon case: both alleles have the same
 number of repeat units, one carries dupA in its first repeat (the dictionary X + A,
@@ -41,7 +41,7 @@ ERR = 0.02
 N_PER_ALLELE = S.phase_max_site_reads // 2
 # The split mechanism is tested at the phase-sample depth (N_PER_ALLELE per allele) with
 # the pre-15l share floor (het_af_min): at this depth the one-sided bound of a 50%
-# share stays below the Task 15l floor phase_single_event_min_share (0.4), which has
+# share stays below the floor phase_single_event_min_share (0.4), which has
 # its own tests (test_run_minor_sweep; test_low_depth_heterozygote_..., and
 # test_equal_length_heterozygote_is_pathogenic_at_the_defaults at the bound's sample).
 SPLIT_S = dataclasses.replace(S, phase_single_event_min_share=S.het_af_min)
@@ -236,7 +236,7 @@ def test_equal_length_dupa_heterozygote_is_pathogenic(tmp_path: Path, seed: int)
 
 
 def test_equal_length_heterozygote_is_pathogenic_at_the_defaults(tmp_path: Path) -> None:
-    """Task 15l: with the share bound's full sample (phase_single_event_bound_reads
+    """With the share bound's full sample (phase_single_event_bound_reads
     reads) the 50% share clears the default floor phase_single_event_min_share."""
     seed, per_allele = HET_SEEDS[0], S.phase_single_event_bound_reads // 2
     records = _records(MUT, per_allele, 2 * seed + 1) + _records(WT, per_allele, 2 * seed + 2)
@@ -246,7 +246,7 @@ def test_equal_length_heterozygote_is_pathogenic_at_the_defaults(tmp_path: Path)
 
 
 def test_low_depth_heterozygote_is_inconclusive_at_the_defaults(tmp_path: Path) -> None:
-    """Task 15l: at the phase-sample depth the bound of a 50% share stays below 0.4, so
+    """At the phase-sample depth the bound of a 50% share stays below 0.4, so
     the carrier is not called, and the located site blocks a negative call."""
     summary, decision = _run(tmp_path, _het_records(HET_SEEDS[0]))
     assert summary["hybrid"]["split_bases"] == ["unconfirmed_single_site"]
@@ -328,7 +328,7 @@ def test_identical_polished_alleles_block_a_negative_call(tmp_path: Path) -> Non
 
 
 def test_identical_polished_alleles_block_a_negative_call_at_the_defaults(tmp_path: Path) -> None:
-    """The same guard at the default share floor (Task 15l): with the bound's full sample
+    """The same guard at the default share floor: with the bound's full sample
     the split is made at the defaults, and identical polished alleles keep it unresolved."""
     real = engine.polish
     wild_type = synth.allele(WT)

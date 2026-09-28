@@ -239,7 +239,7 @@ def test_evaluate_then_report_writes_json_and_markdown(
     assert set(tables) == {"stratified", "pooled", "events", "confusion"}
     assert tables["pooled"]["ont_amplicon_r10"]["allele_exact"]["point"] == 1.0
     assert report["preregistration"] is None
-    # Task 12e: the absolute targets are evaluated per set, not restricted to `standard`
+    # The absolute targets are evaluated per set, not restricted to `standard`
     # (this fixture has no `clean` cases at all: not present, never FAIL; blocks adoption).
     targets = report["decision"]["targets"]
     assert set(targets) == {STANDARD, "clean"}

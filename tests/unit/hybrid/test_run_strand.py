@@ -1,4 +1,4 @@
-"""Stutter-aware run-site rules of the phase site table (Task 15e), on exact site tables.
+"""Stutter-aware run-site rules of the phase site table, on exact site tables.
 
 The tables are built by hand (no alignment), so every read count is exact: ten peer C
 runs of the consensus length show the stutter background, and one target C run

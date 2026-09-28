@@ -204,6 +204,12 @@ def test_ok_row_without_a_reads_file_becomes_not_attempted(tmp_path: Path) -> No
     assert "reads file not found" in records[0]["error"]
 
 
+# Under pytest-xdist the test process is multi-threaded (execnet), and Python 3.12-3.13
+# Warns on every fork() there. The forked workers here run only the patched stub (no
+# Lock, no thread), so that deadlock warning does not apply to this test.
+@pytest.mark.filterwarnings(
+    r"ignore:This process \(pid=\d+\) is multi-threaded, use of fork\(\):DeprecationWarning"
+)
 def test_jobs_parallel_matches_sequential(tmp_path: Path) -> None:
     """The process-pool path (``jobs`` > 1) aggregates the same records as sequential."""
     split_dir = tmp_path / "dev"

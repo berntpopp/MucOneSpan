@@ -1,4 +1,4 @@
-"""benchsim.targets: absolute-target pass/fail evaluation (task 12e)."""
+"""benchsim.targets: absolute-target pass/fail evaluation."""
 
 from dataclasses import replace
 from typing import Any
@@ -203,7 +203,7 @@ def test_targets_by_set_marks_an_absent_set_not_present() -> None:
     assert "FAIL" not in text and "clean=False" not in text
 
 
-# Task 15o (decision rule v6): a "pooled"-scope target gates on the pooled row only.
+# Decision rule v6 onwards: a "pooled"-scope target gates on the pooled row only.
 # One profile at 2/3 INCONCLUSIVE (> 0.20) while the pooled rate is 2/12 (<= 0.20).
 SCOPE_ROWS = [
     ("ont_genomic_targeted", "pathogenic", "INCONCLUSIVE"),
@@ -275,7 +275,7 @@ def test_targets_text_states_the_scope_of_every_target() -> None:
 
 
 def test_render_targets_omits_the_info_only_note_without_informational_rows() -> None:
-    # Task 15o minor: the note explains `info only` rows, so it appears only with one.
+    # The note explains `info only` rows, so it appears only with one.
     per_profile = TargetsConfig(
         by_set={"standard": {"inconclusive_rate": Target("le", 0.20, "pooled_and_profiles")}}
     )
@@ -289,7 +289,7 @@ def test_render_targets_omits_the_info_only_note_without_informational_rows() ->
 
 
 def test_targets_text_names_an_unknown_scope_instead_of_raising() -> None:
-    # Task 15o minor: like the basis text, an unlisted scope is rendered verbatim (the
+    # Like the basis text, an unlisted scope is rendered verbatim (the
     # loader rejects it; a dataclass mutated after validation must not raise KeyError).
     cfg = _scope_cfg()
     cfg.by_set["standard"]["inconclusive_rate"] = Target("le", 0.20, "custom_scope")

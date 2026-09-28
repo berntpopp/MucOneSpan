@@ -1,4 +1,4 @@
-"""Task 15f fix round 1: an extrapolated stutter profile must keep the alleles apart.
+"""An extrapolated stutter profile must keep the alleles apart.
 
 Real ONT "+" reads (PRJEB92208 MP1) show 9.8% deletion stutter at C6 runs and 25.7%
 at C7 runs, but only 20.6% at the true C8 run: the trend saturates. Extrapolating it

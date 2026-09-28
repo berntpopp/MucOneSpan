@@ -1,4 +1,4 @@
-"""Task 15i: a strand-biased heterozygous insertion must never leave a NEGATIVE call.
+"""A strand-biased heterozygous insertion must never leave a NEGATIVE call.
 
 Reproduces the shape of a simulated ONT amplicon case (a regression shape from the
 unsealed test split, used non-blind): both alleles have the same repeat count and the

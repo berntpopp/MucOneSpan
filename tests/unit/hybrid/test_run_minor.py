@@ -1,6 +1,6 @@
-"""Task 15l: a within-peak run-length minority above the expected stutter blocks NEGATIVE.
+"""A within-peak run-length minority above the expected stutter blocks NEGATIVE.
 
-The shape (found in the Task 15j fix round): two length peaks, and inside one allele's
+The shape: two length peaks, and inside one allele's
 peak a real minority haplotype (mosaicism, a third haplotype, a chimera) carrying dupC
 (an X unit's C7 run read as C8) at 15-30% of that allele's reads, with realistic run
 stutter. Its C8 share stays below every earlier run floor (``phase_run_bg_multiplier``
@@ -8,12 +8,12 @@ and the single-peak-only 15g ``phase_run_safety_multiplier``, both multiples of 
 peers' raw share), so the sample was NEGATIVE.
 
 The run-minority tier (``run_minor``) explains each run's clean observations as a
-mixture of its modal length and another length, each convolved with the Task 15f
+mixture of its modal length and another length, each convolved with the run-length
 stutter profile of its own length from the peak's peer runs, and blocks a negative call
 when the one-sided lower confidence bound of the minority share reaches
 ``phase_run_minor_min_share``. It never splits a peak or creates an event.
 
-Also here (Task 15l addendum): an insertion slot next to a run is recorded (insG_pos54
+Also here: an insertion slot next to a run is recorded (insG_pos54
 in unit J inserts a G right before a C run and was invisible to the site table).
 """
 

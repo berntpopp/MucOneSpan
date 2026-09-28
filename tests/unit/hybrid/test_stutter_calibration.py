@@ -1,7 +1,7 @@
-"""Task 15f fix round 1: pinned pre-15f numbers and the tolerated wild-type share.
+"""Pinned pre-15f numbers and the tolerated wild-type share.
 
 ``test_shift_model_reproduces_pre_15f_numbers``: the expected read support was computed
-with the evidence code of 9f39eff (the commit before Task 15f) on these exact fixtures
+with the evidence code of 9f39eff (the commit before run-length-aware stutter) on these exact fixtures
 (``test_evidence_stutter._reads``, seed ``SEEDS[0]``) and committed as literals, so
 ``hp_stutter_model = "shift"`` provably is the former model.
 
@@ -33,28 +33,28 @@ PRE_15F: dict[str, tuple[list[tuple[str, int]], Callable[[int], float], dict[str
         {"n": 200, "alt": 117, "ref": 65, "other": 18, "alt_frac": 0.585,
          "alternative_frac": 0.23, "llr": 234.4, "strand_llr": {"+": 123.1, "-": 111.2},
          "status": "supported"},
-    ),
+),
     "d1_step_dupc": (
         [(base.DUPC, base.N_READS)],
         base._d1_step,
         {"n": 200, "alt": 118, "ref": 67, "other": 15, "alt_frac": 0.59,
          "alternative_frac": 0.287, "llr": 197.8, "strand_llr": {"+": 111.4, "-": 86.4},
          "status": "discordant"},
-    ),
+),
     "wild_type_reads": (
         [(base.WILD, base.N_READS)],
         base._log_linear,
         {"n": 200, "alt": 15, "ref": 166, "other": 19, "alt_frac": 0.075,
          "alternative_frac": 0.961, "llr": -268.9, "strand_llr": {"+": -155.6, "-": -113.3},
          "status": "not_supported"},
-    ),
+),
     "wild_type_40pct": (
         [(base.DUPC, 120), (base.WILD, 80)],
         base._log_linear,
         {"n": 200, "alt": 81, "ref": 100, "other": 19, "alt_frac": 0.405,
          "alternative_frac": 0.489, "llr": 58.0, "strand_llr": {"+": 11.9, "-": 46.1},
          "status": "discordant"},
-    ),
+),
 }  # fmt: skip
 
 

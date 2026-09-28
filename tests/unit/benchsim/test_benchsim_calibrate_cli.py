@@ -84,7 +84,7 @@ def test_calibrate_runs_every_point_through_run_and_evaluate(
         assert loaded.hybrid.het_af_min == point["values"]["hybrid.het_af_min"]
         assert loaded.run.engine == "hybrid"
         assert (point_dir / "results" / "hybrid" / "evaluation.json").is_file()
-        # Ledger L185: each point records which caller build produced its results.
+        # Each point records which caller build produced its results.
         caller = json.loads((point_dir / "results" / "hybrid" / "caller.json").read_text())
         assert caller["engine"] == "hybrid" and caller["caller_version"] == __version__
         assert "caller_commit" in caller

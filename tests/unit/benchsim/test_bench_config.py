@@ -271,7 +271,7 @@ def test_atlas_expected_sets_must_be_defined(tmp_path: Path) -> None:
 
 
 def test_target_defaults_match_the_owner_directive() -> None:
-    # Owner ruling 2026-09-25 (task 12e): clean >=0.90 PATHOGENIC / <=0.10 INCONCLUSIVE / 0
+    # clean >=0.90 PATHOGENIC / <=0.10 INCONCLUSIVE / 0
     # FP; standard >=0.80 / <=0.20 / 0 FP; stress reported only, no target. Owner decision
     # 2026-09-27 (task 15o, rule v6): INCONCLUSIVE binds on the pooled set only. Owner
     # decision 2026-09-28 (task 15n, rule v7): the pooled clean INCONCLUSIVE ceiling is 0.15.

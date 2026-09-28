@@ -73,7 +73,7 @@ def test_anchor_repeats_follow_the_configured_layout() -> None:
     assert moved.right == synth.RD.repeats[other.right_anchor_id] != default.right
 
 
-# --- L210: a dimer refit that adds a peak falls back to the first fit ----------------
+# --- a dimer refit that adds a peak falls back to the first fit ----------------
 
 
 def test_refit_that_adds_a_new_peak_keeps_the_first_fit(monkeypatch: pytest.MonkeyPatch) -> None:

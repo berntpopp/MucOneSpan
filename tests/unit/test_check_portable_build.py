@@ -66,7 +66,7 @@ def test_avx_family_instructions_are_flagged(
     assert guard.find_non_portable_instructions(listing) == [offending]
 
 
-# Ledger L258: -march=native also emits non-VEX-prefixed extensions beyond the SSE4.1
+# -march=native also emits non-VEX-prefixed extensions beyond the SSE4.1
 # baseline (POPCNT, LZCNT, BMI1/BMI2 general-purpose instructions, SSE4.2).
 @pytest.mark.parametrize(
     "offending",

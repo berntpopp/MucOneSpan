@@ -1,4 +1,4 @@
-"""Task 15d: fast stage calibration of the hybrid length model.
+"""Fast stage calibration of the hybrid length model.
 
 Builds tiny real cases (real bundled repeat dictionary, synthetic noisy spanning
 reads via ``tests.unit.hybrid.synth``, a ``load_truth``-loadable truth dir) and
@@ -360,7 +360,7 @@ def test_evaluate_records_a_missed_allele_when_a_minor_peak_is_rejected(tmp_path
     assert row["observed_allele_count"] == 1
     assert row["missed_alleles"] == 1
     assert row["case_length_exact"] == 0
-    # Task 15h: the rejected minor peak is gate-relevant (it drives INCONCLUSIVE), so
+    # The rejected minor peak is gate-relevant (it drives INCONCLUSIVE), so
     # the lengths stage flags it for a reason-rate metric.
     assert row["reconstruction_flags"] == ["gate_relevant_rejected_peak"]
 
@@ -503,7 +503,7 @@ def test_reason_metric_cannot_shadow_a_real_lengths_built_in_metric(tmp_path: Pa
 
 
 def test_match_alleles_refuses_more_than_ploidy_lengths_or_peaks() -> None:
-    # Ledger L163: the exhaustive matcher's search space is (n_peaks + 1) ** n_truth, so
+    # The exhaustive matcher's search space is (n_peaks + 1) ** n_truth, so
     # both counts are hard-capped at the diploid PLOIDY instead of trusted to be small.
     h = HybridSettings()
     peak = {"center_bp": 1000.0, "support": 10}

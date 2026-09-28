@@ -73,8 +73,9 @@ TARGET_METRIC_NAMES = ("pathogenic_rate", "inconclusive_rate", "false_positive_r
 TARGET_COMPARATOR_NAMES = ("ge", "le")
 TARGET_BASIS_NAMES = ("point", "ci_bound")
 # Groupings a target binds on (task 15o, decision rule v6): the pooled set and every
-# profile, or the pooled set only (per-profile rates then shown for information). The
-# first (`SCOPE_POOLED_AND_PROFILES`) is the default, the behaviour of targets written before scopes existed.
+# profile, or the pooled set only (per-profile rates then shown for information). The first
+# (`SCOPE_POOLED_AND_PROFILES`) is the default, the behaviour of targets written before
+# scopes existed.
 SCOPE_POOLED_AND_PROFILES, SCOPE_POOLED = "pooled_and_profiles", "pooled"
 TARGET_SCOPE_NAMES = (SCOPE_POOLED_AND_PROFILES, SCOPE_POOLED)
 # Sections that shape generated cases (designs, amounts, read profiles, structures).

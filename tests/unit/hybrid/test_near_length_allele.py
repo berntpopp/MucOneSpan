@@ -1,4 +1,4 @@
-"""Task 15i: the smear relabelling must never absorb a peak that is a real allele.
+"""The smear relabelling must never absorb a peak that is a real allele.
 
 Reproduces the shape of a simulated ONT amplicon case (a regression shape from the
 unsealed test split, used non-blind): alleles of 96 and 93 repeat units with almost the
@@ -121,7 +121,7 @@ def test_candidate_below_the_guard_is_left_to_the_smear_test(
     monkeypatch: pytest.MonkeyPatch,
 ) -> None:
     """Below the guard the smear test decides, whatever the absolute read count (Task 5
-    ruling: smear debris grows with depth, so a read count alone never makes an allele)."""
+    reason: smear debris grows with depth, so a read count alone never makes an allele)."""
     _always("smear", monkeypatch)
     near_reads = int(S.smear_guard_top_frac * TOP[1]) - 1
     model = _model(_case_lengths(SEEDS[0], near_reads))

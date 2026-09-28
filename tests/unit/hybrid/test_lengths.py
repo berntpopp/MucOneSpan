@@ -96,8 +96,7 @@ MINOR_INNER_UNITS = 30
 MINOR_UNITS = len(synth.PRE) + MINOR_INNER_UNITS + len(synth.POST)
 MAJOR_INNER_UNITS = 60
 
-# Fix round 4 acceptance grid (controller ruling: statistical significance of the local
-# excess). Every criterion is asserted in EVERY cell; there is no exception list.
+# Fix round 4 acceptance grid. Every criterion is asserted in EVERY cell; there is no exception list.
 DS = (60, 120, 200, 300, 1000)
 FRACS = (0.3, 0.45, 0.54)
 GRID_SEEDS = 10  # seeds 0..9 per cell; runtime is reported in task-5-report.md

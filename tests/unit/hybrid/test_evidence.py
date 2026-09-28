@@ -198,7 +198,7 @@ def test_competition_status_clauses() -> None:
 
 
 def test_competition_thresholds_are_independent_of_the_homopolymer_caller() -> None:
-    # Ledger L85: competition events have their own read-count and alt-fraction floors.
+    # Competition events have their own read-count and alt-fraction floors.
     n = S.event_min_reads
     strict_hp = replace(S, hp_min_reads=n + 10, hp_min_alt_frac=1.0)
     assert competition_status(n, n, 0, strict_hp) == "supported"
@@ -260,7 +260,8 @@ def test_zero_reads_are_never_supported_even_at_permissive_settings() -> None:
         event_min_reads=0,
         event_min_alt_frac=0.0,
     )
-    got = hp_status(0, 0.0, 0.0, {"+": 0.0, "-": 0.0}, zero, unchecked, alternative_frac=0.0)  # type: ignore[arg-type]
+    status: Any = hp_status
+    got = status(0, 0.0, 0.0, {"+": 0.0, "-": 0.0}, zero, unchecked, alternative_frac=0.0)
     assert got == "insufficient_depth"
     assert competition_status(0, 0, 0, unchecked) == "insufficient_depth"  # type: ignore[arg-type]
 
@@ -406,7 +407,7 @@ def test_unlocalized_event_is_reported_not_supported() -> None:
 
 
 def test_homopolymer_evidence_counts_a_read_without_its_run_boundary_as_other() -> None:
-    """Ledger L130: only reads that keep both bases bounding the run observe its length.
+    """Only reads that keep both bases bounding the run observe its length.
 
     Exact event reads are ``alt``; exact wild-type reads are ``ref``; reads whose base
     before the run is substituted by the run's own base (the run merges with it) observe

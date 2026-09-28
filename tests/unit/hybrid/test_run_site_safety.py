@@ -1,4 +1,4 @@
-"""Task 15g: a heterozygous homopolymer run below the split floor must block NEGATIVE.
+"""A heterozygous homopolymer run below the split floor must block NEGATIVE.
 
 Reproduces the shape of a simulated HiFi amplicon case: both alleles have the same
 repeat count and differ only at a dupC (one X unit's C7 run read as C8). HiFi-like
@@ -150,7 +150,7 @@ def test_wild_type_under_realistic_stutter_stays_negative(
 def test_safety_tier_is_its_own_setting(tmp_path: Path) -> None:
     """At the split multiplier the tier adds nothing here: NEGATIVE, as before 15g.
 
-    Since Task 15l the run-minority tier (``phase_run_minor_scope``) also blocks this
+    Since the run-minority tier, the run-minority tier (``phase_run_minor_scope``) also blocks this
     shape, so it is switched off too to isolate the 15g setting.
     """
     off = dataclasses.replace(
@@ -206,7 +206,7 @@ def test_two_length_peaks_never_use_the_run_site_tier(tmp_path: Path) -> None:
     assert RUN_SITE_BASIS not in result.block["split_bases"], result.block["split_bases"]
 
 
-# Ledger L205: the tier's floor is a fixed ratio with no depth term. At low depth (about
+# The tier's floor is a fixed ratio with no depth term. At low depth (about
 # 60 spanning reads, twice the adequate-depth gate) a wild type is never PATHOGENIC; a
 # non-negative result must come from a located, unconfirmed site (the documented cost).
 LOW_DEPTH_READS = 2 * S.depth_adequate_spanning

@@ -1,4 +1,4 @@
-"""Task 15j: a low-accuracy read subset must not leave a phantom site in a length peak.
+"""A low-accuracy read subset must not leave a phantom site in a length peak.
 
 Reproduces the shape behind most HiFi normals reported INCONCLUSIVE on the development
 panels: the length model finds two peaks (two alleles), and inside one peak a subset of
@@ -40,7 +40,7 @@ from muc_one_span.settings import DEFAULT_SETTINGS, HybridSettings, RuntimeSetti
 from tests.unit.hybrid import synth
 from tests.unit.hybrid import test_single_event as base
 
-# The 15j level calibrated on v4 dev; since Task 15k the rule is opt-in (default 0, off),
+# The 15j level calibrated on v4 dev; by default the rule is opt-in (default 0, off),
 # so these tests switch it on explicitly.
 QUALITY_ALPHA = 0.001
 OPT_IN = dataclasses.replace(

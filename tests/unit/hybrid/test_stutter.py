@@ -1,4 +1,4 @@
-"""Task 15f: run-length-aware stutter profiles (``hybrid.stutter``), exact inputs."""
+"""Run-length-aware stutter profiles (``hybrid.stutter``), exact inputs."""
 
 from __future__ import annotations
 

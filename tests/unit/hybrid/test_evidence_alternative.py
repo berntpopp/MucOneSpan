@@ -1,4 +1,4 @@
-"""Task 13b: read support must beat the read-derived alternative at the event site.
+"""Read support must beat the read-derived alternative at the event site.
 
 A consensus error (a POA/polish indel) must never be rated ``supported`` just because
 reads match the consensus window better than the dictionary parent. Each event is
@@ -253,7 +253,7 @@ def test_event_allele_fraction_recovers_the_mixture_weight() -> None:
 
 
 def test_read_derived_alternative_polish_is_capped_at_polish_max_reads() -> None:
-    """Final-review minor / ledger L130: the alternative's pileup polish is bounded.
+    """The alternative's pileup polish is bounded.
 
     The reads that do not favour the event are polished into the read-derived
     alternative from at most ``polish_max_reads`` of them (a seeded sample), like the

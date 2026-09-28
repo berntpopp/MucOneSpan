@@ -1,4 +1,4 @@
-"""Task 15l safety sweeps (heavy: full pipeline runs; grouped here for a dedicated CI job).
+"""Run-minority tier safety sweeps (heavy: full pipeline runs; grouped here for a dedicated CI job).
 
 Both directions of the run-minority tier (``run_minor``) and the single-event share
 floor (``phase_single_event_min_share``), on synthetic samples with realistic run
@@ -7,7 +7,7 @@ ONT-like saturating stutter; poor reads stutter twice as often):
 
 * a within-peak dupC minority at or above the documented tier-only detection floor
   (``FLOOR_AF``, docs/reference/limitations.md) is never NEGATIVE, with two length
-  peaks and with one (the 60-seed evidence is in the Task 15l report);
+  peaks and with one (the 60-seed evidence is in the release validation artefacts);
 * wild-type samples under the same stutter are never PATHOGENIC, and the tier never
   turns one of them from NEGATIVE into INCONCLUSIVE;
 * a homozygous normal whose C unit's C6 run carries a site-specific +1 C artefact in
@@ -17,7 +17,7 @@ ONT-like saturating stutter; poor reads stutter twice as often):
   NEGATIVE (``test_quality_known_events``; no longer expected failures).
 
 The depths, seeds and read counts are the smallest that show each property; the full
-grids (AF 0.10-0.30, depth 60-2000, five seeds) are in the Task 15l report.
+grids (AF 0.10-0.30, depth 60-2000, five seeds) are in the release validation artefacts.
 """
 
 from __future__ import annotations
@@ -41,7 +41,7 @@ DEPTH = 2 * S.phase_max_site_reads
 SEEDS = (0, 1)
 # Tier-only detection floor at DEPTH (monotone envelope over depth >= DEPTH), per
 # (stutter shape, layout): the run-minority tier itself fired and nothing was NEGATIVE
-# in 60 seeds (Task 15l fix round 1; docs/reference/limitations.md). ONT-like
+# in 60 seeds (docs/reference/limitations.md). ONT-like
 # strand-asymmetric single peaks have no tier floor up to 0.40 (their minorities are
 # blocked by other gates only; INCIDENTAL_GUARD below).
 FLOOR_AF = {
@@ -52,7 +52,7 @@ FLOOR_AF = {
     ("ont_saturating", "one_peak"): 0.20,
 }
 # ONT-like strand-asymmetric single peak: no tier floor up to 0.40, but 0/120 NEGATIVE at
-# 0.40 through other (incidental) gates in the Task 15l 60-seed grid. A regression guard
+# 0.40 through other (incidental) gates in the 60-seed grid. A regression guard
 # for that observation, not evidence for the tier (docs/reference/limitations.md).
 INCIDENTAL_GUARD = (("ont", "one_peak"), 0.40)
 # Share of reads carrying the wild-type run artefact (the H1_hifi shape: 0.327).

@@ -1,4 +1,4 @@
-"""Task 15f: the homopolymer mixture fit uses a run-length-aware stutter background.
+"""The homopolymer mixture fit uses a run-length-aware stutter background.
 
 Deletion stutter grows with run length. A true dupC run (C8) therefore shows more C7
 reads than the C7 background runs show C6 reads; the pre-15f model (the no-event

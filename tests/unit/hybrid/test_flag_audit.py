@@ -1,4 +1,4 @@
-"""Task 15i audit: every hybrid status that leaves an allele unaccounted blocks NEGATIVE.
+"""Audit: every hybrid status that leaves an allele unaccounted blocks NEGATIVE.
 
 Each summary here is built with the engine's own record builders (``allele_info``,
 ``single_group_fields``), so the audit follows the producer, and every decision goes

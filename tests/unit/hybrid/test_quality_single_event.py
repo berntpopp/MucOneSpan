@@ -1,11 +1,11 @@
-"""Task 15k: a low-accuracy artefact site must not hide an equal-length carrier's event.
+"""A low-accuracy artefact site must not hide an equal-length carrier's event.
 
 Reproduces the shape of the v4 dev HiFi pathogenic cases reported INCONCLUSIVE:
 both alleles have the same length (one length peak) and differ at one indel event
 (dupA: the carrier X unit reads C7-AA where the wild-type C unit reads C6-AA). A
 subset of reads with lower base quality shares a systematic error at another,
 unlinked site whose minor allele fraction reaches ``het_af_min``. The peak then has
-two candidate events, so the single-event split (Task 15e) is refused and the carrier
+two candidate events, so the single-event split  is refused and the carrier
 event is scored on a merged consensus (read support discordant, INCONCLUSIVE).
 
 With ``phase_quality_single_event`` the 15j low-accuracy test (rank-sum test on mean
@@ -16,7 +16,7 @@ exactly one event, the peak is split on that event under every single-event gate
 PATHOGENIC: the selection status stays unresolved, so a negative call stays blocked
 whatever the split finds.
 
-The rule is off by default (owner ruling pending): a wild-type peak with a site-specific
+The rule is off by default: a wild-type peak with a site-specific
 +1 C excess of 0.35-0.40 at one C7 run (beyond the single-event split's validated
 range, where it cannot tell an artefact from a real minor) plus a low-accuracy artefact
 site was INCONCLUSIVE and becomes PATHOGENIC with the rule on. The stress test below
@@ -41,10 +41,10 @@ from tests.unit.hybrid import test_quality_sites as quality
 from tests.unit.hybrid import test_single_event as base
 from tests.unit.hybrid import test_single_event_gate as gate
 
-# Heavy synthetic safety sweep: its own CI job and make test-unit (never skipped).
-pytestmark = pytest.mark.safety_sweep
+# The heavy synthetic sweeps below carry the safety_sweep marker (their own CI job and
+# make test-unit, never skipped); the cheap tests run in the core suite.
 
-S = quality.S  # the 15j test is opt-in since Task 15k: switched on explicitly
+S = quality.S  # the 15j test is opt-in since switched on explicitly
 NEGATIVE = "NO_PATHOGENIC_VARIANT_DETECTED"
 N_PER_ALLELE = base.N_PER_ALLELE
 # Share of all reads in the low-accuracy subset carrying the artefact column (the
@@ -73,11 +73,11 @@ def _settings(**changes: object) -> RuntimeSettings:
     return dataclasses.replace(DEFAULT_SETTINGS, hybrid=hybrid)
 
 
-# The rule is off by default (owner ruling pending, see settings_hybrid); these tests
+# The rule is off by default (see settings_hybrid); these tests
 # switch it on.
 ON = _settings(phase_quality_single_event=True)
 # The split mechanism tests run at the pre-15l single-event share floor (het_af_min):
-# at this depth (N_PER_ALLELE per allele) the Task 15l floor phase_single_event_min_share
+# at this depth (N_PER_ALLELE per allele) the floor phase_single_event_min_share
 # refuses the split. The never-PATHOGENIC tests keep the default floor (ON).
 ON_SPLIT = _settings(phase_quality_single_event=True, phase_single_event_min_share=S.het_af_min)
 
@@ -139,12 +139,14 @@ def _peak(records: list[ReadRecord]) -> Any:
 # --- preconditions: the shape of the dev cases -----------------------------------------
 
 
+@pytest.mark.safety_sweep
 def test_rule_is_off_by_default(tmp_path: Path) -> None:
     summary, decision = base._run(tmp_path, _het(SEEDS[0]))
     assert summary["hybrid"]["split_bases"] == ["unconfirmed_single_site"]
     assert decision["state"] == "INCONCLUSIVE"
 
 
+@pytest.mark.safety_sweep
 @pytest.mark.parametrize("seed", SEEDS)
 def test_artefact_adds_a_second_event_and_blocks_the_split(tmp_path: Path, seed: int) -> None:
     records = _het(seed)
@@ -158,6 +160,7 @@ def test_artefact_adds_a_second_event_and_blocks_the_split(tmp_path: Path, seed:
 # --- the rule ---------------------------------------------------------------------------
 
 
+@pytest.mark.safety_sweep
 @pytest.mark.parametrize("seed", SEEDS)
 def test_carrier_event_is_split_and_called_after_the_artefact_is_dropped(
     tmp_path: Path, seed: int
@@ -173,6 +176,7 @@ def test_carrier_event_is_split_and_called_after_the_artefact_is_dropped(
     assert decision["state"] == "PATHOGENIC", decision["details"]
 
 
+@pytest.mark.safety_sweep
 @pytest.mark.parametrize("seed", SEEDS)
 def test_a_quality_enabled_split_never_resolves_the_selection(tmp_path: Path, seed: int) -> None:
     """Wild-type equal-length heterozygote (X vs C: a run-length difference, no event):
@@ -185,11 +189,12 @@ def test_a_quality_enabled_split_never_resolves_the_selection(tmp_path: Path, se
     assert decision["state"] == "INCONCLUSIVE", decision["details"]
 
 
+@pytest.mark.safety_sweep
 @pytest.mark.parametrize("seed", SEEDS[:1])
 def test_a_quality_enabled_split_never_resolves_the_selection_at_the_defaults(
     tmp_path: Path, seed: int
 ) -> None:
-    """The same shape at the default share floor (Task 15l), with the bound's full sample:
+    """The same shape at the default share floor, with the bound's full sample:
     the split is made on the single event and keeps the selection unresolved with the
     low-accuracy reason, so the sample is INCONCLUSIVE, never NEGATIVE."""
     records = _het(
@@ -210,6 +215,7 @@ def test_rule_needs_the_quality_test() -> None:
         _settings(phase_quality_single_event=True, phase_quality_alpha=0.0)
 
 
+@pytest.mark.safety_sweep
 def test_artefact_on_good_reads_keeps_the_peak_unsplit(tmp_path: Path) -> None:
     """A second site carried by high-quality reads is not explained: no split."""
     rng = random.Random(SEEDS[0])
@@ -233,6 +239,7 @@ def test_artefact_on_good_reads_keeps_the_peak_unsplit(tmp_path: Path) -> None:
     assert decision["state"] == "INCONCLUSIVE"
 
 
+@pytest.mark.safety_sweep
 def test_two_peak_samples_are_unaffected(tmp_path: Path) -> None:
     """The setting acts on single-peak (equal-length) genotypes only; the 15j two-peak
     rule is unchanged."""
@@ -283,6 +290,7 @@ def _mosaic(profile: str, af: float, seed: int) -> list[ReadRecord]:
     return out
 
 
+@pytest.mark.safety_sweep
 @pytest.mark.parametrize("profile", sorted(PROFILES))
 @pytest.mark.parametrize("af", MOSAIC_AFS)
 @pytest.mark.parametrize("seed", MOSAIC_SEEDS)
@@ -325,6 +333,7 @@ def _stress(excess: float, stutter: str, seed: int) -> list[ReadRecord]:
     return out
 
 
+@pytest.mark.safety_sweep
 @pytest.mark.parametrize("stutter", sorted(gate.STUTTER))
 @pytest.mark.parametrize("excess", gate.EXCESS)
 def test_wild_type_stress_with_an_artefact_is_never_pathogenic(

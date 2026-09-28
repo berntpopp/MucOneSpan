@@ -44,7 +44,7 @@ def _rows(
 
 
 HEADLINE = DEFAULT_BENCH_CONFIG.sets.headline
-# Bypasses the task 12e absolute targets (part 2) so pre-12e fixtures that exercise only
+# Bypasses the absolute targets (part 2) so older fixtures that exercise only
 # the relative rule (part 1) do not also need pathogenic/decision/inconclusive fields.
 NO_TARGETS = BenchConfig(targets=TargetsConfig(by_set={}))
 

@@ -166,7 +166,7 @@ def test_base_settings_defaults_and_invalid_base(tmp_path: Path) -> None:
     ],
 )
 def test_malformed_grid_values_are_value_errors(key: str, value: Any, message: str) -> None:
-    # Ledger L156: the strict loader turns every malformed JSON value into ValueError
+    # The strict loader turns every malformed JSON value into ValueError
     # (never a bare TypeError), so a grid point is refused with the field's name.
     with pytest.raises(ValueError, match=message):
         build_points({key: [value]}, settings_as_dict(DEFAULT_SETTINGS), "hybrid")

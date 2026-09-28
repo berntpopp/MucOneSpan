@@ -36,7 +36,7 @@ def test_truth_class_benign_in_frame_event() -> None:
     only pathogenic ADTKD-MUC1 variants and has no in-frame entry. The benign path is
     therefore proven with a synthetic in-frame definition of the same change schema,
     merged into a copy of the real dictionary, rather than a lookup that would raise
-    StopIteration against the shipped data. See task-7-report.md for the ruling.
+    StopIteration against the shipped data.
     """
     benign_def = {"changes": [{"type": "insert", "start": 60, "sequence": "AAA"}]}
     assert net_length_change(benign_def) % 3 == 0

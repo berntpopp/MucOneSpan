@@ -1,4 +1,4 @@
-"""Task 15e fix round 1: the single-event split needs peak-level evidence for its share.
+"""The single-event split needs peak-level evidence for its share.
 
 After a single-event split the reads of each allele are selected by the event, so the
 event's read support is circular. The split is therefore made only when the one-sided
@@ -26,8 +26,8 @@ from muc_one_span.settings import DEFAULT_SETTINGS
 from tests.unit.hybrid import synth
 from tests.unit.hybrid import test_single_event as base
 
-# Heavy synthetic safety sweep: its own CI job and make test-unit (never skipped).
-pytestmark = pytest.mark.safety_sweep
+# The heavy synthetic sweeps below carry the safety_sweep marker (their own CI job and
+# make test-unit, never skipped); the cheap tests run in the core suite.
 
 S = base.S
 REPEAT = len(synth.PRE) + 1  # 1-based repeat of the first inner unit
@@ -64,6 +64,7 @@ def _stress_records(excess: float, stutter: str, seed: int) -> list[ReadRecord]:
     return out
 
 
+@pytest.mark.safety_sweep
 @pytest.mark.parametrize("stutter", sorted(STUTTER))
 @pytest.mark.parametrize("excess", EXCESS)
 def test_wild_type_site_specific_excess_is_never_pathogenic(
@@ -76,6 +77,7 @@ def test_wild_type_site_specific_excess_is_never_pathogenic(
         assert any("unresolved heterozygous site at repeat" in d for d in decision["details"])
 
 
+@pytest.mark.safety_sweep
 def test_low_share_single_event_is_not_split() -> None:
     """A minor share just above het_af_min is not significantly above it: no split.
 
@@ -103,6 +105,7 @@ def test_single_event_alpha_is_validated() -> None:
         dataclasses.replace(S, phase_single_event_alpha=1.0)
 
 
+@pytest.mark.safety_sweep
 def test_unsplit_site_reason_reaches_the_decision(tmp_path: Path) -> None:
     settings = dataclasses.replace(
         DEFAULT_SETTINGS,
@@ -125,6 +128,7 @@ def test_equally_likely_run_lengths_leave_a_read_unassigned() -> None:
     assert single_event._allele({("run", 0): 5}, "+", site, None) is None
 
 
+@pytest.mark.safety_sweep
 def test_unassigned_reads_of_a_single_event_split_are_reassigned(tmp_path: Path) -> None:
     """Reads the split leaves unassigned (ties) are placed by edit distance, not dropped."""
     records = base._het_records(base.HET_SEEDS[0])
@@ -149,6 +153,7 @@ def test_unassigned_reads_of_a_single_event_split_are_reassigned(tmp_path: Path)
     assert assigned == total - result.block["unassigned_spanning_reads"]
 
 
+@pytest.mark.safety_sweep
 def test_share_bound_sample_is_its_own_setting() -> None:
     """Raising the site-table compute cap must not weaken the share gate.
 
@@ -183,8 +188,9 @@ def test_share_bound_reads_is_validated() -> None:
         dataclasses.replace(S, phase_single_event_bound_reads=0)
 
 
+@pytest.mark.safety_sweep
 def test_share_bound_sample_is_its_own_setting_at_the_defaults() -> None:
-    """The same property at the default floor and sample size (Task 15l): at four times
+    """The same property at the default floor and sample size: at four times
     the bound's sample, a share of 1.1 x phase_single_event_min_share is significant
     over every read but not over the bound's fixed sample."""
     s = dataclasses.replace(S, phase_single_event_split="all")

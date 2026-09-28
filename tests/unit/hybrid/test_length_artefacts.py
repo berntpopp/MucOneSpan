@@ -1,4 +1,4 @@
-"""Task 15h: PCR dimer peaks and inter-allele smear are length artefacts, not alleles.
+"""PCR dimer peaks and inter-allele smear are length artefacts, not alleles.
 
 Safety first: a real allele is never called a dimer (no read of a real allele carries a
 motif-9 -> motif-1 amplicon junction), accepted peaks are never touched, a dimer
@@ -282,7 +282,7 @@ def test_refit_that_loses_a_parent_keeps_the_first_fit(monkeypatch: pytest.Monke
 
 
 def test_fractional_dimer_allowance_is_compared_unrounded() -> None:
-    # Ledger L210: at low depth frac x parent support is fractional; the count is compared
+    # At low depth frac x parent support is fractional; the count is compared
     # with it as is (never rounded), half a read either side of the dimer count.
     major = _spans(SHORT_INNER, MAJOR_READS, 20)
     dimers = _dimer_spans(SHORT_INNER, SHORT_INNER, DIMER_READS, 21)

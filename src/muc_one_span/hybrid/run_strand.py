@@ -9,10 +9,11 @@ length-error profile measured at the *other* runs of the same base in the site t
 (leave-one-out; same consensus length first, any length of that base otherwise, as in
 ``phase_sites._run_background``). The allele weight ``f`` of the minor length in the
 two-length mixture is estimated per strand and jointly (``evidence.event_allele_fraction``);
-the joint weight must reach ``het_af_min`` (the caller's floor), and a likelihood-ratio test (one degree of freedom) of "one weight for both strands"
-against "a weight per strand" gives the strand-bias p value. A strand-specific
-systematic error at one site (present on one strand only) still fails; strand-specific
-stutter that every run of that base shares is absorbed by the profiles.
+the joint weight must reach ``het_af_min`` (the caller's floor), and a likelihood-ratio test
+(one degree of freedom) of "one weight for both strands" against "a weight per strand" gives
+the strand-bias p value. A strand-specific systematic error at one site (present on one
+strand only) still fails; strand-specific stutter that every run of that base shares is
+absorbed by the profiles.
 
 ``share_lower_bound`` gives the one-sided profile-likelihood lower confidence bound of
 such a mixture weight (the single-event split's peak-level gate).
