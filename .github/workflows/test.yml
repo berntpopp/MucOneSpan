@@ -55,6 +55,9 @@ jobs:
               - '.github/workflows/**'
               - '.github/actions/**'
               - '.pre-commit-config.yaml'
+              # Read by tests/unit/test_version_pins.py (pinned to version.py).
+              - 'docker/muconespan.def'
+              - 'docs/about/citation.md'
             package:
               - 'src/**'
               - 'scripts/**'
@@ -126,24 +129,30 @@ jobs:
 
   # The heavy synthetic safety sweeps (pytest marker safety_sweep: full pipeline runs on
   # synthetic samples; never NEGATIVE on a pathogenic minority, never PATHOGENIC on a
-  # wild type). They run on every PR whose runtime changed, like the unit suite, on one
-  # interpreter with 4 xdist workers: about 20 minutes of single-core work, about 6-8
-  # minutes on a standard runner. The timeout leaves room for a slow runner.
+  # wild type). They run on every interpreter of the unit matrix, on every PR whose
+  # runtime changed and on every push, with 4 xdist workers. Measured on a standard
+  # runner (Python 3.12): 17m43s for the sweeps of 32f732e; the within-run event
+  # sweeps add about 3 minutes (estimate). 45 minutes leaves room for slower
+  # interpreters and runners.
   safety-sweeps:
-    name: Safety Sweeps
+    name: Safety Sweeps (Python ${{ matrix.python }})
     needs: quality
     if: github.event_name != 'pull_request' || needs.quality.outputs.runtime == 'true'
     runs-on: ubuntu-24.04
-    timeout-minutes: 30
+    timeout-minutes: 45
+    strategy:
+      fail-fast: false
+      matrix:
+        python: ['3.10', '3.11', '3.12', '3.13', '3.14']
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
       - uses: astral-sh/setup-uv@bec219d24cd3e171d82865faccec33120bb574f4 # v10.1.0
         with:
           version: ${{ env.UV_VERSION }}
-          python-version: '3.12'
+          python-version: ${{ matrix.python }}
           enable-cache: true
           cache-dependency-glob: uv.lock
-          cache-suffix: sweeps-${{ env.UV_CACHE_EPOCH }}
+          cache-suffix: sweeps-${{ matrix.python }}-${{ env.UV_CACHE_EPOCH }}
       - run: make test-sweeps
 
   integration:

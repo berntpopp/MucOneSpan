@@ -57,13 +57,15 @@ RAM to spare, e.g. `make ci-check PYTEST_WORKERS=8`). Tests marked
 `safety_sweep` are the heavy synthetic safety sweeps: full pipeline runs over
 seeds, stutter shapes and depths asserting that a pathogenic minority is never
 NEGATIVE and a wild type never PATHOGENIC. They are about four fifths of the unit
-suite's run time. CI runs them on every pull request in their own "Safety Sweeps"
-job (Python 3.12, 30-minute timeout, about 8 minutes on a standard runner), while
-the five "Test Suite" jobs run everything else (10-minute timeout, a few minutes
+suite's run time. CI runs them in their own "Safety Sweeps" jobs, one per supported
+Python (3.10-3.14), on every push and on every pull request that changes the
+runtime (45-minute timeout; the sweeps of `32f732e` took 17m43s on a standard
+runner with Python 3.12, and the within-run event sweeps add a few minutes), while
+the five "Test Suite" jobs run everything else (10-minute timeout, 3-5 minutes
 each); the CI Gate requires both. `make test-unit` and `make ci-check` run both
 parts, so no sweep is skipped locally either. Mark a new multi-seed pipeline sweep
-`@pytest.mark.safety_sweep` (or the whole module with `pytestmark`) so the Test
-Suite jobs stay inside their timeout.
+`@pytest.mark.safety_sweep` (a whole module with `pytestmark` only when it holds no
+cheap test) so the Test Suite jobs stay inside their timeout.
 
 For a focused test:
 
