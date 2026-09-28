@@ -19,8 +19,10 @@ event. A template/unit pair whose mutation changes no run or insertion slot is
 listed in ``KnownEventSites.blind``; the rules cannot protect it. The bundled
 dictionary has none since Task 15l: insG_pos54 in unit J inserts a G into the slot
 right before a C run, which the site table did not record before. A custom
-dictionary can have blind pairs; a run with a quality rule on logs them
-(``warn_blind_templates``).
+dictionary can have blind pairs; a run that uses the signatures logs them
+(``warn_blind_templates``). The run-minority tier (``run_minor``) reads the run
+signatures too: its ``known_events`` scope and its within-run test (insG and delinsAT
+split an X unit's C7 run, so a carrier is seen only through its signature).
 
 The signatures are position- and flank-agnostic: a run signature (base, parent
 length, mutated length) protects every run of that base and length change anywhere
@@ -108,17 +110,33 @@ def is_known_event_site(
     return False
 
 
-def warn_blind_templates(known: KnownEventSites, settings: HybridSettings) -> None:
-    """Log the template/unit pairs the guard cannot protect, when a quality rule is on.
+def signatures_in_use(settings: HybridSettings) -> bool:
+    """True when a setting makes a decision depend on the template signatures.
 
-    The known-event guard is consulted only by the opt-in quality rules
-    (``phase_quality_alpha`` > 0); with them off a blind pair changes nothing.
+    The quality rules' guard (``phase_quality_alpha`` > 0), the run-minority tier's
+    ``known_events`` scope and its within-run test (``phase_run_minor_in_run`` with the
+    tier on) read them; the tier's clean test with scope "all" does not.
     """
-    if not known.blind or settings.phase_quality_alpha <= 0:
+    scope = settings.phase_run_minor_scope
+    return (
+        settings.phase_quality_alpha > 0
+        or scope == "known_events"
+        or (scope != "off" and settings.phase_run_minor_in_run)
+    )
+
+
+def warn_blind_templates(known: KnownEventSites, settings: HybridSettings) -> None:
+    """Log the template/unit pairs no signature covers, when signatures are in use.
+
+    A blind pair can be protected by no quality-rule guard and found by none of the
+    run-minority tier's signature tests (``signatures_in_use``).
+    """
+    if not known.blind or not signatures_in_use(settings):
         return
     pairs = ", ".join(f"{name} in {unit}" for name, unit in known.blind)
     logger.warning(
-        "hybrid quality rules: these dictionary templates have no phase-site signature, "
-        "so a low-accuracy rule cannot protect them: %s",
+        "hybrid: these dictionary templates have no phase-site signature, so neither "
+        "the low-accuracy rules' guard nor the run-minority tier's signature tests "
+        "cover them: %s",
         pairs,
     )

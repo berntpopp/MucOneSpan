@@ -8,7 +8,7 @@ insertion slot and its neighbouring column) are merged into one event, so one se
 change never counts as two linked sites. Since Task 15l the insertion slots next to a
 run are recorded too (without the run's own base, which lengthens the run), and
 ``features`` can return each read's clean run observations for the run-minority tier
-(``run_minor``).
+(``run_minor``), and its bounded but impure ones (another base inside the run).
 
 Every tunable is a validated ``HybridSettings`` field taken from the ``settings``
 argument; nothing is defaulted from ``DEFAULT_SETTINGS``.
@@ -22,7 +22,7 @@ from collections import Counter
 from typing import Any
 
 from muc_one_span.hybrid.align import global_columns
-from muc_one_span.hybrid.polish import _runs, read_run_length, run_observation
+from muc_one_span.hybrid.polish import _runs, read_run_length, run_bounded, run_observation
 from muc_one_span.hybrid.run_strand import run_mixture
 from muc_one_span.settings import HybridSettings
 
@@ -41,18 +41,23 @@ def features(
     settings: HybridSettings,
     *,
     clean: list[dict[Site, int]] | None = None,
+    impure: list[dict[Site, int]] | None = None,
 ) -> tuple[list[dict[Site, Any]], Meta]:
     """Per-read alleles at every column, insertion slot and homopolymer-run site.
 
     A run site's allele is the longest stretch of the run's base around it
-    (``read_run_length``), so a read that lost a bounding base reports the merged
-    stretch. That is kept deliberately: every run-site floor and tier (candidate
-    sites, the Task 15g/15i tiers, ``phase_run_minor_min_share``) was calibrated on
-    it, and the length-precise uses (evidence, stutter profiles, the run-minority
-    bound) read ``polish.run_observation`` instead. When ``clean`` is given, each read also appends its clean
-    run observations (``polish.run_observation``: both bounding bases kept, nothing
-    but the run's base between them), keyed by run site; a read that does not observe
-    a run cleanly has no entry for it (Task 15l, ``run_minor``).
+    (``read_run_length``), so a read that lost a bounding base reports the merged stretch.
+    That is kept deliberately: every run-site floor and tier (candidate sites, the Task
+    15g/15i tiers, ``phase_run_minor_min_share``) was calibrated on it, and the
+    length-precise uses (evidence, stutter profiles, the run-minority bound) read
+    ``polish.run_observation`` instead. When ``clean`` is given, each read also appends its
+    clean run observations (``polish.run_observation``: both bounding bases kept, nothing
+    but the run's base between them), keyed by run site; a read that does not observe a run
+    cleanly has no entry for it (Task 15l, ``run_minor``). When ``impure`` is given, each
+    read also appends the site-table length of every run it keeps both bounding bases of but
+    does not observe cleanly (another base inside the run: ``polish.run_bounded``); the
+    run-minority tier compares it with the known-event run signatures (insG, insG_pos58 and
+    delinsAT split an X unit's C7 run).
     """
     runs = _runs(cons, settings.phase_run_min_len)
     in_run = {i for s, e, _ in runs for i in range(s, e)}
@@ -73,9 +78,18 @@ def features(
                 f[("ins", pos)] = proj.ins.get(pos, "")
         for s, e, b in runs:
             f[("run", s)] = read_run_length(read, proj.t2q, s, e, b)
-        if clean is not None:
+        if clean is not None or impure is not None:
             observed = {("run", s): run_observation(read, proj, cons, s, e) for s, e, _ in runs}
-            clean.append({site: k for site, k in observed.items() if k is not None})
+            if clean is not None:
+                clean.append({site: k for site, k in observed.items() if k is not None})
+            if impure is not None:
+                impure.append(
+                    {
+                        ("run", s): f[("run", s)]
+                        for s, e, _ in runs
+                        if observed[("run", s)] is None and run_bounded(proj, cons, s, e)
+                    }
+                )
         feats.append(f)
     return feats, {("run", s): (b, e - s) for s, e, b in runs}
 

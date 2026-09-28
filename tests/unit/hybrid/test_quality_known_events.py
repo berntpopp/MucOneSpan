@@ -1,6 +1,6 @@
-"""Task 15k: a site carrying a known event's site-table signature is never dropped.
+"""A site carrying a known event's site-table signature is never dropped.
 
-Found while building the Task 15k adversarial sweep: in a two-peak sample, a real
+Found by an adversarial sweep: in a two-peak sample, a real
 minority haplotype carrying dupC (C7 -> C8) at an allele fraction of 0.15, whose
 carriers are all low-quality reads, plus insertion stutter at that run in other
 low-quality reads, reaches a run-site minor AF of about 0.25. The 15j low-accuracy
@@ -13,13 +13,14 @@ derived by running every template (insertions, deletions, delete-inserts) in eac
 allowed unit through the site table: dupC lengthens the X unit's C7 run, insG and
 delinsAT shorten it (the inserted G splits the run), the deletions shorten C3/C4 runs,
 dupA adds an insertion slot. Column sites are never signatures; insG_pos54 in unit J
-changed no site at all until Task 15l recorded the insertion slots next to a run.
+changed no site at all until the site table recorded the insertion slots next to a run.
 """
 
 from __future__ import annotations
 
 import dataclasses
 from pathlib import Path
+from typing import Any
 
 import pytest
 
@@ -34,10 +35,10 @@ from tests.unit.hybrid import test_quality_single_event as single
 from tests.unit.hybrid import test_quality_sites as quality
 from tests.unit.hybrid import test_single_event as base
 
-# Heavy synthetic safety sweep: its own CI job and make test-unit (never skipped).
-pytestmark = pytest.mark.safety_sweep
+# The heavy synthetic sweeps below carry the safety_sweep marker (their own CI job and
+# make test-unit, never skipped); the cheap tests run in the core suite.
 
-S = quality.S  # the quality rules are opt-in since Task 15k: switched on explicitly
+S = quality.S  # the quality rules are opt-in since switched on explicitly
 OPT_IN = quality.OPT_IN
 NEGATIVE = "NO_PATHOGENIC_VARIANT_DETECTED"
 FOUND = ("ont", 0.15, 1)  # (profile, minority AF, seed) of the shape found in the sweep
@@ -55,7 +56,7 @@ def _off() -> RuntimeSettings:
 KNOWN = known_event_sites(synth.RD, S)
 CONTEXT = synth.RD.repeats[synth.RD.canonical_repeat]
 # Template/unit pairs whose mutation changes no run or insertion slot of the site
-# table. insG_pos54 in unit J was one until Task 15l (its G lands in the insertion slot
+# table. insG_pos54 in unit J was one until the slots next to a run were recorded (its G lands in the insertion slot
 # right before a C run, which the site table did not record); none is left.
 BLIND: tuple[tuple[str, str], ...] = ()
 TEMPLATE_UNITS = [
@@ -94,7 +95,7 @@ def test_every_template_signature_is_protected(name: str, unit: str) -> None:
 
 
 def test_blind_templates_are_listed() -> None:
-    """Every template changes a run or an insertion slot of the table (Task 15l)."""
+    """Every template changes a run or an insertion slot of the table."""
     assert KNOWN.blind == BLIND
 
 
@@ -116,6 +117,7 @@ def test_only_template_signatures_are_protected(
     assert is_known_event_site(site, meta, KNOWN) is protected  # type: ignore[arg-type]
 
 
+@pytest.mark.safety_sweep
 def test_all_poor_dupc_minority_is_not_released_to_negative(tmp_path: Path) -> None:
     records = groups._minority(*FOUND, dupc=True)
     for sub in ("off", "on"):
@@ -130,6 +132,7 @@ def test_all_poor_dupc_minority_is_not_released_to_negative(tmp_path: Path) -> N
     )
 
 
+@pytest.mark.safety_sweep
 def test_an_explained_substitution_is_still_dropped() -> None:
     """The guard is narrow: the 15j column artefact is still explained and dropped."""
     members = quality._long_peak(quality._sample(quality.SEEDS[0]))
@@ -141,7 +144,7 @@ def test_an_explained_substitution_is_still_dropped() -> None:
     assert dropped and not kept
 
 
-# Task 15l: with every quality rule off (the defaults) the minority's dupC run and its
+# With every quality rule off (the defaults) the minority's dupC run and its
 # substitutions stayed below the candidate tiers at 15% of one allele (the within-peak
 # floor), and with the opt-in 15j rule FLOOR_SHAPE's only visible marker, one
 # substitution site, was explained away: 16 strict xfails in 15k. The run-minority
@@ -150,6 +153,7 @@ def test_an_explained_substitution_is_still_dropped() -> None:
 SWEEP = [(p, af, seed) for p in sorted(single.PROFILES) for af in SWEEP_AFS for seed in SWEEP_SEEDS]
 
 
+@pytest.mark.safety_sweep
 @pytest.mark.parametrize(("profile", "af", "seed"), SWEEP)
 def test_all_poor_dupc_minority_is_never_negative_at_the_defaults(
     tmp_path: Path, profile: str, af: float, seed: int
@@ -159,6 +163,7 @@ def test_all_poor_dupc_minority_is_never_negative_at_the_defaults(
     assert decision["state"] != NEGATIVE, summary["hybrid"]["selection_detail"]
 
 
+@pytest.mark.safety_sweep
 @pytest.mark.parametrize(("profile", "af", "seed"), SWEEP)
 def test_all_poor_dupc_minority_is_never_negative_opted_in(
     tmp_path: Path, profile: str, af: float, seed: int
@@ -168,6 +173,7 @@ def test_all_poor_dupc_minority_is_never_negative_opted_in(
     assert decision["state"] != NEGATIVE, summary["hybrid"]["quality_associated_sites"]
 
 
+@pytest.mark.safety_sweep
 @pytest.mark.parametrize("profile", sorted(single.PROFILES))
 def test_floor_shape_is_inconclusive_at_the_defaults(tmp_path: Path, profile: str) -> None:
     """The 15l shape at the shipped defaults (quality rules off): the minority's
@@ -176,8 +182,9 @@ def test_floor_shape_is_inconclusive_at_the_defaults(tmp_path: Path, profile: st
     assert decision["state"] == "INCONCLUSIVE", summary["hybrid"]["selection_detail"]
 
 
+@pytest.mark.safety_sweep
 def test_a_guard_kept_site_that_poor_reads_explain_is_reported() -> None:
-    """Ledger L276: ``guarded_but_explained`` names a site kept only by the known-event
+    """``guarded_but_explained`` names a site kept only by the known-event
     guard although the 15j test explains it by poor reads (the guard widened to every
     site here, so the explained column artefact of the 15j shape is such a site)."""
     from unittest.mock import patch
@@ -199,7 +206,7 @@ def test_a_guard_kept_site_that_poor_reads_explain_is_reported() -> None:
 
 
 def test_single_event_alternative_fails_closed_on_a_guard_only_site() -> None:
-    """Ledger L276: the opt-in single-event alternative is never offered when its one
+    """The opt-in single-event alternative is never offered when its one
     remaining event rests on a site kept only by the guard but explained by poor reads
     (for example a protected C7 -> C6 stutter artefact): the peak keeps its own result."""
     from types import SimpleNamespace
@@ -222,25 +229,34 @@ def test_single_event_alternative_fails_closed_on_a_guard_only_site() -> None:
         patch.object(phase, "_split", return_value=offered),
     ):
         both = kept + dropped
-        assert phase._single_event_alternative(table([]), both, S) is offered  # type: ignore[arg-type]
-        assert phase._single_event_alternative(table(kept), both, S) is None  # type: ignore[arg-type]
+        alternative: Any = phase._single_event_alternative
+        assert alternative(table([]), both, S) is offered
+        assert alternative(table(kept), both, S) is None
 
 
-def test_blind_template_pairs_are_warned_when_a_quality_rule_is_on(
+def test_blind_template_pairs_are_warned_when_a_signature_consumer_is_on(
     caplog: pytest.LogCaptureFixture,
 ) -> None:
-    """Ledger L276: a custom dictionary's template/unit pair without a site signature
-    cannot be protected by the guard; a run with a quality rule on says so."""
+    """A custom dictionary's template/unit pair without a site signature can be
+    protected neither by the quality rules' guard nor seen by the run-minority tier's
+    signature tests (the known-event scope and the within-run test); a run with any of
+    them on says so."""
     import logging
 
     from muc_one_span.hybrid.known_events import KnownEventSites, warn_blind_templates
 
     blind = KnownEventSites(blind=(("subst_x", "X"),))
+    rules_off = dataclasses.replace(S, phase_quality_alpha=0.0)
+    tier_off = dataclasses.replace(rules_off, phase_run_minor_scope="off")
+    in_run_off = dataclasses.replace(rules_off, phase_run_minor_in_run=False)
+    known_scope = dataclasses.replace(in_run_off, phase_run_minor_scope="known_events")
     with caplog.at_level(logging.WARNING, logger="muc_one_span.hybrid.known_events"):
-        warn_blind_templates(blind, dataclasses.replace(S, phase_quality_alpha=0.0))
-        assert not caplog.records  # the rules are off: the guard is not used
+        warn_blind_templates(blind, tier_off)
+        warn_blind_templates(blind, in_run_off)  # scope "all": every run, no signatures
+        assert not caplog.records  # no signature consumer is on
         warn_blind_templates(KNOWN, S)
         assert not caplog.records  # the bundled dictionary has no blind pair
-        warn_blind_templates(blind, S)
-    assert len(caplog.records) == 1
-    assert "subst_x in X" in caplog.records[0].getMessage()
+        for settings in (S, rules_off, known_scope):
+            warn_blind_templates(blind, settings)
+    assert len(caplog.records) == 3
+    assert all("subst_x in X" in r.getMessage() for r in caplog.records)

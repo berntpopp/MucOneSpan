@@ -212,7 +212,7 @@ class HybridSettings:
     # 0.21-0.30 of reads at one length, at or above het_af_min. Minimum 1: below 1 the
     # floor would sit under the background itself.
     phase_run_safety_multiplier: float = 2.0
-    # Task 15l (NEGATIVE-blocking tier, hybrid.run_minor): in any unsplit peak (one or
+    # NEGATIVE-blocking run-minority tier (hybrid.run_minor): in any unsplit peak (one or
     # two length peaks), a run whose stutter-deconvolved minority share (each length
     # convolved with the Task 15f stutter profile of its own length, from the peak's
     # peer runs of the same base, clean observations only) has a one-sided lower
@@ -223,22 +223,29 @@ class HybridSettings:
     # phase_run_minor_scope picks the runs tested (RUN_MINOR_SCOPES); "off" disables.
     # alpha 0.001 is a per-test level: with about 10^2 (run, length) tests per peak it
     # alone would allow roughly 10% of wild-type peaks to be flagged by chance
-    # (Bonferroni); the low wild-type rate comes from the floor, since a bound
-    # >= 0.09 needs a share well above it (no synthetic wild-type NEGATIVE was lost in
-    # 150 samples; dev flags are real run artefacts, not chance). min_share 0.09: the
-    # lowest floor of the v4 dev grid (0.06-0.12, step 0.015) that keeps the pooled
-    # INCONCLUSIVE rates within decision rule v6 (dev clean 9/90); it flags 2 dev clean
-    # and 1 dev standard HiFi normal (position-specific simulated HiFi run errors,
-    # share 0.13-0.39) and keeps every 15k two-peak all-low-quality dupC minority
-    # shape (15% of one allele) blocked: 0/130 seeds NEGATIVE; where the tier fires
-    # its smallest bound is 0.093, and the 10/130 seeds where it does not fire are held
-    # back by a candidate site of the minority. max_reads 2000: the largest
-    # depth of the synthetic detection sweep; above it the detection floor stays that
-    # of 2000 reads (docs/reference/limitations.md).
+    # (Bonferroni); the low wild-type rate comes from the floor, since a bound at the
+    # floor needs a share well above it (no synthetic wild-type NEGATIVE was lost; dev
+    # flags are real run artefacts, not chance). min_share 0.075: the lowest floor of
+    # the candidates 0.075 / 0.08 / 0.09 that keeps the v4 dev pooled INCONCLUSIVE rates
+    # within decision rule v7 (standard 13/90, clean 10/90, clean2 1/30; FP 0, NEGATIVE
+    # on a pathogenic case 0); it flags 3 dev clean and 1 dev standard HiFi normal
+    # (position-specific simulated HiFi run errors), one more than 0.09, and no ONT or
+    # genomic normal. A lower floor only adds flags, so every two-peak
+    # all-low-quality dupC minority shape (15% of one allele) blocked at 0.09 (0/130
+    # seeds NEGATIVE) stays blocked. max_reads 2000: the largest depth of the synthetic
+    # detection sweep; above it the detection floor stays that of 2000 reads
+    # (docs/reference/limitations.md).
     phase_run_minor_scope: str = "all"
     phase_run_minor_alpha: float = 0.001
-    phase_run_minor_min_share: float = 0.09
+    phase_run_minor_min_share: float = 0.075
     phase_run_minor_max_reads: int = 2000
+    # The same tier also tests each run's bounded but impure observations (both bounding
+    # bases kept, another base inside the run): insG, insG_pos58 and delinsAT split an X
+    # unit's C7 run, so a carrier read never observes it cleanly. The share of reads
+    # whose longest stretch is a known-event run signature (hybrid.known_events) is
+    # deconvolved against the peer runs' rate, with the Task 15f stutter probability of
+    # the signature length, and its bound must reach phase_run_minor_min_share too.
+    phase_run_minor_in_run: bool = True
     phase_gap_af_factor: float = 1.5
     phase_min_pair_reads: int = 10
     phase_strand_bias_alpha: float = 0.001
@@ -295,22 +302,24 @@ class HybridSettings:
     # ceil(phase_min_minor_reads / het_af_min) reads or any read lacks base qualities.
     # The rule never changes group membership (peak support, allele consensus, event
     # evidence) and never applies to a single-peak (equal-length) genotype.
-    # phase_quality_alpha 0 turns it off. Since Task 15k (controller ruling) the rule is
-    # opt-in and experimental, default 0 (off): it gained 1 v4 dev and 0 val cases
-    # against a demonstrated synthetic NEGATIVE path (an all-low-quality dupC minority);
-    # 0.001 is the v4 dev-calibrated level to opt in with. The other two levels keep
+    # phase_quality_alpha 0 turns it off. The rule is opt-in and experimental, default
+    # 0 (off): it gained 1 v4 dev and 0 val cases against a demonstrated synthetic
+    # NEGATIVE path (an all-low-quality dupC minority); 0.001 is the v4 dev-calibrated
+    # level to opt in with. phase_quality_alpha is also the rank-sum level of both rules
+    # below (one knob: opting in to either needs it > 0). The other two levels keep
     # their dev-calibrated defaults (docs/guides/configuration.md). Ranges [0, 1),
     # (0, 1), (0, 1].
     phase_quality_alpha: float = 0.0
     phase_quality_af_alpha: float = 0.001
     phase_quality_keep_frac: float = 0.5
-    # Task 15k. phase_quality_single_event: in a single-peak (equal-length) genotype
+    # phase_quality_single_event: in a single-peak (equal-length) genotype
     # whose unsplit peak has more than one candidate event, the same low-accuracy test
     # is applied to its sites; when the sites it keeps form exactly one event, the peak
     # is split on that event under every single-event gate (share bound, group size,
     # differing drafts), and the selection stays unresolved_single_site, so the rule
-    # can turn INCONCLUSIVE into PATHOGENIC but never into NEGATIVE. Off by default
-    # (owner ruling pending): it recovers one v4 dev HiFi dupA carrier, but a wild-type
+    # can turn INCONCLUSIVE into PATHOGENIC but never into NEGATIVE; it needs
+    # phase_single_event_split other than "off". Off by default: it recovers one v4 dev
+    # HiFi dupA carrier, but a wild-type
     # site-specific +1 C excess of 0.35-0.40 at one C7 run, which the single-event
     # split already cannot tell from a real minor, then becomes PATHOGENIC where the
     # second (low-accuracy) site kept it INCONCLUSIVE.
@@ -322,8 +331,8 @@ class HybridSettings:
     # het_af_min (phase_quality_af_alpha), its median length is within
     # peak_min_separation_units of the other group's, and its draft differs from the
     # other group's by substitutions only (no insertion or deletion, so no frameshift
-    # event). Off by default (controller ruling): no v4 dev evidence, and defaults are
-    # calibrated on dev only. Both need phase_quality_alpha > 0 (opt-in, experimental).
+    # event). Off by default: no v4 dev evidence, and defaults are calibrated on dev
+    # only. Both need phase_quality_alpha > 0 (opt-in, experimental).
     # See docs/guides/configuration.md.
     phase_quality_single_event: bool = False
     phase_quality_group_exclusion: bool = False
@@ -450,6 +459,7 @@ class HybridSettings:
         _open_unit_interval("hybrid.phase_run_minor_alpha", self.phase_run_minor_alpha)
         _open_unit_interval("hybrid.phase_run_minor_min_share", self.phase_run_minor_min_share)
         _integer("hybrid.phase_run_minor_max_reads", self.phase_run_minor_max_reads, 1)
+        _boolean("hybrid.phase_run_minor_in_run", self.phase_run_minor_in_run)
         _number("hybrid.phase_quality_alpha", self.phase_quality_alpha, 0, 1)
         if self.phase_quality_alpha == 1:
             raise ValueError("hybrid.phase_quality_alpha must be < 1")
@@ -466,6 +476,12 @@ class HybridSettings:
                     f"hybrid.{name} needs hybrid.phase_quality_alpha > 0 "
                     "(it applies the low-accuracy test, which 0 turns off)"
                 )
+        if self.phase_quality_single_event and self.phase_single_event_split == "off":
+            # The rule only offers a peak to the single-event split; off, it does nothing.
+            raise ValueError(
+                "hybrid.phase_quality_single_event needs hybrid.phase_single_event_split "
+                "other than 'off' (the rule offers a peak to that split)"
+            )
         _choice("hybrid.hp_stutter_model", self.hp_stutter_model, STUTTER_MODELS)
         _integer("hybrid.hp_stutter_min_class_runs", self.hp_stutter_min_class_runs, 1)
         _integer("hybrid.hp_stutter_min_class_reads", self.hp_stutter_min_class_reads, 1)

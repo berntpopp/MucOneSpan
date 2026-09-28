@@ -1,4 +1,4 @@
-"""Split a length peak on its only heterozygous event (Task 15e).
+"""Split a length peak on its only heterozygous event.
 
 ``phase.split_by_linked_sites`` leaves a peak unsplit when fewer than
 ``min_linked_sites`` linked events support two haplotypes; with exactly one candidate
@@ -22,15 +22,19 @@ peaks each peak already is one allele.
 
 The split reads are selected by the event itself, so the allele's read support
 (``evidence``) is conditional on the split. The split is therefore made only when a
-peak-level gate independent of the split passes: the one-sided lower confidence bound
-(``phase_single_event_alpha``) of the stutter-deconvolved minor share, over a fresh
-seeded sample of at most ``phase_single_event_bound_reads`` reads, must reach
-``phase_single_event_min_share`` (at least ``het_af_min``; Task 15l: above the share of
-a site-specific wild-type run artefact, which the split cannot tell from a real minor
-allele). For a run site the bound must reach it twice over the site table's run
-lengths: with the per-strand error profiles of ``run_strand`` and with each length's
-own Task 15f stutter profile (``run_minor.length_aware_share_bound``). Otherwise the
-peak stays ``unconfirmed_single_site`` (INCONCLUSIVE, located).
+peak-level gate independent of the split passes: the one-sided lower confidence bounds
+(``phase_single_event_alpha``) of the stutter-deconvolved minor share **and** of the
+major share, over a fresh seeded sample of at most ``phase_single_event_bound_reads``
+reads, must both reach ``phase_single_event_min_share`` (at least ``het_af_min``; above
+the share of a site-specific wild-type artefact, which the split cannot tell from a
+real minor allele). Both sides, because the minor allele is the site's non-draft allele:
+a draft that follows an artefact (a normal with a delinsAT-shaped artefact in 40% of
+reads was drafted with it) makes the wild type the "minor" allele, and bounding only
+that side split off the artefact group. For a run site the bounds must also reach the
+floor with each length's own run-length stutter profile
+(``run_minor.length_aware_share_bound``), besides the per-strand error profiles of
+``run_strand``. Otherwise the peak stays ``unconfirmed_single_site`` (INCONCLUSIVE,
+located).
 
 Every tunable is a validated ``HybridSettings`` field taken from ``settings``.
 """
@@ -114,40 +118,54 @@ def _bound_sample(n: int, s: HybridSettings) -> list[int]:
     return idx
 
 
-def _length_aware_bound(
+def _length_aware_bounds(
     feats: list[dict[Site, Any]],
     strands: list[str],
     meta: Meta,
     site: dict[str, Any],
     s: HybridSettings,
-) -> float | None:
-    """The same bound with each run length's own Task 15f stutter profile (run_minor)."""
+) -> list[float]:
+    """The share bounds of both run lengths with each length's own stutter profile.
+
+    The run-minority tier's model (``run_minor.length_aware_share_bound``), for the
+    minor share and for the major share; a side whose length is too rarely observed
+    to be bounded is left out.
+    """
     idx = _bound_sample(len(feats), s)
     runs = [{k: v for k, v in feats[i].items() if k[0] == site["site"][0]} for i in idx]
-    return length_aware_share_bound(
-        runs,
-        [strands[i] for i in idx],
-        meta,
-        site["site"],
-        (site["major"], site["minor"]),
-        s.phase_single_event_alpha,
-        s,
-    )
+    sides = ((site["major"], site["minor"]), (site["minor"], site["major"]))
+    bounds = [
+        length_aware_share_bound(
+            runs,
+            [strands[i] for i in idx],
+            meta,
+            site["site"],
+            alleles,
+            s.phase_single_event_alpha,
+            s,
+        )
+        for alleles in sides
+    ]
+    return [b for b in bounds if b is not None]
 
 
-def _share_bound(
+def _share_bounds(
     feats: list[dict[Site, Any]],
     strands: list[str],
     site: dict[str, Any],
     profiles: tuple[ShiftProfile, ShiftProfile] | None,
     s: HybridSettings,
-) -> float:
-    """Lower confidence bound of the minor share over a fixed-size read sample.
+) -> tuple[float, float]:
+    """Lower confidence bounds of the minor share and of the major share.
 
     At most ``phase_single_event_bound_reads`` reads (a fresh sample drawn with
-    ``random.Random(s.seed)``), so the bound's power does not grow with depth. Run reads contribute their
-    likelihood under each run length (stutter profiles); column reads their allele
-    (reads with neither allele are skipped).
+    ``random.Random(s.seed)``), so the bound's power does not grow with depth. Run
+    reads contribute their likelihood under each run length (stutter profiles);
+    column reads their allele (reads with neither allele are skipped). The minor
+    allele is the site's non-draft allele; a draft that follows an artefact makes
+    the artefact the major allele, so both shares are bounded and both must reach the
+    floor: the smaller group of a split is then at least the floor, whichever allele
+    the draft took.
     """
     obs: list[tuple[float, float]] = []
     for i in _bound_sample(len(feats), s):
@@ -163,7 +181,8 @@ def _share_bound(
             )
         elif observed in (site["minor"], site["major"]):
             obs.append((float(observed == site["minor"]), float(observed == site["major"])))
-    return share_lower_bound(obs, s.phase_single_event_alpha)
+    alpha = s.phase_single_event_alpha
+    return share_lower_bound(obs, alpha), share_lower_bound([(b, a) for a, b in obs], alpha)
 
 
 def split_single_event(
@@ -185,16 +204,17 @@ def split_single_event(
         _run_classifier(feats, strands, modal, site, settings) if site["site"][0] == "run" else None
     )
     floor = settings.phase_single_event_min_share
-    if _share_bound(feats, strands, site, profiles, settings) < floor:
+    if min(_share_bounds(feats, strands, site, profiles, settings)) < floor:
         return None
-    if profiles is not None:
-        # A run site's share must also clear the floor with length-aware stutter
-        # profiles (Task 15l): the profiles above pool every run of the base when the
-        # major length has no peer, which under length-dependent stutter
-        # under-estimates that run's own stutter and inflates the share.
-        bound = _length_aware_bound(feats, strands, meta, site, settings)
-        if bound is not None and bound < floor:
-            return None
+    if profiles is not None and any(
+        # A run site's shares must also clear the floor with length-aware stutter
+        # profiles: the profiles above pool every run of the base when the major
+        # length has no peer, which under length-dependent stutter under-estimates
+        # that run's own stutter and inflates the share.
+        bound < floor
+        for bound in _length_aware_bounds(feats, strands, meta, site, settings)
+    ):
+        return None
     groups: list[list[SpanRead]] = [[], []]
     unassigned: list[SpanRead] = []
     for m, f in zip(members, feats, strict=True):

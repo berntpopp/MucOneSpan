@@ -208,11 +208,12 @@ def split_by_linked_sites(
     cap = settings.phase_max_site_reads
     sample = members if len(members) <= cap else rng.sample(members, cap)
     clean: Clean = []
-    feats, meta = features(cons, [m.seq for m in sample], settings, clean=clean)
+    impure: Clean = []
+    feats, meta = features(cons, [m.seq for m in sample], settings, clean=clean, impure=impure)
     strands = [m.strand for m in sample]
     sites = candidates(feats, strands, meta, settings)
     known = insertions or KnownEventSites()
-    table = _SiteTable(cons, members, sample, feats, meta, strands, known, clean)
+    table = _SiteTable(cons, members, sample, feats, meta, strands, known, clean, impure)
     result = _split(table, sites, settings)
     if single_event_quality and result.basis == UNCONFIRMED_SINGLE_SITE:
         result.quality_single_event = _single_event_alternative(table, sites, settings)
@@ -240,21 +241,24 @@ class _SiteTable:
     strands: list[str]
     insertions: KnownEventSites
     clean: Clean
+    impure: Clean
 
-    def tier_reads(self, settings: HybridSettings) -> tuple[Clean, list[str]]:
-        """Clean run observations and strands for the run-minority tier (Task 15l).
+    def tier_reads(self, settings: HybridSettings) -> tuple[Clean, list[str], Clean]:
+        """(clean run observations, strands, impure run observations) for the tier.
 
-        At most ``phase_run_minor_max_reads`` members: the site table's own sample when
-        it already holds that many (or every member), else a fresh sample drawn with
-        ``random.Random(settings.seed)``, independent of the site table.
+        The run-minority tier (Task 15l) uses at most ``phase_run_minor_max_reads``
+        members: the site table's own sample when it already holds that many (or every
+        member), else a fresh sample drawn with ``random.Random(settings.seed)``,
+        independent of the site table.
         """
         cap = settings.phase_run_minor_max_reads
         if len(self.sample) >= min(cap, len(self.members)):
-            return self.clean[:cap], self.strands[:cap]
+            return self.clean[:cap], self.strands[:cap], self.impure[:cap]
         reads = random.Random(settings.seed).sample(self.members, min(cap, len(self.members)))
         clean: Clean = []
-        features(self.cons, [m.seq for m in reads], settings, clean=clean)
-        return clean, [m.strand for m in reads]
+        impure: Clean = []
+        features(self.cons, [m.seq for m in reads], settings, clean=clean, impure=impure)
+        return clean, [m.strand for m in reads], impure
 
     def quality(
         self, sites: list[dict[str, Any]], settings: HybridSettings
@@ -300,6 +304,12 @@ def _single_event_alternative(
     return alternative
 
 
+def _tier(t: _SiteTable, settings: HybridSettings) -> list[dict[str, Any]]:
+    """The run-minority tier's sites (``run_minor.run_minor_sites``) of an unsplit peak."""
+    clean, strands, impure = t.tier_reads(settings)
+    return run_minor_sites(clean, strands, t.meta, settings, t.insertions, impure=impure)
+
+
 def _split(t: _SiteTable, sites: list[dict[str, Any]], settings: HybridSettings) -> PhaseResult:
     """The phase result of one peak from its candidate ``sites`` (see split_by_linked_sites)."""
     members, feats, meta = t.members, t.feats, t.meta
@@ -309,7 +319,7 @@ def _split(t: _SiteTable, sites: list[dict[str, Any]], settings: HybridSettings)
             "none",
             run_excess=run_excess_sites(feats, meta, settings),
             strand_biased=strand_biased_sites(feats, t.strands, meta, settings),
-            run_minor=run_minor_sites(*t.tier_reads(settings), meta, settings, t.insertions),
+            run_minor=_tier(t, settings),
         )
     ori = _linked(feats, sites, meta, settings) if len(sites) > 1 else {0: 1}
     order = sorted(ori)

@@ -123,13 +123,23 @@ def run_observation(read: str, proj: Columns, cons: str, start: int, end: int) -
     A run at either end of the consensus has no bounding base on that side.
     """
     base = cons[start]
-    if start > 0 and proj.cols[start - 1] != cons[start - 1]:
-        return None
-    if end < len(cons) and proj.cols[end] != cons[end]:
+    if not run_bounded(proj, cons, start, end):
         return None
     left = proj.t2q[start - 1] + 1 if start > 0 else proj.t2q[start]
     segment = read[left : proj.t2q[end]]
     return len(segment) if segment.strip(base) == "" else None
+
+
+def run_bounded(proj: Columns, cons: str, start: int, end: int) -> bool:
+    """True when the read keeps both consensus bases that bound the run ``[start, end)``.
+
+    A run at either end of the consensus has no bounding base on that side. A bounded
+    read that does not observe the run cleanly (``run_observation``) has another base
+    inside it: the look of insG or delinsAT in an X unit's C7 run.
+    """
+    if start > 0 and proj.cols[start - 1] != cons[start - 1]:
+        return False
+    return not (end < len(cons) and proj.cols[end] != cons[end])
 
 
 def homopolymer_vote(

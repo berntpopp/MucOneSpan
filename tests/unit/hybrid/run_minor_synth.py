@@ -1,18 +1,23 @@
-"""Synthetic within-peak run-minority samples (Task 15l tests and sweeps).
+"""Synthetic within-peak run-minority samples (run-minority tests and sweeps).
 
-A sample holds one or two alleles; inside one allele's length peak a minority of
-reads carries a run-length event (dupC: an X unit's C7 run read as C8) at allele
-fraction ``af`` of that allele's reads. Every homopolymer run of every read stutters
-by strand and run length (``SHAPES``: HiFi-like length-dependent stutter, ONT-like
-strand-asymmetric stutter, and ONT-like saturating "+" strand stutter). Low-quality
-reads (``POOR_FRAC``, qualities from ``QUALITIES``) stutter ``POOR_STUTTER_FACTOR``
-times as often (quality-correlated stutter) and carry more random error.
+A sample holds one or two alleles; inside one allele's length peak a minority of reads
+carries a run event at allele fraction ``af`` of that allele's reads: dupC (an X unit's C7
+run read as C8) by default, or any dictionary template of an X unit (``event``: insG,
+insG_pos58 and delinsAT put another base inside that C7 run). Every homopolymer run of every
+read stutters by strand and run length (``SHAPES``: HiFi-like length-dependent stutter,
+ONT-like strand-asymmetric stutter, and ONT-like saturating "+" strand stutter). Low-quality
+reads (``POOR_FRAC``, qualities from ``QUALITIES``) stutter ``POOR_STUTTER_FACTOR`` times as
+often (quality-correlated stutter) and carry more random error.
 
 ``artefact`` samples are wild-type samples with a site-specific +1 run artefact at
 one run (the simulated HiFi shape of a homozygous normal: one C unit's C6 run read as
 C7 in about a third of the reads). A C insertion there makes the C unit read exactly
 like an X unit carrying dupA, so the artefact reads are the carrier reads of a dupA
 minority at the same share.
+
+``in_run_noise`` samples are wild-type samples whose reads carry another base (G, or
+AT for two C bases) inside a random C run of a random unit in ``rate`` of the reads:
+sequencing noise of the within-run shapes of insG and delinsAT, spread over every run.
 """
 
 from __future__ import annotations
@@ -78,13 +83,28 @@ def read(template: str, shape: str, rng: random.Random, name: str) -> ReadRecord
     return ReadRecord(name, seq, chr(rng.randint(*q) + PHRED_OFFSET) * len(seq))
 
 
-def carrier(inner: list[str], unit: int = EVENT_UNIT) -> str:
-    """``inner`` with dupC in ``unit``."""
-    return synth.allele([*inner[:unit], synth.dupc(), *inner[unit + 1 :]])
+# In-run noise alleles: a C of a C run replaced by G (the insG shape) or two by AT.
+IN_RUN_NOISE = ("G", "AT")
 
 
-def minority(shape: str, af: float, depth: int, seed: int, layout: str) -> list[ReadRecord]:
-    """``depth`` reads; ``af`` of the event allele's reads carry dupC at EVENT_UNIT.
+def event_unit(event: str = "dupC", unit: str = "X") -> str:
+    """The dictionary template ``event`` applied to ``unit``."""
+    return next(
+        seq
+        for seq, (parent, name) in synth.RD.mutated_sequences.items()
+        if parent == unit and name == event
+    )
+
+
+def carrier(inner: list[str], unit: int = EVENT_UNIT, event: str = "dupC") -> str:
+    """``inner`` with ``event`` (dupC by default) in ``unit``."""
+    return synth.allele([*inner[:unit], event_unit(event), *inner[unit + 1 :]])
+
+
+def minority(
+    shape: str, af: float, depth: int, seed: int, layout: str, event: str = "dupC"
+) -> list[ReadRecord]:
+    """``depth`` reads; ``af`` of the event allele's reads carry ``event`` at EVENT_UNIT.
 
     ``two_peak``: SHORT and LONG alleles with ``depth // 2`` reads each, the minority
     inside LONG's peak. ``one_peak``: a homozygous LONG sample. ``af`` 0 is the
@@ -95,10 +115,10 @@ def minority(shape: str, af: float, depth: int, seed: int, layout: str) -> list[
     per = depth // len(alleles)
     out = []
     for a, inner in enumerate(alleles):
-        wild, event = synth.allele(inner), carrier(inner)
+        wild, mutated = synth.allele(inner), carrier(inner, event=event)
         n_minor = round(af * per) if inner is LONG else 0
         for i in range(per):
-            template = event if i < n_minor else wild
+            template = mutated if i < n_minor else wild
             out.append(read(template, shape, rng, f"m{seed}_{a}_{i}"))
     return out
 
@@ -113,3 +133,24 @@ def artefact(shape: str, share: float, depth: int, seed: int) -> list[ReadRecord
         read(edited if rng.random() < share else wild, shape, rng, f"a{seed}_{i}")
         for i in range(depth)
     ]
+
+
+def in_run_noise(shape: str, rate: float, depth: int, seed: int, layout: str) -> list[ReadRecord]:
+    """Wild-type ``minority`` layout; ``rate`` of reads get IN_RUN_NOISE in a random C run."""
+    rng = random.Random(seed)
+    alleles = [SHORT, LONG] if layout == "two_peak" else [LONG]
+    per = depth // len(alleles)
+    out = []
+    for a, inner in enumerate(alleles):
+        wild = synth.allele(inner)
+        runs = [m for m in re.finditer(r"C+", wild) if len(m.group(0)) >= rss.S.phase_run_min_len]
+        for i in range(per):
+            template = wild
+            if rng.random() < rate:
+                noise = rng.choice(IN_RUN_NOISE)
+                # A run with a C left on both sides of the noise, so the noise splits it.
+                run = rng.choice([m for m in runs if len(m.group(0)) > len(noise) + 1])
+                pos = rng.randrange(run.start() + 1, run.end() - len(noise))
+                template = wild[:pos] + noise + wild[pos + len(noise) :]
+            out.append(read(template, shape, rng, f"n{seed}_{a}_{i}"))
+    return out

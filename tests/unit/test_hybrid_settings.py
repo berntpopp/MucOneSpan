@@ -68,7 +68,7 @@ def test_hybrid_assign_flank_bp_default_unchanged() -> None:
 
 
 def test_hybrid_engine_orchestration_defaults() -> None:
-    # Task 11: replace the brief's n_poa * 3 polishing cap, MAX_QC_READS = 200 and the
+    # Replace the brief's n_poa * 3 polishing cap, MAX_QC_READS = 200 and the
     # one-unit partial-fragment floor with validated fields; defaults keep those values.
     h = DEFAULT_SETTINGS.hybrid
     assert (h.polish_max_reads, h.qc_residual_max_reads) == (3 * h.n_poa, 200)
@@ -84,7 +84,7 @@ def test_hybrid_event_evidence_defaults() -> None:
 
 
 def test_hybrid_event_alternative_defaults() -> None:
-    # Task 13b: an event must beat the read-derived alternative over one repeat unit of
+    # An event must beat the read-derived alternative over one repeat unit of
     # context on each side; see task-13b-report.md for the default's evidence.
     h = DEFAULT_SETTINGS.hybrid
     assert (h.event_context_units, h.event_max_alternative_frac) == (1.0, 0.25)
@@ -122,16 +122,16 @@ def test_hybrid_phase_tunables_default_unchanged() -> None:
     assert h.phase_min_pair_reads == 10
     # Fix round 2: strand consistency is a strand-bias test at this alpha.
     assert h.phase_strand_bias_alpha == 0.001
-    # Task 15g: the NEGATIVE-blocking run-site tier uses half the split multiplier.
+    # The NEGATIVE-blocking run-site tier uses half the split multiplier.
     assert h.phase_run_safety_multiplier == 2.0
-    # Task 15j: low-accuracy-subset site rule; opt-in since Task 15k (alpha 0 = off).
+    # Low-accuracy-subset site rule; opt-in (alpha 0 = off).
     assert (h.phase_quality_alpha, h.phase_quality_af_alpha) == (0.0, 0.001)
     assert h.phase_quality_keep_frac == 0.5
-    # Task 15k: both quality rules are opt-in (controller ruling).
+    # Both quality rules are opt-in.
     assert not h.phase_quality_single_event and not h.phase_quality_group_exclusion
-    # Task 15l: run-minority tier (dev-calibrated floor) and the single-event share floor.
+    # Run-minority tier (floor recalibrated under decision rule v7) and the single-event share floor.
     assert (h.phase_run_minor_scope, h.phase_run_minor_alpha) == ("all", 0.001)
-    assert (h.phase_run_minor_min_share, h.phase_run_minor_max_reads) == (0.09, 2000)
+    assert (h.phase_run_minor_min_share, h.phase_run_minor_max_reads) == (0.075, 2000)
     assert (h.phase_single_event_min_share, h.phase_single_event_bound_reads) == (0.4, 1000)
 
 
@@ -235,8 +235,19 @@ def test_partial_hybrid_section_keeps_other_defaults(tmp_path: Path) -> None:
 
 @pytest.mark.parametrize("rule", ["phase_quality_single_event", "phase_quality_group_exclusion"])
 def test_quality_rules_need_the_low_accuracy_test(rule: str) -> None:
-    """Task 15k: switching a quality rule on while phase_quality_alpha is 0 would be a
-    silent no-op; it is refused with an error naming both keys."""
+    """Switching a quality rule on while phase_quality_alpha is 0 would be a silent
+    no-op; it is refused with an error naming both keys."""
     with pytest.raises(ValueError, match=f"hybrid.{rule} needs hybrid.phase_quality_alpha"):
         HybridSettings(**{rule: True})  # type: ignore[arg-type]
     assert getattr(HybridSettings(**{rule: True, "phase_quality_alpha": 0.001}), rule)
+
+
+def test_quality_single_event_needs_the_single_event_split() -> None:
+    """The quality single-event rule offers a peak to the single-event split; with that
+    split off it would be a silent no-op, so the combination is refused."""
+    on = {"phase_quality_single_event": True, "phase_quality_alpha": 0.001}
+    with pytest.raises(
+        ValueError, match=r"phase_quality_single_event needs hybrid\.phase_single_event_split"
+    ):
+        HybridSettings(**on, phase_single_event_split="off")  # type: ignore[arg-type]
+    assert HybridSettings(**on, phase_single_event_split="all").phase_quality_single_event
