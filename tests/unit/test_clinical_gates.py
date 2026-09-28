@@ -4,7 +4,12 @@ from __future__ import annotations
 
 import pytest
 
-from muc_one_span.clinical_gates import allele_gate_reasons, depth_gate_failure, mutation_blockers
+from muc_one_span.clinical_gates import (
+    READ_SUPPORT_STATUSES,
+    allele_gate_reasons,
+    depth_gate_failure,
+    mutation_blockers,
+)
 
 _MISMATCH = "differs from the consensus contig length"
 
@@ -52,7 +57,8 @@ _TEMPLATED = {
 
 
 def test_read_support_statuses_name_the_blocker() -> None:
-    for status in ("insufficient_depth", "discordant", "not_supported", "not_localized"):
+    # Tied to the producer contract: every emitted status other than "supported" blocks.
+    for status in sorted(READ_SUPPORT_STATUSES - {"supported"}):
         blockers = mutation_blockers({**_TEMPLATED, "read_support": {"status": status}})
         assert blockers == [f"read-level support {status}"]
     assert mutation_blockers({**_TEMPLATED, "read_support": {"status": "supported"}}) == []

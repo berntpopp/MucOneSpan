@@ -387,6 +387,19 @@ def test_insufficient_depth_carrier_blocks_pathogenic() -> None:
     assert compute_clinical_decision(summary)["state"] == "INCONCLUSIVE"
 
 
+def test_both_alleles_insufficient_is_assessed_and_inconclusive() -> None:
+    """Both alleles assessed as insufficient: the per-allele gate, not the legacy total."""
+    summary = _gated_summary()
+    for key in ("allele_1", "allele_2"):
+        summary["alleles"][key].update(
+            depth_status="insufficient", depth_basis="spanning_reads", spanning_reads=7
+        )
+    decision = compute_clinical_decision(summary)
+    assert decision["state"] == "INCONCLUSIVE"
+    for label in ("Allele 1", "Allele 2"):
+        assert any(f"{label}: 7 spanning reads" in d for d in decision["details"])
+
+
 def test_hybrid_depth_message_names_spanning_reads() -> None:
     decision = compute_clinical_decision(_hybrid_summary(depth_status="low", spanning_reads=12))
     assert any("Allele 2: 12 spanning reads" in detail for detail in decision["details"])

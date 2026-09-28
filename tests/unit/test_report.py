@@ -275,8 +275,8 @@ def test_report_multiplicity_caveat(sample_summary, tmp_path):
 
 def test_report_hybrid_allele_shows_read_support_not_ladder_confidence(sample_summary, tmp_path):
     """Hybrid alleles carry ``consensus_concordance_fraction`` and
-    ``classification_confidence_status`` (see hybrid/allele_fields.py::allele_info,
-    commit 3080dc9). The ladder's ``classify.py`` ``confidence`` is a dictionary-fit
+    ``classification_confidence_status`` (see hybrid/allele_fields.py::allele_info).
+    The ladder's ``classify.py`` ``confidence`` is a dictionary-fit
     heuristic fed identically for both engines and was constant (1.00) for hybrid
     alleles regardless of reconstruction correctness. The Quality Metrics tile must
     show the hybrid engine's own read-support evidence for these alleles instead of
@@ -307,8 +307,10 @@ def test_report_hybrid_allele_shows_read_support_not_ladder_confidence(sample_su
     # Real hybrid read-support evidence is shown for the hybrid allele.
     assert "62.0%" in html
     assert 'aria-label="allele_1 consensus concordance"' in html
-    # The classification_confidence_status marker the F1 change added is surfaced.
-    assert "not_applicable_dictionary_fit_heuristic" in html
+    # The classification_confidence_status marker the F1 change added is surfaced as a
+    # readable label, not the raw enum value.
+    assert "Not applicable (dictionary-fit heuristic)" in html
+    assert "not_applicable_dictionary_fit_heuristic" not in html
     # The misleading dictionary-fit 100% must not be rendered as this allele's
     # ladder "Allele confidence" progress bar.
     assert 'aria-label="allele_1 confidence"' not in html
@@ -361,3 +363,12 @@ def test_report_accessibility_attributes(sample_summary, tmp_path):
     assert 'aria-labelledby="decision-heading"' in html
     assert ":focus-visible" in html
     assert "font-variant-numeric: tabular-nums;" in html
+
+
+def test_report_status_label_humanizes_unknown_values() -> None:
+    from muc_one_span.report import status_label
+
+    assert status_label("not_applicable_dictionary_fit_heuristic") == (
+        "Not applicable (dictionary-fit heuristic)"
+    )
+    assert status_label("some_new_status") == "Some new status"

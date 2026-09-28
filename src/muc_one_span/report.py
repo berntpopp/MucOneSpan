@@ -44,6 +44,25 @@ def _enrich_mutation_nomenclature(mutation: dict) -> dict:
     return enrich_mutation_record(mutation)
 
 
+# Readable labels for status enums the HTML report shows; any other value is rendered
+# by `status_label`'s generic fallback (underscores to spaces, first letter capitalised).
+STATUS_LABELS = {
+    "not_applicable_dictionary_fit_heuristic": "Not applicable (dictionary-fit heuristic)",
+}
+# Colour bands of the Quality Metrics progress bars, in percent: at or above GOOD is
+# green, at or above OK yellow, else red. Presentation only; no decision uses them.
+QUALITY_BAND_GOOD_PCT = 80
+QUALITY_BAND_OK_PCT = 50
+
+
+def status_label(value: str) -> str:
+    """Human-readable label for a status enum value shown in the HTML report."""
+    if value in STATUS_LABELS:
+        return STATUS_LABELS[value]
+    text = value.replace("_", " ")
+    return text[:1].upper() + text[1:]
+
+
 def _exact_match_percentage(value: Any) -> float | None:
     """Validate the producer's 0-100 percent contract without guessing units."""
     if isinstance(value, bool) or not isinstance(value, (int, float)):
@@ -398,6 +417,7 @@ def generate_report(
         autoescape=True,
     )
     env.filters["exact_match_percentage"] = _exact_match_percentage
+    env.filters["status_label"] = status_label
     template = env.get_template("report.html.j2")
 
     versions = tool_versions or summary.get("tool_versions", {})
@@ -459,6 +479,8 @@ def generate_report(
         igv=igv_context,
         igv_payload=igv_payload_b64,
         igv_provenance=igv_provenance_str,
+        band_good=QUALITY_BAND_GOOD_PCT,
+        band_ok=QUALITY_BAND_OK_PCT,
     )
 
     output_path.parent.mkdir(parents=True, exist_ok=True)

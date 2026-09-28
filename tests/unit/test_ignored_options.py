@@ -3,13 +3,18 @@
 from __future__ import annotations
 
 import json
+from dataclasses import replace
 from pathlib import Path
 from unittest.mock import patch
 
+import click
+import pytest
 from click.testing import CliRunner
 
 from muc_one_span.cli import main
 from muc_one_span.deprecations import LADDER_ONLY_OPTIONS
+from muc_one_span.pipeline import execute_pipeline
+from muc_one_span.settings import DEFAULT_SETTINGS, RuntimeSettings
 
 WARNING = "is ignored by the hybrid engine; use --engine ladder (deprecated)"
 
@@ -138,3 +143,43 @@ def test_report_igv_with_hybrid_fails_before_configuration_names_both_remedies(
     assert "--engine ladder (deprecated)" in text and "--report-igv off" in text
     assert not (tmp_path / "out" / "run_configuration.json").exists()
     hybrid.assert_not_called()
+
+
+def _execute(tmp_path: Path, settings: RuntimeSettings, **kwargs: str) -> None:
+    """``execute_pipeline`` with no ``engine`` argument: the engine comes from settings."""
+    tmp_path.mkdir(parents=True, exist_ok=True)
+    reads = tmp_path / "reads.fastq"
+    reads.write_text("@r\nACGT\n+\nIIII\n")
+    args = (str(reads), str(tmp_path / "out"), None, "", 1, 10, 5.0, False, "ont", None)
+    execute_pipeline(*args, settings=settings, **kwargs)
+
+
+def test_engine_none_takes_the_engine_from_the_configuration(tmp_path: Path) -> None:
+    hybrid = replace(DEFAULT_SETTINGS, run=replace(DEFAULT_SETTINGS.run, engine="hybrid"))
+    with patch("muc_one_span.pipeline._run_hybrid") as run_hybrid:
+        _execute(tmp_path / "h", hybrid)
+    assert run_hybrid.call_count == 1
+
+    class LadderPathError(Exception):
+        pass
+
+    ladder = replace(DEFAULT_SETTINGS, run=replace(DEFAULT_SETTINGS.run, engine="ladder"))
+    with (
+        patch("muc_one_span.pipeline._run_hybrid") as run_hybrid,
+        patch("muc_one_span.tools.check_tools", side_effect=LadderPathError),
+        pytest.raises(LadderPathError),
+    ):
+        _execute(tmp_path / "l", ladder)
+    assert run_hybrid.call_count == 0
+
+
+def test_config_only_hybrid_engine_still_refuses_igv(tmp_path: Path) -> None:
+    run = replace(DEFAULT_SETTINGS.run, engine="hybrid", report_igv="embedded")
+    configured = replace(DEFAULT_SETTINGS, run=run)
+    with (
+        patch("muc_one_span.pipeline._run_hybrid") as run_hybrid,
+        pytest.raises(click.BadParameter, match="--engine ladder"),
+    ):
+        _execute(tmp_path, configured, report_igv="embedded")
+    assert run_hybrid.call_count == 0
+    assert not (tmp_path / "out" / "run_configuration.json").exists()
