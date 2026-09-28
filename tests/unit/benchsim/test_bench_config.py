@@ -273,7 +273,8 @@ def test_atlas_expected_sets_must_be_defined(tmp_path: Path) -> None:
 def test_target_defaults_match_the_owner_directive() -> None:
     # Owner ruling 2026-09-25 (task 12e): clean >=0.90 PATHOGENIC / <=0.10 INCONCLUSIVE / 0
     # FP; standard >=0.80 / <=0.20 / 0 FP; stress reported only, no target. Owner decision
-    # 2026-09-27 (task 15o, rule v6): INCONCLUSIVE binds on the pooled set only.
+    # 2026-09-27 (task 15o, rule v6): INCONCLUSIVE binds on the pooled set only. Owner
+    # decision 2026-09-28 (task 15n, rule v7): the pooled clean INCONCLUSIVE ceiling is 0.15.
     targets = CFG.targets
     assert targets.basis == "point"
     standard, clean = targets.by_set["standard"], targets.by_set["clean"]
@@ -284,7 +285,7 @@ def test_target_defaults_match_the_owner_directive() -> None:
     }
     assert clean == {
         "pathogenic_rate": Target("ge", 0.90),
-        "inconclusive_rate": Target("le", 0.10, "pooled"),
+        "inconclusive_rate": Target("le", 0.15, "pooled"),
         "false_positive_rate": Target("le", 0.0),
     }
     assert "stress" not in targets.by_set

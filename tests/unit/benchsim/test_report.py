@@ -392,21 +392,24 @@ def test_rule_text_names_the_per_allele_endpoint() -> None:
 
 
 def test_default_rule_text_is_unchanged_by_the_config_refactor() -> None:
-    # SHA-256 of the v6 rule text (task 15o, owner decision 2026-09-27: v5 with the
-    # INCONCLUSIVE targets binding on the pooled set only). A changed default would
-    # silently invalidate existing pre-registrations; v5 (9249bf48...) was registered
-    # on a sealed split before this change, and v6 is registered next to it.
-    pinned = "85c869a66928627fd21e0f8a0d6e0fb84fc2e90d24cead37647f135cf5bd6e2c"
+    # SHA-256 of the v7 rule text (task 15n, owner decision 2026-09-28: v6 with the
+    # pooled clean INCONCLUSIVE ceiling 0.15 instead of 0.10). A changed default would
+    # silently invalidate existing pre-registrations; v5 (9249bf48...) and v6
+    # (85c869a6...) were registered on a sealed split before this change, and v7 is
+    # registered next to them.
+    pinned = "c77d513fee890043d22276bff994f7aef8c21ef4d6323fb2d485a578f8c49274"
     assert rule_text(DEFAULT_BENCH_CONFIG.report) == RULE_TEXT
     assert rule_sha256(RULE_TEXT) == pinned
 
 
-def test_rule_text_v6_states_the_scope_of_every_target() -> None:
-    assert RULE_TEXT.startswith("MucSim-Bench decision rule v6 ")
-    assert "decision rule v5" not in RULE_TEXT
-    assert "inconclusive_rate <= 0.1 (pooled only; per-profile rates for information)" in (
+def test_rule_text_v7_states_the_scope_of_every_target() -> None:
+    assert RULE_TEXT.startswith("MucSim-Bench decision rule v7 ")
+    assert "decision rule v6" not in RULE_TEXT and "decision rule v5" not in RULE_TEXT
+    assert "task 15n owner decision" in RULE_TEXT
+    assert "inconclusive_rate <= 0.15 (pooled only; per-profile rates for information)" in (
         RULE_TEXT
     )
+    assert "inconclusive_rate <= 0.1 " not in RULE_TEXT
     assert "pathogenic_rate >= 0.8 (pooled and per profile)" in RULE_TEXT
     assert "false_positive_rate <= 0 (pooled and per profile)" in RULE_TEXT
     assert "pooled over every profile of that set and on each profile separately" not in (RULE_TEXT)

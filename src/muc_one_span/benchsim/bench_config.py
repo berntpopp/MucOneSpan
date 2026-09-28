@@ -351,6 +351,8 @@ class TargetsConfig:
     overriding `by_set` in a bench-config file replaces the whole map. The defaults
     (decision rule v6, owner decision 2026-09-27) bind `inconclusive_rate` on the pooled
     set only; `pathogenic_rate` and `false_positive_rate` bind pooled and per profile.
+    Decision rule v7 (owner decision 2026-09-28) raises the pooled `clean`
+    `inconclusive_rate` ceiling from 0.10 to 0.15; everything else is as in v6.
     """
 
     basis: str = "point"
@@ -363,7 +365,7 @@ class TargetsConfig:
             },
             "clean": {
                 "pathogenic_rate": Target("ge", 0.90),
-                "inconclusive_rate": Target("le", 0.10, SCOPE_POOLED),
+                "inconclusive_rate": Target("le", 0.15, SCOPE_POOLED),
                 "false_positive_rate": Target("le", 0.0),
             },
         }

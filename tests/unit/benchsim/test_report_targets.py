@@ -58,7 +58,7 @@ def _standard_fixture(
 
 
 def _clean_fixture(n_path: int, n_normal: int) -> list[dict[str, Any]]:
-    """Candidate-only ``clean``-set rows meeting its targets (>= 0.90 / <= 0.10 / <= 0)."""
+    """Candidate-only ``clean``-set rows meeting its targets (>= 0.90 / <= 0.15 / <= 0)."""
     cand = [
         _target_row(f"cp{i}", "ont_amplicon_r10", "clean", 1, "pathogenic", "PATHOGENIC")
         for i in range(n_path)
@@ -208,3 +208,30 @@ def test_decide_v6_inconclusive_binds_on_the_pooled_set_only() -> None:
     refused = decide(reports, "ladder", "hybrid", old)
     assert refused["targets"]["standard"]["pass"] is False and refused["adopt"] is False
     assert refused["rule_sha256"] != result["rule_sha256"]
+
+
+def test_decide_v7_clean_inconclusive_ceiling_is_0_15_pooled() -> None:
+    # Task 15n (rule v7, owner decision 2026-09-28): the pooled clean INCONCLUSIVE rate
+    # 3/24 (0.125) passes v7 while it failed the v6 ceiling 0.10.
+    base, cand = _standard_fixture(n_path=30, n_normal=280)
+    clean = _clean_fixture(18, 6)
+    for i in range(18, 21):  # three normals, so the PATHOGENIC floor stays met
+        clean[i] = clean[i] | {"decision": "INCONCLUSIVE", "inconclusive": 1}
+    reports = {"ladder": base, "hybrid": cand + clean}
+    result = decide(reports, "ladder", "hybrid")
+    pooled = next(
+        r
+        for r in result["targets"]["clean"]["table"]
+        if r["grouping"] == "pooled" and r["metric"] == "inconclusive_rate"
+    )
+    assert (pooled["k"], pooled["n"], pooled["threshold"]) == (3, 24, 0.15)
+    assert pooled["pass"] is True and result["targets"]["clean"]["pass"] is True
+    v6_clean = dict(DEFAULT_BENCH_CONFIG.targets.by_set["clean"])
+    v6_clean["inconclusive_rate"] = replace(v6_clean["inconclusive_rate"], threshold=0.10)
+    v6 = BenchConfig(
+        targets=replace(
+            DEFAULT_BENCH_CONFIG.targets,
+            by_set={**DEFAULT_BENCH_CONFIG.targets.by_set, "clean": v6_clean},
+        )
+    )
+    assert decide(reports, "ladder", "hybrid", v6)["targets"]["clean"]["pass"] is False

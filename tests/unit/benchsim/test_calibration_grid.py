@@ -5,6 +5,7 @@ import inspect
 import json
 from pathlib import Path
 from types import ModuleType
+from typing import Any
 
 import pytest
 
@@ -154,17 +155,21 @@ def test_base_settings_defaults_and_invalid_base(tmp_path: Path) -> None:
         base_settings(bad)
 
 
-def test_loader_type_errors_become_value_errors(monkeypatch: pytest.MonkeyPatch) -> None:
-    import muc_one_span.benchsim.calibration_grid as grid_module
-
-    def broken(path: object) -> None:
-        raise TypeError("unexpected keyword")
-
-    monkeypatch.setattr(grid_module, "load_settings", broken)
-    with pytest.raises(ValueError, match="unexpected keyword"):
-        base_settings(None)
-    with pytest.raises(ValueError, match="unexpected keyword"):
-        build_points({}, settings_as_dict(DEFAULT_SETTINGS), "hybrid")
+@pytest.mark.parametrize(
+    ("key", "value", "message"),
+    [
+        ("hybrid.seed", "a", r"hybrid\.seed"),
+        ("hybrid.min_span_units", None, r"hybrid\.min_span_units"),
+        ("hybrid.poa_backend", ["x"], r"hybrid\.poa_backend"),
+        ("reference_layout.pre", [1, 2], r"reference_layout\.pre"),
+        ("run.assay", 5, r"run\.assay"),
+    ],
+)
+def test_malformed_grid_values_are_value_errors(key: str, value: Any, message: str) -> None:
+    # Ledger L156: the strict loader turns every malformed JSON value into ValueError
+    # (never a bare TypeError), so a grid point is refused with the field's name.
+    with pytest.raises(ValueError, match=message):
+        build_points({key: [value]}, settings_as_dict(DEFAULT_SETTINGS), "hybrid")
 
 
 def test_a_non_section_key_is_rejected() -> None:

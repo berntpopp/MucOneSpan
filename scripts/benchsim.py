@@ -529,11 +529,14 @@ def cmd_calibrate(args: argparse.Namespace) -> int:
         threads = args.threads if args.threads is not None else args.bench.run.threads
         model_for = partial(_model_lookup, _models(args))
         evaluate_fn = evaluate_run or _load_evaluate().run
+        commit = git_commit(HERE, run_tool)
 
         def run_point(manifest: Path, results: Path, config: Path) -> Any:
-            return run_split(
+            records = run_split(
                 manifest, [args.engine], results, model_for, threads, args.jobs, config=config
             )
+            write_caller(results / args.engine, caller_record(args.engine, commit))
+            return records
 
     request = CalibrationRequest(
         args.split,

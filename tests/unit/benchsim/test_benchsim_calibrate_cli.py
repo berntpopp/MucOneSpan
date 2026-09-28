@@ -8,6 +8,7 @@ from typing import Any
 import pytest
 
 from muc_one_span.settings import DEFAULT_SETTINGS, load_settings
+from muc_one_span.version import __version__
 from tests.unit.benchsim.test_benchsim_cli import _cli
 from tests.unit.benchsim.test_benchsim_report_cli import _sample, _split
 
@@ -83,6 +84,10 @@ def test_calibrate_runs_every_point_through_run_and_evaluate(
         assert loaded.hybrid.het_af_min == point["values"]["hybrid.het_af_min"]
         assert loaded.run.engine == "hybrid"
         assert (point_dir / "results" / "hybrid" / "evaluation.json").is_file()
+        # Ledger L185: each point records which caller build produced its results.
+        caller = json.loads((point_dir / "results" / "hybrid" / "caller.json").read_text())
+        assert caller["engine"] == "hybrid" and caller["caller_version"] == __version__
+        assert "caller_commit" in caller
     engines, results_root, config = calls["run"][0]
     assert engines == ["hybrid"] and config == results_root.parent / "config.json"
 

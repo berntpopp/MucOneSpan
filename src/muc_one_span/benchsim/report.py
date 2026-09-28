@@ -94,8 +94,9 @@ STRATA = (
 ALLELE_UNIT = ("sample", "allele")
 
 _RULE_TEMPLATE = (
-    "MucSim-Bench decision rule v6 (spec section 6, plus the task 12e absolute targets, "
-    "the task C1 owner ruling and the task 15o owner decision). Adopt the candidate engine over the baseline only if both "
+    "MucSim-Bench decision rule v7 (spec section 6, plus the task 12e absolute targets, "
+    "the task C1 owner ruling, the task 15o owner decision and the task 15n owner "
+    "decision). Adopt the candidate engine over the baseline only if both "
     "parts hold. Part 1, the relative rule, is decided on the `{headline}` benchmark set "
     "only (other sets are reported descriptively and never decide it): for every profile, "
     "(1) the candidate is superior on per-allele exact sequence (unit: each truth allele of "

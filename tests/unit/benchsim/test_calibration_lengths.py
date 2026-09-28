@@ -500,3 +500,14 @@ def test_reason_metric_cannot_shadow_a_real_lengths_built_in_metric(tmp_path: Pa
     )
     with pytest.raises(ValueError, match="shadows a built-in"):
         load_objective(objective_path, known_metrics=LENGTHS_METRICS)
+
+
+def test_match_alleles_refuses_more_than_ploidy_lengths_or_peaks() -> None:
+    # Ledger L163: the exhaustive matcher's search space is (n_peaks + 1) ** n_truth, so
+    # both counts are hard-capped at the diploid PLOIDY instead of trusted to be small.
+    h = HybridSettings()
+    peak = {"center_bp": 1000.0, "support": 10}
+    with pytest.raises(ValueError, match="at most 2 truth lengths and 2 peaks"):
+        _match_alleles([900, 1000, 1100], [peak], h, UNIT)
+    with pytest.raises(ValueError, match="at most 2 truth lengths and 2 peaks"):
+        _match_alleles([1000], [peak, peak, peak], h, UNIT)

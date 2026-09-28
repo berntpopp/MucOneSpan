@@ -32,6 +32,7 @@ from muc_one_span.benchsim.generate import FASTQ
 from muc_one_span.config import load_repeat_dictionary
 from muc_one_span.evaluation.artifacts import read_inventory
 from muc_one_span.evaluation.truth import TruthValidationError, load_truth
+from muc_one_span.hybrid.allele_fields import PLOIDY
 from muc_one_span.hybrid.lengths import GATE_RELEVANT_REJECTIONS, fit_length_model, window_bp
 from muc_one_span.hybrid.reads_io import read_input
 from muc_one_span.hybrid.spans import Anchors, categorize_reads
@@ -142,9 +143,8 @@ Assignment = tuple[int | None, ...]  # per truth index, its peak index or None (
 def _candidate_assignments(n_truth: int, n_peaks: int) -> Iterator[Assignment]:
     """Every truth-index -> peak-index-or-None assignment that uses each peak once.
 
-    Exhaustive: sizes are tiny (at most `PLOIDY` truth lengths and accepted peaks), and
-    the search space (``(n_peaks + 1) ** n_truth``, both counts taken from the inputs)
-    is not bounded by any literal here.
+    Exhaustive: the search space is ``(n_peaks + 1) ** n_truth``, so `_match_alleles`
+    refuses more than `PLOIDY` truth lengths or peaks before calling this.
     """
     for assignment in itertools.product((None, *range(n_peaks)), repeat=n_truth):
         used = [p for p in assignment if p is not None]
@@ -178,6 +178,11 @@ def _match_alleles(
     candidate assignment exhaustively (`_candidate_assignments`) and keeps the best by
     `_assignment_score`.
     """
+    if len(truth_lengths) > PLOIDY or len(peaks) > PLOIDY:
+        raise ValueError(
+            f"the length matcher takes at most {PLOIDY} truth lengths and {PLOIDY} peaks "
+            f"(got {len(truth_lengths)} and {len(peaks)})"
+        )
     distance = [[abs(peak["center_bp"] - t) for peak in peaks] for t in truth_lengths]
     windows = [window_bp(t, h, unit_bp) for t in truth_lengths]
 
@@ -209,9 +214,12 @@ def _score(
     except TruthValidationError as exc:
         return _failed_row(name, str(exc))
     truth_lengths = sorted({len(hap.sequence) for hap in truth.haplotypes})
-    matched_alleles, false_alleles, missed_alleles = _match_alleles(
-        truth_lengths, data["peaks"], h, unit_bp
-    )
+    try:
+        matched_alleles, false_alleles, missed_alleles = _match_alleles(
+            truth_lengths, data["peaks"], h, unit_bp
+        )
+    except ValueError as exc:
+        return _failed_row(name, str(exc))
     reasons = {r["reason"] for r in data["rejected"]}
     flags = ["smear_ambiguous"] if "smear_ambiguous" in reasons else []
     if reasons & GATE_RELEVANT_REJECTIONS:

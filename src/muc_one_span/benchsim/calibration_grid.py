@@ -200,11 +200,12 @@ def grid_points(grid: dict[str, list[Any]]) -> list[dict[str, Any]]:
 
 
 def base_settings(path: Path | None) -> dict[str, Any]:
-    """Effective base settings (defaults, or the strictly loaded file) as a JSON dict."""
-    try:
-        return settings_as_dict(load_settings(Path(path) if path is not None else None))
-    except TypeError as exc:
-        raise ValueError(str(exc)) from exc
+    """Effective base settings (defaults, or the strictly loaded file) as a JSON dict.
+
+    An invalid file raises ``ValueError`` (the strict loader's contract,
+    ``settings.load_settings``).
+    """
+    return settings_as_dict(load_settings(Path(path) if path is not None else None))
 
 
 def overlay(base: dict[str, Any], values: dict[str, Any], engine: str) -> dict[str, Any]:
@@ -224,10 +225,7 @@ def validate_settings(data: dict[str, Any]) -> None:
     with tempfile.TemporaryDirectory() as folder:
         path = Path(folder) / OVERLAY_FILE
         path.write_text(json.dumps(data, allow_nan=False))
-        try:
-            load_settings(path)
-        except TypeError as exc:
-            raise ValueError(str(exc)) from exc
+        load_settings(path)  # raises ValueError for any invalid value (strict loader)
 
 
 def build_points(grid: dict[str, list[Any]], base: dict[str, Any], engine: str) -> list[GridPoint]:

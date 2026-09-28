@@ -272,3 +272,32 @@ def test_targets_text_states_the_scope_of_every_target() -> None:
     assert "inconclusive_rate <= 0.2 (pooled only; per-profile rates for information)" in text
     assert "pathogenic_rate >= 0.8 (pooled and per profile)" in text
     assert "false_positive_rate <= 0 (pooled and per profile)" in text
+
+
+def test_render_targets_omits_the_info_only_note_without_informational_rows() -> None:
+    # Task 15o minor: the note explains `info only` rows, so it appears only with one.
+    per_profile = TargetsConfig(
+        by_set={"standard": {"inconclusive_rate": Target("le", 0.20, "pooled_and_profiles")}}
+    )
+    result = evaluate_targets(_rows(SCOPE_ROWS), "standard", per_profile, ALPHA)
+    assert result is not None
+    text = render_targets({"standard": result})
+    assert "info only" not in text
+    scoped = evaluate_targets(_rows(SCOPE_ROWS), "standard", _scope_cfg(), ALPHA)
+    assert scoped is not None
+    assert "Rows marked `info only`" in render_targets({"standard": scoped})
+
+
+def test_targets_text_names_an_unknown_scope_instead_of_raising() -> None:
+    # Task 15o minor: like the basis text, an unlisted scope is rendered verbatim (the
+    # loader rejects it; a dataclass mutated after validation must not raise KeyError).
+    cfg = _scope_cfg()
+    cfg.by_set["standard"]["inconclusive_rate"] = Target("le", 0.20, "custom_scope")
+    assert "inconclusive_rate <= 0.2 (custom_scope)" in targets_text(cfg)
+
+
+def test_targets_text_states_the_v7_clean_inconclusive_ceiling() -> None:
+    # Owner decision 2026-09-28 (task 15n, rule v7): pooled clean INCONCLUSIVE <= 0.15.
+    text = targets_text(CFG)
+    assert "`clean` requires false_positive_rate <= 0 (pooled and per profile), " in text
+    assert "inconclusive_rate <= 0.15 (pooled only; per-profile rates for information)" in text

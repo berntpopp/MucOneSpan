@@ -214,9 +214,9 @@ SHA-256, registration and first-evaluation times) is copied into each
 
 ### Decision rule
 
-Adopt a candidate engine over the baseline only if **both** parts hold (v6,
+Adopt a candidate engine over the baseline only if **both** parts hold (v7,
 task 12e, task C1 owner ruling 2026-09-25, task 15o owner decision
-2026-09-27).
+2026-09-27, task 15n owner decision 2026-09-28).
 
 **Part 1, the relative rule**, decided on the headline set
 (`sets.headline`, default `standard`) only: for every profile, the candidate
@@ -251,12 +251,13 @@ The defaults (v6, owner decision 2026-09-27: the INCONCLUSIVE targets are a
 goal for the assay as a whole, so a profile is not held to them on its own;
 the false-positive target, the PATHOGENIC floors and the whole of Part 1,
 including the per-profile critical false-negative count, still bind per
-profile):
+profile; v7, owner decision 2026-09-28: the pooled `clean` INCONCLUSIVE
+ceiling is 0.15 instead of 0.10):
 
 | Set | `pathogenic_rate` | `inconclusive_rate` | `false_positive_rate` |
 | --- | --- | --- | --- |
 | `standard` (headline) | >= 0.80, pooled and per profile | <= 0.20, pooled only | <= 0, pooled and per profile |
-| `clean` | >= 0.90, pooled and per profile | <= 0.10, pooled only | <= 0, pooled and per profile |
+| `clean` | >= 0.90, pooled and per profile | <= 0.15, pooled only | <= 0, pooled and per profile |
 | `stress` | no target | no target | no target |
 
 `targets.basis` decides how a target is judged: the pooled/per-profile point
@@ -275,8 +276,12 @@ The full rule text is `rule_text()` in `muc_one_span.benchsim.report`, built
 from the report and targets settings; its SHA-256 is what `preregister`
 records, so changing a report or targets setting (including a threshold,
 comparator, scope, basis or a set's membership in `targets.by_set`) needs a
-new pre-registration. The default v6 rule has SHA-256
-`85c869a66928627fd21e0f8a0d6e0fb84fc2e90d24cead37647f135cf5bd6e2c`.
+new pre-registration. The default v7 rule has SHA-256
+`c77d513fee890043d22276bff994f7aef8c21ef4d6323fb2d485a578f8c49274` (v6:
+`85c869a66928627fd21e0f8a0d6e0fb84fc2e90d24cead37647f135cf5bd6e2c`). The
+version label (`v7`) names the rule template, not the configured targets: a
+bench-config file with other targets or scopes renders the same label with its
+own numbers and scopes, so its SHA-256, not the label, identifies the rule.
 
 A bench-config file written before v6 names its targets without `scope`, so it
 still loads, but with every target binding per profile: its rule text differs
@@ -289,6 +294,13 @@ generation hash, so every generated case stays valid. `bench_config_sha256`
 in `report.json` is the new file's hash and differs from the one recorded in
 the cases. Once `test` is unsealed, only the rule that unsealed it is
 accepted, so register v6 before the first `evaluate` or `realism` of `test`.
+
+A split registered under v6 moves to v7 the same way while it is still sealed:
+copy its bench-config file, change only
+`targets.by_set.clean.inconclusive_rate.threshold` to `0.15`, check that the
+copy's rule SHA-256 equals the default v7 SHA-256 above, and run `preregister`,
+then `evaluate` and `report`, with that copy. The threshold is not part of the
+generation hash either.
 
 ## Subcommands
 
@@ -553,7 +565,8 @@ to an inclusive range:
   unknown engine stops the command without running anything.
 
 Each point is addressed by the SHA-256 of its canonical overlay JSON. It runs
-through the `run` machinery with `--config <point>/config.json`, then through
+through the `run` machinery with `--config <point>/config.json` (writing the
+point's `results/<engine>/caller.json`, as `run` does), then through
 `evaluate`. Points are resumable. An `evaluated` point with its
 `evaluation.json` is reused on a rerun, and a `failed` point (for example, an
 interrupted run) is retried. `calibration.json` records:

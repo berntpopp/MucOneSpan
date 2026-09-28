@@ -10,7 +10,7 @@ Input is `report.normalize_rows` output (case rows) of one engine and one bench 
 plus one grouping per profile, using the same Clopper-Pearson interval as
 `report.stratified_table`. Each row is *binding* (it can fail the set's verdict) when it
 is the pooled row or its target's ``scope`` is ``"pooled_and_profiles"``; a per-profile
-row of a ``"pooled"``-scope target (decision rule v6: the INCONCLUSIVE targets) is still
+row of a ``"pooled"``-scope target (decision rule v6 and v7: the INCONCLUSIVE targets) is still
 computed and shown, but is informational only. `targets_text` renders the configured
 targets into `report.rule_text`, so a pre-registered rule's SHA-256 changes whenever a
 target (threshold, comparator, scope, judging basis or bench-set membership) does.
@@ -194,7 +194,8 @@ def targets_text(targets: TargetsConfig) -> str:
     clauses = [
         f"`{name}` requires "
         + ", ".join(
-            f"{metric} {_COMPARATOR_SYMBOL[t.comparator]} {t.threshold:g} ({_SCOPE_TEXT[t.scope]})"
+            f"{metric} {_COMPARATOR_SYMBOL[t.comparator]} {t.threshold:g} "
+            f"({_SCOPE_TEXT.get(t.scope, t.scope)})"
             for metric, t in sorted(metrics.items())
         )
         for name, metrics in sets_with_targets.items()
@@ -229,8 +230,14 @@ def render_targets(by_set: dict[str, dict[str, Any] | None]) -> str:
     verdict = ", ".join(
         f"{name}={'not present' if res['pass'] is None else res['pass']}" for name, res in entries
     )
+    informational = any(not row.get("binding", True) for _, res in entries for row in res["table"])
     note = (
-        "Rows marked `info only` (a per-profile row of a pooled-only target) are shown "
-        "for information and never fail the set verdict."
+        [
+            "Rows marked `info only` (a per-profile row of a pooled-only target) are shown "
+            "for information and never fail the set verdict.",
+            "",
+        ]
+        if informational
+        else []
     )
-    return "\n".join([*lines, "", note, "", f"Set verdict: {verdict}", ""])
+    return "\n".join([*lines, "", *note, f"Set verdict: {verdict}", ""])
