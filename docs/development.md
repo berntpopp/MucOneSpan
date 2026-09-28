@@ -29,9 +29,11 @@ When intentionally changing dependencies, edit
 | Command | Purpose |
 | --- | --- |
 | `make quality` | Ruff, formatting, configured mypy, file size, and workflow syntax |
-| `make test-fast` | Unit tests without coverage or external tools |
-| `make test-unit` | Unit tests with the 80% coverage gate |
-| `make ci-check` | Quality and unit tests with at least 80% coverage |
+| `make test-fast` | Every unit test (safety sweeps included) without coverage or external tools |
+| `make test-unit` | Every unit test (safety sweeps included) with the 80% coverage gate |
+| `make ci-check` | Quality and every unit test with at least 80% coverage |
+| `make test-core` / `make test-core-cov` | Unit tests except the safety sweeps (the CI Test Suite jobs) |
+| `make test-sweeps` | Only the heavy safety sweeps (the CI Safety Sweeps job) |
 | `make test-int` | Tests marked as tool-dependent integration tests |
 | `make docs-check` | Strict documentation build |
 | `make security-check` | Audit all locked extras against published Python advisories |
@@ -48,6 +50,20 @@ using the settings in `pyproject.toml`, including required function annotations.
 Coverage includes branch measurement;
 the 80% gate applies to the aggregate unit test result, not each individual file.
 Do not weaken checks or swallow failures to make a change pass.
+
+The unit targets run in parallel with pytest-xdist, `PYTEST_WORKERS` worker
+processes (default 4; each holds a full pipeline in memory, so raise it only with
+RAM to spare, e.g. `make ci-check PYTEST_WORKERS=8`). Tests marked
+`safety_sweep` are the heavy synthetic safety sweeps: full pipeline runs over
+seeds, stutter shapes and depths asserting that a pathogenic minority is never
+NEGATIVE and a wild type never PATHOGENIC. They are about four fifths of the unit
+suite's run time. CI runs them on every pull request in their own "Safety Sweeps"
+job (Python 3.12, 30-minute timeout, about 8 minutes on a standard runner), while
+the five "Test Suite" jobs run everything else (10-minute timeout, a few minutes
+each); the CI Gate requires both. `make test-unit` and `make ci-check` run both
+parts, so no sweep is skipped locally either. Mark a new multi-seed pipeline sweep
+`@pytest.mark.safety_sweep` (or the whole module with `pytestmark`) so the Test
+Suite jobs stay inside their timeout.
 
 For a focused test:
 

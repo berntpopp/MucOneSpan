@@ -106,11 +106,12 @@ jobs:
           enable-cache: true
           cache-dependency-glob: uv.lock
           cache-suffix: test-${{ matrix.python }}-${{ env.UV_CACHE_EPOCH }}
-      # Measure coverage on the fastest supported interpreter; all versions run every unit.
+      # Every interpreter runs every unit test except the heavy safety sweeps (their own
+      # job below); coverage is measured on the fastest supported interpreter.
       - if: matrix.python == '3.14'
-        run: make test-unit
+        run: make test-core-cov
       - if: matrix.python != '3.14'
-        run: make test-fast
+        run: make test-core
       # A cached or restored -march=native build may only crash on another CPU.
       - name: Verify portable compiled extensions
         run: make portable-check
@@ -122,6 +123,28 @@ jobs:
           files: ./coverage.xml
           flags: unittests
           fail_ci_if_error: false
+
+  # The heavy synthetic safety sweeps (pytest marker safety_sweep: full pipeline runs on
+  # synthetic samples; never NEGATIVE on a pathogenic minority, never PATHOGENIC on a
+  # wild type). They run on every PR whose runtime changed, like the unit suite, on one
+  # interpreter with 4 xdist workers: about 20 minutes of single-core work, about 6-8
+  # minutes on a standard runner. The timeout leaves room for a slow runner.
+  safety-sweeps:
+    name: Safety Sweeps
+    needs: quality
+    if: github.event_name != 'pull_request' || needs.quality.outputs.runtime == 'true'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+      - uses: astral-sh/setup-uv@bec219d24cd3e171d82865faccec33120bb574f4 # v10.1.0
+        with:
+          version: ${{ env.UV_VERSION }}
+          python-version: '3.12'
+          enable-cache: true
+          cache-dependency-glob: uv.lock
+          cache-suffix: sweeps-${{ env.UV_CACHE_EPOCH }}
+      - run: make test-sweeps
 
   integration:
     name: Integration Tests
@@ -194,7 +217,7 @@ jobs:
   gate:
     name: CI Gate
     if: always()
-    needs: [quality, test, integration, package, security]
+    needs: [quality, test, safety-sweeps, integration, package, security]
     runs-on: ubuntu-24.04
     timeout-minutes: 2
     steps:
@@ -202,6 +225,7 @@ jobs:
         env:
           QUALITY: ${{ needs.quality.result }}
           TEST: ${{ needs.test.result }}
+          SWEEPS: ${{ needs.safety-sweeps.result }}
           INTEGRATION: ${{ needs.integration.result }}
           PACKAGE: ${{ needs.package.result }}
           SECURITY: ${{ needs.security.result }}
@@ -218,6 +242,7 @@ jobs:
             fi
           }
           check_result "$RUNTIME_REQUIRED" "$TEST"
+          check_result "$RUNTIME_REQUIRED" "$SWEEPS"
           check_result "$RUNTIME_REQUIRED" "$INTEGRATION"
           check_result "$PACKAGE_REQUIRED" "$PACKAGE"
           check_result "$SECURITY_REQUIRED" "$SECURITY"

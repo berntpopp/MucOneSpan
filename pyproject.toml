@@ -67,6 +67,7 @@ test = [
     "pytest>=9.0.3",
     "pytest-cov>=5.0.0",
     "pytest-mock>=3.14.0",
+    "pytest-xdist>=3.6",
 ]
 quality = [
     "ruff==0.16.8",
@@ -218,6 +219,7 @@ markers = [
     "unit: pure Python tests (fast, no external tools)",
     "integration: tests requiring bioinformatics tools (conda env)",
     "e2e: end-to-end pipeline tests with MucOneUp test data",
+    "safety_sweep: heavy synthetic safety sweeps (full pipeline runs); every PR runs them in their own CI job, and make test-unit/ci-check runs them",
 ]
 
 [tool.coverage.run]

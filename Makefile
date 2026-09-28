@@ -6,8 +6,15 @@ PYTHON_PATHS = src tests scripts
 DOCKER_IMAGE ?= muconespan:local
 # sdist-only compiled extensions that must not be built for the local CPU.
 PORTABLE_EXTENSIONS ?= pyabpoa
+# pytest-xdist worker processes for the unit targets. A fixed count, not "auto": each
+# worker holds a full pipeline in memory, and 4 matches GitHub's standard runners.
+PYTEST_WORKERS ?= 4
+PYTEST_PARALLEL = -n $(PYTEST_WORKERS)
+# Heavy synthetic safety sweeps (full pipeline runs; pytest marker `safety_sweep`). They
+# run in `test-unit`/`ci-check`, `test-fast` and their own CI job, never skipped.
+SWEEPS = safety_sweep
 
-.PHONY: help init install-uv install dev conda-setup test test-fast test-unit test-int portable-check lint lint-fix format format-check type-check file-size workflow-check quality check ci-check docs-check security-check build-check hooks clean generate-testdata lock sync docker-build docker-test docker-smoke
+.PHONY: help init install-uv install dev conda-setup test test-fast test-unit test-core test-core-cov test-sweeps test-int portable-check lint lint-fix format format-check type-check file-size workflow-check quality check ci-check docs-check security-check build-check hooks clean generate-testdata lock sync docker-build docker-test docker-smoke
 
 help:  ## Show available commands
 	@awk 'BEGIN {FS = ":.*## "} /^[a-zA-Z_-]+:.*## / {printf "%-22s %s\n", $$1, $$2}' $(MAKEFILE_LIST)
@@ -60,11 +67,20 @@ quality: lint format-check type-check file-size workflow-check  ## Run the same 
 test:  ## Run all tests (external tests skip when prerequisites are absent)
 	$(UV_TEST) pytest
 
-test-fast:  ## Run unit tests without coverage
-	$(UV_TEST) pytest tests/unit --no-cov -x
+test-fast:  ## Run unit tests (safety sweeps included) without coverage
+	$(UV_TEST) pytest tests/unit --no-cov -x $(PYTEST_PARALLEL)
 
-test-unit:  ## Run unit tests with the CI coverage gate
-	$(UV_TEST) pytest tests/unit --cov-fail-under=80
+test-unit:  ## Run every unit test (safety sweeps included) with the coverage gate
+	$(UV_TEST) pytest tests/unit --cov-fail-under=80 $(PYTEST_PARALLEL)
+
+test-core:  ## Run unit tests except the safety sweeps, without coverage (CI matrix)
+	$(UV_TEST) pytest tests/unit -m "not $(SWEEPS)" --no-cov $(PYTEST_PARALLEL)
+
+test-core-cov:  ## Run unit tests except the safety sweeps with the coverage gate (CI)
+	$(UV_TEST) pytest tests/unit -m "not $(SWEEPS)" --cov-fail-under=80 $(PYTEST_PARALLEL)
+
+test-sweeps:  ## Run only the heavy safety sweeps, without coverage (their own CI job)
+	$(UV_TEST) pytest tests/unit -m $(SWEEPS) --no-cov $(PYTEST_PARALLEL)
 
 test-int:  ## Run bioinformatics tool integration tests
 	$(UV_TEST) pytest tests/integration -m integration --no-cov
