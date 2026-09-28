@@ -10,7 +10,8 @@ cached CI wheels, container images and shared cluster environments are affected.
 The project builds pyabpoa with ``SSE4=1`` (``[tool.uv.extra-build-variables]`` in
 ``pyproject.toml`` and the Docker builder stage). This guard disassembles each
 named extension with ``objdump`` (GNU binutils) and rejects AVX, AVX2 and AVX-512
-instructions, which the SSE4.1 baseline never emits. It is x86-64 specific: on
+instructions, and the POPCNT, LZCNT, BMI1/BMI2 and SSE4.2 instructions, none of which
+the SSE4.1 baseline emits. It is x86-64 specific: on
 aarch64 pyabpoa's ``setup.py`` already targets the portable ``armv8-a+simd``
 baseline, so the guard reports a skip and exits 0 on other architectures.
 
@@ -34,6 +35,14 @@ from pathlib import Path
 # "k" and use %k registers; 256/512-bit operands use %ymm/%zmm registers.
 INSTRUCTION_LINE = re.compile(r"^\s*[0-9a-f]+:\t(?P<text>\S.*?)\s*$")
 AVX_FAMILY = re.compile(r"^(?:v|k[a-z])\S*\s|%[yz]mm\d|%k[0-7]\b")
+# Scalar extensions that -march=native also emits but -msse4.1 never does: POPCNT,
+# LZCNT, BMI1/BMI2 (VEX-encoded general-purpose instructions without a "v" prefix) and
+# SSE4.2. Whole mnemonics with an optional size suffix, so the SSE4.1 pextrd/pextrq and
+# pcmpeqq are not matched.
+NON_BASELINE_SCALAR = re.compile(
+    r"^(?:popcnt|lzcnt|tzcnt|andn|bextr|blsi|blsmsk|blsr|bzhi|pdep|pext|rorx|sarx|shlx"
+    r"|shrx|mulx|crc32|pcmp[ei]str[im]|pcmpgtq)[bwlq]?\s"
+)
 REPORTED_EXAMPLES = 5
 X86_64_MACHINES = frozenset({"x86_64", "amd64", "AMD64"})
 REMEDY = (
@@ -58,11 +67,12 @@ def locate_extension(module: str) -> Path:
 
 
 def find_non_portable_instructions(listing: str) -> list[str]:
-    """Return the AVX-family instructions in an ``objdump -d`` listing."""
+    """Return the AVX-family and other non-baseline instructions in an ``objdump -d`` listing."""
     found = []
     for line in listing.splitlines():
         match = INSTRUCTION_LINE.match(line)
-        if match and AVX_FAMILY.search(match.group("text") + " "):
+        text = match.group("text") + " " if match else ""
+        if match and (AVX_FAMILY.search(text) or NON_BASELINE_SCALAR.match(text)):
             found.append(match.group("text"))
     return found
 
@@ -101,10 +111,10 @@ def main(argv: Sequence[str] | None = None) -> int:
             print(f"error: {exc}", file=sys.stderr)
             return 2
         if not offending:
-            print(f"{module}: portable (no AVX-family instructions in {extension})")
+            print(f"{module}: portable (no non-baseline instructions in {extension})")
             continue
         status = 1
-        print(f"{module}: {len(offending)} AVX-family instruction(s) in {extension}")
+        print(f"{module}: {len(offending)} non-baseline instruction(s) in {extension}")
         for text in offending[:REPORTED_EXAMPLES]:
             print(f"  {text}")
         print(REMEDY)

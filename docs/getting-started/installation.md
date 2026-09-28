@@ -45,7 +45,7 @@ existing uv environment:
 ```bash
 uv cache clean pyabpoa
 uv sync --locked --reinstall-package pyabpoa
-make portable-check   # fails if pyabpoa contains AVX-family instructions
+make portable-check   # fails if pyabpoa contains AVX-family, BMI, POPCNT, LZCNT or SSE4.2 instructions
 ```
 
 On aarch64 Linux `pyabpoa` always builds for the portable `armv8-a+simd`

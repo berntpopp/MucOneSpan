@@ -66,6 +66,40 @@ def test_avx_family_instructions_are_flagged(
     assert guard.find_non_portable_instructions(listing) == [offending]
 
 
+# Ledger L258: -march=native also emits non-VEX-prefixed extensions beyond the SSE4.1
+# baseline (POPCNT, LZCNT, BMI1/BMI2 general-purpose instructions, SSE4.2).
+@pytest.mark.parametrize(
+    "offending",
+    [
+        "popcnt %rdi,%rax",
+        "lzcnt  %edi,%eax",
+        "tzcnt  %rdi,%rax",
+        "andn   %esi,%edi,%eax",
+        "shlx   %rsi,%rdi,%rax",
+        "sarx   %esi,%edi,%eax",
+        "pext   %rsi,%rdi,%rax",
+        "bzhi   %rsi,%rdi,%rax",
+        "crc32q %rsi,%rax",
+        "pcmpistri $0x0,%xmm1,%xmm0",
+        "pcmpgtq %xmm1,%xmm0",
+    ],
+)
+def test_non_baseline_scalar_extensions_are_flagged(guard: ModuleType, offending: str) -> None:
+    listing = SSE4_LISTING + f"    1050:\t{offending}\n"
+    assert guard.find_non_portable_instructions(listing) == [offending]
+
+
+def test_sse41_lookalike_mnemonics_are_not_flagged(guard: ModuleType) -> None:
+    # pextrd/pextrq are SSE4.1 (not BMI2 pext); pcmpeqq is SSE4.1 (not SSE4.2 pcmpgtq).
+    extra = "".join(
+        f"    {1060 + i:x}:\t{text}\n"
+        for i, text in enumerate(
+            ["pextrd $0x3,%xmm2,%eax", "pextrq $0x1,%xmm0,%rax", "pcmpeqq %xmm1,%xmm0"]
+        )
+    )
+    assert guard.find_non_portable_instructions(SSE4_LISTING + extra) == []
+
+
 def _fake_extension(tmp_path: Path, monkeypatch: pytest.MonkeyPatch, guard: ModuleType) -> Path:
     extension = tmp_path / "pyabpoa.cpython-312-x86_64-linux-gnu.so"
     extension.write_bytes(b"\x7fELF")
@@ -107,7 +141,7 @@ def test_main_fails_native_extension_and_names_remedy(
     _fake_objdump(monkeypatch, guard, AVX512_LISTING)
     assert guard.main(["pyabpoa", "--objdump", "/usr/bin/objdump"]) == 1
     out = capsys.readouterr().out
-    assert "pyabpoa: 1 AVX-family instruction" in out
+    assert "pyabpoa: 1 non-baseline instruction" in out
     assert "vpaddd %zmm1,%zmm2,%zmm0{%k1}" in out
     assert "uv cache clean pyabpoa" in out
 
