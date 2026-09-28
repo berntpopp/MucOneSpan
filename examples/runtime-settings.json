@@ -177,7 +177,7 @@
     "phase_run_safety_multiplier": 2.0,
     "phase_run_minor_scope": "all",
     "phase_run_minor_alpha": 0.001,
-    "phase_run_minor_min_share": 0.075,
+    "phase_run_minor_min_share": 0.09,
     "phase_run_minor_max_reads": 2000,
     "phase_run_minor_in_run": true,
     "phase_gap_af_factor": 1.5,

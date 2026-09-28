@@ -129,9 +129,9 @@ def test_hybrid_phase_tunables_default_unchanged() -> None:
     assert h.phase_quality_keep_frac == 0.5
     # Both quality rules are opt-in.
     assert not h.phase_quality_single_event and not h.phase_quality_group_exclusion
-    # Run-minority tier (floor recalibrated under decision rule v7) and the single-event share floor.
+    # Run-minority tier (dev-calibrated floor) and the single-event share floor.
     assert (h.phase_run_minor_scope, h.phase_run_minor_alpha) == ("all", 0.001)
-    assert (h.phase_run_minor_min_share, h.phase_run_minor_max_reads) == (0.075, 2000)
+    assert (h.phase_run_minor_min_share, h.phase_run_minor_max_reads) == (0.09, 2000)
     assert (h.phase_single_event_min_share, h.phase_single_event_bound_reads) == (0.4, 1000)
 
 

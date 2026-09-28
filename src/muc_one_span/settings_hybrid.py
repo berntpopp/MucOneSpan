@@ -223,21 +223,21 @@ class HybridSettings:
     # phase_run_minor_scope picks the runs tested (RUN_MINOR_SCOPES); "off" disables.
     # alpha 0.001 is a per-test level: with about 10^2 (run, length) tests per peak it
     # alone would allow roughly 10% of wild-type peaks to be flagged by chance
-    # (Bonferroni); the low wild-type rate comes from the floor, since a bound at the
-    # floor needs a share well above it (no synthetic wild-type NEGATIVE was lost; dev
-    # flags are real run artefacts, not chance). min_share 0.075: the lowest floor of
-    # the candidates 0.075 / 0.08 / 0.09 that keeps the v4 dev pooled INCONCLUSIVE rates
-    # within decision rule v7 (standard 13/90, clean 10/90, clean2 1/30; FP 0, NEGATIVE
-    # on a pathogenic case 0); it flags 3 dev clean and 1 dev standard HiFi normal
-    # (position-specific simulated HiFi run errors), one more than 0.09, and no ONT or
-    # genomic normal. A lower floor only adds flags, so every two-peak
-    # all-low-quality dupC minority shape (15% of one allele) blocked at 0.09 (0/130
-    # seeds NEGATIVE) stays blocked. max_reads 2000: the largest depth of the synthetic
-    # detection sweep; above it the detection floor stays that of 2000 reads
-    # (docs/reference/limitations.md).
+    # (Bonferroni); the low wild-type rate comes from the floor, since a bound
+    # >= 0.09 needs a share well above it (no synthetic wild-type NEGATIVE was lost; dev
+    # flags are real run artefacts, not chance). min_share 0.09: the lowest floor of
+    # the v4 dev grid (0.06-0.12, step 0.015) that kept the pooled INCONCLUSIVE rates
+    # within decision rule v6 (dev clean 9/90); it flags 2 dev clean and 1 dev standard
+    # HiFi normal (position-specific simulated HiFi run errors, share 0.13-0.39) and
+    # keeps every two-peak all-low-quality dupC minority shape (15% of one allele)
+    # blocked: 0/130 seeds NEGATIVE; where the tier fires its smallest bound is 0.093,
+    # and the 10/130 seeds where it does not fire are held back by a candidate site of
+    # the minority. It is not retuned to the development split under rule v7.
+    # max_reads 2000: the largest depth of the synthetic detection sweep; above it the
+    # detection floor stays that of 2000 reads (docs/reference/limitations.md).
     phase_run_minor_scope: str = "all"
     phase_run_minor_alpha: float = 0.001
-    phase_run_minor_min_share: float = 0.075
+    phase_run_minor_min_share: float = 0.09
     phase_run_minor_max_reads: int = 2000
     # The same tier also tests each run's bounded but impure observations (both bounding
     # bases kept, another base inside the run): insG, insG_pos58 and delinsAT split an X
