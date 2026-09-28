@@ -97,8 +97,9 @@ not re-run.
 - The ladder engine (`--engine ladder`, `run.engine = "ladder"`). It still
   works and keeps its output schema; a run prints a warning on stderr,
   `summary.json` records it in the new additive `deprecations` list (empty for
-  hybrid runs), and the HTML report shows a "Deprecated" banner. Removal happens no earlier than the next minor release and is
-  announced in the changelog of the release before it.
+  hybrid runs), and the HTML report shows a "Deprecated" banner. Removal
+  happens no earlier than the next minor release and is announced in the
+  changelog of the release before it.
 
 ### Added
 
@@ -228,8 +229,42 @@ not re-run.
   `85c869a6...`), so a fresh pre-registration is required; a sealed split
   registered under v5 can append v6 before its first evaluation
   (`docs/benchmark.md`). Scopes do not enter the generation hash.
+- Task 15n owner decision (2026-09-28), decision rule v7: the default pooled
+  `clean` INCONCLUSIVE ceiling is 0.15 (was 0.10); the scope stays `pooled`,
+  and the `standard` ceiling (0.20), the PATHOGENIC floors, the 0
+  false-positive target and Part 1 are unchanged. The rule text changes
+  (SHA-256 `c77d513f...`), so a fresh pre-registration is required; a sealed
+  split registered under v6 can append v7 before its first evaluation by
+  changing only `targets.by_set.clean.inconclusive_rate.threshold` in its
+  bench-config copy (`docs/benchmark.md`). The `report.md` note on `info only`
+  rows is printed only when the table has one.
 
 ### Fixed
+
+- **Deferred review items (Task 15n).**
+  - New settings `hybrid.event_min_reads` (20) and `hybrid.event_min_alt_frac`
+    (0.30) set the read-count and alt-share floors of competition
+    (non-homopolymer) event support, which reused `hp_min_reads` /
+    `hp_min_alt_frac`; the defaults are those values, so results are unchanged.
+  - The pileup that builds an event's read-derived alternative is capped at
+    `hybrid.polish_max_reads` reads (a seeded sample), as the allele polish is;
+    the support counts still use every assigned read.
+  - The opt-in quality single-event alternative (`phase_quality_single_event`)
+    is never offered when its one remaining event rests on a site kept only by
+    the known-event guard although poor reads explain it. A custom dictionary
+    template the guard cannot protect is logged when a quality rule is on.
+  - `benchsim calibrate` writes `caller.json` for every point, as `run` does;
+    the lengths-stage matcher refuses more than two truth lengths or peaks
+    (a failed row) instead of an unbounded search.
+  - The HTML report shows `classification_confidence_status` as a readable
+    label, and its quality colour bands are named constants.
+  - `make portable-check` also rejects POPCNT, LZCNT, BMI1/BMI2 and SSE4.2
+    instructions. The Apptainer definition builds from the 0.17.0 image.
+  - CI: the heavy synthetic safety sweeps (pytest marker `safety_sweep`) run in
+    their own "Safety Sweeps" job on every pull request; the "Test Suite" jobs
+    run the rest in parallel (pytest-xdist, new in the `test` group) and stay
+    well inside their 10-minute timeout. `make test-unit` and `make ci-check`
+    still run every sweep.
 
 - **Portable `pyabpoa` builds.** `pyabpoa` compiles with `-march=native` on
   x86-64 Linux by default, so a build reused on another CPU (a cached CI
@@ -407,10 +442,10 @@ not re-run.
   needs its share bound to reach the new `hybrid.phase_single_event_min_share`
   (0.4, was `het_af_min` 0.2), for a run site also with Task 15f length-aware
   stutter profiles (the pooled per-strand error profiles inflated the share of
-  a C unit's single C6 run),
-  and `hybrid.phase_single_event_bound_reads` changes from 300 to 1000 so
-  equal-length heterozygotes at adequate depth keep their call. An equal-length heterozygote with fewer than about 350 reads in
-  its peak is now INCONCLUSIVE instead of PATHOGENIC (v4 dev: one standard ONT
+  a C unit's single C6 run), and `hybrid.phase_single_event_bound_reads`
+  changes from 300 to 1000 so equal-length heterozygotes at adequate depth
+  keep their call. An equal-length heterozygote with fewer than about 350
+  reads in its peak is now INCONCLUSIVE instead of PATHOGENIC (v4 dev: one standard ONT
   genomic carrier, 189 reads). `phase_single_event_min_share` must be at least
   `het_af_min`: a configuration that raises `het_af_min` above 0.4 is now refused
   unless it raises `phase_single_event_min_share` too (the error names both keys).
