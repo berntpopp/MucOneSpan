@@ -16,7 +16,8 @@ two-length mixture: per strand, the probability of an observed length under a tr
 and under a true m comes from the Task 15f run-length stutter model built from the
 peer runs of the same base in this peak (leave-one-out; ``stutter.nearest_profile``
 measures, extrapolates or shifts, and ``stutter.event_profile`` applies the
-identifiability guard to m). The weight of m is the stutter-deconvolved minority share;
+identifiability guard to m). With ``hp_stutter_model = "shift"`` the pre-15f model is
+used instead: the major length's own peer profile, moved by m - M for the minor. The weight of m is the stutter-deconvolved minority share;
 its one-sided lower confidence bound at ``phase_run_minor_alpha``
 (``run_strand.share_lower_bound``) must reach ``phase_run_minor_min_share``. A wild-type
 run whose stutter matches its peers has a weight near 0 however often the stuttered
@@ -36,14 +37,18 @@ from typing import Any
 
 from muc_one_span.hybrid.evidence import event_allele_fraction
 from muc_one_span.hybrid.known_events import KnownEventSites, is_known_event_site
+from muc_one_span.hybrid.phase_sites import AF_DECIMALS, Meta, Site
 from muc_one_span.hybrid.run_strand import share_lower_bound
-from muc_one_span.hybrid.stutter import STRANDS, event_profile, nearest_profile, smooth
+from muc_one_span.hybrid.stutter import (
+    STRANDS,
+    event_profile,
+    nearest_profile,
+    shift,
+    smooth,
+)
 from muc_one_span.settings import HybridSettings
 
-Site = tuple[str, int]
-Meta = dict[Site, tuple[str, int]]
 Clean = list[dict[Site, int]]
-AF_DECIMALS = 3  # reporting precision (format, not a tunable)
 
 
 def clean_meta(clean: Clean, meta: Meta) -> Meta:
@@ -102,6 +107,9 @@ def _profiles(
         return smooth(_capped(c, s), s)
 
     raw = smooth(_capped(peers.counter(base, major, strand, site)[1], s), s)
+    if s.hp_stutter_model == "shift":
+        # The pre-15f model (rule 4): the major length's own peers, moved to the minor.
+        return shift(raw, minor - major), raw
     major_profile = nearest_profile(measured, major, s) or raw
     return event_profile(measured, major_profile, minor, major, s), major_profile
 

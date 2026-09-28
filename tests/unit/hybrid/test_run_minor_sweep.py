@@ -5,9 +5,9 @@ floor (``phase_single_event_min_share``), on synthetic samples with realistic ru
 stutter (``run_minor_synth``: HiFi-like length-dependent, ONT-like strand-asymmetric and
 ONT-like saturating stutter; poor reads stutter twice as often):
 
-* a within-peak dupC minority at or above the documented detection floor
+* a within-peak dupC minority at or above the documented tier-only detection floor
   (``FLOOR_AF``, docs/reference/limitations.md) is never NEGATIVE, with two length
-  peaks and with one;
+  peaks and with one (the 60-seed evidence is in the Task 15l report);
 * wild-type samples under the same stutter are never PATHOGENIC, and the tier never
   turns one of them from NEGATIVE into INCONCLUSIVE;
 * a homozygous normal whose C unit's C6 run carries a site-specific +1 C artefact in
@@ -36,10 +36,18 @@ NEGATIVE = "NO_PATHOGENIC_VARIANT_DETECTED"
 # The event peak fills the phase sample (phase_max_site_reads reads per allele).
 DEPTH = 2 * S.phase_max_site_reads
 SEEDS = (0, 1)
-# Detection floor at DEPTH per stutter shape: from this minority AF of the event allele
-# upward nothing was NEGATIVE in the Task 15l sweep (AF 0.10-0.30, five seeds, both
-# layouts; docs/reference/limitations.md).
-FLOOR_AF = {"hifi": 0.30, "ont": 0.10, "ont_saturating": 0.25}
+# Tier-only detection floor at DEPTH (monotone envelope over depth >= DEPTH), per
+# (stutter shape, layout): the run-minority tier itself fired and nothing was NEGATIVE
+# in 60 seeds (Task 15l fix round 1; docs/reference/limitations.md). ONT-like
+# strand-asymmetric single peaks have no tier floor up to 0.40 (their minorities are
+# blocked by other gates only) and are not hard-tested here.
+FLOOR_AF = {
+    ("hifi", "two_peak"): 0.50,
+    ("hifi", "one_peak"): 0.35,
+    ("ont", "two_peak"): 0.30,
+    ("ont_saturating", "two_peak"): 0.25,
+    ("ont_saturating", "one_peak"): 0.20,
+}
 # Share of reads carrying the wild-type run artefact (the H1_hifi shape: 0.327).
 ARTEFACT_SHARES = (0.30, 0.35, 0.40)
 ARTEFACT_SHAPES = ("hifi", "ont")
@@ -51,12 +59,11 @@ TIER_OFF = dataclasses.replace(
 
 
 @pytest.mark.parametrize("seed", SEEDS)
-@pytest.mark.parametrize("layout", rms.LAYOUTS)
-@pytest.mark.parametrize("shape", sorted(rms.SHAPES))
+@pytest.mark.parametrize(("shape", "layout"), sorted(FLOOR_AF))
 def test_run_minority_at_the_floor_is_never_negative(
     tmp_path: Path, shape: str, layout: str, seed: int
 ) -> None:
-    records = rms.minority(shape, FLOOR_AF[shape], DEPTH, seed, layout)
+    records = rms.minority(shape, FLOOR_AF[(shape, layout)], DEPTH, seed, layout)
     summary, decision = base._run(tmp_path, records)
     assert decision["state"] != NEGATIVE, summary["hybrid"]["selection_detail"]
 

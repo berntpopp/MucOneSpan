@@ -215,8 +215,11 @@ class HybridSettings:
     # INCONCLUSIVE with the located site); it never splits a peak or creates an event.
     # The bound uses at most phase_run_minor_max_reads members (a fresh seeded sample).
     # phase_run_minor_scope picks the runs tested (RUN_MINOR_SCOPES); "off" disables.
-    # alpha 0.001: about 10^2 (run, length) tests per peak, so a wild-type peak whose
-    # stutter matches its peers is flagged by chance far below 1%. min_share 0.09: the
+    # alpha 0.001 is a per-test level: with about 10^2 (run, length) tests per peak it
+    # alone would allow roughly 10% of wild-type peaks to be flagged by chance
+    # (Bonferroni); the low wild-type rate comes from the floor, since a bound
+    # >= 0.09 needs a share well above it (no synthetic wild-type NEGATIVE was lost in
+    # 150 samples; dev flags are real run artefacts, not chance). min_share 0.09: the
     # lowest floor of the v4 dev grid (0.06-0.12, step 0.015) that keeps the pooled
     # INCONCLUSIVE rates within decision rule v6 (dev clean 9/90); it flags 2 dev clean
     # and 1 dev standard HiFi normal (position-specific simulated HiFi run errors,
@@ -251,7 +254,9 @@ class HybridSettings:
     # of the same share (a C inserted into a C unit's C6 run reads exactly like an X
     # unit carrying dupA; the simulated HiFi homozygous normal simpanel H1_hifi carries
     # one at 0.327, and synthetic normals with such an artefact at 0.30-0.40 were
-    # PATHOGENIC at the former floor het_af_min). The floor 0.4 (>= het_af_min) makes
+    # PATHOGENIC at the former floor het_af_min). A spec-derived safety margin, not a
+    # calibrated optimum (dev grid 0.35/0.40/0.45: 0.35 let 4/40 artefacts at 0.40
+    # through, 0.45 cost 9 dev carriers). The floor 0.4 (>= het_af_min) makes
     # a split need a share significantly above 0.40 at any depth; a run site's bound
     # must also reach it with Task 15f length-aware profiles (hybrid.run_minor),
     # because the pooled error profiles under-estimate the stutter of a run length
@@ -420,14 +425,17 @@ class HybridSettings:
             SINGLE_EVENT_SPLIT_MODES,
         )
         _open_unit_interval("hybrid.phase_single_event_alpha", self.phase_single_event_alpha)
-        _number(
-            "hybrid.phase_single_event_min_share",
-            self.phase_single_event_min_share,
-            self.het_af_min,
-            1,
-        )
+        _number("hybrid.phase_single_event_min_share", self.phase_single_event_min_share, 0, 1)
         if self.phase_single_event_min_share == 1:
             raise ValueError("hybrid.phase_single_event_min_share must be < 1")
+        if self.phase_single_event_min_share < self.het_af_min:
+            # Since Task 15l (0.4 default); a config raising het_af_min above it must
+            # raise the single-event floor too, or a split could need less than a site.
+            raise ValueError(
+                f"hybrid.phase_single_event_min_share ({self.phase_single_event_min_share}) "
+                f"must be >= hybrid.het_af_min ({self.het_af_min}); raise "
+                "phase_single_event_min_share together with het_af_min"
+            )
         _integer("hybrid.phase_run_error_cap", self.phase_run_error_cap, 1)
         _choice("hybrid.phase_run_minor_scope", self.phase_run_minor_scope, RUN_MINOR_SCOPES)
         _open_unit_interval("hybrid.phase_run_minor_alpha", self.phase_run_minor_alpha)

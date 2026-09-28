@@ -327,6 +327,25 @@ def test_identical_polished_alleles_block_a_negative_call(tmp_path: Path) -> Non
     assert result.alleles["allele_1"]["selection_status"] == "unresolved_single_site"
 
 
+def test_identical_polished_alleles_block_a_negative_call_at_the_defaults(tmp_path: Path) -> None:
+    """The same guard at the default share floor (Task 15l): with the bound's full sample
+    the split is made at the defaults, and identical polished alleles keep it unresolved."""
+    real = engine.polish
+    wild_type = synth.allele(WT)
+
+    def same(draft: str, *args: Any, **kwargs: Any) -> tuple[str, dict[str, Any]]:
+        return wild_type, real(draft, *args, **kwargs)[1]
+
+    seed, per_allele = HET_SEEDS[0], S.phase_single_event_bound_reads // 2
+    records = _records(MUT, per_allele, 2 * seed + 1) + _records(WT, per_allele, 2 * seed + 2)
+    fq = _fastq(tmp_path / "in.fastq", records)
+    with patch("muc_one_span.hybrid.engine.polish", same):
+        result = reconstruct_alleles(fq, tmp_path, synth.RD, DEFAULT_SETTINGS)
+    assert result.block["split_bases"] == ["single_event"]
+    assert result.block["selection_status"] == "unresolved_single_site"
+    assert result.alleles["allele_1"]["selection_status"] == "unresolved_single_site"
+
+
 def test_single_event_split_needs_both_groups_above_het_min_group() -> None:
     cons, members = synth.allele(WT), _het(HET_SEEDS[0])
     res = split_by_linked_sites(cons, members, SPLIT_S, random.Random(S.seed))

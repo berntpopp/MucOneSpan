@@ -100,7 +100,12 @@ def _with_artefact(template: str) -> str:
     return template[:pos] + alt + template[pos + 1 :]
 
 
-def _het(seed: int, carrier: list[str] = base.MUT, profile: str = "hifi") -> list[ReadRecord]:
+def _het(
+    seed: int,
+    carrier: list[str] = base.MUT,
+    profile: str = "hifi",
+    per_allele: int = N_PER_ALLELE,
+) -> list[ReadRecord]:
     """Equal-length heterozygote (``carrier`` / wild-type C unit) with a low-accuracy
     subset, drawn from both alleles, sharing one artefact column."""
     rng = random.Random(seed)
@@ -108,7 +113,7 @@ def _het(seed: int, carrier: list[str] = base.MUT, profile: str = "hifi") -> lis
     out = []
     for name, inner in (("m", carrier), ("w", base.WT)):
         template = synth.allele(inner)
-        for i in range(N_PER_ALLELE):
+        for i in range(per_allele):
             strand = "+" if rng.random() < 1 / 2 else "-"
             poor = rng.random() < SUBSET_FRAC
             source = _with_artefact(template) if poor else template
@@ -174,6 +179,22 @@ def test_a_quality_enabled_split_never_resolves_the_selection(tmp_path: Path, se
     assert block["split_bases"] == ["single_event"], block
     assert block["selection_status"] == "unresolved_single_site"
     assert "low-accuracy" in block["selection_detail"]
+    assert decision["state"] == "INCONCLUSIVE", decision["details"]
+
+
+@pytest.mark.parametrize("seed", SEEDS[:1])
+def test_a_quality_enabled_split_never_resolves_the_selection_at_the_defaults(
+    tmp_path: Path, seed: int
+) -> None:
+    """The same shape at the default share floor (Task 15l), with the bound's full sample:
+    whether or not the split is made, the sample is never NEGATIVE, and a split keeps
+    the selection unresolved."""
+    records = _het(
+        seed, carrier=["X"] * len(base.WT), per_allele=S.phase_single_event_bound_reads // 2
+    )
+    summary, decision = base._run(tmp_path, records, ON)
+    block = summary["hybrid"]
+    assert block["selection_status"].startswith("unresolved"), block
     assert decision["state"] == "INCONCLUSIVE", decision["details"]
 
 

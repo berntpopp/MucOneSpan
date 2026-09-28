@@ -411,7 +411,9 @@ not re-run.
   and `hybrid.phase_single_event_bound_reads` changes from 300 to 1000 so
   equal-length heterozygotes at adequate depth keep their call. An equal-length heterozygote with fewer than about 350 reads in
   its peak is now INCONCLUSIVE instead of PATHOGENIC (v4 dev: one standard ONT
-  genomic carrier, 189 reads).
+  genomic carrier, 189 reads). `phase_single_event_min_share` must be at least
+  `het_af_min`: a configuration that raises `het_af_min` above 0.4 is now refused
+  unless it raises `phase_single_event_min_share` too (the error names both keys).
 - **Hybrid engine: insertion slots next to a homopolymer run are recorded (Task
   15l).** insG_pos54 in unit J inserts a G right before a C run, where the
   phase site table recorded no insertion slot, so the event was invisible to

@@ -27,6 +27,7 @@ from typing import Any
 import pytest
 
 from muc_one_span.config import _apply_mutation
+from muc_one_span.hybrid import run_minor, stutter
 from muc_one_span.hybrid.engine import RUN_MINOR_BASIS, reconstruct_alleles
 from muc_one_span.hybrid.known_events import KnownEventSites, known_event_sites
 from muc_one_span.hybrid.lengths import fit_length_model
@@ -151,12 +152,33 @@ def test_run_minority_tier_never_splits_or_creates_an_event(tmp_path: Path) -> N
     assert "allele_2" in result.alleles and "allele_3" not in result.alleles
     for name in ("allele_1", "allele_2"):
         assert synth.dupc() not in result.consensus_paths[name].read_text()
+        allele = result.alleles[name]
+        # Each allele is still phased by its own length peak; the sample-level
+        # selection status every allele carries blocks the negative call.
+        assert allele["independent_haplotype_evidence"] is True
+        assert allele["phase_status"] == "phased"
+        assert allele["selection_status"].startswith("unresolved")
 
 
 @pytest.mark.parametrize("seed", SEEDS)
 def test_single_peak_run_minority_is_never_negative(tmp_path: Path, seed: int) -> None:
     summary, decision = base._run(tmp_path, rms.minority("hifi", E2E_AF, DEPTH, seed, "one_peak"))
     assert decision["state"] != NEGATIVE, summary["hybrid"]["selection_detail"]
+
+
+def test_shift_stutter_model_is_honoured() -> None:
+    """With hp_stutter_model = "shift" the minor length's profile is the major length's
+    peer profile moved by the length difference (the pre-15f model). HiFi-like stutter
+    grows with run length, so the length-aware C8 profile differs from the shifted one."""
+    members = _event_peak(rms.minority("hifi", AF, SITE_DEPTH, SEEDS[0], "two_peak"))
+    shift_s = dataclasses.replace(S, hp_stutter_model="shift")
+    clean, strands, meta = _table(members, shift_s)
+    peers = run_minor._Peers(clean, strands, run_minor.clean_meta(clean, meta))
+    site = _event_site()
+    minor, major = run_minor._profiles(peers, site, 7, 8, "+", shift_s)
+    assert minor == stutter.shift(major, 1)
+    assert run_minor._profiles(peers, site, 7, 8, "+", S) != (minor, major)
+    assert [x["site"] for x in run_minor_sites(clean, strands, meta, shift_s, KNOWN)][:1] == [site]
 
 
 # --- insertion slots next to a run (insG_pos54 in unit J) ------------------------------
@@ -216,3 +238,9 @@ def test_equal_length_ins_g_pos54_heterozygote_is_never_negative(tmp_path: Path,
 def test_run_minor_settings_are_validated(key: str, value: object) -> None:
     with pytest.raises(ValueError, match=key):
         HybridSettings(**{key: value})  # type: ignore[arg-type]
+
+
+def test_single_event_floor_below_het_af_min_names_both_keys() -> None:
+    with pytest.raises(ValueError, match=r"phase_single_event_min_share.*het_af_min"):
+        HybridSettings(het_af_min=0.45)
+    assert HybridSettings(het_af_min=0.45, phase_single_event_min_share=0.45).het_af_min == 0.45

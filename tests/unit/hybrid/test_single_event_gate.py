@@ -178,3 +178,24 @@ def test_share_bound_sample_is_its_own_setting() -> None:
 def test_share_bound_reads_is_validated() -> None:
     with pytest.raises(ValueError, match="phase_single_event_bound_reads"):
         dataclasses.replace(S, phase_single_event_bound_reads=0)
+
+
+def test_share_bound_sample_is_its_own_setting_at_the_defaults() -> None:
+    """The same property at the default floor and sample size (Task 15l): at four times
+    the bound's sample, a share of 1.1 x phase_single_event_min_share is significant
+    over every read but not over the bound's fixed sample."""
+    s = dataclasses.replace(S, phase_single_event_split="all")
+    n = 4 * s.phase_single_event_bound_reads
+    minor = round(n * s.phase_single_event_min_share * 1.1)
+    one_q = synth.allele(["X"] * 10 + ["Q"] + ["X"] * 19)
+    wild = synth.allele(["X"] * 30)
+    reads = synth.reads(one_q, minor, err=base.ERR, seed=5)
+    reads += synth.reads(wild, n - minor, err=base.ERR, seed=6)
+    members = categorize_reads(reads, base.ANCH, S).spanning
+    res = split_by_linked_sites(wild, members, s, random.Random(S.seed))
+    assert res.basis == "unconfirmed_single_site", res.basis
+    assert single_event.split_single_event(wild, members, res, s) is None
+    big_cap = dataclasses.replace(s, phase_max_site_reads=len(members))
+    assert single_event.split_single_event(wild, members, res, big_cap) is None
+    every_read = dataclasses.replace(s, phase_single_event_bound_reads=len(members))
+    assert single_event.split_single_event(wild, members, res, every_read) is not None

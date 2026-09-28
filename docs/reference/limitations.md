@@ -314,31 +314,39 @@ the automated test suite.
   length from the peak's peer runs, and makes the result INCONCLUSIVE (located,
   `unresolved_run_minor`) when the one-sided lower bound (alpha 0.001) of the
   minority share reaches 0.09. It never splits a peak or creates an event, so a
-  minority is never called PATHOGENIC through it. **Detection floor** (smallest
-  minority AF of the event allele from which no larger AF was NEGATIVE; synthetic
-  sweep, dupC in one X unit, AF 0.10-0.30 in steps of 0.05, 5 seeds; stutter:
-  HiFi-like C7 +1 14% / -1 8%, C8 -1 20%, shorter runs less; ONT-like "+" -1 35%
-  / +1 10%, "-" 3% / 3%; ONT-like saturating: "+" -1 at C6 10%, C7 26%, C8 21%,
-  +1 10%, "-" 3% / 3%;
-  40% of reads low quality with twice the stutter and error; "two peaks" = two
-  alleles of 20 and 30 units, depth split evenly; "one peak" = one 30-unit
-  allele):
+  minority is never called PATHOGENIC through it. **Detection floor** (the
+  tier's own: the smallest minority AF of the event allele at which the tier
+  itself fired and no sample was NEGATIVE in 60 seeds, so the one-sided 95%
+  upper bound of the NEGATIVE rate there is 4.9%; a monotone envelope, i.e.
+  the worst floor at that depth or any higher one; synthetic dupC in one X
+  unit; stutter: HiFi-like C7 +1 14% / -1 8%, C8 -1 20%, shorter runs less;
+  ONT-like "+" -1 35% / +1 10%, "-" 3% / 3%; ONT-like saturating: "+" -1 at
+  C6 10%, C7 26%, C8 21%, +1 10%, "-" 3% / 3%; 40% of reads low quality with
+  twice the stutter and error; "two peaks" = two alleles of 20 and 30 units,
+  depth split evenly; "one peak" = one 30-unit allele):
 
-  | stutter shape | layout | 60 reads | 150 | 300 | 600 | 2000 |
-  | --- | --- | --- | --- | --- | --- | --- |
-  | HiFi-like | two peaks | >0.30 | >0.30 | >0.30 | 0.30 | 0.30 |
-  | HiFi-like | one peak | >0.30 | >0.30 | >0.30 | 0.30 | 0.25 |
-  | ONT-like | two peaks | 0.10 | 0.25 | 0.25 | 0.10 | 0.15 |
-  | ONT-like | one peak | 0.20 | 0.10 | 0.25 | 0.10 | 0.10 |
-  | ONT-like saturating | two peaks | 0.30 | >0.30 | 0.30 | 0.25 | 0.15 |
-  | ONT-like saturating | one peak | >0.30 | 0.30 | 0.25 | 0.20 | 0.15 |
+  | stutter shape | layout | 150 reads | 300 | 600 | 2000 |
+  | --- | --- | --- | --- | --- | --- |
+  | HiFi-like | two peaks | >0.30 | >0.30 | 0.50 | 0.30 |
+  | HiFi-like | one peak | >0.30 | >0.30 | 0.35 | 0.25 |
+  | ONT-like | two peaks | >0.30 | >0.30 | 0.30 | 0.20 |
+  | ONT-like | one peak | >0.40 | >0.40 | >0.40 | >0.40 |
+  | ONT-like saturating | two peaks | >0.30 | 0.35 | 0.25 | 0.20 |
+  | ONT-like saturating | one peak | 0.35 | 0.30 | 0.20 | 0.20 |
 
-  (Where an ONT-like floor is low at low depth, the sample is INCONCLUSIVE for
-  other reasons, not by this tier.) Below the floor a minority can be NEGATIVE:
-  the HiFi-like shape needs at least 300 reads per allele and a minority of
-  about 30% (25% with 2000 reads in one peak). The bound uses at most
-  `phase_run_minor_max_reads` (2000) reads, so the floor does not improve
-  beyond that depth. Costs: on v4 dev the tier flags 2 clean and 1 standard HiFi
+  ">0.30" rests on the 5-seed grid (AF 0.10-0.30); every other value on 60
+  seeds at that AF. Just below a floor the tier misses part of the samples,
+  e.g. HiFi-like two peaks at 600 reads: 21/60 NEGATIVE at AF 0.30, 3/60 at
+  0.40, 0/60 at 0.50; ONT-like saturating two peaks at 2000 reads: 25/60 at
+  0.15. At 60 reads nothing is detected up to 0.30. The ONT-like
+  strand-asymmetric single peak is usually split or rejected by other gates
+  (length peaks by strand), so the tier rarely runs there (fired in 10/60 and
+  5/60 samples at AF 0.40); those samples were never NEGATIVE (0/120 at AF
+  0.40), but that relies on those incidental gates, not on this tier. Lower
+  ONT values in earlier tables of the Task 15l report came from such
+  incidental INCONCLUSIVE results. Below a floor a minority can be NEGATIVE.
+  The bound uses at most `phase_run_minor_max_reads` (2000) reads, so the
+  floor does not improve beyond that depth. Costs: on v4 dev the tier flags 2 clean and 1 standard HiFi
   normal (position-specific simulated HiFi run errors of share 0.13-0.39 at a C3,
   G3 or C7 run), none on ONT or genomic reads; on the frozen `heldout` panel one
   HiFi normal (C4 -> C3 at 0.15). A wild-type run with site-specific stutter of
@@ -347,11 +355,16 @@ the automated test suite.
   an INCONCLUSIVE; it fired on 7 ONT-like strand-asymmetric samples that were
   INCONCLUSIVE anyway (the draft run was a base short under 35-50% "+" strand
   deletion stutter).
-- **Minorities at columns and insertion slots.** A substitution, gap or
-  insertion carried by a within-peak minority has no stutter model; it becomes
-  a candidate site only at `het_af_min` (0.2; gap alleles 0.3), so a minority
-  below that (for example a mosaic dupA at 15% of an allele) is not flagged and
-  can be NEGATIVE.
+- **Minorities at columns and insertion slots (detection limit of v0.17.0).** A
+  substitution, gap or insertion carried by a within-peak minority has no
+  stutter model and no bound-based tier; it becomes a candidate site only at
+  `het_af_min` (0.2 of the peak's reads; gap alleles 0.3). Synthetic dupA
+  minority inside one allele of a two-peak sample (600 reads, 20 seeds per
+  AF, NEGATIVE count): HiFi-like 20/20 at AF 0.10, 0.15 and 0.20, 8/20 at 0.25,
+  0/20 at 0.30; ONT-like strand-asymmetric 3/20, 3/20, 3/20, 2/20 at 0.10-0.25,
+  0/20 at 0.30 (the others INCONCLUSIVE through other gates). So an insertion
+  minority below about 0.30 of an allele can be NEGATIVE; 0/20 at 0.30 bounds
+  the NEGATIVE rate there at 14% (one-sided 95%).
 - **Insertions next to a homopolymer run (Task 15l).** The site table recorded no
   insertion slot right before or after a homopolymer run, so an insertion the
   aligner places there was invisible: insG_pos54 in unit J (`GCG|CCC` read as

@@ -229,7 +229,12 @@ def _groups(
     already is one allele, so a within-peak single-site mixture is not a further
     haplotype, and splitting it would only move stutter or error reads out of an allele
     and make that allele's read support circular. Such a peak stays unconfirmed. The
-    run-site safety tier (``_run_site_tier``) applies under the same condition. When
+    15g run-site and 15i strand-biased tiers (``_run_site_tier``) apply under the same
+    condition; its Task 15l run-minority tier applies to every unsplit peak. In a
+    two-peak model a peak held back only by that tier keeps the split basis
+    ``length`` for its allele (the allele is still phased by its length peak); the
+    sample's selection status, which every allele carries and which gates a negative
+    call, is ``unresolved_run_minor`` through ``split_bases``. When
     more than one event leaves such a peak unconfirmed and the sites the 15j test keeps
     form exactly one event (``phase_quality_single_event``, Task 15k), the split is
     tried on that event under the same gates; the dropped sites are then recorded in
@@ -267,7 +272,7 @@ def _groups(
         if split.candidate is not None and (sub is not None or len(split.groups) == 1):
             out.located.setdefault(split.basis, []).append(located_site(split.candidate, unit_bp))
         if sub is None and len(split.groups) == 1:
-            by_length = split.basis == "none" and two_peaks
+            by_length = two_peaks and split.basis in ("none", RUN_MINOR_BASIS)
             out.groups.append(
                 _Group(split.groups[0], "length" if by_length else split.basis, draft)
             )
