@@ -41,6 +41,9 @@ from tests.unit.hybrid import test_quality_sites as quality
 from tests.unit.hybrid import test_single_event as base
 from tests.unit.hybrid import test_single_event_gate as gate
 
+# Heavy synthetic safety sweep: its own CI job and make test-unit (never skipped).
+pytestmark = pytest.mark.safety_sweep
+
 S = quality.S  # the 15j test is opt-in since Task 15k: switched on explicitly
 NEGATIVE = "NO_PATHOGENIC_VARIANT_DETECTED"
 N_PER_ALLELE = base.N_PER_ALLELE
@@ -187,14 +190,16 @@ def test_a_quality_enabled_split_never_resolves_the_selection_at_the_defaults(
     tmp_path: Path, seed: int
 ) -> None:
     """The same shape at the default share floor (Task 15l), with the bound's full sample:
-    whether or not the split is made, the sample is never NEGATIVE, and a split keeps
-    the selection unresolved."""
+    the split is made on the single event and keeps the selection unresolved with the
+    low-accuracy reason, so the sample is INCONCLUSIVE, never NEGATIVE."""
     records = _het(
         seed, carrier=["X"] * len(base.WT), per_allele=S.phase_single_event_bound_reads // 2
     )
     summary, decision = base._run(tmp_path, records, ON)
     block = summary["hybrid"]
-    assert block["selection_status"].startswith("unresolved"), block
+    assert block["split_bases"] == ["single_event"], block
+    assert block["selection_status"] == "unresolved_single_site", block
+    assert "low-accuracy" in block["selection_detail"]
     assert decision["state"] == "INCONCLUSIVE", decision["details"]
 
 

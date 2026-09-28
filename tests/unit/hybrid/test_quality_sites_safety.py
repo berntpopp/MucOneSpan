@@ -30,6 +30,9 @@ from tests.unit.hybrid import synth
 from tests.unit.hybrid import test_quality_sites as quality
 from tests.unit.hybrid import test_single_event as base
 
+# Heavy synthetic safety sweep: its own CI job and make test-unit (never skipped).
+pytestmark = pytest.mark.safety_sweep
+
 S = quality.OPT_IN.hybrid  # the 15j rule is opt-in since Task 15k
 SHORT = ["X"] * 20
 LONG = ["X"] * 30

@@ -187,14 +187,28 @@ def test_hp_thresholds_follow_settings() -> None:
 
 
 def test_competition_status_clauses() -> None:
-    n = S.hp_min_reads
+    n = S.event_min_reads
     alt = n  # all reads carry the template
     assert competition_status(n, alt, 0, S) == "supported"
     assert competition_status(n - 1, n - 1, 0, S) == "insufficient_depth"
-    low_alt = int(S.hp_min_alt_frac * n) - 1
+    low_alt = int(S.event_min_alt_frac * n) - 1
     assert competition_status(n, low_alt, 0, S) == "not_supported"
     half = n // 2
     assert competition_status(2 * half, half, half, S) == "not_supported"  # alt == ref
+
+
+def test_competition_thresholds_are_independent_of_the_homopolymer_caller() -> None:
+    # Ledger L85: competition events have their own read-count and alt-fraction floors.
+    n = S.event_min_reads
+    strict_hp = replace(S, hp_min_reads=n + 10, hp_min_alt_frac=1.0)
+    assert competition_status(n, n, 0, strict_hp) == "supported"
+    assert competition_status(n, n, 0, replace(S, event_min_reads=n + 1)) == ("insufficient_depth")
+    low = int(S.event_min_alt_frac * n) + 1
+    assert competition_status(n, low, 0, S) == "supported"
+    assert competition_status(n, low, 0, replace(S, event_min_alt_frac=1.0)) == "not_supported"
+    for name in ("event_min_reads", "event_min_alt_frac"):
+        with pytest.raises(ValueError, match=f"hybrid.{name}"):
+            replace(S, **{name: -1})
 
 
 def _random_settings(rng: random.Random) -> HybridSettings:
@@ -206,6 +220,8 @@ def _random_settings(rng: random.Random) -> HybridSettings:
             hp_llr_min=1e-9,
             hp_min_alt_frac=0.0,
             hp_min_strand_reads=0,
+            event_min_reads=1,
+            event_min_alt_frac=0.0,
             event_max_alternative_frac=1.0,
         )
     return replace(
@@ -214,12 +230,21 @@ def _random_settings(rng: random.Random) -> HybridSettings:
         hp_llr_min=rng.uniform(1e-9, 30),
         hp_min_alt_frac=rng.uniform(0, 1),
         hp_min_strand_reads=rng.randint(0, 10),
+        event_min_reads=rng.randint(1, 40),
+        event_min_alt_frac=rng.uniform(0, 1),
         event_max_alternative_frac=rng.uniform(0, 1),
     )
 
 
 def test_zero_reads_are_never_supported_even_at_permissive_settings() -> None:
-    loose = replace(S, hp_min_reads=1, hp_llr_min=1e-9, hp_min_alt_frac=0.0)
+    loose = replace(
+        S,
+        hp_min_reads=1,
+        hp_llr_min=1e-9,
+        hp_min_alt_frac=0.0,
+        event_min_reads=1,
+        event_min_alt_frac=0.0,
+    )
     zero = {"+": 0, "-": 0}
     assert (
         hp_status(0, 50.0, 1.0, {"+": 1.0, "-": 1.0}, zero, loose, alternative_frac=0.0)
@@ -228,7 +253,12 @@ def test_zero_reads_are_never_supported_even_at_permissive_settings() -> None:
     assert competition_status(0, 0, 0, loose) == "insufficient_depth"
     # The guard holds even for a settings object that bypassed validation.
     unchecked = SimpleNamespace(
-        hp_min_reads=0, hp_llr_min=0.0, hp_min_alt_frac=0.0, hp_min_strand_reads=0
+        hp_min_reads=0,
+        hp_llr_min=0.0,
+        hp_min_alt_frac=0.0,
+        hp_min_strand_reads=0,
+        event_min_reads=0,
+        event_min_alt_frac=0.0,
     )
     got = hp_status(0, 0.0, 0.0, {"+": 0.0, "-": 0.0}, zero, unchecked, alternative_frac=0.0)  # type: ignore[arg-type]
     assert got == "insufficient_depth"
@@ -261,10 +291,10 @@ def test_property_status_set_and_thresholds() -> None:
         ref = rng.randint(0, n - alt)
         status = competition_status(n, alt, ref, s)
         assert status in READ_SUPPORT_STATUSES
-        assert (status == "insufficient_depth") == (n < max(s.hp_min_reads, 1))
+        assert (status == "insufficient_depth") == (n < max(s.event_min_reads, 1))
         if status == "supported":
-            assert n >= 1 and n >= s.hp_min_reads and alt / n >= s.hp_min_alt_frac and alt > ref
-            assert ref / n <= s.event_max_alternative_frac
+            assert n >= 1 and n >= s.event_min_reads and alt / n >= s.event_min_alt_frac
+            assert alt > ref and ref / n <= s.event_max_alternative_frac
 
 
 # --- template typing -------------------------------------------------------------------
@@ -373,3 +403,35 @@ def test_unlocalized_event_is_reported_not_supported() -> None:
         mut["repeat_index"] = -1
     got = event_read_support(allele, classification, [], synth.RD, S)
     assert got and all(v["status"] == "not_localized" and v["n"] == 0 for v in got.values())
+
+
+def test_homopolymer_evidence_counts_a_read_without_its_run_boundary_as_other() -> None:
+    """Ledger L130: only reads that keep both bases bounding the run observe its length.
+
+    Exact event reads are ``alt``; exact wild-type reads are ``ref``; reads whose base
+    before the run is substituted by the run's own base (the run merges with it) observe
+    no length and are ``other``, whatever length their merged stretch has.
+    """
+    allele = synth.allele(["X"] * 10 + [synth.dupc()] + ["X"] * 10)
+    wild = synth.allele(["X"] * 21)
+    classification = classify_sequence(allele, synth.RD)
+    idx, mut = next(
+        (i, m)
+        for i, m in enumerate(classification["mutations_detected"])
+        if m["mutation_name"] == "dupC"
+    )
+    rep = next(r for r in classification["repeats"] if r["index"] == mut["repeat_index"])
+    run = homopolymer_event_run(mut, synth.RD, allele, int(rep["start"]), int(rep["end"]), S)
+    assert run is not None
+    start, _end, base, _shift = run
+    merged = allele[: start - 1] + base + allele[start:]  # boundary base lost to the run
+    n_alt, n_ref, n_merged = 30, 5, 7
+    reads = [(allele, "+")] * n_alt + [(wild, "-")] * n_ref + [(merged, "+")] * n_merged
+    got = event_read_support(allele, classification, reads, synth.RD, S)[idx]
+    assert got["kind"] == "homopolymer"
+    assert (got["n"], got["alt"], got["ref"], got["other"]) == (
+        n_alt + n_ref + n_merged,
+        n_alt,
+        n_ref,
+        n_merged,
+    )

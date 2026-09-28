@@ -293,8 +293,10 @@ the automated test suite.
   a carrier is not called. Costs and limits:
   - Wild-type runs with site-specific stutter at or above `het_af_min` are
     flagged the same way. In the v4 development panels the tier flags 3 of the
-    4 equal-length (single-peak) wild-type HiFi samples (runs at 21-27% of reads
-    at one length) and none of the 3 ONT ones.
+    4 equal-length (single-peak) wild-type HiFi samples (runs at 21-30% of reads
+    at one length) and none of the 3 ONT ones; 2 of the 77 development normals
+    moved from NEGATIVE to INCONCLUSIVE when the tier was added (a flagged sample
+    can already be INCONCLUSIVE for another reason).
   - The tier keeps `het_af_min` as its share floor, so a heterozygous run whose
     minor length is seen in fewer than `het_af_min` of the reads (strong
     allele imbalance combined with heavy stutter) is still not flagged.
@@ -315,10 +317,12 @@ the automated test suite.
   `unresolved_run_minor`) when the one-sided lower bound (alpha 0.001) of the
   minority share reaches 0.09. It never splits a peak or creates an event, so a
   minority is never called PATHOGENIC through it. **Detection floor** (the
-  tier's own: the smallest minority AF of the event allele at which the tier
-  itself fired and no sample was NEGATIVE in 60 seeds, so the one-sided 95%
-  upper bound of the NEGATIVE rate there is 4.9%; a monotone envelope, i.e.
-  the worst floor at that depth or any higher one; synthetic dupC in one X
+  tier's own: the smallest minority AF of the event allele at which no sample
+  was NEGATIVE in 60 seeds and the tier itself fired, i.e. the largest lower
+  bound over the sample's peaks reached 0.09, in every sample except where
+  note (b) says otherwise; the one-sided 95% upper bound of the NEGATIVE rate
+  there is 4.9%; a monotone envelope, i.e. the worst floor at that depth or
+  any higher one; synthetic dupC in one X
   unit; stutter: HiFi-like C7 +1 14% / -1 8%, C8 -1 20%, shorter runs less;
   ONT-like "+" -1 35% / +1 10%, "-" 3% / 3%; ONT-like saturating: "+" -1 at
   C6 10%, C7 26%, C8 21%, +1 10%, "-" 3% / 3%; 40% of reads low quality with
@@ -327,15 +331,20 @@ the automated test suite.
 
   | stutter shape | layout | 150 reads | 300 | 600 | 2000 |
   | --- | --- | --- | --- | --- | --- |
-  | HiFi-like | two peaks | >0.30 | >0.30 | 0.50 | 0.30 |
-  | HiFi-like | one peak | >0.30 | >0.30 | 0.35 | 0.25 |
-  | ONT-like | two peaks | >0.30 | >0.30 | 0.30 | 0.20 |
+  | HiFi-like | two peaks | >=0.50 (a) | >=0.50 (a) | 0.50 | 0.30 |
+  | HiFi-like | one peak | >=0.35 (a) | >=0.35 (a) | 0.35 | 0.25 |
+  | ONT-like | two peaks | >0.30 | >0.30 | 0.30 | 0.20 (b) |
   | ONT-like | one peak | >0.40 | >0.40 | >0.40 | >0.40 |
-  | ONT-like saturating | two peaks | >0.30 | 0.35 | 0.25 | 0.20 |
-  | ONT-like saturating | one peak | 0.35 | 0.30 | 0.20 | 0.20 |
+  | ONT-like saturating | two peaks | >=0.35 (a) | 0.35 (b) | 0.25 | 0.20 |
+  | ONT-like saturating | one peak | 0.35 (b) | 0.30 | 0.20 | 0.20 |
 
   ">0.30" rests on the 5-seed grid (AF 0.10-0.30); every other value on 60
-  seeds at that AF. Just below a floor the tier misses part of the samples,
+  seeds at that AF. (a) Not measured above AF 0.30 at this depth (the 5-seed
+  grid found no floor up to 0.30); the envelope takes the floor of a higher
+  depth, so the floor here is at least that value. (b) No sample was NEGATIVE,
+  but the tier fired in 59 of 60 (ONT-like two peaks, 2000 reads), 57 of 60
+  (saturating two peaks, 300) and 56 of 60 (saturating one peak, 150) samples;
+  the others were INCONCLUSIVE through other gates. Just below a floor the tier misses part of the samples,
   e.g. HiFi-like two peaks at 600 reads: 21/60 NEGATIVE at AF 0.30, 3/60 at
   0.40, 0/60 at 0.50; ONT-like saturating two peaks at 2000 reads: 25/60 at
   0.15. At 60 reads nothing is detected up to 0.30. The ONT-like
@@ -480,7 +489,11 @@ the automated test suite.
     reported NEGATIVE. Column changes are not signatures. insG_pos54 in unit J
     changed no site of the table until Task 15l (its G lands in the insertion
     slot right before a C run, which was not recorded; see "Insertions next to
-    a homopolymer run" below).
+    a homopolymer run" below). The signatures do not depend on position or
+    flanking sequence: a run or insertion site anywhere in the peak with a
+    template's signature is kept, which keeps more sites, never fewer. A custom
+    dictionary template that changes no run or insertion slot cannot be
+    protected; a run with a quality rule on logs a warning naming it.
   - Fixed in Task 15l: a within-peak dupC minority whose run stayed below both
     run tiers could show a substitution site as its only marker; with the
     opt-in rule on and every carrier a low-quality read, that site was
@@ -588,10 +601,11 @@ the automated test suite.
 - **BAM input is streamed whole.** A BAM is read through `samtools fastq` with no
   region, so a WGS BAM means a scan of every read in Python. Subset a WGS BAM to
   the MUC1 locus before running.
-- **Event read support at very high depth (follow-up).** Per-event read support
-  and its polishing use every read assigned to the allele (no read cap), which is
-  slow at about 1000x and above. A configured cap is planned; results are not
-  affected, only run time.
+- **Event read support at very high depth.** Per-event read support counts every
+  read assigned to the allele, so its alignment step grows with depth. The polish
+  of the read-derived alternative is capped at `hybrid.polish_max_reads` reads (a
+  seeded sample); the counts themselves are never sampled, because the status
+  thresholds are defined on every assigned read.
 - **PRJEB92208 ONT amplicon runs.** Most amplicon runs carry clusters of
   PCR-product reads below or above the alleles, so `selection_status` is often
   `unresolved_rejected_peak`. That blocks a NEGATIVE result (no false

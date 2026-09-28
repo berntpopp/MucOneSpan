@@ -238,7 +238,15 @@ def test_phase_unassigned_reads_are_reassigned_or_counted(tmp_path: Path) -> Non
     with patch("muc_one_span.hybrid.engine.split_by_linked_sites", _split_first_peak([junk])):
         result = reconstruct_alleles(fq, tmp_path, synth.RD, DEFAULT_SETTINGS)
     assert result.block["phase_unassigned_spanning_reads"] == 1
-    assert result.block["unassigned_spanning_reads"] >= 1
+    # The junk read matches no allele, so it is counted exactly once on top of the
+    # length model's own unassigned reads (the same split without it).
+    (tmp_path / "plain").mkdir()
+    with patch("muc_one_span.hybrid.engine.split_by_linked_sites", _split_first_peak([])):
+        plain = reconstruct_alleles(fq, tmp_path / "plain", synth.RD, DEFAULT_SETTINGS)
+    assert plain.block["phase_unassigned_spanning_reads"] == 0
+    assert result.block["unassigned_spanning_reads"] == (
+        plain.block["unassigned_spanning_reads"] + 1
+    )
 
 
 def test_reassign_places_reads_by_edit_distance() -> None:

@@ -33,6 +33,9 @@ from muc_one_span.settings import DEFAULT_SETTINGS
 from tests.unit.hybrid import synth
 from tests.unit.hybrid import test_single_event as base
 
+# Heavy synthetic safety sweep: its own CI job and make test-unit (never skipped).
+pytestmark = pytest.mark.safety_sweep
+
 S = DEFAULT_SETTINGS.hybrid
 N_UNITS = 30
 EVENT_UNIT = N_UNITS - 1  # last inner unit, followed by unit 6 (starts with G)

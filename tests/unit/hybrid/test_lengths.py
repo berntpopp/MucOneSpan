@@ -4,6 +4,8 @@ from __future__ import annotations
 
 from functools import cache
 
+import pytest
+
 from muc_one_span.hybrid.lengths import GATE_RELEVANT_REJECTIONS, LengthModel, fit_length_model
 from muc_one_span.hybrid.spans import Anchors, SpanRead, categorize_reads
 from muc_one_span.settings import HybridSettings
@@ -136,6 +138,7 @@ def _minor_flagged(model: LengthModel) -> bool:
     )
 
 
+@pytest.mark.safety_sweep  # heavy multi-seed property sweep (own CI job)
 def test_homozygous_smear_never_silently_accepts_and_is_rarely_gate_relevant() -> None:
     """(a) a single allele plus smear never yields an unflagged second peak (zero
     tolerance); (b) it is gate-relevant (-> INCONCLUSIVE) in at most 10% of seeds, in

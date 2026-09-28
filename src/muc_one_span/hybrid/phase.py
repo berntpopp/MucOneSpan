@@ -23,7 +23,7 @@ from dataclasses import dataclass, field
 from typing import Any
 
 from muc_one_span.hybrid.known_events import KnownEventSites
-from muc_one_span.hybrid.phase_quality import quality_sites
+from muc_one_span.hybrid.phase_quality import guarded_but_explained, quality_sites
 from muc_one_span.hybrid.phase_sites import (
     Meta,
     Site,
@@ -265,6 +265,15 @@ class _SiteTable:
             sites, self.feats, quals, settings, meta=self.meta, insertions=self.insertions
         )
 
+    def guard_only(
+        self, sites: list[dict[str, Any]], settings: HybridSettings
+    ) -> list[dict[str, Any]]:
+        """``phase_quality.guarded_but_explained`` on this table's sampled reads."""
+        quals = [m.mean_q for m in self.sample]
+        return guarded_but_explained(
+            sites, self.feats, quals, settings, meta=self.meta, insertions=self.insertions
+        )
+
 
 def _single_event_alternative(
     t: _SiteTable, sites: list[dict[str, Any]], settings: HybridSettings
@@ -273,12 +282,16 @@ def _single_event_alternative(
 
     Only for a peak whose candidate sites form more than one event: the sites the
     15j test explains (``phase_quality.quality_sites``) are dropped, and the result
-    is offered only when the sites kept form exactly one event.
+    is offered only when the sites kept form exactly one event, and never when a kept
+    site is protected only by the known-event guard although poor reads explain it
+    (fail closed: that event may be an artefact sharing a template's signature).
     """
     if len(events(sites, t.meta)) == 1:
         return None  # one event already: the ordinary single-event split applies
     kept, dropped = t.quality(sites, settings)
     if not dropped or len(events(kept, t.meta)) != 1:
+        return None
+    if t.guard_only(kept, settings):
         return None
     alternative = _split(t, kept, settings)
     if alternative.basis != UNCONFIRMED_SINGLE_SITE:

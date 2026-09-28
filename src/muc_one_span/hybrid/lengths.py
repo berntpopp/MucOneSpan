@@ -31,7 +31,15 @@ class LengthPeak:
 
 @dataclass
 class LengthModel:
-    """Accepted peaks plus everything that was not used, so nothing is dropped silently."""
+    """Accepted peaks plus everything that was not used, so nothing is dropped silently.
+
+    ``rejected`` holds one entry per rejected length-density maximum (``_entry``). It is
+    bounded by the settings, not by depth: maxima are at least
+    ``peak_min_separation_units`` apart within the spanning-read window of at most
+    ``max_span_units``, so heavy smear adds reads to entries, never unboundedly many
+    entries. Every entry is kept in the output (the audit trail); only the
+    gate-relevant ones are named in the selection detail.
+    """
 
     peaks: list[LengthPeak]
     rejected: list[dict[str, Any]]
@@ -183,10 +191,10 @@ def _select(lengths: list[float], settings: HybridSettings, unit_bp: int) -> _Se
     )
     kept: list[float] = [top]
     rejected: list[tuple[float, dict[str, Any]]] = []
+    ctx = _SmearContext(region, n_tests, support[top])
     for c in sorted(centers, key=lambda c: -support[c]):
         if c == top:
             continue
-        ctx = _SmearContext(region, n_tests, support[top])
         reason = _reason(c, top, support[c], len(kept), lengths, settings, unit_bp, ctx)
         if reason is None:
             kept.append(c)
@@ -199,6 +207,9 @@ def _select(lengths: list[float], settings: HybridSettings, unit_bp: int) -> _Se
 
 
 def _entry(c: float, support: int, reason: str, unit_bp: int) -> dict[str, Any]:
+    """A rejected candidate. ``units`` is on the allele ``length`` scale: the motif 1..9
+    span (the fixed repeats included, no flanking sequence) in repeat units, as
+    ``observed_length_candidates`` and each allele's ``length``."""
     return {
         "center_bp": round(c, 1),
         "units": round(c / unit_bp),

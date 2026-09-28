@@ -26,6 +26,9 @@ from muc_one_span.settings import DEFAULT_SETTINGS
 from tests.unit.hybrid import synth
 from tests.unit.hybrid import test_single_event as base
 
+# Heavy synthetic safety sweep: its own CI job and make test-unit (never skipped).
+pytestmark = pytest.mark.safety_sweep
+
 S = base.S
 REPEAT = len(synth.PRE) + 1  # 1-based repeat of the first inner unit
 # Realistic ONT amplicon depth for the stress cell (reads on the one length peak).

@@ -164,7 +164,11 @@ def event_profile(
     A measured event length is used as is; an unmeasured one (rules 2-3) only when it
     puts at most ``hp_stutter_max_event_confusion`` of its mass on ``none_len``;
     otherwise (and when no length is measured) the no-event profile moved to the event
-    length (rule 4).
+    length (rule 4). That fallback is only as good as ``none_profile``: when the
+    no-event length is itself unmeasured, ``none_profile`` is the caller's smoothed
+    (possibly empty, pseudocount-only) class profile, so the fallback is an
+    extrapolation too. For MUC1 dupC the no-event length (C7) is always measured
+    (several C7 runs per allele); a custom dictionary may not have that property.
     """
     fallback = shift(none_profile, event_len - none_len)
     candidate = nearest_profile(measured, event_len, s)

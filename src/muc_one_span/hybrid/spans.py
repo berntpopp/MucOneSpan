@@ -118,8 +118,9 @@ def categorize_reads(
     cats = ReadCategories()
     for rec in reads:
         seq = rec.seq.upper()
+        rev = rc(seq)  # computed once per read and reused by both classification steps
         best: tuple[tuple[int, int, int, str], str, str, str] | None = None
-        for strand, target, qual in (("+", seq, rec.qual), ("-", rc(seq), rec.qual[::-1])):
+        for strand, target, qual in (("+", seq, rec.qual), ("-", rev, rec.qual[::-1])):
             hit = _span_in(target, anchors, settings)
             if hit and (best is None or hit[2] < best[0][2]):
                 best = (hit, strand, target, qual)
@@ -132,8 +133,8 @@ def categorize_reads(
                     )
                 )
                 continue
-        has_left = any(infix_hit(anchors.left, t, k) for t in (seq, rc(seq)))
-        has_right = any(infix_hit(anchors.right, t, k) for t in (seq, rc(seq)))
+        has_left = any(infix_hit(anchors.left, t, k) for t in (seq, rev))
+        has_right = any(infix_hit(anchors.right, t, k) for t in (seq, rev))
         if has_left and not has_right:
             cats.left_anchored.append(rec)
         elif has_right and not has_left:

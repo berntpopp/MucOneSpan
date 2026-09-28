@@ -34,6 +34,9 @@ from tests.unit.hybrid import test_quality_single_event as single
 from tests.unit.hybrid import test_quality_sites as quality
 from tests.unit.hybrid import test_single_event as base
 
+# Heavy synthetic safety sweep: its own CI job and make test-unit (never skipped).
+pytestmark = pytest.mark.safety_sweep
+
 S = quality.S  # the quality rules are opt-in since Task 15k: switched on explicitly
 OPT_IN = quality.OPT_IN
 NEGATIVE = "NO_PATHOGENIC_VARIANT_DETECTED"
@@ -171,3 +174,73 @@ def test_floor_shape_is_inconclusive_at_the_defaults(tmp_path: Path, profile: st
     substitution site stays and blocks a negative call."""
     summary, decision = base._run(tmp_path, groups._minority(profile, *FLOOR_SHAPE, dupc=True))
     assert decision["state"] == "INCONCLUSIVE", summary["hybrid"]["selection_detail"]
+
+
+def test_a_guard_kept_site_that_poor_reads_explain_is_reported() -> None:
+    """Ledger L276: ``guarded_but_explained`` names a site kept only by the known-event
+    guard although the 15j test explains it by poor reads (the guard widened to every
+    site here, so the explained column artefact of the 15j shape is such a site)."""
+    from unittest.mock import patch
+
+    from muc_one_span.hybrid import phase_quality
+
+    members = quality._long_peak(quality._sample(quality.SEEDS[0]))
+    cons = synth.allele(quality.LONG)
+    feats, meta = features(cons, [m.seq for m in members], S)
+    sites = candidates(feats, [m.strand for m in members], meta, S)
+    quals = [m.mean_q for m in members]
+    args = (sites, feats, quals, S)
+    assert phase_quality.guarded_but_explained(*args, meta=meta, insertions=KNOWN) == []
+    with patch.object(phase_quality, "is_known_event_site", return_value=True):
+        kept, dropped = quality_sites(*args, meta=meta, insertions=KNOWN)
+        guarded = phase_quality.guarded_but_explained(*args, meta=meta, insertions=KNOWN)
+    assert kept == sites and not dropped
+    assert guarded == sites
+
+
+def test_single_event_alternative_fails_closed_on_a_guard_only_site() -> None:
+    """Ledger L276: the opt-in single-event alternative is never offered when its one
+    remaining event rests on a site kept only by the guard but explained by poor reads
+    (for example a protected C7 -> C6 stutter artefact): the peak keeps its own result."""
+    from types import SimpleNamespace
+    from unittest.mock import patch
+
+    from muc_one_span.hybrid import phase
+
+    kept, dropped = [{"site": ("run", 1)}], [{"site": ("col", 2)}]
+    offered = phase.PhaseResult([[]], phase.UNCONFIRMED_SINGLE_SITE)
+
+    def table(guard_only: list[dict[str, object]]) -> SimpleNamespace:
+        return SimpleNamespace(
+            meta={},
+            quality=lambda sites, settings: (kept, dropped),
+            guard_only=lambda sites, settings: guard_only,
+        )
+
+    with (
+        patch.object(phase, "events", side_effect=lambda sites, meta: [[s] for s in sites]),
+        patch.object(phase, "_split", return_value=offered),
+    ):
+        both = kept + dropped
+        assert phase._single_event_alternative(table([]), both, S) is offered  # type: ignore[arg-type]
+        assert phase._single_event_alternative(table(kept), both, S) is None  # type: ignore[arg-type]
+
+
+def test_blind_template_pairs_are_warned_when_a_quality_rule_is_on(
+    caplog: pytest.LogCaptureFixture,
+) -> None:
+    """Ledger L276: a custom dictionary's template/unit pair without a site signature
+    cannot be protected by the guard; a run with a quality rule on says so."""
+    import logging
+
+    from muc_one_span.hybrid.known_events import KnownEventSites, warn_blind_templates
+
+    blind = KnownEventSites(blind=(("subst_x", "X"),))
+    with caplog.at_level(logging.WARNING, logger="muc_one_span.hybrid.known_events"):
+        warn_blind_templates(blind, dataclasses.replace(S, phase_quality_alpha=0.0))
+        assert not caplog.records  # the rules are off: the guard is not used
+        warn_blind_templates(KNOWN, S)
+        assert not caplog.records  # the bundled dictionary has no blind pair
+        warn_blind_templates(blind, S)
+    assert len(caplog.records) == 1
+    assert "subst_x in X" in caplog.records[0].getMessage()

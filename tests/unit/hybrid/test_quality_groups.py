@@ -33,6 +33,9 @@ from tests.unit.hybrid import test_quality_single_event as single
 from tests.unit.hybrid import test_quality_sites as quality
 from tests.unit.hybrid import test_single_event as base
 
+# Heavy synthetic safety sweep: its own CI job and make test-unit (never skipped).
+pytestmark = pytest.mark.safety_sweep
+
 # Both the 15j test and this rule are opt-in since Task 15k: switched on explicitly.
 S = dataclasses.replace(quality.S, phase_quality_group_exclusion=True)
 OPT_IN = dataclasses.replace(DEFAULT_SETTINGS, hybrid=S)

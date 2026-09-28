@@ -6,11 +6,20 @@ import math
 
 import pytest
 
+from muc_one_span.config import load_repeat_dictionary
+from muc_one_span.hybrid.lengths import window_bp
 from muc_one_span.hybrid.smear import binomial_sf, smear_test, smear_verdict
 from muc_one_span.settings import HybridSettings
 
 S = HybridSettings()
-UNIT = 60
+UNIT = load_repeat_dictionary().repeat_length_bp
+# Geometry from the settings: the spanning-read window as the smear region, a candidate
+# in its middle and that candidate's own assignment half-window.
+REGION = (float(S.min_span_units * UNIT), float(S.max_span_units * UNIT))
+CENTER = (REGION[0] + REGION[1]) / 2
+HALF = window_bp(CENTER, S, UNIT)
+CLUSTER_READS = 5
+BACKGROUND_READS_PER_UNIT = 6  # a dense, uniform smear background
 
 
 @pytest.mark.parametrize(
@@ -30,24 +39,28 @@ def test_binomial_sf_matches_closed_form() -> None:
 
 
 def test_isolated_cluster_with_no_background_is_highly_significant() -> None:
-    lengths = [2340.0] * 5
-    test = smear_test(2340.0, 50.0, lengths, (900.0, 4000.0), S, UNIT)
-    assert test.core_reads == 5
+    lengths = [CENTER] * CLUSTER_READS
+    test = smear_test(CENTER, HALF, lengths, REGION, S, UNIT)
+    assert test.core_reads == CLUSTER_READS
     assert all(side.reads == 0 for side in test.sides)
     assert test.p_value < S.smear_test_alpha / S.smear_test_borderline_factor
 
 
 def test_cluster_on_uniform_background_is_not_significant() -> None:
-    lengths = [900.0 + 10.0 * i for i in range(311)]  # one read every 10 bp
-    test = smear_test(2340.0, 50.0, lengths, (900.0, 4000.0), S, UNIT)
+    step = UNIT / BACKGROUND_READS_PER_UNIT
+    n = int((REGION[1] - REGION[0]) / step) + 1
+    lengths = [REGION[0] + step * i for i in range(n)]
+    test = smear_test(CENTER, HALF, lengths, REGION, S, UNIT)
     assert test.p_value > S.smear_test_alpha * S.smear_test_borderline_factor
 
 
 def test_side_clipped_to_zero_width_is_skipped() -> None:
     # The candidate's window reaches below the region floor: only the right side informs.
-    test = smear_test(930.0, 50.0, [930.0] * 4, (900.0, 4000.0), S, UNIT)
+    center = REGION[0] + HALF / 2
+    lengths = [center] * CLUSTER_READS
+    test = smear_test(center, HALF, lengths, REGION, S, UNIT)
     assert len(test.sides) == 1
-    no_sides = smear_test(930.0, 50.0, [930.0] * 4, (900.0, 960.0), S, UNIT)
+    no_sides = smear_test(center, HALF, lengths, (REGION[0], center + HALF / 2), S, UNIT)
     assert (no_sides.sides, no_sides.p_value) == ((), 0.0)
 
 

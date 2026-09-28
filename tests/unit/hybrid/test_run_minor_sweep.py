@@ -31,6 +31,9 @@ from muc_one_span.settings import DEFAULT_SETTINGS
 from tests.unit.hybrid import run_minor_synth as rms
 from tests.unit.hybrid import test_single_event as base
 
+# Heavy synthetic safety sweep: its own CI job and make test-unit (never skipped).
+pytestmark = pytest.mark.safety_sweep
+
 S = DEFAULT_SETTINGS.hybrid
 NEGATIVE = "NO_PATHOGENIC_VARIANT_DETECTED"
 # The event peak fills the phase sample (phase_max_site_reads reads per allele).
@@ -40,7 +43,7 @@ SEEDS = (0, 1)
 # (stutter shape, layout): the run-minority tier itself fired and nothing was NEGATIVE
 # in 60 seeds (Task 15l fix round 1; docs/reference/limitations.md). ONT-like
 # strand-asymmetric single peaks have no tier floor up to 0.40 (their minorities are
-# blocked by other gates only) and are not hard-tested here.
+# blocked by other gates only; INCIDENTAL_GUARD below).
 FLOOR_AF = {
     ("hifi", "two_peak"): 0.50,
     ("hifi", "one_peak"): 0.35,
@@ -48,6 +51,10 @@ FLOOR_AF = {
     ("ont_saturating", "two_peak"): 0.25,
     ("ont_saturating", "one_peak"): 0.20,
 }
+# ONT-like strand-asymmetric single peak: no tier floor up to 0.40, but 0/120 NEGATIVE at
+# 0.40 through other (incidental) gates in the Task 15l 60-seed grid. A regression guard
+# for that observation, not evidence for the tier (docs/reference/limitations.md).
+INCIDENTAL_GUARD = (("ont", "one_peak"), 0.40)
 # Share of reads carrying the wild-type run artefact (the H1_hifi shape: 0.327).
 ARTEFACT_SHARES = (0.30, 0.35, 0.40)
 ARTEFACT_SHAPES = ("hifi", "ont")
@@ -65,6 +72,15 @@ def test_run_minority_at_the_floor_is_never_negative(
 ) -> None:
     records = rms.minority(shape, FLOOR_AF[(shape, layout)], DEPTH, seed, layout)
     summary, decision = base._run(tmp_path, records)
+    assert decision["state"] != NEGATIVE, summary["hybrid"]["selection_detail"]
+
+
+@pytest.mark.parametrize("seed", SEEDS)
+def test_ont_single_peak_minority_stays_blocked_by_incidental_gates(
+    tmp_path: Path, seed: int
+) -> None:
+    (shape, layout), af = INCIDENTAL_GUARD
+    summary, decision = base._run(tmp_path, rms.minority(shape, af, DEPTH, seed, layout))
     assert decision["state"] != NEGATIVE, summary["hybrid"]["selection_detail"]
 
 

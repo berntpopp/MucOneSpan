@@ -233,6 +233,7 @@ def test_inter_allele_smear_test_can_be_switched_off() -> None:
     assert model.gate_relevant_rejections != []
 
 
+@pytest.mark.safety_sweep  # heavy multi-seed property sweep (own CI job)
 def test_real_minor_between_the_alleles_is_never_silent_smear() -> None:
     # A contamination/mosaic-like third peak between the alleles (out of scope to call)
     # must stay gate-relevant: significant excess over the smear -> INCONCLUSIVE.
@@ -278,3 +279,16 @@ def test_refit_that_loses_a_parent_keeps_the_first_fit(monkeypatch: pytest.Monke
     monkeypatch.setattr(lengths_module, "recognise_dimers", fake)
     model = _fit(major + dimers)
     assert model.rejected == off.rejected and model.dimer_products == []
+
+
+def test_fractional_dimer_allowance_is_compared_unrounded() -> None:
+    # Ledger L210: at low depth frac x parent support is fractional; the count is compared
+    # with it as is (never rounded), half a read either side of the dimer count.
+    major = _spans(SHORT_INNER, MAJOR_READS, 20)
+    dimers = _dimer_spans(SHORT_INNER, SHORT_INNER, DIMER_READS, 21)
+    parent = next(p.support for p in _fit(major).peaks)
+    half = 0.5
+    below = replace(S, dimer_max_parent_frac=(DIMER_READS - half) / parent)
+    above = replace(S, dimer_max_parent_frac=(DIMER_READS + half) / parent)
+    assert _dimers(_fit(major + dimers, below)) == []
+    assert [r["support"] for r in _dimers(_fit(major + dimers, above))] == [DIMER_READS]

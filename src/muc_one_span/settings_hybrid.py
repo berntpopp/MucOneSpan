@@ -123,6 +123,12 @@ class HybridSettings:
     # weight of the event/no-event stutter mixture (homopolymer events).
     event_context_units: float = 1.0
     event_max_alternative_frac: float = 0.25
+    # Competition (non-homopolymer) events: minimum reads before a status other than
+    # insufficient_depth, and minimum share of reads favouring the event. Separate from
+    # hp_min_reads / hp_min_alt_frac (the homopolymer caller) so each can be tuned on
+    # its own; the defaults are the values both shared before 0.17.0.
+    event_min_reads: int = 20
+    event_min_alt_frac: float = 0.30
     seed: int = 1
     # S1 anchor-search tunables (flank-anchor fallback when a motif is mutated).
     flank_anchor_bp: int = 30
@@ -224,7 +230,9 @@ class HybridSettings:
     # INCONCLUSIVE rates within decision rule v6 (dev clean 9/90); it flags 2 dev clean
     # and 1 dev standard HiFi normal (position-specific simulated HiFi run errors,
     # share 0.13-0.39) and keeps every 15k two-peak all-low-quality dupC minority
-    # shape (15% of one allele, bound >= 0.095) blocked. max_reads 2000: the largest
+    # shape (15% of one allele) blocked: 0/130 seeds NEGATIVE; where the tier fires
+    # its smallest bound is 0.093, and the 10/130 seeds where it does not fire are held
+    # back by a candidate site of the minority. max_reads 2000: the largest
     # depth of the synthetic detection sweep; above it the detection floor stays that
     # of 2000 reads (docs/reference/limitations.md).
     phase_run_minor_scope: str = "all"
@@ -323,7 +331,8 @@ class HybridSettings:
     # polish_max_reads / qc_residual_max_reads spanning members per allele (sampled with
     # the seeded RNG when a group is larger); an assigned non-spanning fragment joins the
     # polishing pileup only when its trimmed length reaches polish_partial_min_units
-    # repeat units (unit length from the repeat dictionary).
+    # repeat units (unit length from the repeat dictionary). polish_max_reads also caps
+    # the pileup that builds an event's read-derived alternative (hybrid.evidence).
     polish_max_reads: int = 120
     polish_partial_min_units: float = 1.0
     qc_residual_max_reads: int = 200
@@ -467,3 +476,5 @@ class HybridSettings:
         _number("hybrid.polish_partial_min_units", self.polish_partial_min_units, 0)
         _number("hybrid.event_context_units", self.event_context_units, 0)
         _number("hybrid.event_max_alternative_frac", self.event_max_alternative_frac, 0, 1)
+        _integer("hybrid.event_min_reads", self.event_min_reads, 1)
+        _number("hybrid.event_min_alt_frac", self.event_min_alt_frac, 0, 1)

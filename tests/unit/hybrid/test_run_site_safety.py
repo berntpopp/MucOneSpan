@@ -33,6 +33,9 @@ from tests.unit.hybrid import synth
 from tests.unit.hybrid import test_single_event as base
 from tests.unit.hybrid import test_stutter_guard as guard
 
+# Heavy synthetic safety sweep: its own CI job and make test-unit (never skipped).
+pytestmark = pytest.mark.safety_sweep
+
 S = DEFAULT_SETTINGS.hybrid
 N_UNITS = 30
 # 0-based inner X unit carrying the dupC: near the end of the array, as in the case.
@@ -201,3 +204,21 @@ def test_two_length_peaks_never_use_the_run_site_tier(tmp_path: Path) -> None:
         DEFAULT_SETTINGS,
     )
     assert RUN_SITE_BASIS not in result.block["split_bases"], result.block["split_bases"]
+
+
+# Ledger L205: the tier's floor is a fixed ratio with no depth term. At low depth (about
+# 60 spanning reads, twice the adequate-depth gate) a wild type is never PATHOGENIC; a
+# non-negative result must come from a located, unconfirmed site (the documented cost).
+LOW_DEPTH_READS = 2 * S.depth_adequate_spanning
+
+
+@pytest.mark.parametrize("seed", SEEDS[:2])
+@pytest.mark.parametrize("shape", sorted(SHAPES))
+def test_low_depth_wild_type_is_never_pathogenic(tmp_path: Path, shape: str, seed: int) -> None:
+    reads = _records(WILD_TYPE, LOW_DEPTH_READS, 2000 + seed, shape)
+    summary, decision = base._run(tmp_path, reads)
+    assert decision["state"] != "PATHOGENIC", summary["hybrid"]
+    if decision["state"] != "NO_PATHOGENIC_VARIANT_DETECTED":
+        bases = summary["hybrid"]["split_bases"]
+        assert bases in (["unconfirmed_run_site"], ["unconfirmed_single_site"]), bases
+        assert any("unresolved heterozygous site at repeat" in d for d in decision["details"])

@@ -13,15 +13,19 @@ Producer contract for ``read_support.status == "supported"`` (consumed unchanged
   strand LLR (else ``discordant``). A strand with zero reads never fails the event.
   Only reads that keep both consensus bases bounding the run, with nothing but the
   run's base between them, observe its length; any other read is ``other`` (never
-  support).
+  support). The counts are sides, not exact lengths: ``alt`` is every observing read
+  at the event run length or further from the no-event length, ``ref`` every other
+  observing read (stutter included); the status uses the stutter-aware LLR and mixture
+  share, never ``ref``.
 * Other events: per-read edit-distance competition over the event unit extended by
   ``event_context_units`` repeat units on each side, between the event allele (the
   consensus) and the best alternative, which is the no-event allele (the unit reverted
   to its dictionary parent) or the read-derived allele (the polish-rule pileup
-  consensus of the reads that do not favour the event). A tie is ``other``. ``n >= hp_min_reads``,
-  ``alt / n >= hp_min_alt_frac`` and ``alt > ref``, and the alternative share
-  ``ref / n <= event_max_alternative_frac`` (else ``discordant``).
-* ``n < hp_min_reads`` is ``insufficient_depth``: blocked, never negative.
+  consensus of the reads that do not favour the event). A tie is ``other``.
+  ``n >= event_min_reads``, ``alt / n >= event_min_alt_frac`` and ``alt > ref``, and the
+  alternative share ``ref / n <= event_max_alternative_frac`` (else ``discordant``).
+* ``n`` below ``hp_min_reads`` (homopolymer) or ``event_min_reads`` (competition) is
+  ``insufficient_depth``: blocked, never negative.
 * A mutation whose repeat unit or parent type cannot be located is ``not_localized``.
 
 Only values in ``clinical_gates.READ_SUPPORT_STATUSES`` are emitted.
@@ -30,6 +34,7 @@ Only values in ``clinical_gates.READ_SUPPORT_STATUSES`` are emitted.
 from __future__ import annotations
 
 import math
+import random
 from collections import Counter
 from typing import Any
 
@@ -234,9 +239,9 @@ def competition_status(n: int, alt: int, ref: int, s: HybridSettings) -> str:
     ``ref`` counts reads that favour an alternative over the event allele; a share
     ``ref / n`` above ``event_max_alternative_frac`` is ``discordant``.
     """
-    if n <= 0 or n < s.hp_min_reads:
+    if n <= 0 or n < s.event_min_reads:
         return "insufficient_depth"
-    if alt / n < s.hp_min_alt_frac or alt <= ref:
+    if alt / n < s.event_min_alt_frac or alt <= ref:
         return "not_supported"
     if ref / n > s.event_max_alternative_frac:
         return "discordant"
@@ -346,6 +351,10 @@ def _competition_support(
     # error sits outside the unit the classifier blamed (a displaced indel).
     first = [_favours(piece, event, [no_event]) for piece, _ in pieces]
     rest = [piece for (piece, _), vote in zip(pieces, first, strict=True) if vote <= 0 and piece]
+    if len(rest) > s.polish_max_reads:
+        # Bounded like the allele polish (a fresh seeded sample per event, so the result
+        # does not depend on the order in which events are scored).
+        rest = random.Random(s.seed).sample(rest, s.polish_max_reads)
     derived = _pileup_consensus(event, rest, s) if rest else event
     alternatives = [no_event] + ([derived] if derived not in (event, no_event) else [])
     alt = ref = other = 0

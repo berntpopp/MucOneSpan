@@ -145,6 +145,8 @@
     "qc_residual_min_run": 3,
     "event_context_units": 1.0,
     "event_max_alternative_frac": 0.25,
+    "event_min_reads": 20,
+    "event_min_alt_frac": 0.3,
     "seed": 1,
     "flank_anchor_bp": 30,
     "flank_anchor_edit_divisor": 4,

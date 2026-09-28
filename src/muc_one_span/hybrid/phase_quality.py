@@ -175,3 +175,27 @@ def quality_sites(
         else:
             dropped.append(explained)
     return kept, dropped
+
+
+def guarded_but_explained(
+    sites: list[dict[str, Any]],
+    feats: list[dict[Site, Any]],
+    quals: list[float],
+    settings: HybridSettings,
+    *,
+    meta: dict[Site, tuple[str, int]] | None = None,
+    insertions: KnownEventSites = KnownEventSites(),
+) -> list[dict[str, Any]]:
+    """Sites kept only by the known-event guard although the 15j test explains them.
+
+    ``quality_sites`` keeps such a site (a real template event must never be released);
+    the opt-in single-event alternative (``phase._single_event_alternative``) must not
+    rest its one event on it either, since the site may be a stutter artefact that
+    merely shares a template's site-table signature (Task 15k review).
+    """
+    return [
+        site
+        for site in sites
+        if is_known_event_site(site, meta or {}, insertions)
+        and _explained(site, feats, quals, settings) is not None
+    ]

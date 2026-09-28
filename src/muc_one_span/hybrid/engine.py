@@ -44,7 +44,11 @@ from muc_one_span.hybrid.evidence import (
     event_read_support,
     residual_sites,
 )
-from muc_one_span.hybrid.known_events import KnownEventSites, known_event_sites
+from muc_one_span.hybrid.known_events import (
+    KnownEventSites,
+    known_event_sites,
+    warn_blind_templates,
+)
 from muc_one_span.hybrid.lengths import LengthModel, fit_length_model
 from muc_one_span.hybrid.phase import PhaseResult, split_by_linked_sites
 from muc_one_span.hybrid.phase_groups import explained_group
@@ -339,7 +343,9 @@ def reconstruct_alleles(
     model = fit_length_model(cats.spanning, h, anchors)
     if not model.peaks:
         raise InsufficientEvidenceError("hybrid: no allele length peak passed the thresholds")
-    phased = _groups(model, h, rng, backend, unit_bp, known_event_sites(rd, h))
+    known = known_event_sites(rd, h)
+    warn_blind_templates(known, h)
+    phased = _groups(model, h, rng, backend, unit_bp, known)
     groups, split_bases, phase_leftover = phased.groups, phased.split_bases, phased.leftover
     located, quality_dropped = phased.located, phased.dropped
     unresolved = [site for basis in UNCONFIRMED_SPLIT_STATUS for site in located.get(basis, [])]

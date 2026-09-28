@@ -18,11 +18,20 @@ Column sites are not signatures: a column substitution or gap is not specific to
 event. A template/unit pair whose mutation changes no run or insertion slot is
 listed in ``KnownEventSites.blind``; the rules cannot protect it. The bundled
 dictionary has none since Task 15l: insG_pos54 in unit J inserts a G into the slot
-right before a C run, which the site table did not record before.
+right before a C run, which the site table did not record before. A custom
+dictionary can have blind pairs; a run with a quality rule on logs them
+(``warn_blind_templates``).
+
+The signatures are position- and flank-agnostic: a run signature (base, parent
+length, mutated length) protects every run of that base and length change anywhere
+in the peak, and an insertion signature every slot with that inserted string, not
+only the template's own units or neighbouring sequence. That is the conservative
+direction: more sites are kept, none is dropped because of where it sits.
 """
 
 from __future__ import annotations
 
+import logging
 from dataclasses import dataclass
 from typing import Any
 
@@ -31,6 +40,7 @@ from muc_one_span.hybrid.phase_sites import Site, features
 from muc_one_span.settings import HybridSettings
 
 RUN, INS = "run", "ins"  # site kinds of phase_sites.features (structural)
+logger = logging.getLogger(__name__)
 
 
 @dataclass(frozen=True)
@@ -96,3 +106,19 @@ def is_known_event_site(
     if kind == INS and str(site["minor"]).startswith(str(site["major"])):
         return str(site["minor"])[len(str(site["major"])) :] in known.inserted
     return False
+
+
+def warn_blind_templates(known: KnownEventSites, settings: HybridSettings) -> None:
+    """Log the template/unit pairs the guard cannot protect, when a quality rule is on.
+
+    The known-event guard is consulted only by the opt-in quality rules
+    (``phase_quality_alpha`` > 0); with them off a blind pair changes nothing.
+    """
+    if not known.blind or settings.phase_quality_alpha <= 0:
+        return
+    pairs = ", ".join(f"{name} in {unit}" for name, unit in known.blind)
+    logger.warning(
+        "hybrid quality rules: these dictionary templates have no phase-site signature, "
+        "so a low-accuracy rule cannot protect them: %s",
+        pairs,
+    )

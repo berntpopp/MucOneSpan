@@ -45,7 +45,11 @@ def features(
     """Per-read alleles at every column, insertion slot and homopolymer-run site.
 
     A run site's allele is the longest stretch of the run's base around it
-    (``read_run_length``). When ``clean`` is given, each read also appends its clean
+    (``read_run_length``), so a read that lost a bounding base reports the merged
+    stretch. That is kept deliberately: every run-site floor and tier (candidate
+    sites, the Task 15g/15i tiers, ``phase_run_minor_min_share``) was calibrated on
+    it, and the length-precise uses (evidence, stutter profiles, the run-minority
+    bound) read ``polish.run_observation`` instead. When ``clean`` is given, each read also appends its clean
     run observations (``polish.run_observation``: both bounding bases kept, nothing
     but the run's base between them), keyed by run site; a read that does not observe
     a run cleanly has no entry for it (Task 15l, ``run_minor``).

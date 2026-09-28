@@ -31,6 +31,7 @@ from muc_one_span.report import compute_clinical_decision
 from muc_one_span.settings import DEFAULT_SETTINGS, HybridSettings
 from tests.unit.hybrid import synth
 from tests.unit.hybrid.synth import LAYOUT
+from tests.unit.test_clinical_decision import _gated_summary
 
 S = HybridSettings()
 X = synth.RD.repeats["X"]
@@ -131,6 +132,12 @@ def test_consensus_dupc_on_a_wild_type_mixture_is_never_pathogenic(
     assert dupc[0]["read_support"]["kind"] == "homopolymer"
     assert dupc[0]["read_support"]["status"] != "supported", dupc[0]["read_support"]
     assert any(b.startswith("read-level support") for b in mutation_blockers(dupc[0]))
+    # The clinical decision itself (every other gate resolved) is never PATHOGENIC.
+    summary = _gated_summary([dupc[0]])
+    assert compute_clinical_decision(summary)["state"] != "PATHOGENIC"
+    supported = dict(dupc[0], read_support=dict(dupc[0]["read_support"], status="supported"))
+    control = compute_clinical_decision(_gated_summary([supported]))
+    assert control["state"] == "PATHOGENIC"  # the read-support gate is what blocks it
 
 
 # --- (c) true events at realistic stutter stay supported -------------------------------
@@ -243,3 +250,36 @@ def test_event_allele_fraction_recovers_the_mixture_weight() -> None:
     assert half == pytest.approx(0.5, abs=1e-9)
     assert event_allele_fraction([]) == 0.0  # no information fails closed
     assert event_allele_fraction([(0.3, 0.3)] * 5) == 0.0
+
+
+def test_read_derived_alternative_polish_is_capped_at_polish_max_reads() -> None:
+    """Final-review minor / ledger L130: the alternative's pileup polish is bounded.
+
+    The reads that do not favour the event are polished into the read-derived
+    alternative from at most ``polish_max_reads`` of them (a seeded sample), like the
+    allele polish; the verdict on a consensus error is unchanged.
+    """
+    from muc_one_span.hybrid import evidence
+
+    mid = len(X) // 2
+    error_unit = X[:mid] + "T" + X[mid:]
+    truth = synth.allele(["X"] * 8 + ["X"] + ["X"] * 8)
+    cons = synth.allele(["X"] * 8 + [error_unit] + ["X"] * 8)
+    with_error, without = _split(LACKING[-1])
+    reads = _oriented_mix([(cons, with_error), (truth, without)], seed=31)
+    cap = without // 3
+    capped = replace(S, polish_max_reads=cap)
+    sizes: list[int] = []
+    real = evidence._pileup_consensus
+
+    def spy(template: str, pieces: list[str], s: HybridSettings) -> str:
+        sizes.append(len(pieces))
+        return real(template, pieces, s)
+
+    with patch.object(evidence, "_pileup_consensus", spy):
+        first = _annotated(cons, reads, capped)
+        again = _annotated(cons, reads, capped)
+    assert sizes and max(sizes) == cap
+    supports = [m["read_support"] for m in first["mutations_detected"]]
+    assert supports == [m["read_support"] for m in again["mutations_detected"]]
+    assert supports and all(sp["status"] != "supported" for sp in supports)

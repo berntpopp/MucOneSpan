@@ -46,6 +46,7 @@ def test_min_linked_sites_one_is_rejected_from_a_config_file(tmp_path: Path) -> 
     assert result.exit_code == 2 and "min_linked_sites" in result.output
 
 
+@pytest.mark.safety_sweep  # heavy multi-seed property sweep (own CI job)
 def test_wild_type_run_excess_at_the_minimum_linkage_is_not_pathogenic(tmp_path: Path) -> None:
     """The reviewer's probe (30% site-specific +1 excess, light stutter) at the floor."""
     hybrid = dataclasses.replace(S, min_linked_sites=MIN_LINKED_EVENTS)
