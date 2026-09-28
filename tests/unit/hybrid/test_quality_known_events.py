@@ -23,7 +23,7 @@ from pathlib import Path
 
 import pytest
 
-from muc_one_span.config import _apply_mutation
+from muc_one_span.config import apply_mutation
 from muc_one_span.hybrid.known_events import is_known_event_site, known_event_sites
 from muc_one_span.hybrid.phase_quality import quality_sites
 from muc_one_span.hybrid.phase_sites import candidates, features
@@ -69,7 +69,7 @@ TEMPLATE_UNITS = [
 def _event_sites(name: str, unit: str) -> list[tuple[dict[str, object], dict[object, object]]]:
     """Each non-column site the template changes, as a within-peak minor (parent major)."""
     parent = synth.RD.repeats[unit]
-    mutated = _apply_mutation(parent, synth.RD.mutations[name]["changes"])
+    mutated = apply_mutation(parent, synth.RD.mutations[name]["changes"])
     cons = CONTEXT + parent + CONTEXT
     (ref, mut), meta = features(cons, [cons, CONTEXT + mutated + CONTEXT], S)
     return [

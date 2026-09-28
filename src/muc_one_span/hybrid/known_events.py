@@ -35,7 +35,7 @@ import logging
 from dataclasses import dataclass
 from typing import Any
 
-from muc_one_span.config import RepeatDictionary, _apply_mutation
+from muc_one_span.config import RepeatDictionary, apply_mutation
 from muc_one_span.hybrid.phase_sites import Site, features
 from muc_one_span.settings import HybridSettings
 
@@ -86,7 +86,7 @@ def known_event_sites(rd: RepeatDictionary, settings: HybridSettings) -> KnownEv
             parent = rd.repeats.get(unit)
             if parent is None:
                 continue
-            mutated = _apply_mutation(parent, template.get("changes") or [])
+            mutated = apply_mutation(parent, template.get("changes") or [])
             r, i = template_signatures(parent, mutated, context, settings)
             if not r and not i:
                 blind.append((name, unit))

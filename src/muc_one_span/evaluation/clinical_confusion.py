@@ -8,7 +8,7 @@ from collections.abc import Sequence
 from pathlib import Path
 from typing import Any
 
-from muc_one_span.config import RepeatDictionary, _apply_mutation
+from muc_one_span.config import RepeatDictionary, apply_mutation
 from muc_one_span.evaluation.models import TruthSample
 from muc_one_span.report import compute_clinical_decision
 
@@ -17,14 +17,14 @@ _FALSE_NEGATIVE_DECISIONS = ("NO_PATHOGENIC_VARIANT_DETECTED", "NO_CALL")
 
 
 def net_length_change(definition: dict[str, Any]) -> int:
-    """Return the net base-count change ``_apply_mutation`` produces for *definition*.
+    """Return the net base-count change ``apply_mutation`` produces for *definition*.
 
     Applies ``definition["changes"]`` to a neutral 60-base placeholder sequence with
-    the same helper the caller's classifier uses (``muc_one_span.config._apply_mutation``),
+    the same helper the caller's classifier uses (``muc_one_span.config.apply_mutation``),
     so insert/delete/delete_insert length arithmetic never drifts from that ground truth.
     """
     placeholder = "A" * _PLACEHOLDER_LENGTH
-    mutated = _apply_mutation(placeholder, definition["changes"])
+    mutated = apply_mutation(placeholder, definition["changes"])
     return len(mutated) - len(placeholder)
 
 

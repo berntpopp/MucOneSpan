@@ -205,10 +205,10 @@ class TestMutationTemplateMatching:
 
     def test_dupc_exact_template_match(self, repeat_dict):
         """dupC on X matches the pre-computed 61bp template exactly."""
-        from muc_one_span.config import _apply_mutation
+        from muc_one_span.config import apply_mutation
 
         x_seq = repeat_dict.repeats["X"]
-        dupc_seq = _apply_mutation(x_seq, repeat_dict.mutations["dupC"]["changes"])
+        dupc_seq = apply_mutation(x_seq, repeat_dict.mutations["dupC"]["changes"])
         assert len(dupc_seq) == 61
         result = classify_repeat(dupc_seq, repeat_dict)
         assert result["match"] == "exact"
@@ -217,10 +217,10 @@ class TestMutationTemplateMatching:
 
     def test_ins16bp_exact_template_match(self, repeat_dict):
         """16bp insertion on C matches the 76bp template exactly."""
-        from muc_one_span.config import _apply_mutation
+        from muc_one_span.config import apply_mutation
 
         c_seq = repeat_dict.repeats["C"]
-        ins_seq = _apply_mutation(c_seq, repeat_dict.mutations["ins16bp"]["changes"])
+        ins_seq = apply_mutation(c_seq, repeat_dict.mutations["ins16bp"]["changes"])
         assert len(ins_seq) == 76
         result = classify_repeat(ins_seq, repeat_dict)
         assert result["match"] == "exact"
@@ -229,10 +229,10 @@ class TestMutationTemplateMatching:
 
     def test_del18_31_exact_template_match(self, repeat_dict):
         """14bp deletion on X matches the 46bp template exactly."""
-        from muc_one_span.config import _apply_mutation
+        from muc_one_span.config import apply_mutation
 
         x_seq = repeat_dict.repeats["X"]
-        del_seq = _apply_mutation(x_seq, repeat_dict.mutations["del18_31"]["changes"])
+        del_seq = apply_mutation(x_seq, repeat_dict.mutations["del18_31"]["changes"])
         assert len(del_seq) == 46
         result = classify_repeat(del_seq, repeat_dict)
         assert result["match"] == "exact"
@@ -240,10 +240,10 @@ class TestMutationTemplateMatching:
 
     def test_sequence_with_dupc_classifies_correctly(self, repeat_dict):
         """classify_sequence finds dupC at correct window size."""
-        from muc_one_span.config import _apply_mutation
+        from muc_one_span.config import apply_mutation
 
         x_seq = repeat_dict.repeats["X"]
-        dupc_seq = _apply_mutation(x_seq, repeat_dict.mutations["dupC"]["changes"])
+        dupc_seq = apply_mutation(x_seq, repeat_dict.mutations["dupC"]["changes"])
         full = x_seq + dupc_seq + x_seq
         result = classify_sequence(full, repeat_dict)
         assert len(result["repeats"]) == 3
@@ -252,11 +252,11 @@ class TestMutationTemplateMatching:
 
     def test_sequence_with_16bp_ins_classifies_correctly(self, repeat_dict):
         """classify_sequence handles 76bp mutated repeat with template match."""
-        from muc_one_span.config import _apply_mutation
+        from muc_one_span.config import apply_mutation
 
         x_seq = repeat_dict.repeats["X"]
         c_seq = repeat_dict.repeats["C"]
-        ins_seq = _apply_mutation(c_seq, repeat_dict.mutations["ins16bp"]["changes"])
+        ins_seq = apply_mutation(c_seq, repeat_dict.mutations["ins16bp"]["changes"])
         full = x_seq + ins_seq + x_seq
         result = classify_sequence(full, repeat_dict)
         assert len(result["repeats"]) == 3

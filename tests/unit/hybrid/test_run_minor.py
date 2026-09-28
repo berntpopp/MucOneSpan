@@ -26,7 +26,7 @@ from typing import Any
 
 import pytest
 
-from muc_one_span.config import _apply_mutation
+from muc_one_span.config import apply_mutation
 from muc_one_span.hybrid import run_minor, stutter
 from muc_one_span.hybrid.engine import RUN_MINOR_BASIS, reconstruct_alleles
 from muc_one_span.hybrid.known_events import KnownEventSites, known_event_sites
@@ -188,7 +188,7 @@ J_EVENT_UNIT = 10
 
 def _j_alleles() -> tuple[str, str]:
     wild = ["X"] * J_EVENT_UNIT + ["J"] + ["X"] * (len(rms.LONG) - J_EVENT_UNIT - 1)
-    mutated = _apply_mutation(synth.RD.repeats["J"], synth.RD.mutations["insG_pos54"]["changes"])
+    mutated = apply_mutation(synth.RD.repeats["J"], synth.RD.mutations["insG_pos54"]["changes"])
     carrier = [*wild[:J_EVENT_UNIT], mutated, *wild[J_EVENT_UNIT + 1 :]]
     return synth.allele(wild), synth.allele(carrier)
 
