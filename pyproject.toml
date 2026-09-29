@@ -70,10 +70,10 @@ test = [
     "pytest-xdist>=3.6",
 ]
 quality = [
-    "ruff==0.16.8",
+    "ruff==0.16.9",
     "mypy>=1.8.0",
     "types-PyYAML>=6.0",
-    "actionlint-py==1.7.12.24",
+    "actionlint-py==1.7.12.25",
 ]
 security = ["pip-audit>=2.9,<3"]
 dev = [
