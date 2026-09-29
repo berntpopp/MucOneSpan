@@ -7,7 +7,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
-## [0.17.0] - Unreleased
+## [0.17.0] - 2026-09-29
 
 The read-centric **hybrid engine is now the default** for every input type
 (amplicon and genomic), and the **ladder engine is deprecated**. See the
