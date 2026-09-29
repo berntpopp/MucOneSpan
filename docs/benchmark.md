@@ -277,8 +277,13 @@ from the report and targets settings; its SHA-256 is what `preregister`
 records, so changing a report or targets setting (including a threshold,
 comparator, scope, basis or a set's membership in `targets.by_set`) needs a
 new pre-registration. The default v7 rule has SHA-256
-`c77d513fee890043d22276bff994f7aef8c21ef4d6323fb2d485a578f8c49274` (v6:
-`85c869a66928627fd21e0f8a0d6e0fb84fc2e90d24cead37647f135cf5bd6e2c`). The
+`c77d513fee890043d22276bff994f7aef8c21ef4d6323fb2d485a578f8c49274`. The
+default v6 rule had SHA-256
+`85c869a66928627fd21e0f8a0d6e0fb84fc2e90d24cead37647f135cf5bd6e2c`; it is
+reproducible only with the v6 template, i.e. from a checkout of commit
+`0184bd6` (`rule_sha256(RULE_TEXT)` there). At this commit a v6-shaped
+bench-config file (clean INCONCLUSIVE 0.10) renders the v7 template text, so
+its SHA-256 differs from both. The
 version label (`v7`) names the rule template, not the configured targets: a
 bench-config file with other targets or scopes renders the same label with its
 own numbers and scopes, so its SHA-256, not the label, identifies the rule.

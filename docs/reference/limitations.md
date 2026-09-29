@@ -240,8 +240,9 @@ the automated test suite.
   at most `phase_single_event_min_share`) never forms a phase-split candidate
   site. At the default, a minor allele at roughly 15-20% of an equal-length
   pair produces a silent `none` split (no flag), because `het_af_min` is set
-  above `het_min_group` (0.15) by design; since Task 15l a run-length minor
-  above the run-minority detection floor (below) is flagged.
+  above `het_min_group` (0.15) by design; a run-length minority, or an insG,
+  insG_pos58 or delinsAT minority inside a run, above the run-minority detection
+  floors (below) is flagged.
   Detecting or at least flagging that edge needs either a lower `het_af_min`
   (calibration) or an explicit low-AF flag rule.
 - **Equal-length heterozygotes with a single differing event.** When both
@@ -254,23 +255,38 @@ the automated test suite.
   itself, so the event's read support is conditional on that split; the
   independent evidence is the candidate-site test (run background, strand
   bias, `het_min_group`) and the peak-level share gate: the one-sided lower
-  confidence bound (`phase_single_event_alpha`) of the stutter-deconvolved
-  minor share, over a fresh seeded sample of at most
+  confidence bounds (`phase_single_event_alpha`) of the stutter-deconvolved
+  minor share and of the major share, over a fresh seeded sample of at most
   `phase_single_event_bound_reads` (1000) reads, must reach
-  `phase_single_event_min_share` (0.4 since Task 15l; `het_af_min` before). A
+  `phase_single_event_min_share` (0.4; `het_af_min` in earlier versions), both of
+  them. A
   site-specific wild-type run artefact cannot be told apart from a real minor
   allele of the same share: a C inserted into a C unit's C6 run reads exactly
   like an X unit carrying dupA. At the former floor (0.2) synthetic HiFi-like
   normals with such an artefact in 30-40% of reads were PATHOGENIC (the
   simulated HiFi normal `simpanel/H1_hifi` carries one at 0.327). At 0.4, and
-  with a run site's bound also computed with each length's own Task 15f
+  with a run site's bounds also computed with each length's own run-length
   stutter profile (the site table's error profiles pool every run of the base
   when the major length has no peer run and then under-estimate that run's
   stutter), synthetic artefacts
   at 0.30/0.35/0.40 (HiFi-like, ONT-like and ONT-like saturating stutter,
-  600-2000 reads, 5 seeds) are never PATHOGENIC. **An artefact above about 0.45
-  (1000-read bound) is still called like a real minor allele**, and the
-  guarantee rests on the stutter model's share estimate being unbiased. The cost: an
+  600-2000 reads, 5 seeds) are never PATHOGENIC. **An artefact from about 0.45
+  of the reads (1000-read bound) can be called like a real minor allele**, an
+  insertion or deletion artefact as much as a run artefact (a C in a C6 run, a
+  G or AT inside a C7 run, i.e. the insG or delinsAT shape), and the guarantee
+  rests on the stutter model's share estimate being unbiased. Both shares are
+  bounded because the gate's minor allele is the non-draft one: when the draft
+  took the artefact (a HiFi-like normal with a delinsAT-shaped artefact in 40%
+  of 1000 reads, 1 of 10 seeds), only the wild type's 60% was bounded and the
+  artefact group was called PATHOGENIC; bounding the major share too refuses
+  that split. At a column or insertion site each share is taken over every
+  read observing the site; skipping reads with neither allele (wild-type reads
+  misaligned next to a stuttering run) inflated both shares of the same
+  artefact under saturating ONT-like stutter (2 of 30 seeds PATHOGENIC).
+  With both fixes, synthetic homozygous normals carrying an insG- or
+  delinsAT-shaped artefact inside one C7 run (1000 reads; HiFi-like, ONT-like
+  and saturating stutter) are never PATHOGENIC: 0 of 180 at 0.40 (30 seeds per
+  shape and event; one-sided 95% upper bound 1.7%) and 0 of 120 at 0.30-0.35. The cost: an
   equal-length heterozygote (share about 0.5) needs roughly 350 or more reads
   in its peak for the bound to reach 0.4; with fewer it stays INCONCLUSIVE
   (located), never NEGATIVE (v4 dev: one standard ONT genomic carrier with 189
@@ -301,21 +317,21 @@ the automated test suite.
     minor length is seen in fewer than `het_af_min` of the reads (strong
     allele imbalance combined with heavy stutter) is still not flagged.
   - With two length peaks the tier does not apply: each peak is one allele. The
-    Task 15l run-minority tier below covers both peak counts.
-- **Within-peak run-length minorities (Task 15l).** A minority haplotype inside
+    run-minority tier below covers both peak counts.
+- **Within-peak run-length minorities.** A minority haplotype inside
   a length peak (mosaicism, a third haplotype, a chimera) that carries a
   run-length frameshift (dupC: an X unit's C7 run read as C8) at 15-30% of one
   allele stays below the candidate floor (`max(het_af_min,
-  phase_run_bg_multiplier x peer background)`) and the 15g tier above (single
+  phase_run_bg_multiplier x peer background)`) and the run-site tier above (single
   peak only, `max(het_af_min, phase_run_safety_multiplier x background)`): both
   compare the raw share of one length with a multiple of the peers' raw share,
   and part of the minority's own reads stutter back to the major length. Such a
   sample was NEGATIVE. The run-minority tier (`hybrid.phase_run_minor_*`)
   explains each run's clean observations as a mixture of its modal length and
-  another length, each convolved with the Task 15f stutter profile of its own
+  another length, each convolved with the run-length stutter profile of its own
   length from the peak's peer runs, and makes the result INCONCLUSIVE (located,
   `unresolved_run_minor`) when the one-sided lower bound (alpha 0.001) of the
-  minority share reaches 0.09. It never splits a peak or creates an event, so a
+  minority share reaches `phase_run_minor_min_share` (0.09). It never splits a peak or creates an event, so a
   minority is never called PATHOGENIC through it. **Detection floor** (the
   tier's own: the smallest minority AF of the event allele at which no sample
   was NEGATIVE in 60 seeds and the tier itself fired, i.e. the largest lower
@@ -352,7 +368,7 @@ the automated test suite.
   (length peaks by strand), so the tier rarely runs there (fired in 10/60 and
   5/60 samples at AF 0.40); those samples were never NEGATIVE (0/120 at AF
   0.40), but that relies on those incidental gates, not on this tier. Lower
-  ONT values in earlier tables of the Task 15l report came from such
+  ONT values in earlier 5-seed tables came from such
   incidental INCONCLUSIVE results. Below a floor a minority can be NEGATIVE.
   The bound uses at most `phase_run_minor_max_reads` (2000) reads, so the
   floor does not improve beyond that depth. Costs: on v4 dev the tier flags 2 clean and 1 standard HiFi
@@ -364,6 +380,53 @@ the automated test suite.
   an INCONCLUSIVE; it fired on 7 ONT-like strand-asymmetric samples that were
   INCONCLUSIVE anyway (the draft run was a base short under 35-50% "+" strand
   deletion stutter).
+- **Within-run event minorities (insG, insG_pos58, delinsAT).** These templates
+  put another base inside an X unit's C7 run (`CCCCCCGC`, `CCCCCGCC`,
+  `CCATCCCC`), so a carrier read never observes that run cleanly and the clean
+  test above cannot see such a minority: a HiFi-like two-peak insG minority at
+  30% of one allele with 2000 reads, or 40% with 600 reads, was NEGATIVE. The
+  tier's within-run test (`hybrid.phase_run_minor_in_run`) counts, for each
+  known-event run signature (C7 -> C6, C5, C4), the reads that keep both
+  bounding bases of the run and show the signature's longest stretch inside it,
+  against the rate at the peer runs of the same base and length; the one-sided
+  bound of the carrier share must reach the same floor. **Detection floor**
+  (same definition and stutter shapes as above; the minority in one X unit of
+  the event allele; the within-run test itself or, at higher AF, a candidate
+  site blocks the negative call):
+
+  | stutter shape | layout | 600 reads | 2000 reads |
+  | --- | --- | --- | --- |
+  | HiFi-like | two peaks | 0.30 | 0.30 (a) |
+  | HiFi-like | one peak | 0.30 | 0.30 (a) |
+  | ONT-like | two peaks | 0.30 | not measured |
+  | ONT-like | one peak | 0.30 (b) | not measured |
+  | ONT-like saturating | two peaks | 0.30 | not measured |
+  | ONT-like saturating | one peak | 0.30 | not measured |
+
+  Each 600-read value holds for insG, insG_pos58 and delinsAT: 0 of 60 seeds
+  NEGATIVE per event (seeds 100-159; one-sided 95% upper bound of the NEGATIVE
+  rate 4.9%), and 0 of 5 seeds at every AF from 0.30 to 0.50 measured (HiFi-like
+  two peaks, insG). (a) 60 seeds for insG (the shape found in review: HiFi-like two
+  peaks, insG at 30% with 2000 reads, formerly NEGATIVE); insG_pos58 and
+  delinsAT 0 of 5 at AF 0.20 and 0.30. (b) The ONT-like strand-asymmetric single
+  peak was never NEGATIVE down to AF 0.10 (5 seeds), mostly through other gates;
+  the floor quoted is the one measured with 60 seeds. insG is found by the
+  within-run test itself (56-60 of 60 samples per cell); insG_pos58 and
+  delinsAT at 0.30 mostly by a candidate site at the shortened run (the
+  within-run test finds them from about 0.20 in the 5-seed grid). Below the
+  floor a within-run minority can be NEGATIVE: at AF 0.20 with 600 reads 1 of 5
+  (HiFi-like two peaks, insG; saturating two peaks, insG) and 2 of 5
+  (saturating two peaks, insG_pos58); at AF 0.10 5 of 5 with HiFi-like and
+  saturating stutter. The table was measured before the two-sided single-event gate, which only
+  refuses splits (INCONCLUSIVE), so it cannot add a NEGATIVE. Costs:
+  it changed no v4 development or validation decision (commit `1d2c416`); it flags no normal of the frozen panels (at a floor of
+  0.075 it would flag one simulated ONT `simpanel` normal, a G3 run read as G2
+  with another base inside it in 16% of the peak's reads); on synthetic
+  wild-type samples
+  (the three shapes, both layouts, 600 reads, 5 seeds each, with and without G
+  or AT noise inside a random C run in 30% of the reads) it never fired. A
+  site-specific G or AT artefact inside one C7 run is read for read an insG or
+  delinsAT minority and is flagged INCONCLUSIVE the same way.
 - **Minorities at columns and insertion slots (detection limit of v0.17.0).** A
   substitution, gap or insertion carried by a within-peak minority has no
   stutter model and no bound-based tier; it becomes a candidate site only at
@@ -374,7 +437,7 @@ the automated test suite.
   0/20 at 0.30 (the others INCONCLUSIVE through other gates). So an insertion
   minority below about 0.30 of an allele can be NEGATIVE; 0/20 at 0.30 bounds
   the NEGATIVE rate there at 14% (one-sided 95%).
-- **Insertions next to a homopolymer run (Task 15l).** The site table recorded no
+- **Insertions next to a homopolymer run.** The site table recorded no
   insertion slot right before or after a homopolymer run, so an insertion the
   aligner places there was invisible: insG_pos54 in unit J (`GCG|CCC` read as
   `GCGG|CCC`). A synthetic HiFi-like equal-length heterozygote carrying it was
@@ -446,7 +509,7 @@ the automated test suite.
     to NEGATIVE with its allele lengths correct; no false positive and no
     NEGATIVE on a pathogenic case. A simulated long allele with PCR dropout
     (102 units, 1% of reads) stays a gate-relevant peak.
-- **Strand-biased heterozygous sites (Task 15i).** A column or insertion site
+- **Strand-biased heterozygous sites.** A column or insertion site
   whose minor allele clears `het_af_min` but fails the strand-bias test is not
   a split candidate (strand-specific systematic errors look the same), so an
   equal-length heterozygote whose only difference is such a site is not split
@@ -460,8 +523,8 @@ the automated test suite.
   allele and the tier does not apply. A wild-type strand-specific systematic
   error at or above `het_af_min` (gap alleles `phase_gap_af_factor` x
   `het_af_min`) makes an equal-length normal INCONCLUSIVE the same way.
-- **Low-accuracy read subsets (Task 15j; opt-in and experimental, off by
-  default since Task 15k).** With `hybrid.phase_quality_alpha` > 0 (off by
+- **Low-accuracy read subsets (opt-in and experimental, off by
+  default).** With `hybrid.phase_quality_alpha` > 0 (off by
   default: a gain of 1 development case and 0 validation cases against the
   synthetic NEGATIVE path below), inside one peak of a two-peak
   sample, a candidate site whose minor carriers have significantly lower mean
@@ -477,9 +540,9 @@ the automated test suite.
     lower mean quality in 2 of 10 samples). This is why the rule never drops a
     site of a single-peak genotype, where the second allele sits inside the
     peak, except to enable a single-event split that keeps the selection
-    unresolved (Task 15k, below).
+    unresolved (below).
   - A site whose change is the site-table signature of a dictionary template
-    is never dropped (Task 15k). The signatures come from running every
+    is never dropped. The signatures come from running every
     template (insertions, deletions, delete-inserts) in each allowed unit
     through the site table: dupC lengthens the C7 run (C7 -> C8); insG,
     insG_pos54, insG_pos58 and delinsAT place a non-C base inside it, which
@@ -487,35 +550,37 @@ the automated test suite.
     shorten C3/C4 runs; dupA adds an insertion slot. A synthetic dupC minority
     carried only by low-quality reads was otherwise explained away and
     reported NEGATIVE. Column changes are not signatures. insG_pos54 in unit J
-    changed no site of the table until Task 15l (its G lands in the insertion
+    changed no site of the table in earlier versions (its G lands in the insertion
     slot right before a C run, which was not recorded; see "Insertions next to
     a homopolymer run" below). The signatures do not depend on position or
     flanking sequence: a run or insertion site anywhere in the peak with a
     template's signature is kept, which keeps more sites, never fewer. A custom
     dictionary template that changes no run or insertion slot cannot be
-    protected; a run with a quality rule on logs a warning naming it.
-  - Fixed in Task 15l: a within-peak dupC minority whose run stayed below both
+    protected; a run that uses the signatures (a quality rule, or the
+    run-minority tier's `known_events` scope or within-run test) logs a warning
+    naming it.
+  - Fixed in this release: a within-peak dupC minority whose run stayed below both
     run tiers could show a substitution site as its only marker; with the
     opt-in rule on and every carrier a low-quality read, that site was
     explained away and the sample could be NEGATIVE. The run-minority tier
     ("Within-peak run-length minorities" below) now flags the dupC run itself,
-    and the known-event guard keeps it; the 15k synthetic shapes (15-25% of
+    and the known-event guard keeps it; the synthetic shapes (15-25% of
     one allele, HiFi- and ONT-like, 4 seeds, rule on and off) are never
     NEGATIVE.
   - The rule changes only the basis of a peak left unsplit. A linked split is
     never undone and no split is created, so every allele consensus is built
     from the same reads as without it. Where low-quality reads form a third
     group (`unresolved_max_alleles`), the group stays out of every consensus;
-    Task 15k may stop counting it as an allele (below).
+    the group exclusion may stop counting it as an allele (below).
   - Input without informative base qualities (all equal, or any read with
     mean Phred 0) never triggers it.
   - The confidence bound makes the rule act only on clear cases: after the
     safety fix it resolved one development HiFi normal (versus three with the
     earlier point estimate). The gain on the development split is small.
-- **Low-accuracy artefacts in equal-length peaks and third groups (Task 15k).**
+- **Low-accuracy artefacts in equal-length peaks and third groups.**
   - Equal-length genotypes (`hybrid.phase_quality_single_event`, **off by
     default**): when a single peak has more than one candidate event and the
-    sites the 15j test keeps form exactly one event, the peak is split on that
+    sites the low-accuracy test keeps form exactly one event, the peak is split on that
     event under the unchanged single-event gates. The selection stays
     `unresolved_single_site`, so the sample is PATHOGENIC (the event's read
     support must pass as usual) or INCONCLUSIVE, never NEGATIVE. It is off
@@ -527,8 +592,8 @@ the automated test suite.
     split on a 0.327 HiFi run artefact at a C unit's C6 run (it stayed
     INCONCLUSIVE; no event in either allele). The same artefact alone, without
     a second site, passed the same gates of the existing single-event path, and
-    a C-insertion form of it at that run (C6AA -> C7AA) reads as dupA: since
-    Task 15l the single-event share floor (`phase_single_event_min_share` 0.4)
+    a C-insertion form of it at that run (C6AA -> C7AA) reads as dupA: the
+    single-event share floor (`phase_single_event_min_share` 0.4)
     keeps such an artefact up to 0.40 from a split.
   - Two-peak samples (`hybrid.phase_quality_group_exclusion`, **opt-in,
     experimental**, off by default: no development-split evidence): a linked-site
@@ -541,9 +606,9 @@ the automated test suite.
     same way and can then be NEGATIVE (synthetic ONT-like shapes, 22-30% of
     one allele, disjoint quality ranges); a group carrying dupC or any other
     insertion or deletion is never excluded. The development split holds no
-    such case, so this rule rests on the 15j levels and the synthetic tests;
+    such case, so this rule rests on the low-accuracy levels and the synthetic tests;
     it acts on one validation HiFi normal.
-- **Remaining HiFi INCONCLUSIVE (Task 15k diagnosis).** On the v4 simulated
+- **Remaining HiFi INCONCLUSIVE.** On the v4 simulated
   HiFi amplicons most remaining INCONCLUSIVE results trace to systematic,
   position-specific read errors of the simulated reads rather than to the
   sample: a base next to a C run read as C (A>C, G>C) in 20-57% of reads at
@@ -557,11 +622,11 @@ the automated test suite.
   0.262-0.267 against `event_max_alternative_frac` 0.25 (the read-support gate
   is not relaxed). The remaining equal-length dupC carrier (validation) and the
   equal-length normals flagged by the run-site tier depend on the run floors;
-  Task 15l left both unchanged (its tier adds flags, it removes none). HiFi INCONCLUSIVE therefore stays above the per-profile targets
-  at the defaults (both quality rules off, the pre-15j level): dev `clean` 6/30
-  (target 0.10) and `standard` 8/30 (target 0.20); val `clean` 6/30 and
-  `standard` 7/30 (validation numbers).
-- **Smear test next to the top peak (Task 15i).** A below-top candidate just
+  the run-minority tier left both unchanged (it adds flags, it removes none). HiFi INCONCLUSIVE therefore stays above the pooled targets
+  at the defaults (both quality rules off; commit `1d2c416`): dev `clean` 8/30
+  and `standard` 9/30; val `clean` 6/30 and `standard` 7/30 (per-profile rates
+  are informational under decision rule v7; validation numbers).
+- **Smear test next to the top peak.** A below-top candidate just
   past its own assignment window from the top has its background side towards
   the top clipped by the region edge, sometimes to a sliver with no reads that
   still sets the p value above alpha. A candidate with at least
@@ -621,47 +686,47 @@ the automated test suite.
 ### Validation numbers
 
 **MucSim-Bench v4** (simulated; development split used for tuning, validation
-split for confirmation only; measured on the `e324fa3` snapshot, whose hybrid
-defaults are the 0.17.0 defaults). PATHOGENIC is the share of pathogenic
-cases called PATHOGENIC; INCONCLUSIVE is the share of all cases.
+split for confirmation only; measured at commit `1d2c416`, the 0.17.0 hybrid
+defaults). PATHOGENIC is the share of pathogenic cases called PATHOGENIC;
+INCONCLUSIVE is the share of all cases. Decision rule v7: pooled INCONCLUSIVE
+`standard` <= 0.20 and `clean` <= 0.15, per-profile informational; PATHOGENIC
+floors `standard` >= 0.80 and `clean` >= 0.90; 0 false positives.
 
 | Split | Set | PATHOGENIC | INCONCLUSIVE | False positives | NEGATIVE on a pathogenic case |
 | --- | --- | --- | --- | --- | --- |
-| dev | standard | 53/57 = 0.930 | 11/90 = 0.122 | 0/33 | 0 |
-| dev | clean | 54/57 = 0.947 | 7/90 = 0.078 | 0/33 | 0 |
-| dev | clean2 | 17/19 = 0.895 | 2/30 = 0.067 | 0/11 | 0 |
-| val | standard | 52/57 = 0.912 | 16/90 = 0.178 | 0/33 | 0 |
-| val | clean | 54/57 = 0.947 | 8/90 = 0.089 | 0/33 | 0 |
+| dev | standard | 51/57 = 0.895 | 14/90 = 0.156 | 0/33 | 0 |
+| dev | clean | 53/57 = 0.930 | 10/90 = 0.111 | 0/33 | 0 |
+| dev | clean2 | 18/19 = 0.947 | 1/30 = 0.033 | 0/11 | 0 |
+| val | standard | 51/57 = 0.895 | 17/90 = 0.189 | 0/33 | 0 |
+| val | clean | 53/57 = 0.930 | 9/90 = 0.100 | 0/33 | 0 |
 | val | clean2 | 17/19 = 0.895 | 2/30 = 0.067 | 0/11 | 0 |
 
-`clean2` is one case short of the 0.90 PATHOGENIC target on both splits. The
+INCONCLUSIVE per profile (informational under rule v7; HiFi / ONT amplicon /
+ONT genomic, of 30 each): dev `standard` 9/2/3, `clean` 8/1/1; val `standard`
+7/3/7, `clean` 6/2/1. Against the preceding commit `32f732e` two development
+equal-length ONT carriers go from PATHOGENIC to INCONCLUSIVE (never NEGATIVE):
+`standard` ONT amplicon (run 6>7, share 0.43) and `clean` ONT genomic, because
+the single-event split now bounds both shares; every validation decision is
+unchanged, and the within-run test changes no development or validation
+decision. Val `clean2` is one case short of the 0.90 PATHOGENIC target. The
 sealed test split has not been run.
 
-With the Task 15j low-accuracy-subset rule opted in (`hybrid.phase_quality_alpha`,
-with the confidence-bound safety fix), one development case changes: a HiFi
-normal (`clean`) goes from INCONCLUSIVE (`unresolved_single_site`) to NEGATIVE
-with both alleles sequence-exact, so dev `clean` INCONCLUSIVE is 6/90 = 0.067
-(HiFi 6 -> 5 of 30). Every other set, including all validation sets, is
-unchanged; PATHOGENIC counts, sequence exactness, false positives (0) and
-NEGATIVE on pathogenic cases (0) are unchanged.
+With the low-accuracy-subset rule opted in (`hybrid.phase_quality_alpha`
+0.001, with the confidence-bound safety fix), one development HiFi normal
+(`clean`) went from INCONCLUSIVE to NEGATIVE with both alleles sequence-exact
+(measured before the run-minority tier; not re-measured at `1d2c416`). The rule
+and the other quality rules are opt-in and off by default. Opted in with the
+group exclusion, one validation HiFi normal (`standard`,
+`unresolved_max_alleles`) became NEGATIVE with both alleles sequence-exact.
 
-Since Task 15k the 15j rule and the 15k quality rules are opt-in and off by
-default (controller ruling). At these defaults every development and validation
-decision equals the pre-15j code (`b24a677`): dev `clean` INCONCLUSIVE is again
-7/90 = 0.078 (HiFi 6 of 30), the 15j gain above is not in the defaults.
-Opted in (15j at 0.001 plus the group exclusion), one validation HiFi normal
-(`standard`, `unresolved_max_alleles`) becomes NEGATIVE with both alleles
-sequence-exact. PATHOGENIC counts, sequence exactness, false positives (0),
-NEGATIVE on pathogenic cases (0) and the frozen panels are unchanged.
-
-**Frozen simulated panels** (commit `e324fa3`, same hybrid defaults;
-PATHOGENIC/INCONCLUSIVE/NEGATIVE counts):
+**Frozen simulated panels** (commit `1d2c416`, same hybrid defaults;
+PATHOGENIC/INCONCLUSIVE/NEGATIVE counts; identical to commit `32f732e`):
 
 | Panel | Normals | Pathogenic |
 | --- | --- | --- |
 | `simpanel` (40 cases) | 0/2/14 | 24/0/0 |
-| `heldout` | 0/4/8 | 26/2/0 |
-| `ms_ont_sub` (ONT) | 0/1/38 | 38/1/0 |
+| `heldout` (40 cases) | 0/5/7 | 26/2/0 |
+| `ms_ont_sub` (ONT, 78 cases) | 0/1/38 | 38/1/0 |
 
 No false positive and no NEGATIVE on a pathogenic case. Sequence exactness on
 `simpanel` was last measured at commit `ca81a97`: 77/80 alleles sequence-exact
@@ -669,7 +734,8 @@ No false positive and no NEGATIVE on a pathogenic case. Sequence exactness on
 the 0.17.0 defaults.
 
 **PRJEB92208** (public ONT data; `benchmarks/clinical/prjeb92208/hybrid-engine.json`,
-re-run with the 0.17.0 release candidate at commit `a185ecc`, 2 threads):
+re-run at commit `1d2c416`, 2 threads; every decision, score and read-support
+count equals the earlier `a185ecc` record):
 
 | Check | Result |
 | --- | --- |
