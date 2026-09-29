@@ -4,7 +4,7 @@ MucOneSpan accepts a versioned JSON configuration for execution defaults,
 repeat-selection and classification heuristics, consensus boundaries, confidence
 weights, and reference layout. Defaults come from immutable typed settings in
 `muc_one_span.settings`. The repository's `examples/runtime-settings.json` is a
-complete default configuration generated from that API.
+complete default configuration generated with `muconespan settings show`.
 
 ## Use a configuration file
 
@@ -14,7 +14,7 @@ Put the global `--config` option before the command:
 muconespan --config settings.json run \
   --input reads.bam \
   --output-dir results \
-  --threads 8
+  --assay genomic
 ```
 
 Values are selected in this order:
@@ -23,7 +23,7 @@ Values are selected in this order:
 2. The corresponding configuration-file value.
 3. The central default.
 
-Thus `--threads 8` overrides `run.threads` in the file. Omitted fields and sections
+Thus `--assay genomic` overrides `run.assay` in the file. Omitted fields and sections
 retain their central defaults. An explicit `--no-report` overrides
 `"report": true`. Input and output locations remain command arguments; they are
 not additional JSON fields. Use `muconespan COMMAND --help` for available flags.
@@ -219,6 +219,315 @@ Changing the dictionary, selected layout or flank length requires a matching
 explicit reference for `run`. Supply it through `run.reference` or `--reference`.
 The application cannot infer that an arbitrary FASTA was built from matching
 settings; keep the generating configuration with that reference.
+
+## Hybrid Engine
+
+Since 0.17.0 the hybrid engine is the **default** for every input type
+(`run.engine = "hybrid"`). It is a read-centric allele reconstruction path
+(motif anchoring, a length model, partial-order-alignment consensus,
+linked-site phase splitting, all-read assignment, polishing, and per-event
+read-level support) that replaces the ladder-alignment/Clair3 path. See
+[Core Concepts](../getting-started/concepts.md#hybrid-engine) for the
+stage-by-stage pipeline,
+[Known Limitations](../reference/limitations.md#hybrid-engine) for measured
+detection limits and validation numbers, and the
+[migration guide](migration.md) for what changed.
+
+```bash
+muconespan run \
+  --input reads.fastq \
+  --output-dir results/ \
+  --assay amplicon
+```
+
+`--engine` is `hybrid` (default) or `ladder` (`run.engine`, deprecated); `--assay` is `amplicon` or
+`genomic` (`run.assay`) and is recorded for provenance
+(`summary["hybrid"]["assay"]`) -- it does not change any `hybrid.*` default
+and is never auto-detected. `--report-igv` is rejected by the hybrid engine (a
+hybrid run has no BAM alignment tracks to show; the error names `--engine
+ladder` (deprecated) and `--report-igv off`). The ladder-only options
+`--clair3-model`, `--min-qual`, `--minimap2-preset`, `--platform`,
+`--min-coverage`, `--threads`, `--mapping-timeout` and `--reference` (and their
+`run.*` values) are unused by the hybrid path: the engine takes its thresholds
+from `hybrid.*`, runs single-threaded, needs no platform and builds its own
+references (a custom dictionary or layout therefore needs no `--reference`).
+Given on the command line or with a non-default configuration value, each
+prints a warning and is listed in `summary.json["ignored_options"]` and
+`run_configuration.json["ignored_options"]`. BAM input is streamed through
+`samtools fastq` without a region, so subset a WGS BAM to the MUC1 locus first.
+
+| Section.field | Default | Meaning and validation |
+| --- | --- | --- |
+| `run.engine` | `"hybrid"` | `"hybrid"` or `"ladder"`. `ladder` is deprecated: a ladder run prints a warning and records it in `summary.json["deprecations"]`; it is removed no earlier than the next minor release. |
+| `run.assay` | `"amplicon"` | `"amplicon"` or `"genomic"`; library type, recorded only. |
+
+### Dependencies
+
+`edlib` and `pyabpoa` (the default POA backend) are core dependencies since
+0.17.0 and are imported at module load. `pyspoa` is optional: install the
+`hybrid` extra (`pip install 'muc_one_span[hybrid]'`) to select
+`hybrid.poa_backend: "pyspoa"`; without it that selection fails with an
+`ImportError` naming the extra. The engine never silently falls back to another
+POA backend. All three packages are MIT-licensed; the hybrid engine
+does not use medaka or dorado.
+
+| Package | Wheels | Notes |
+| --- | --- | --- |
+| `edlib` | manylinux/musllinux/macOS wheels on 3.10-3.13 | No wheel on 3.14 yet; the sdist builds and imports from source with a C compiler. |
+| `pyabpoa` (default backend) | **sdist only** | Always builds from source; needs a C compiler and zlib (`gcc`, `libc6-dev`, `zlib1g-dev` on Debian/Ubuntu). On x86-64 Linux it compiles for the local CPU unless `SSE4=1` is set; see [portable builds](../getting-started/installation.md#portable-pyabpoa-builds). Bioconda ships binaries. |
+| `pyspoa` (alternative backend, `hybrid.poa_backend: "pyspoa"`) | manylinux wheels (x86_64, aarch64) | **No macOS wheel**; the sdist needs cmake and a C++ compiler. |
+
+The project's own Docker image installs `gcc`, `libc6-dev` and `zlib1g-dev`
+in the builder stage to build `pyabpoa` with `SSE4=1` (portable SSE4.1, not
+`-march=native`), rejects the build if its extension contains AVX-family,
+BMI, POPCNT, LZCNT or SSE4.2 instructions, and copies only the built virtual environment into the runtime
+image.
+
+### Hybrid settings (`hybrid.*`)
+
+Every default below was tuned on the benchmark development split and confirmed
+on the validation split only; the sealed test split never informs a default. Every threshold is a validated `HybridSettings` field -- there are
+no hardcoded thresholds in the hybrid engine.
+
+#### Anchoring and span categorization (S1)
+
+| Section.field | Default | Meaning and validation |
+| --- | --- | --- |
+| `hybrid.anchor_max_edits` | `12` | Maximum edlib edit distance for a motif-1/motif-9 anchor (both strands); integer >=0. |
+| `hybrid.min_span_units` | `15` | Minimum accepted spanning-read length, in repeat units; integer >=1. |
+| `hybrid.max_span_units` | `160` | Maximum accepted spanning-read length, in repeat units; integer >= `min_span_units` + 1. |
+| `hybrid.flank_anchor_bp` | `30` | Ladder flank length used as a fallback anchor when a motif anchor cannot be found; integer >=1. |
+| `hybrid.flank_anchor_edit_divisor` | `4` | Divides `anchor_max_edits` to derive the flank-anchor edit budget; integer >=1. |
+| `hybrid.flank_anchor_edit_floor` | `2` | Minimum flank-anchor edit budget (`max(floor, anchor_max_edits // divisor)`); integer >=0. |
+
+#### Length model (S2)
+
+| Section.field | Default | Meaning and validation |
+| --- | --- | --- |
+| `hybrid.peak_window_base_bp` | `30.0` | Assignment half-window base width, in bp; number >=1. |
+| `hybrid.peak_window_per_unit_bp` | `0.6` | Extra half-window width per repeat unit of length (models span-length noise growing with length); number >=0. |
+| `hybrid.min_peak_reads` | `8` | Absolute minimum reads a candidate length peak needs; integer >=0. |
+| `hybrid.far_peak_min_frac` | `0.03` | Minimum support fraction of total spanning reads for a peak >= `peak_far_near_boundary_units` from the top peak; number in [0,1]. |
+| `hybrid.near_peak_min_frac` | `0.20` | Minimum support fraction for a peak nearer than `peak_far_near_boundary_units`; number in [0,1]. |
+| `hybrid.rejected_peak_noise_reads` | `2` | A candidate peak with at most this many reads is `noise`, not gate-relevant; integer >=0. |
+| `hybrid.kde_bandwidth_base_bp` | `8.0` | Gaussian KDE bandwidth base, in bp; number >=1.0. |
+| `hybrid.kde_bandwidth_per_bp` | `0.004` | Extra KDE bandwidth per bp of length; number >=0. |
+| `hybrid.kde_kernel_truncation_bw` | `4.0` | KDE kernel truncation, in bandwidths; number >=1.0. |
+| `hybrid.kde_grid_step_bp` | `2.0` | KDE evaluation grid step, in bp; number >=0.1. |
+| `hybrid.kde_grid_margin_bp` | `100.0` | KDE grid margin beyond the observed length range, in bp; number >=0. |
+| `hybrid.smear_short_product_units` | `1.5` | Below this many units under the top peak, a read is a "short product", never tested as an allele candidate; number >=0.01. |
+| `hybrid.peak_far_near_boundary_units` | `2.0` | Distance from the top peak, in units, beyond which a candidate uses the "far" support fraction; number >=0. |
+| `hybrid.peak_min_separation_units` | `0.7` | Minimum separation, in units, between kept KDE maxima; number >=0. |
+| `hybrid.smear_test_alpha` | `0.001` | Significance level of the one-sided exact conditional Poisson smear test; number strictly in (0,1). |
+| `hybrid.smear_test_borderline_factor` | `3.0` | Width of the borderline p-value band around alpha (`[alpha/factor, alpha*factor)`), reported as `smear_ambiguous` instead of a silent `smear` rejection; number >=1. |
+| `hybrid.smear_test_correction` | `"bonferroni"` | Multiple-testing correction across below-top candidates tested; `"bonferroni"` or `"none"`. |
+| `hybrid.smear_test_window_frac` | `0.25` | Core window width, as a fraction of the candidate's assignment half-window, scored against the local background; number strictly >0, in [0,1]. Set from the spread of synthetic smear (the unit-test smear model), not gridded on the v4 development split: the calibration grids that followed selected other keys, and changing it would change development and validation decisions. |
+| `hybrid.smear_background_flank_units` | `2.0` | Minimum span, in units, of each side of the smear-test background window; number strictly >0. |
+| `hybrid.smear_background_min_reads` | `5` | Minimum reads required in each widened background window side; integer >=1. |
+| `hybrid.smear_test_inter_allele` | `true` | Also run the smear test on the candidates between two accepted peaks when the shorter allele is the top peak (smear below the longer allele), over the region from the shorter allele's window edge to `smear_short_product_units` below the longer allele. Only `support_below_threshold` candidates are re-judged; a significant candidate stays gate-relevant, a `max_alleles` third peak is never relabelled. Rejected entries from a smear test carry `smear_region` (`below_top` or `inter_allele`); boolean. |
+| `hybrid.dimer_recognition` | `true` | Recognise PCR dimer products: spanning reads with an internal motif-9 -> motif-1 amplicon junction (found with `anchor_max_edits`) whose two parts each fall in an accepted peak's assignment window. They are removed before the final peak fit, never join an allele (consensus, phasing, read support) and are recorded as a `dimer` rejected peak (not gate-relevant) with `parent_units`; boolean. |
+| `hybrid.dimer_max_parent_frac` | `0.05` | Most dimer reads a parent pair may have, as a fraction of the smaller parent's support, to count as a minority artefact (dev maximum 0.016). Above it the pair is left unexplained and stays gate-relevant; number in [0,1]. |
+| `hybrid.smear_guard_top_frac` | `0.5` | Read-support guard: a below-top or inter-allele length candidate holding at least this fraction of the top peak's reads is never smear-tested and faces the allele support rules instead (accepted, or gate-relevant), so the smear relabelling can never absorb a peak with allele-like support. It closes a false NEGATIVE: a real 93-unit allele with 0.99 x the top's reads, 2.9 units below a 96-unit top, was relabelled smear because its background side next to the top was clipped to a 0.36 bp sliver with no reads (the variant-carrying allele was lost). Smear clusters on the v4 dev/val panels reached at most 0.085 x the top; on the synthetic homozygous-smear grid 0.2 made low-depth debris gate-relevant in 30% of seeds (D=60, smear 0.54) and 0.3 passed; 0.5 keeps a margin. Number in (0, 1]. |
+
+#### POA draft and polishing (S3, S7)
+
+| Section.field | Default | Meaning and validation |
+| --- | --- | --- |
+| `hybrid.n_poa` | `40` | Maximum spanning reads sampled (with the seeded RNG) for the POA draft; integer >=1. |
+| `hybrid.poa_backend` | `"pyabpoa"` | `"pyabpoa"` or `"pyspoa"`; no silent fallback when the selected backend is unavailable. |
+| `hybrid.polish_rounds` | `2` | Pileup + homopolymer-vote polishing rounds; integer >=0. |
+| `hybrid.hp_vote` | `true` | Run the homopolymer median-length vote after each pileup round; boolean. |
+| `hybrid.poa_sample_window_floor_bp` | `15.0` | Floor of the "near-modal" length window POA draft members are sampled from, in bp; number >=0. |
+| `hybrid.poa_sample_window_frac` | `0.006` | Fraction of the median length added to the POA sampling window (`max(floor, frac * median)`); number >=0. |
+| `hybrid.polish_insertion_majority_frac` | `0.5` | An insertion slot is accepted only when its winning vote exceeds this fraction of covering votes; number in [0,1]. |
+| `hybrid.hp_vote_min_run` | `4` | Minimum consensus run length rewritten by the homopolymer median vote; integer >=2. |
+
+#### Phase split (S4)
+
+| Section.field | Default | Meaning and validation |
+| --- | --- | --- |
+| `hybrid.het_af_min` | `0.2` | Minimum allele fraction for a candidate phase site (run-length sites use `max(het_af_min, phase_run_bg_multiplier * background)`); number in [0.01, 0.5]. A minor allele below this floor never forms a candidate: at the default, an **equal-length heterozygote with a minor allele at 15-20% produces a silent `none` split, not a flag** (`het_af_min` > `het_min_group`, so a group at the `het_min_group` edge can never form). |
+| `hybrid.het_min_group` | `0.15` | Minimum fraction of members the smaller phase group must reach, else `unconfirmed_group_size`; number in [0,1]. |
+| `hybrid.link_phi_min` | `0.5` | Minimum absolute phi correlation for two candidate sites to be linked; number in [0,1]. |
+| `hybrid.min_linked_sites` | `2` | Minimum linked events required to split a peak; fewer produces `unconfirmed_single_site` (a single event goes through the single-event split and its share-bound gate instead); integer >=2. |
+| `hybrid.phase_max_site_reads` | `300` | Read cap for building the phase site table (sampled with the seeded RNG above the cap); integer >=1. |
+| `hybrid.phase_run_min_len` | `3` | Minimum homopolymer run length treated as a run-length candidate site; integer >=2. |
+| `hybrid.phase_run_bg_window` | `3` | Run-length background window (+/- d observed length) used to score a run site; integer >=1. |
+| `hybrid.phase_min_minor_reads` | `5` | Minimum reads showing a candidate site's minor allele; integer >=1. |
+| `hybrid.phase_run_bg_multiplier` | `4.0` | Multiplier on local background noise for the run-length candidate-site AF floor; number >=0. |
+| `hybrid.phase_run_safety_multiplier` | `2.0` | NEGATIVE-blocking safety tier for an equal-length genotype. When the length model finds a **single** peak and that peak stays unsplit with no candidate site (`none`), every homopolymer run is tested against the lower floor `max(het_af_min, phase_run_safety_multiplier * background)`, with the same leave-one-out peer background as a candidate site but none of its other tests. A run above it gives the phase basis `unconfirmed_run_site` (selection and phase status `unresolved_run_site`): the result is INCONCLUSIVE with the located reason `unresolved heterozygous site at repeat N`. The tier never splits the peak, never creates an event and never makes a result PATHOGENIC. It exists because a heterozygous run can sit below the split floor: simulated HiFi reads of an equal-length heterozygous dupC showed 42% C8 against 13.7% at the peer C7 runs (ratio 3.1, under the x4 split floor), and were reported NEGATIVE before this tier. Default from the v4 development panels (every wild-type length peak left unsplit, whatever the peak count): the floor is reached at 11/26 HiFi peaks at 1.5, 4/26 at 2.0 and 3/26 at 2.5-3.0, and at none of 61 ONT peaks; 2.0 is the lowest value on that plateau. The wild-type runs that reach it carry 21-30% of reads at one length, at or above `het_af_min`; the tier itself flags 3 of the 4 equal-length wild-type HiFi samples and none of the 3 ONT ones. Setting it to `phase_run_bg_multiplier` restores the behaviour before this tier for runs below the split floor. Number >=1. |
+| `hybrid.phase_run_minor_scope` | `"all"` | NEGATIVE-blocking run-minority tier (`hybrid.run_minor`): which homopolymer runs it tests. `"all"`: every run; `"known_events"`: only a length change that is the site-table signature of a bundled-dictionary template (`hybrid.known_events`: dupC C7 -> C8, insG C7 -> C6, deletions shortening C3/C4 runs, ...); `"off"`: no test (the behaviour before this tier, including its within-run test `phase_run_minor_in_run`). On v4 dev the two scopes flag the same samples. In every length peak left unsplit (one peak or two), a run's clean observations (reads keeping both bounding bases, `polish.run_observation`) are explained as a mixture of its modal length and each other observed length (within `phase_run_bg_window`, at least `phase_min_minor_reads` reads); each length is convolved, per strand, with the run-length stutter profile of its own length built from the peak's other runs of the same base (`hp_stutter_*`: measured, extrapolated with the identifiability guard, or shifted). When the one-sided lower confidence bound (`phase_run_minor_alpha`) of the minority weight reaches `phase_run_minor_min_share`, the peak gets the phase basis `unconfirmed_run_minor` (selection and phase status `unresolved_run_minor`): INCONCLUSIVE with the located reason `unresolved heterozygous site at repeat N (run M>m, AF ...)`. It never splits a peak, creates or supports an event, or makes a result PATHOGENIC. Reason: a within-peak minority (mosaicism, a third haplotype) carrying dupC at 15-30% of an allele stays below the candidate floor and the single-peak-only run-site tier `phase_run_safety_multiplier` (both multiples of the peers' raw share) and was NEGATIVE. One of `off`, `known_events`, `all`. |
+| `hybrid.phase_run_minor_alpha` | `0.001` | One-sided, per-test level of the run-minority share bound (`phase_run_minor_scope`). A peak holds on the order of 10^2 (run, length) tests, so this level alone would let roughly 10% of wild-type peaks be flagged by chance (Bonferroni). The low wild-type rate comes from `phase_run_minor_min_share`: the bound must exceed 0.09, which a run whose stutter matches its peers (true share 0) reaches only with a share estimate of about 0.09 + 3 standard errors. On 150 synthetic wild-type samples no NEGATIVE was lost; the v4 dev flags are real run artefacts, not chance. Number strictly in (0,1). |
+| `hybrid.phase_run_minor_min_share` | `0.09` | Floor of the run-minority share bound (`phase_run_minor_scope`). The lowest floor on the v4 dev grid (0.06, 0.075, 0.09, 0.105, 0.12) that kept the pooled INCONCLUSIVE rates within decision rule v6: it flags 2 clean and 1 standard dev HiFi normals (position-specific simulated HiFi run errors, shares 0.13-0.39; 0.075 flags a third clean one, clean 10/90 > 0.10); no ONT or genomic normal. It keeps every two-peak all-low-quality dupC minority shape blocked: at 15% of one allele (300 reads per allele) 0 of 130 seeds NEGATIVE (one-sided 95% upper bound 2.3%), at 20% and 25% 0 of 30 each, at the defaults and with the opt-in quality rules. The margin is thin: where the tier fires on that shape its smallest bound is 0.093; the seeds where it does not fire (10 of 130) are held back by a candidate site of the minority. It is not retuned to the development split under decision rule v7 (0.075 would still meet v7 there: dev clean 10/90, one more flagged HiFi normal; the within-run test flags no dev normal at 0.075-0.09). It applies to the clean and the within-run test alike. The detection floors that follow, per stutter shape and depth, are in [limitations](../reference/limitations.md). Number strictly in (0,1). |
+| `hybrid.phase_run_minor_max_reads` | `2000` | At most this many peak members (a fresh sample drawn with `seed`; the site table's own sample when it already holds them) feed the run-minority bound. More reads lower the detection floor at high depth (synthetic HiFi-like single-peak minority at 30%, 2000 reads: detected 2 of 5 seeds with 300 reads, 5 of 5 with 2000) and let a wild-type run artefact's bound approach its share; 2000 is the largest depth of the synthetic detection sweep. Integer >=1. |
+| `hybrid.phase_run_minor_in_run` | `true` | Within-run test of the run-minority tier (needs `phase_run_minor_scope` other than `"off"`). insG, insG_pos58 and delinsAT put another base inside an X unit's C7 run (`CCCCCCGC`, `CCCCCGCC`, `CCATCCCC`), so a carrier read never observes that run cleanly and the tier's clean test cannot see such a minority: a synthetic HiFi-like two-peak insG minority at 30% of one allele with 2000 reads, or 40% with 600, was NEGATIVE. The site table reads a carrier as the run shortened to its longest stretch (C7 -> C6, C5 or C4), the template's run signature (`hybrid.known_events`). For every signature length m of a run's (base, modal length), each read that keeps both bounding bases of the run is one observation: it shows m inside the run (another base in the run, longest stretch m) or not. Per strand, a wild-type read shows it at the rate of the peer runs of the same base and length (leave-one-out, with `hp_background_pseudocount`), a carrier read with the run-length stutter probability that a run of length m reads m. The weight of the carrier component and its one-sided lower bound (`phase_run_minor_alpha`) must reach `phase_run_minor_min_share`, as for the clean test; a site found this way is reported like any tier site (INCONCLUSIVE, `unresolved_run_minor`, located), never split and never an event. Detection floors and costs: [limitations](../reference/limitations.md). `false` restores the clean-only tier. Boolean. |
+| `hybrid.phase_gap_af_factor` | `1.5` | AF factor applied when the candidate site's minor allele is a gap (deletion); number >=1. |
+| `hybrid.phase_min_pair_reads` | `10` | Minimum reads informative at both sites of a pair before their linkage is tested; integer >=2. |
+| `hybrid.phase_strand_bias_alpha` | `0.001` | Strand-bias test significance level; a site failing it, or with no minor-allele observation on a strand with >= `hp_min_strand_reads` reads, is rejected. Column and insertion sites use a one-sided Fisher exact test. Homopolymer-run sites use a stutter-aware test: each strand's length-error profile comes from the other runs of the same base, the minor run length's stutter-deconvolved share must reach `het_af_min`, and a likelihood-ratio test (one weight for both strands vs. one per strand) is applied at this level, so strand-asymmetric ONT stutter is not read as strand bias. A column or insertion site refused only by this test is not dropped: in an unsplit single length peak it blocks a negative call (`unresolved_strand_biased_site`). The level applies per test (one per strand and site) with no multiple-testing correction across strands or sites: a correction would loosen the test and admit more sites as split candidates, while without it a real heterozygous site is refused slightly more often, which the strand-biased-site and run-minority tiers turn into INCONCLUSIVE rather than NEGATIVE. Number strictly in (0,1). |
+| `hybrid.phase_single_event_split` | `"indel"` | When the length model finds a **single** peak (an equal-length genotype) and that peak's candidate sites form exactly one heterozygous event (fewer linked events than `min_linked_sites`), split the peak on that event: `"indel"` only when the event changes the sequence length (every frameshift), `"all"` for any event, `"off"` never. Reads are grouped by their allele at the event (run sites by the more likely run length under the strand's stutter profile); the split is refused when either group is below `het_min_group` or both group drafts are identical. An unsplit peak stays `unconfirmed_single_site`, which blocks a negative call and names the site (`unresolved heterozygous site at repeat N` in `selection_detail`). With two length peaks a single event never splits a peak. The split also needs the peak-level share gate (`phase_single_event_alpha`). One of `"off"`, `"indel"`, `"all"`. |
+| `hybrid.phase_single_event_alpha` | `0.001` | A single-event split selects each allele's reads by the event, so the event's read support is conditional on the split. The split is made only when the one-sided lower confidence bound (at this level; profile likelihood) of the stutter-deconvolved minor share reaches `phase_single_event_min_share`, computed over a fresh sample of at most `phase_single_event_bound_reads` reads (drawn with `seed`, independent of the site table). Otherwise the peak keeps the phase basis `unconfirmed_single_site` (selection status `unresolved_single_site`: INCONCLUSIVE, located). Number strictly in (0,1). |
+| `hybrid.phase_single_event_min_share` | `0.4` | False-positive margin. Floor of the single-event share bound (`phase_single_event_alpha`); number in [`het_af_min`, 1): a configuration with `het_af_min` above 0.4 is refused unless this is raised too (the error names both keys). A site-specific wild-type run artefact is indistinguishable from a real minor allele of the same share: a C inserted into a C unit's C6 run reads exactly like an X unit carrying dupA. The simulated HiFi homozygous normal `simpanel/H1_hifi` carries such an artefact at 0.327, and synthetic normals with it at 0.30-0.40 (HiFi-like, 600-1000 reads) were **PATHOGENIC** at the former floor `het_af_min` (0.2). At 0.4 a split needs a share significantly above 0.40 at any depth, on both sides: the bounds of the minor share and of the major share must both reach the floor (the minor allele is the site's non-draft allele, and a draft that followed a 40% artefact made the wild type the minor allele), and at a column or insertion site each share is taken over every read observing the site (a read with neither allele counts against both). For a run site the bound must reach the floor twice over the same sample of site-table run lengths: with the per-strand error profiles of `run_strand` (pooled over every run of the base when the major length has no peer run) and with each length's own run-length stutter profile (`run_minor.length_aware_share_bound`: measured, extrapolated or shifted from the peer runs of the same base). The pooled profiles under-estimate the stutter of a run without peers (a single C unit's C6 run) under length-dependent stutter: a synthetic HiFi-like artefact at 0.40 was estimated at 0.41-0.48 and one of 15 such cases was split and PATHOGENIC; with the second bound none is. Cost: an equal-length heterozygote (share about 0.5) needs roughly 350 or more reads in its peak for the bound to reach 0.4; with fewer it stays INCONCLUSIVE (never NEGATIVE). v4 dev: one standard ONT genomic carrier (189 reads, bound 0.375) becomes INCONCLUSIVE. Status: a spec-derived safety margin (the top of the 0.30-0.40 adversarial artefact range), not a calibrated optimum; the v4 dev grid only shows its cost. 0.35: dev P 125/133, pooled I standard 12/90 and clean 9/90, but the 0.40 artefact (HiFi-like, 1000/2000 reads, 20 seeds each) was PATHOGENIC in 4 of 40 cases; 0.40: dev P 124/133, I 13/90 and 9/90, the artefact 0 of 110 (seeds 5-59; one-sided 95% upper bound 2.7%); 0.45: dev P 115/133, I 15/90 and 14/90 (clean above the then 0.10 target). All of this evidence is for the default `hp_stutter_model = "length"`; with `"shift"` the second bound uses the shift profile (the major length's peers moved to the minor length) and the 0.40 margin is not validated. `het_af_min` restores the former gate. |
+| `hybrid.phase_single_event_bound_reads` | `1000` | Sample size of the single-event share bound (`phase_single_event_alpha`). It is separate from the `phase_max_site_reads` compute cap, so raising that cap cannot change the gate. The fixed sample keeps the bound's power from growing without limit with depth (a systematic artefact does not shrink with depth); the share floor `phase_single_event_min_share` sets which artefact shares are excluded. v4 dev grid at the 0.4 floor: 300 (the former default) made 3 clean equal-length carriers INCONCLUSIVE (bounds 0.36-0.39 over 300 reads; clean PATHOGENIC 51/57, below the 0.90 target); 1000, 2000 and 5000 gave identical dev results, and 1000 is the smallest (least power for an artefact just above 0.40). Integer >=1. |
+| `hybrid.phase_run_error_cap` | `16` | Run-length error profiles of the stutter-aware run-site test pool errors beyond +/- this many bases into their edge bins; 16 (= `hp_max_run_len`) keeps every modelled run's full error range distinct. Integer >=1. |
+| `hybrid.phase_quality_alpha` | `0` | **Opt-in, experimental**: `0` (off) by default; `0.001` is the v4 dev-calibrated level to opt in with. Reason: a gain of 1 v4 dev case and 0 validation cases against a demonstrated synthetic NEGATIVE path (a two-peak dupC minority whose reads are all low quality and whose dupC run stays below both run tiers: its only marker, a substitution site, is explained away; see limitations). Low-accuracy read subsets. Drops sites only in a peak of a **two-peak** length model (each allele has its own peak, so a within-peak site is not a further allele; for single-peak genotypes see `phase_quality_single_event`, for linked groups `phase_quality_group_exclusion`), and only in a peak the site table leaves unsplit (a linked split is never undone and no split is created, so group membership and every allele consensus are unchanged). A candidate site is dropped from site detection when (1) its minor-allele carriers have lower mean base quality than its major-allele carriers (one-sided Mann-Whitney rank-sum test, normal approximation with tie and continuity correction, p below this level) **and** (2) among the `phase_quality_keep_frac` of the site's reads with the highest mean base quality, the minor allele fraction is significantly below `het_af_min` (`phase_quality_af_alpha`). The site is kept (fail closed) when that high-quality subset has fewer than `ceil(phase_min_minor_reads / het_af_min)` reads (25 at the defaults), when the qualities do not vary, or when any read of the site table has no base-quality information (mean Phred 0). A site whose change is the site-table signature of a bundled-dictionary template is never dropped. The signatures are derived by running every template (insertions, deletions, delete-inserts) in each allowed unit through the site table: run lengthenings and shortenings with base and lengths (dupC C7 -> C8; insG, insG_pos54, insG_pos58 and delinsAT split the C7 run, seen as C7 -> C6, C5 or C4; deletions shorten C3/C4 runs) and inserted strings of insertion slots (dupA). Column changes are not signatures. insG_pos54 in unit J is recorded at the insertion slot right before the C run and protected like the others. The signatures are position- and flank-agnostic: a signature protects every site of that shape anywhere in the peak, not only in the template's own units (the conservative direction). A template/unit pair of a custom dictionary that changes no run or insertion slot cannot be protected; a run that uses the signatures (a quality rule on, or the run-minority tier's `known_events` scope or within-run test) logs a warning naming each such pair. This level is also the rank-sum level of `phase_quality_single_event` and `phase_quality_group_exclusion` (one knob: either needs it > 0). Reason: an all-low-quality dupC minority plus insertion stutter at its run was otherwise explained away and reported NEGATIVE. Dropped sites are listed in `summary["hybrid"]["quality_associated_sites"]` (repeat, kind, alleles, AF, high-quality AF, rank-sum p, AF-bound p). Mean base quality was chosen over per-read discordance to the peak draft: reads of a second haplotype differ from a majority draft at many non-candidate sites, so discordance marked the carriers of true heterozygous sites as inaccurate on the v4 dev HiFi panels (rank-sum p down to 1e-41, minor AF among the better half 0.0). `0` turns the rule off: on v4 dev, a run at `0` reproduced every decision of the code before the rule (commit `b24a677`). Opt-in level from the v4 dev grid (1e-4, 1e-3, 1e-2); the stricter of the two tied levels was taken. Number in [0, 1). |
+| `hybrid.phase_quality_af_alpha` | `0.001` | Condition (2) of `phase_quality_alpha`: the one-sided upper confidence bound of the high-quality-subset minor allele fraction must lie below `het_af_min`, tested exactly as the binomial lower tail P(X <= k; n, `het_af_min`) < this level. A point estimate was not safe: for a real minor just above `het_af_min` the subset estimate falls below it by sampling noise about half the time, and condition (1) alone can hold for a real homopolymer-run minor when insertion stutter of low-quality non-carrier reads enriches its minor set in poor reads (synthetic two-peak dupC minors at AF 0.20/0.22/0.25, ONT- and HiFi-like qualities: 8 of 36 NEGATIVE with the point estimate (all INCONCLUSIVE with the rule off), 0 of 72 with the bound at 1e-3 or 1e-2 and keep 0.3 or 0.5). Default from the v4 dev grid (1e-3, 1e-2 x keep 0.3/0.5): 1e-2 at keep 0.3 or 0.5 and 1e-3 at keep 0.5 tied (dev INCONCLUSIVE 20 -> 19 of 210); the strictest tied point was taken. Number strictly in (0, 1). |
+| `hybrid.phase_quality_keep_frac` | `0.5` | Share of a site's reads, highest mean base quality first, over which condition (2) re-tests the minor allele fraction against `het_af_min` (`phase_quality_af_alpha`). A larger subset gives the upper bound more power. Default from the v4 dev grid (see `phase_quality_af_alpha`). Number in (0, 1]. |
+| `hybrid.phase_quality_single_event` | `false` | **Opt-in, experimental** (off by default; needs `phase_quality_alpha` > 0 and `phase_single_event_split` other than `"off"`). In a **single-peak** (equal-length) genotype whose unsplit peak has more than one candidate event, the `phase_quality_alpha` test (both conditions) is applied to its sites. When the sites it keeps form exactly one event, the peak is split on that event under every single-event gate (`phase_single_event_split`, the `phase_single_event_alpha` share bound, `het_min_group`, differing drafts). The dropped sites are listed in `quality_associated_sites` and named in `selection_detail`, and the selection status stays `unresolved_single_site`: the rule can turn INCONCLUSIVE into PATHOGENIC (the event's read support must pass the unchanged gates), never into NEGATIVE. Shape: a dupA carrier whose peak also held a 3>2 CCC-run artefact carried by low-quality reads (v4 dev `standard/hifi_amplicon-0005`: INCONCLUSIVE -> PATHOGENIC, dupA support 168/179, both alleles sequence-exact; the only v4 dev/val change). Why off: the split inherits the single-event split's limit (a wild-type site-specific +1 C excess of about 0.35 or more at one C7 run cannot be told from a real minor). A peak that also holds a low-accuracy artefact site was protected by that second event; with the rule on, the synthetic stress shape at excess 0.35 and 0.40 plus an artefact subset becomes PATHOGENIC (INCONCLUSIVE with the rule off), and on the frozen `simpanel` the homozygous normal `H1_hifi` was split on a 0.327 run artefact (it stayed INCONCLUSIVE, no event in either allele). Setting it to `true` while `phase_quality_alpha` is `0`, or while `phase_single_event_split` is `"off"`, is refused (it would do nothing). Boolean. |
+| `hybrid.phase_quality_group_exclusion` | `false` | **Opt-in, experimental** (no v4 dev evidence, and defaults are calibrated on dev only; it needs `phase_quality_alpha` > 0). In a peak of a **two-peak** model, a linked-site group is no longer counted as a further allele (`unresolved_max_alleles`) when (1) it is the smaller group, (2) its reads have lower mean base quality than the other group's (rank-sum test at `phase_quality_alpha`), (3) its share of the split's `phase_quality_keep_frac` highest-quality reads is significantly below `het_af_min` (exact binomial bound at `phase_quality_af_alpha`; at least `ceil(phase_min_minor_reads / het_af_min)` such reads), (4) its median length is within `peak_min_separation_units` repeat units of the other group's, and (5) its draft differs from the other group's by substitutions only (same length, edit distance equal to the mismatch count), so it carries no insertion, deletion or frameshift event. The group never joins an allele consensus: its reads are counted as spanning reads assigned to no allele (so `max_unassigned_spanning_fraction` still applies) and it is listed in `summary["hybrid"]["quality_excluded_groups"]`. A read without base qualities keeps the group. The v4 development split has no such case; opted in (with `phase_quality_alpha` 0.001), on the validation split it resolves one HiFi normal (`standard/hifi_amplicon-0019`: a 207-read group, share of the best half 0.081, rank-sum p 7.6e-24, drafts differing by 9 substitutions; NEGATIVE with both alleles sequence-exact). Synthetic checks: a minority group carrying dupC (15-30% of one allele, HiFi- and ONT-like, 4 seeds) is never excluded; a wild-type minority group is never PATHOGENIC. Setting it to `true` while `phase_quality_alpha` is `0` is refused (it would do nothing). Boolean. |
+
+#### Reference and read assignment (S5, S6)
+
+| Section.field | Default | Meaning and validation |
+| --- | --- | --- |
+| `hybrid.assign_flank_bp` | `500` | Ladder flank width wrapped around each allele draft to build the reference every read is assigned against; integer >=1. |
+| `hybrid.assign_margin` | `3` | Minimum edit-distance gap to the second-best reference before a read is assigned (else `undecided`); integer >=0. |
+| `hybrid.assign_max_error_rate` | `0.15` | Reads needing more than this fraction of edits even to the best reference are `off_target`; number in [0,1]. |
+| `hybrid.min_fragment_bp` | `1000` | Minimum length of a left/right-anchored or internal fragment considered for assignment; integer >=0. |
+
+#### Depth thresholds
+
+| Section.field | Default | Meaning and validation |
+| --- | --- | --- |
+| `hybrid.depth_adequate_spanning` | `30` | Spanning-read count at/above which `depth_status` is `adequate`; integer >= `depth_low_spanning`. |
+| `hybrid.depth_low_spanning` | `10` | Spanning-read count at/above which `depth_status` is `low` (below it, `insufficient`); integer >=0. |
+
+#### Residual QC and event read support (S8, S10)
+
+| Section.field | Default | Meaning and validation |
+| --- | --- | --- |
+| `hybrid.qc_residual_af` | `0.25` | Minor-allele fraction at a consensus column (outside long runs) that becomes a `residual_heterogeneity` site; number in [0,1]. |
+| `hybrid.qc_residual_min_run` | `3` | Consensus runs at/above this length are skipped by residual QC (a run indel has no unique column); integer >=2. |
+| `hybrid.hp_event_min_run` | `4` | Minimum consensus run length for a single-base-indel dictionary template to be typed a homopolymer event (else it falls back to parent-vs-template competition); integer >=2. |
+| `hybrid.hp_max_run_len` | `16` | Runs whose event or reference length would reach this cap are not modelled as a homopolymer mixture; integer >= `hp_event_min_run` + 1. |
+| `hybrid.hp_background_pseudocount` | `0.5` | Additive smoothing pseudocount for the per-strand background run-length profile; number strictly >0. |
+| `hybrid.hp_stutter_model` | `"length"` | Stutter background of the homopolymer event/no-event mixture. `"length"`: each allele is convolved with the per-strand stutter profile of **its own** run length (a dupC C8 run with the C8 profile, the no-event C7 allele with the C7 profile), measured at the sample's own peer runs of that base and length (the event run left out); a length without enough peer runs is extrapolated from the two nearest measured lengths of the base (no pooling across bases); with one measured length its profile is shifted; with none, the `"shift"` rule applies. `"shift"`: the no-event length's profile, shifted by the event for the event allele (behaviour before this setting). One of `"length"`, `"shift"`. |
+| `hybrid.hp_stutter_min_class_runs` | `2` | Peer runs (same base and length, event run excluded) a length needs to be measured rather than extrapolated. One run is one sequence context, which cannot separate the effect of length from that of context. Integer >=1. |
+| `hybrid.hp_stutter_min_class_reads` | `200` | Clean run observations on a strand a length needs to be measured on that strand. A length with enough peer runs but fewer observations is treated as unmeasured on that strand (extrapolated, guarded), because a profile from so few reads is dominated by the pseudocount and would make the alleles harder to tell apart. Integer >=1. |
+| `hybrid.hp_stutter_max_growth` | `3.0` | Cap on the per-base growth (and, inverted, the shrinkage) of each error value's share when a length is extrapolated log-linearly from the two nearest measured lengths. The default sits above the largest growth between adjacent measured lengths in the development panels (about 2.7, C6 to C7 deletion). `1.0` disables growth (the nearest profile shifted). Number >=1. |
+| `hybrid.hp_stutter_max_event_confusion` | `0.3` | Identifiability guard: an event-allele profile that is not measured (extrapolated or moved from another length) may put at most this share of its mass on the no-event run length; above it, that strand falls back to the `"shift"` rule. Where stutter saturates (real ONT "+" reads: deletion 10% at C6, 26% at C7 but 21% at a true C8) extrapolation would predict a C8 allele read as C7 about as often as C8, and a wild-type/dupC mixture could pass as a pure dupC. Development data: 0.03-0.19 on identifiable strands (simulated HiFi 0.17-0.19), 0.42-0.55 on saturating ONT "+" strands; the default lies between. `1.0` disables the guard. Number in [0,1]. |
+| `hybrid.hp_llr_min` | `10.0` | Minimum stutter-aware log-likelihood ratio for a homopolymer event; number strictly >0. |
+| `hybrid.hp_min_reads` | `20` | Minimum reads (`n`) before a homopolymer event can have a status other than `insufficient_depth`; integer >=1. |
+| `hybrid.hp_min_alt_frac` | `0.30` | Minimum alt-supporting fraction for a homopolymer event; number in [0,1]. |
+| `hybrid.hp_min_strand_reads` | `5` | A strand with at least this many reads must not show a negative homopolymer LLR, else the event is `discordant`; integer >=0. |
+| `hybrid.event_context_units` | `1.0` | Context, in repeat units (x the dictionary unit length), compared around a competition event's unit on each side; number >=0. |
+| `hybrid.event_min_reads` | `20` | Minimum reads (`n`) before a competition (non-homopolymer) event can have a status other than `insufficient_depth`; separate from `hp_min_reads` since 0.17.0 (same default); integer >=1. |
+| `hybrid.event_min_alt_frac` | `0.30` | Minimum share of reads favouring a competition event over every alternative; separate from `hp_min_alt_frac` since 0.17.0 (same default); number in [0,1]. |
+| `hybrid.event_max_alternative_frac` | `0.25` | Maximum estimated alternative share at the event site: `ref/n` for competition events, `1 - f_hat` of the event/no-event stutter mixture (length-aware, `hp_stutter_model`) for homopolymer events; above it the event is `discordant`; number in [0,1]. |
+
+#### Engine orchestration
+
+| Section.field | Default | Meaning and validation |
+| --- | --- | --- |
+| `hybrid.polish_max_reads` | `120` | Maximum spanning+partial members sampled per allele for polishing, and maximum reads (a seeded sample) polished into an event's read-derived alternative; integer >=1. |
+| `hybrid.polish_partial_min_units` | `1.0` | Minimum trimmed length, in repeat units, for an assigned non-spanning fragment to join the polishing pileup; number >=0. |
+| `hybrid.qc_residual_max_reads` | `200` | Maximum spanning members sampled per allele for residual QC; integer >=1. |
+| `hybrid.max_unassigned_spanning_fraction` | `0.2` | Above this fraction of spanning reads assigned to no allele, sample `selection_status` becomes `unresolved_unassigned_spanning`; number in [0,1]. |
+| `hybrid.seed` | `1` | Seed for `random.Random` used by every random choice in the engine (POA/phase-table/reassignment sampling); deterministic given the same reads and settings; integer >=0. |
+
+### Evidence fields
+
+Per-allele, `depth_status` is `adequate`/`low`/`insufficient` from
+`spanning_reads` alone (the genomic assay currently uses the **same**
+thresholds as amplicon; `--assay genomic` records the library type but does
+not lower them, so a low-molecule WGS run can legitimately show `low` or
+`insufficient` depth even when the pipeline behaves correctly). Sample
+`selection_status` is `"resolved"` or one of eight `"unresolved_*"` reasons
+(`unresolved_max_alleles`, `unresolved_single_site`,
+**`unresolved_group_size`** -- a linked-site split whose smaller group falls
+below `het_min_group` -- **`unresolved_run_site`** -- an unsplit single length
+peak with a homopolymer run above the `phase_run_safety_multiplier` floor --
+**`unresolved_strand_biased_site`** -- an unsplit single length peak with a
+column or insertion site whose minor allele clears the candidate floor
+(`het_af_min`, gap alleles `phase_gap_af_factor` x `het_af_min`) but was
+refused only by the strand-bias test (phase basis
+`unconfirmed_strand_biased_site`; never an event) --
+**`unresolved_run_minor`** -- an unsplit length peak (one or two peaks) with a
+homopolymer run whose minority length is significantly above the stutter its
+peer runs predict (`phase_run_minor_*`, phase basis `unconfirmed_run_minor`;
+never an event) -- `unresolved_rejected_peak`,
+`unresolved_unassigned_spanning`); any `unresolved_*` selection blocks a
+NEGATIVE result (`clinical_gates.allele_gate_reasons`) but does **not** block
+PATHOGENIC when the causative event has its own explicit read-level support --
+`compute_clinical_decision` only requires an unblocked mutation to reach
+PATHOGENIC, and adds unresolved-selection reasons to that banner as "Quality
+caveat" detail lines rather than withholding the call.
+
+`"not_assessed"` is a **ladder-engine** `selection_status`/`depth_status`
+value (`selection_qc.assess_allele`), used when alignment `fit_metrics` do
+not carry enough information to judge selection or depth; the shared
+`clinical_gates.depth_gate_failure` gate defers to the legacy total-read
+fallback only while *no* allele in the sample carries an assessed depth
+status. The hybrid engine always computes a per-allele `depth_status` from
+`spanning_reads`, so it never emits `"not_assessed"` and that legacy
+fallback never applies to a hybrid summary.
+
+**Read-support evidence contract** (`hybrid/evidence.py`): only the spanning
+reads assigned to the carrying allele, already oriented to its consensus,
+count -- an unassigned or off-target read contributes nothing. An event is
+`supported` only when those reads favour the event allele over *both* the
+no-event allele (the unit reverted to its dictionary parent) and the
+best read-derived alternative (the pileup/homopolymer-vote consensus of the
+reads that do not favour the event), not just over one of the two; a tie
+counts as neither. Homopolymer-run events (a single-base indel dictionary
+template inside a consensus run >= `hp_event_min_run`) are fit with a
+stutter-aware mixture instead of a raw vote: `event_allele_fraction` finds
+the maximum-likelihood weight of the event allele in
+`f * P(observed | event) + (1 - f) * P(observed | no-event)` over each
+read's observed run length, using a per-strand background stutter profile
+measured from the sample's other same-base, same-length runs; `1 - f_hat` is
+`alternative_frac`, gated by `event_max_alternative_frac`. Status is one of
+`supported`, `insufficient_depth` (`n < hp_min_reads` for a homopolymer
+event, `n < event_min_reads` for a competition event), `discordant`
+(alternative share too high for either kind; for a homopolymer event, also
+when a strand with >= `hp_min_strand_reads` reads shows a negative LLR),
+`not_supported` (LLR or alt fraction below threshold), or `not_localized`
+(the mutation's repeat unit or dictionary parent could not be found).
+
+`consensus_concordance_fraction` (per allele) is the hybrid engine's own
+read-support evidence: the mean, over every consensus position, of the
+fraction of covering reads whose base agrees with the consensus, from the
+same full/partial reads that built and polished that consensus
+(`hybrid.polish.consensus_concordance`). It is reported alongside
+`classification_confidence_status: "not_applicable_dictionary_fit_heuristic"`,
+because the ladder's `classify.py` `confidence`/`allele_confidence` (the
+dictionary-fit heuristic shown in `repeats.json`, the CLI's `confidence:`
+line and the HTML report's "Allele confidence" tile) is computed identically
+for both engines and carries no hybrid reconstruction evidence.
+
+## Inspect and validate settings
+
+`muconespan settings show` prints the effective settings as schema-1 JSON. The
+output loads back with `--config`, so it is a complete starting point for a
+custom file:
+
+```bash
+muconespan settings show > settings.json            # central defaults
+muconespan settings show --config my.json           # defaults merged with my.json
+muconespan settings show --section hybrid           # one section only
+```
+
+Without `--config` (either the command's own option or the global one placed
+before `settings`), it prints the central defaults. `--config` runs the same
+strict loader as `run`, so relative resource paths print as absolute paths
+resolved against the file's directory. `--section NAME` prints only
+`schema_version` and that section; the sections it omits keep their defaults
+when the output is loaded. `examples/runtime-settings.json` is the output of
+`muconespan settings show`, and a unit test keeps the two identical.
+
+`muconespan settings validate FILE` runs the strict loader on `FILE` without
+running anything else. A valid file prints a confirmation and exits 0. An
+invalid file (unknown or duplicate keys, a missing `schema_version`, wrong
+types, out-of-range values or malformed JSON) prints the loader's first error,
+naming the file, and exits non-zero:
+
+```bash
+muconespan settings validate settings.json
+```
+
+To choose values for these settings from benchmark data rather than by hand,
+see [Calibration](../benchmark.md#calibration). `benchsim calibrate` validates
+every grid point with this same loader, and `calibrate-report` writes a
+`recommended-config.json` that `--config` loads.
 
 ## Effective configuration and provenance
 

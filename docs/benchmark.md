@@ -97,8 +97,9 @@ and each profile (a known profile name) needs `depths`, `pcr_levels`,
 `offtarget_levels`. Set names match `[a-z][a-z0-9_]*`. `targets.by_set`
 likewise replaces the whole default map: each set's metric names must be one
 of `pathogenic_rate`, `inconclusive_rate`, `false_positive_rate`, each with a
-`comparator` (`ge`, `le`) and a `threshold` in `[0, 1]`, and each set named
-there must be defined in `sets.definitions`. `generate` reuses a
+`comparator` (`ge`, `le`), a `threshold` in `[0, 1]` and an optional `scope`
+(`pooled_and_profiles`, the default when omitted, or `pooled`), and each set
+named there must be defined in `sets.definitions`. `generate` reuses a
 completed case only if its design and generation hash match, and its simulator
 provenance matches too: the MucOneUp version (`muconeup_version`) and the
 SHA-256 of the base read profile (`base_profile_sha256`), the MucOneUp config
@@ -140,7 +141,7 @@ python scripts/benchsim.py --bench-config my-bench.json design --split dev --n 3
 | `report.alpha` | 0.05 | Decision rule and interval level |
 | `report.bootstrap_replicates`, `bootstrap_seed` | 2000, 0 | Cluster bootstrap |
 | `targets.basis` | point | How a target is judged: `point` estimate or `ci_bound` (Clopper-Pearson) |
-| `targets.by_set` | `standard`, `clean` (see [Decision rule](#decision-rule)) | Owner-approved absolute targets (`pathogenic_rate`, `inconclusive_rate`, `false_positive_rate`) per bench set; `stress` has none |
+| `targets.by_set` | `standard`, `clean` (see [Decision rule](#decision-rule)) | Owner-approved absolute targets (`pathogenic_rate`, `inconclusive_rate`, `false_positive_rate`) per bench set, each with a `scope` (`pooled_and_profiles` or `pooled`); `stress` has none |
 | `run.threads` | 4 | Default `run --threads` |
 | `atlas.decisions` | INCONCLUSIVE | Decisions the reason atlas covers (`PATHOGENIC`, `INCONCLUSIVE`, `NO_PATHOGENIC_VARIANT_DETECTED`, `NO_CALL`) |
 | `atlas.strata` | depth, smear, chimera, delta_class, event_position | Design factors tabulated per profile |
@@ -175,6 +176,12 @@ MucOneSpan-bench-data/
   test/first_evaluation.json     # written once, when test truth is first read
   results/<split>/<engine>/      # engine output, inventory, caller.json, evaluation.json
   results/<split>/report.json, report.md
+  calibration/<split>/<name>/    # `calibrate` / `calibrate-report` (dev and val only)
+    calibration.json             # inputs, hashes, seeds, versions, per-point status
+    <point sha256>/config.json   # the point's settings overlay
+    <point sha256>/results/<engine>/evaluation.json
+    calibration-report.json, calibration-report.md
+    recommended-config.json, recommended-config.provenance.json, recommended-grid.json
 ```
 
 ## Splits, seeds and sealing
@@ -207,8 +214,9 @@ SHA-256, registration and first-evaluation times) is copied into each
 
 ### Decision rule
 
-Adopt a candidate engine over the baseline only if **both** parts hold (v5,
-task 12e, task C1 owner ruling 2026-09-25).
+Adopt a candidate engine over the baseline only if **both** parts hold (v7,
+task 12e, task C1 owner ruling 2026-09-25, task 15o owner decision
+2026-09-27, task 15n owner decision 2026-09-28).
 
 **Part 1, the relative rule**, decided on the headline set
 (`sets.headline`, default `standard`) only: for every profile, the candidate
@@ -226,16 +234,30 @@ information only, and is judged solely by Part 2's absolute
 
 **Part 2, the absolute targets** (owner-approved 2026-09-25): the candidate
 alone (no baseline comparison) must clear a fixed floor or ceiling per bench
-set, pooled over every profile of that set and on each profile separately.
-Each target names a metric (`pathogenic_rate`, `inconclusive_rate` or
-`false_positive_rate`), a comparator (`ge` >=, `le` <=) and a threshold, in
-`targets.by_set`; a set absent from `targets.by_set` (or mapped to an empty
-object) is reported without a target, for example `stress`. The defaults:
+set. Each target names a metric (`pathogenic_rate`, `inconclusive_rate` or
+`false_positive_rate`), a comparator (`ge` >=, `le` <=), a threshold and a
+scope, in `targets.by_set`; a set absent from `targets.by_set` (or mapped to an
+empty object) is reported without a target, for example `stress`. The scope
+says where a target binds:
+
+- `pooled_and_profiles` (the default when `scope` is omitted, and the only
+  behaviour before v6): the rate pooled over every profile of the set **and**
+  each profile's own rate must clear the threshold.
+- `pooled`: only the pooled rate must clear it. Each profile's rate is still
+  computed and shown in the table, marked `info only`, and never fails the
+  set.
+
+The defaults (v6, owner decision 2026-09-27: the INCONCLUSIVE targets are a
+goal for the assay as a whole, so a profile is not held to them on its own;
+the false-positive target, the PATHOGENIC floors and the whole of Part 1,
+including the per-profile critical false-negative count, still bind per
+profile; v7, owner decision 2026-09-28: the pooled `clean` INCONCLUSIVE
+ceiling is 0.15 instead of 0.10):
 
 | Set | `pathogenic_rate` | `inconclusive_rate` | `false_positive_rate` |
 | --- | --- | --- | --- |
-| `standard` (headline) | >= 0.80 | <= 0.20 | <= 0 |
-| `clean` | >= 0.90 | <= 0.10 | <= 0 |
+| `standard` (headline) | >= 0.80, pooled and per profile | <= 0.20, pooled only | <= 0, pooled and per profile |
+| `clean` | >= 0.90, pooled and per profile | <= 0.15, pooled only | <= 0, pooled and per profile |
 | `stress` | no target | no target | no target |
 
 `targets.basis` decides how a target is judged: the pooled/per-profile point
@@ -245,14 +267,45 @@ bound for a `le` target) at `report.alpha`. A bench set named in
 `targets.by_set` with no candidate cases is reported as **not present**
 (`present: false`, `pass: null`), not as FAIL. It still blocks adoption, so a set
 the candidate was never run on cannot pass by default. `report` writes a pass/fail table per (bench set, grouping,
-metric) to `report.md` and `report.json` (`decision.targets`); adoption
-requires the relative rule **and** every target of every named set to pass.
+metric) to `report.md` and `report.json` (`decision.targets`). Each row has
+`scope` and `binding` (`report.md` column "gates verdict": `binding` or
+`info only`); a set passes when every binding row passes. Adoption requires
+the relative rule **and** every target of every named set to pass.
 
 The full rule text is `rule_text()` in `muc_one_span.benchsim.report`, built
 from the report and targets settings; its SHA-256 is what `preregister`
 records, so changing a report or targets setting (including a threshold,
-comparator, basis or a set's membership in `targets.by_set`) needs a new
-pre-registration.
+comparator, scope, basis or a set's membership in `targets.by_set`) needs a
+new pre-registration. The default v7 rule has SHA-256
+`c77d513fee890043d22276bff994f7aef8c21ef4d6323fb2d485a578f8c49274`. The
+default v6 rule had SHA-256
+`85c869a66928627fd21e0f8a0d6e0fb84fc2e90d24cead37647f135cf5bd6e2c`; it is
+reproducible only with the v6 template, i.e. from a checkout of commit
+`0184bd6` (`rule_sha256(RULE_TEXT)` there). At this commit a v6-shaped
+bench-config file (clean INCONCLUSIVE 0.10) renders the v7 template text, so
+its SHA-256 differs from both. The
+version label (`v7`) names the rule template, not the configured targets: a
+bench-config file with other targets or scopes renders the same label with its
+own numbers and scopes, so its SHA-256, not the label, identifies the rule.
+
+A bench-config file written before v6 names its targets without `scope`, so it
+still loads, but with every target binding per profile: its rule text differs
+from the default v6 text. To move a split that is still sealed (no
+`test/first_evaluation.json`) to v6, copy its bench-config file, add
+`"scope": "pooled"` to each `inconclusive_rate` target, and run `preregister`
+with that copy. The ledger line is appended; earlier lines stay. Then run
+`evaluate` and `report` with the same copy. The scope is not part of the
+generation hash, so every generated case stays valid. `bench_config_sha256`
+in `report.json` is the new file's hash and differs from the one recorded in
+the cases. Once `test` is unsealed, only the rule that unsealed it is
+accepted, so register v6 before the first `evaluate` or `realism` of `test`.
+
+A split registered under v6 moves to v7 the same way while it is still sealed:
+copy its bench-config file, change only
+`targets.by_set.clean.inconclusive_rate.threshold` to `0.15`, check that the
+copy's rule SHA-256 equals the default v7 SHA-256 above, and run `preregister`,
+then `evaluate` and `report`, with that copy. The threshold is not part of the
+generation hash either.
 
 ## Subcommands
 
@@ -317,7 +370,10 @@ been invoked is recorded as `execution_failed`; both statuses score as `NO_CALL`
 Each engine directory gets `caller.json` with the caller version and the Git
 commit of the checkout it ran from. `run` is not resumable: it runs
 every case again, so remove `results/<split>/<engine>/` before a clean rerun.
-`--jobs` times `--threads` is the approximate core use.
+`--jobs` times `--threads` is the approximate core use. `--config FILE`
+passes a runtime settings file to every run as `muconespan --config FILE`; the
+harness's explicit `--threads`, `--platform`, `--clair3-model` and `--engine`
+options still take precedence over the file.
 
 ```bash
 python scripts/benchsim.py run --manifest "$DATA/dev/manifest.jsonl" --engines ladder \
@@ -364,7 +420,8 @@ atlas per engine; `report.md` has one section per set and engine. Without
 headline-set cases the decision rule is not applied. When it is, `decision.targets`
 (`report.json`) and "Part 2: absolute targets" (`report.md`) hold the task
 12e pass/fail table: one row per (bench set, grouping, metric) of
-`targets.by_set`, pooled and per profile, for the candidate alone.
+`targets.by_set`, pooled and per profile, for the candidate alone; per-profile
+rows of a `pooled`-scope target are marked informational (`binding: false`).
 `report.json["targets"]` holds the same table for every reported engine and
 every targeted set, whether or not a decision was made. Without a decision,
 `report.md` shows it per engine as descriptive. A targeted set with no cases in
@@ -471,6 +528,189 @@ check is a known sim-to-real gap, not a reason to tune the caller. Report
 it with the benchmark results. In-house genomic targets can be loaded
 locally by path; they are never committed. `hifi_amplicon` has no target
 section and is reported without a verdict.
+
+## Calibration
+
+Every tunable caller setting (hybrid and ladder alike) is calibrated the same
+way: a grid over settings overlays is run and scored on `dev`, ranked under a
+selection rule declared as data, and the recommendation is confirmed on `val`.
+The sealed `test` split is refused by both commands, and so is `stress`.
+Nothing here changes shipped defaults: a default changes only in a separate,
+reviewed commit that cites the calibration report.
+
+### `calibrate`
+
+```bash
+python scripts/benchsim.py calibrate --split dev --engine hybrid \
+  --grid grid.json [--config base.json] [--name NAME] [--jobs N] \
+  --model-ont /path/to/model --model-hifi /path/to/model
+```
+
+`grid.json` maps dotted `section.field` settings keys to a list of values or
+to an inclusive range:
+
+```json
+{
+  "hybrid.smear_test_window_frac": [0.15, 0.25, 0.35],
+  "hybrid.het_af_min": {"min": 0.15, "max": 0.25, "step": 0.05}
+}
+```
+
+- Any `RuntimeSettings` section field can be a key. The harness sets
+  `run.engine` (from `--engine`), `run.platform`, `run.threads` and
+  `run.clair3_model` on every case, so those keys are refused.
+- Ranges use exact decimal steps and stay integers when all three bounds are
+  integers. An empty grid (`{}`) is the single base point, a baseline.
+- The grid points are the Cartesian product of the keys' values. Each point
+  becomes a complete schema-1 overlay: the effective base settings (`--config`,
+  or the built-in defaults, with resource paths made absolute), plus the point's
+  values, plus `run.engine`.
+- Every overlay goes through the same strict loader as `muconespan run
+  --config` **before the first run**. An unknown key, an invalid value or an
+  unknown engine stops the command without running anything.
+
+Each point is addressed by the SHA-256 of its canonical overlay JSON. It runs
+through the `run` machinery with `--config <point>/config.json` (writing the
+point's `results/<engine>/caller.json`, as `run` does), then through
+`evaluate`. Points are resumable. An `evaluated` point with its
+`evaluation.json` is reused on a rerun, and a `failed` point (for example, an
+interrupted run) is retried. `calibration.json` records:
+
+- the expanded grid and its hash;
+- the base config path and the hash of its effective settings;
+- the manifest path and SHA-256, and every design's `bio_seed` and `read_seed`;
+- the engine;
+- the MucOneSpan, MucOneUp and Python versions;
+- each point's status and evaluator exit code.
+
+A calibration name is bound to these inputs (including `--stage`, below).
+Rerunning a name with a different grid, base, engine, stage, manifest or
+version is refused; use a new `--name` (default: the grid file's stem). The
+command exits 1 when any point failed or the evaluator reported a nonzero
+exit.
+
+### `--stage lengths` (fast length-model calibration)
+
+```bash
+python scripts/benchsim.py calibrate --split dev --engine hybrid --stage lengths \
+  --grid grid.json [--config base.json] [--name NAME]
+```
+
+`--stage lengths` fits only the hybrid length model (`hybrid.spans`'s S1
+anchor search, `hybrid.lengths`'s S2 peak fitting, the `hybrid.smear`
+significance test) on each case's spanning reads: no consensus, phasing or
+calling runs, so a smear/peak threshold sweep takes seconds instead of a full
+pipeline run per point. It needs `--engine hybrid` (the length model is a
+hybrid-engine concept) and is refused otherwise before any point runs.
+
+Only the settings that model actually reads are valid grid keys: the S1
+anchor-search settings (`anchor_max_edits`, `min_span_units`,
+`max_span_units`, `flank_anchor_*`), the S2 peak-fitting settings
+(`peak_window_*`, `kde_*`, `peak_min_separation_units`,
+`rejected_peak_noise_reads`, `smear_short_product_units`,
+`peak_far_near_boundary_units`, `far_peak_min_frac`, `near_peak_min_frac`,
+`min_peak_reads`) and the smear significance-test settings (`smear_test_*`,
+`smear_background_*`) -- `calibration_grid.LENGTH_STAGE_KEYS` is the exact
+list. Any other key (a POA, polish, phase or event-support setting, for
+example) is refused before any point runs.
+
+Each point's `evaluation.json` scores, per case, against the case truth
+(`load_truth`, no observation/caller output involved):
+
+| Metric | Kind | Definition |
+| --- | --- | --- |
+| `allele_count_exact` | rate | cases where the accepted peak count equals the truth's distinct allele-length count |
+| `allele_length_exact` | rate | truth allele lengths matched by an accepted peak, over all truth allele lengths |
+| `case_length_exact` | rate | cases with every truth length matched and no unmatched peaks |
+| `cases`, `not_completed` | count | case counts |
+| `false_alleles`, `missed_alleles` | count | unmatched accepted peaks / unmatched truth lengths, summed over the calibration |
+
+A truth length is matched to a peak within `hybrid.lengths.window_bp` of that
+point's own settings (the same tolerance the engine uses to assign a read to
+a peak), not a hardcoded default. `smear_ambiguous` is not a built-in metric:
+declare it as a `reason_metrics` entry against `reconstruction_flags` in the
+objective, exactly like the full pipeline's `smear_ambiguous_rate` example
+below. `calibrate-report` ranks and recommends a `--stage lengths`
+calibration exactly like a full one (same resume, content addressing,
+ranking and `recommended-config.json`/`.provenance.json`/
+`recommended-grid.json`); only the metric names an objective may reference
+differ.
+
+### `calibrate-report`
+
+```bash
+python scripts/benchsim.py calibrate-report --split dev --name NAME --objective objective.json
+```
+
+`objective.json` declares the selection rule. The code sets no default
+threshold or ranking. The metric table below is for a full-pipeline
+calibration (the default `--stage full`); a `--stage lengths` calibration's
+objective uses the metrics of the previous section instead.
+
+```json
+{
+  "schema_version": 1,
+  "constraints": {
+    "clinical_false_negative": {"max": 0},
+    "smear_ambiguous_rate": {"max": 0.1}
+  },
+  "rank": ["-per_allele_exact", "inconclusive_rate"],
+  "reason_metrics": {"smear_ambiguous_rate": "smear_ambiguous"},
+  "bench_sets": ["standard"]
+}
+```
+
+| Metric | Kind | Definition |
+| --- | --- | --- |
+| `per_allele_exact` | rate | exact truth alleles over all truth alleles (metric 1) |
+| `case_exact` | rate | cases with every allele exact (metric 2) |
+| `inconclusive_rate`, `no_call_rate`, `failure_rate` | rate | over all cases |
+| `false_positive_rate` | rate | PATHOGENIC over `normal` and `benign` truths |
+| `critical_false_negative_rate` | rate | negative or NO_CALL over `pathogenic` truths |
+| `cases`, `clinical_false_negative`, `false_positive`, `not_completed` | count | case counts |
+| `reason_metrics` entries | rate | cases whose clinical reasons or reconstruction flags contain the token |
+
+- **Constraints.** A constraint takes `min` and/or `max`. For a rate, `"on":
+  "ci_low"` or `"ci_high"` judges an interval bound instead of the point value.
+  A rate whose cohort is empty fails any constraint on it.
+- **Rates.** Rates carry `1 - report.alpha` cluster-bootstrap intervals over
+  cases. They use the `report` settings of the bench config (replicates, seed),
+  the same statistics as `report`.
+- **Filtering.** `bench_sets` (optional) restricts the rows to those sets.
+- **Ranking.** Points rank feasible first, then by the `rank` terms in order. A
+  `-` prefix means higher is better, and a missing value ranks last. Ties break
+  by point hash.
+
+The command writes these files next to `calibration.json`:
+
+- `calibration-report.json` and `calibration-report.md`: every point's values,
+  metrics with CIs, violations and rank, the objective hash and the hash of the
+  calibration inputs.
+- `recommended-config.json`: the best feasible point's overlay, byte for byte.
+  It is loadable by `muconespan --config recommended-config.json run ...`.
+- `recommended-config.provenance.json`: the provenance of the recommendation.
+  It holds the grid, objective, split, engine, point values and metrics,
+  hashes and versions. It is a sidecar because the strict settings loader
+  refuses unknown fields in the config itself.
+- `recommended-grid.json`: the recommended values as a single-point grid.
+
+The command exits 1 and removes stale recommendation files when no point is
+feasible.
+
+### Confirmation on `val`
+
+```bash
+python scripts/benchsim.py calibrate --split val --engine hybrid --config base.json \
+  --grid "$DATA/calibration/dev/NAME/recommended-grid.json" --name NAME
+python scripts/benchsim.py calibrate-report --split val --name NAME \
+  --objective objective.json --shift-from NAME
+```
+
+With the same base config, the confirmation point has the same overlay hash
+as the dev point. `--shift-from NAME` (only with `--split val`) adds a
+dev → val table: for every objective metric of each point, the dev value, the
+val value and their difference. A val point that has no dev point with the
+same hash is listed as unmatched.
 
 ## What may be committed
 

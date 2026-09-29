@@ -164,6 +164,7 @@ nav:
   - Guides:
     - Development: development.md
     - Runtime Configuration: guides/configuration.md
+    - Migrating to 0.17.0: guides/migration.md
     - Simulation Experiments: guides/simulation-experiments.md
     - Validation Results: guides/validation-results.md
     - Clinical Validation & Benchmark: guides/clinical-validation-results.md

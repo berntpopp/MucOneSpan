@@ -111,8 +111,8 @@ def _edlib() -> ModuleType:
         return importlib.import_module("edlib")
     except ImportError as exc:
         raise ImportError(
-            "realism metrics need edlib; install the optional extra "
-            "'muc-one-span[bench]' (uv sync --extra bench)"
+            "realism metrics need edlib, a core dependency of muc_one_span; "
+            "the installation is incomplete, reinstall the package"
         ) from exc
 
 
@@ -270,7 +270,7 @@ def read_metrics(
         `spanning_frac`, `n_aligned` (scored spanning reads) and `n_reads`.
 
     Raises:
-        ImportError: If edlib (extra `bench`) is not installed.
+        ImportError: If edlib (a core dependency) is missing from the installation.
         ValueError: If a truth read is missing from the FASTQ or its
             haplotype has no source sequence or VNTR bounds.
     """

@@ -8,6 +8,8 @@
 
 MucOneSpan analyzes MUC1 VNTR long-read amplicon data from PacBio HiFi and ONT sequencing. It draws on some ideas from Vrbacka et al. (2025). Features include **indel-valley allele splitting**, **mutation template matching**, and **per-repeat confidence scoring**.
 
+Since 0.17.0 `muconespan run` uses the read-centric **hybrid engine** by default: it reconstructs each allele from the reads and scores each mutation against the reads of its allele, without minimap2 or Clair3. The ladder engine described under Key Features is deprecated (`--engine ladder`); see the [migration guide](guides/migration.md).
+
 Start with the [installation guide](getting-started/installation.md) or [quickstart](getting-started/quickstart.md).
 
 ### Why MucOneSpan?
@@ -53,9 +55,7 @@ Clair3 variant calls are cross-referenced against repeat classifications to adju
 ```bash
 muconespan run \
   --input reads.fastq \
-  --output-dir results/ \
-  --clair3-model /path/to/clair3/models/hifi \
-  --threads 8
+  --output-dir results/
 ```
 
 **Output:** Per-allele VNTR structure, mutation calls with exact repeat position, and confidence scores.

@@ -1,11 +1,11 @@
-"""benchsim.targets: absolute-target pass/fail evaluation (task 12e)."""
+"""benchsim.targets: absolute-target pass/fail evaluation."""
 
 from dataclasses import replace
 from typing import Any
 
 import pytest
 
-from muc_one_span.benchsim.bench_config import DEFAULT_BENCH_CONFIG, TargetsConfig
+from muc_one_span.benchsim.bench_config import DEFAULT_BENCH_CONFIG, Target, TargetsConfig
 from muc_one_span.benchsim.targets import _cohort, evaluate_targets, render_targets, targets_text
 
 CFG = DEFAULT_BENCH_CONFIG.targets
@@ -115,6 +115,8 @@ def test_evaluate_targets_empty_cohort_fails_with_a_reason() -> None:
         "ci_high": None,
         "judged": None,
         "pass": False,
+        "scope": "pooled_and_profiles",
+        "binding": True,
         "reason": "no cases in this cohort",
     }
 
@@ -199,3 +201,103 @@ def test_targets_by_set_marks_an_absent_set_not_present() -> None:
     assert "| clean | - | - | - | 0 cases | n/a | n/a | not present |" in text
     assert "Set verdict: standard=True, clean=not present" in text
     assert "FAIL" not in text and "clean=False" not in text
+
+
+# Decision rule v6 onwards: a "pooled"-scope target gates on the pooled row only.
+# One profile at 2/3 INCONCLUSIVE (> 0.20) while the pooled rate is 2/12 (<= 0.20).
+SCOPE_ROWS = [
+    ("ont_genomic_targeted", "pathogenic", "INCONCLUSIVE"),
+    ("ont_genomic_targeted", "normal", "INCONCLUSIVE"),
+    ("ont_genomic_targeted", "normal", "NO_PATHOGENIC_VARIANT_DETECTED"),
+    *[("ont_amplicon_r10", "pathogenic", "PATHOGENIC")] * 5,
+    *[("ont_amplicon_r10", "normal", "NO_PATHOGENIC_VARIANT_DETECTED")] * 4,
+]
+
+
+def _scope_cfg() -> TargetsConfig:
+    """Only the INCONCLUSIVE target, so the verdict isolates its scope."""
+    return TargetsConfig(by_set={"standard": {"inconclusive_rate": Target("le", 0.20, "pooled")}})
+
+
+def _row_of(result: dict[str, Any], grouping: str, metric: str) -> dict[str, Any]:
+    return next(r for r in result["table"] if r["grouping"] == grouping and r["metric"] == metric)
+
+
+def test_pooled_scope_target_ignores_a_failing_profile() -> None:
+    result = evaluate_targets(_rows(SCOPE_ROWS), "standard", _scope_cfg(), ALPHA)
+    assert result is not None and result["pass"] is True
+    pooled = _row_of(result, "pooled", "inconclusive_rate")
+    assert (pooled["k"], pooled["n"], pooled["pass"], pooled["binding"]) == (2, 12, True, True)
+    profile = _row_of(result, "ont_genomic_targeted", "inconclusive_rate")
+    # Still computed and shown, but informational: it does not fail the verdict.
+    assert (profile["k"], profile["n"], profile["pass"]) == (2, 3, False)
+    assert profile["binding"] is False and profile["scope"] == "pooled"
+
+
+def test_pooled_scope_target_still_fails_on_the_pooled_rate() -> None:
+    rows = _rows([*SCOPE_ROWS, *[("ont_amplicon_r10", "normal", "INCONCLUSIVE")] * 2])
+    result = evaluate_targets(rows, "standard", _scope_cfg(), ALPHA)
+    assert result is not None and result["pass"] is False
+    assert _row_of(result, "pooled", "inconclusive_rate")["pass"] is False
+
+
+def test_pooled_and_profiles_scope_still_gates_every_profile() -> None:
+    by_set = {"standard": {"inconclusive_rate": Target("le", 0.20, "pooled_and_profiles")}}
+    result = evaluate_targets(_rows(SCOPE_ROWS), "standard", TargetsConfig(by_set=by_set), ALPHA)
+    assert result is not None and result["pass"] is False
+    assert _row_of(result, "ont_genomic_targeted", "inconclusive_rate")["binding"] is True
+
+
+def test_default_targets_gate_fp_and_pathogenic_per_profile_but_not_inconclusive() -> None:
+    result = evaluate_targets(_rows(SCOPE_ROWS), "standard", CFG, ALPHA)
+    assert result is not None
+    binding = {(r["grouping"], r["metric"]): r["binding"] for r in result["table"]}
+    assert binding[("ont_genomic_targeted", "inconclusive_rate")] is False
+    assert binding[("ont_genomic_targeted", "pathogenic_rate")] is True
+    assert binding[("ont_genomic_targeted", "false_positive_rate")] is True
+    assert all(binding[("pooled", m)] for m in CFG.by_set["standard"])
+
+
+def test_render_targets_marks_informational_rows() -> None:
+    result = evaluate_targets(_rows(SCOPE_ROWS), "standard", _scope_cfg(), ALPHA)
+    assert result is not None
+    text = render_targets({"standard": result})
+    assert "| standard | ont_genomic_targeted | inconclusive_rate |" in text
+    assert "| False | info only |" in text and "| True | binding |" in text
+    assert "Set verdict: standard=True" in text
+
+
+def test_targets_text_states_the_scope_of_every_target() -> None:
+    text = targets_text(CFG)
+    assert "inconclusive_rate <= 0.2 (pooled only; per-profile rates for information)" in text
+    assert "pathogenic_rate >= 0.8 (pooled and per profile)" in text
+    assert "false_positive_rate <= 0 (pooled and per profile)" in text
+
+
+def test_render_targets_omits_the_info_only_note_without_informational_rows() -> None:
+    # The note explains `info only` rows, so it appears only with one.
+    per_profile = TargetsConfig(
+        by_set={"standard": {"inconclusive_rate": Target("le", 0.20, "pooled_and_profiles")}}
+    )
+    result = evaluate_targets(_rows(SCOPE_ROWS), "standard", per_profile, ALPHA)
+    assert result is not None
+    text = render_targets({"standard": result})
+    assert "info only" not in text
+    scoped = evaluate_targets(_rows(SCOPE_ROWS), "standard", _scope_cfg(), ALPHA)
+    assert scoped is not None
+    assert "Rows marked `info only`" in render_targets({"standard": scoped})
+
+
+def test_targets_text_names_an_unknown_scope_instead_of_raising() -> None:
+    # Like the basis text, an unlisted scope is rendered verbatim (the
+    # loader rejects it; a dataclass mutated after validation must not raise KeyError).
+    cfg = _scope_cfg()
+    cfg.by_set["standard"]["inconclusive_rate"] = Target("le", 0.20, "custom_scope")
+    assert "inconclusive_rate <= 0.2 (custom_scope)" in targets_text(cfg)
+
+
+def test_targets_text_states_the_v7_clean_inconclusive_ceiling() -> None:
+    # Owner decision 2026-09-28 (task 15n, rule v7): pooled clean INCONCLUSIVE <= 0.15.
+    text = targets_text(CFG)
+    assert "`clean` requires false_positive_rate <= 0 (pooled and per profile), " in text
+    assert "inconclusive_rate <= 0.15 (pooled only; per-profile rates for information)" in text

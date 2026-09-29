@@ -10,10 +10,10 @@ MucOneSpan analyzes the MUC1 VNTR from PacBio HiFi and Oxford Nanopore amplicon 
 ## Install
 
 ```bash
-pip install 'muc_one_span[report] @ git+https://github.com/berntpopp/MucOneSpan.git@v0.13.0'
+pip install 'muc_one_span[report] @ git+https://github.com/berntpopp/MucOneSpan.git@v0.17.0'
 ```
 
-The pipeline also requires minimap2, samtools, bcftools, and Clair3. See the [installation guide](https://berntpopp.github.io/MucOneSpan/getting-started/installation/) for setup and container options.
+The default hybrid engine needs no external tool for FASTQ input (`samtools` for BAM input). Its POA library `pyabpoa` builds from source and needs a C compiler and zlib. See the [installation guide](https://berntpopp.github.io/MucOneSpan/getting-started/installation/) for setup and container options.
 
 ## Run
 
@@ -21,12 +21,12 @@ The pipeline also requires minimap2, samtools, bcftools, and Clair3. See the [in
 muconespan run \
   --input reads.fastq \
   --output-dir results/ \
-  --clair3-model /path/to/clair3/models/hifi \
-  --threads 8 \
   --report
 ```
 
-For Oxford Nanopore reads, add `--platform ont` and use a matching Clair3 model.
+Since 0.17.0, `muconespan run` uses the read-centric **hybrid engine** by default for PacBio HiFi and ONT reads, amplicon and genomic input (`--assay` is recorded for provenance only). The hybrid engine needs no platform setting and runs single-threaded; the ladder-only options (`--platform`, `--threads`, `--min-coverage`, `--mapping-timeout`, `--reference`, `--clair3-model`, `--min-qual`, `--minimap2-preset`) are ignored with a warning and recorded in `summary.json["ignored_options"]`. For a WGS BAM, pass a BAM already subset to the MUC1 region: the hybrid engine streams every read of the BAM.
+
+The ladder engine (minimap2, Clair3 and bcftools) is **deprecated**: `--engine ladder` still works, prints a warning and records it in `summary.json`; it will be removed in a later release. See the [migration guide](https://berntpopp.github.io/MucOneSpan/guides/migration/) and the [configuration guide](https://berntpopp.github.io/MucOneSpan/guides/configuration/#hybrid-engine).
 
 ## Acknowledgment
 

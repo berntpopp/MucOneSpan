@@ -15,7 +15,7 @@ from __future__ import annotations
 
 import hashlib
 import json
-from dataclasses import asdict, dataclass, field, fields, is_dataclass
+from dataclasses import MISSING, asdict, dataclass, field, fields, is_dataclass
 from pathlib import Path
 from typing import Any
 
@@ -30,9 +30,12 @@ from .bench_sets import SetsConfig
 __all__ = [
     "ERROR_LEVEL_NAMES",
     "PCR_LEVEL_NAMES",
+    "SCOPE_POOLED",
+    "SCOPE_POOLED_AND_PROFILES",
     "TARGET_BASIS_NAMES",
     "TARGET_COMPARATOR_NAMES",
     "TARGET_METRIC_NAMES",
+    "TARGET_SCOPE_NAMES",
     "SetsConfig",
     "Target",
     "TargetsConfig",
@@ -69,6 +72,12 @@ DEPTH_BASIS_NAMES = ("design", "realized_min_allele")
 TARGET_METRIC_NAMES = ("pathogenic_rate", "inconclusive_rate", "false_positive_rate")
 TARGET_COMPARATOR_NAMES = ("ge", "le")
 TARGET_BASIS_NAMES = ("point", "ci_bound")
+# Groupings a target binds on (task 15o, decision rule v6): the pooled set and every
+# profile, or the pooled set only (per-profile rates then shown for information). The first
+# (`SCOPE_POOLED_AND_PROFILES`) is the default, the behaviour of targets written before
+# scopes existed.
+SCOPE_POOLED_AND_PROFILES, SCOPE_POOLED = "pooled_and_profiles", "pooled"
+TARGET_SCOPE_NAMES = (SCOPE_POOLED_AND_PROFILES, SCOPE_POOLED)
 # Sections that shape generated cases (designs, amounts, read profiles, structures).
 # With the case's own set levels (`BenchConfig.generation_sha256`) their hash decides
 # whether `generate` may reuse a case; report, realism, run and atlas settings, set
@@ -301,12 +310,16 @@ class Target:
     """One absolute pass/fail check (task 12e): the judged value `comparator` `threshold`.
 
     ``comparator`` is ``"ge"`` (>=, a rate floor such as PATHOGENIC-on-pathogenic) or
-    ``"le"`` (<=, a rate ceiling such as INCONCLUSIVE or false-positive). Validated by
-    `_check_targets`, which has the enclosing bench set and metric name for its errors.
+    ``"le"`` (<=, a rate ceiling such as INCONCLUSIVE or false-positive). ``scope``
+    (`TARGET_SCOPE_NAMES`, task 15o) is where the target binds: ``"pooled_and_profiles"``
+    (the default) on the pooled set and on each profile, ``"pooled"`` on the pooled set
+    only, with each profile's rate still computed and reported for information. Validated
+    by `_check_targets`, which has the enclosing bench set and metric name for its errors.
     """
 
     comparator: str
     threshold: float
+    scope: str = SCOPE_POOLED_AND_PROFILES
 
 
 def _check_targets(set_name: str, metrics: Any) -> None:
@@ -322,6 +335,8 @@ def _check_targets(set_name: str, metrics: Any) -> None:
         if target.comparator not in TARGET_COMPARATOR_NAMES:
             raise ValueError(f"{where}.comparator must be one of {TARGET_COMPARATOR_NAMES!r}")
         _num(f"{where}.threshold", target.threshold, 0, 1)
+        if target.scope not in TARGET_SCOPE_NAMES:
+            raise ValueError(f"{where}.scope must be one of {TARGET_SCOPE_NAMES!r}")
 
 
 @dataclass(frozen=True)
@@ -334,7 +349,11 @@ class TargetsConfig:
     upper bound for ``"le"``). ``by_set`` names, for each bench set, the metrics that gate
     `report.decide`'s adoption verdict; a set absent from `by_set` (or mapped to an empty
     object) is reported without a target, for example `stress`. Like `sets.definitions`,
-    overriding `by_set` in a bench-config file replaces the whole map.
+    overriding `by_set` in a bench-config file replaces the whole map. The defaults
+    (decision rule v6, owner decision 2026-09-27) bind `inconclusive_rate` on the pooled
+    set only; `pathogenic_rate` and `false_positive_rate` bind pooled and per profile.
+    Decision rule v7 (owner decision 2026-09-28) raises the pooled `clean`
+    `inconclusive_rate` ceiling from 0.10 to 0.15; everything else is as in v6.
     """
 
     basis: str = "point"
@@ -342,12 +361,12 @@ class TargetsConfig:
         default_factory=lambda: {
             "standard": {
                 "pathogenic_rate": Target("ge", 0.80),
-                "inconclusive_rate": Target("le", 0.20),
+                "inconclusive_rate": Target("le", 0.20, SCOPE_POOLED),
                 "false_positive_rate": Target("le", 0.0),
             },
             "clean": {
                 "pathogenic_rate": Target("ge", 0.90),
-                "inconclusive_rate": Target("le", 0.10),
+                "inconclusive_rate": Target("le", 0.15, SCOPE_POOLED),
                 "false_positive_rate": Target("le", 0.0),
             },
         }
@@ -494,18 +513,26 @@ def _unique(pairs: list[tuple[str, Any]]) -> dict[str, Any]:
 def _coerce(default: Any, value: Any, name: str) -> Any:
     """JSON value shaped like the default: lists -> tuples, dict values likewise.
 
-    A dataclass default (a benchmark set, its per-profile levels) needs a JSON
-    object with every field and no others.
+    A dataclass default (a benchmark set, its per-profile levels, a target) needs a
+    JSON object with every field that has no dataclass default, and no unknown field.
+    An omitted field with a dataclass default takes that default (not the sample's
+    value), as a target's ``scope`` does in a file written before scopes existed.
     """
     if is_dataclass(default) and not isinstance(default, type):
         if not isinstance(value, dict):
             raise ValueError(f"{name} must be a JSON object")
         known = {f.name for f in fields(default)}
+        required = {
+            f.name for f in fields(default) if f.default is MISSING and f.default_factory is MISSING
+        }
         if value.keys() - known:
             raise ValueError(f"unknown {name} fields: {', '.join(sorted(value.keys() - known))}")
-        if known - value.keys():
-            raise ValueError(f"{name}: missing fields: {', '.join(sorted(known - value.keys()))}")
-        coerced = {k: _coerce(getattr(default, k), value[k], f"{name}.{k}") for k in known}
+        if required - value.keys():
+            missing = ", ".join(sorted(required - value.keys()))
+            raise ValueError(f"{name}: missing fields: {missing}")
+        coerced = {
+            k: _coerce(getattr(default, k), value[k], f"{name}.{k}") for k in known & value.keys()
+        }
         return type(default)(**coerced)
     if isinstance(default, tuple):
         if not isinstance(value, list):

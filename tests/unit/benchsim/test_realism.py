@@ -178,11 +178,14 @@ def test_aggregate_medians_rates_pools_counts_fits_slope(tmp_path: Path, edlib: 
     assert empty["log_ratio_slope"] is None and empty["error_rate"]["all"] is None
 
 
-def test_missing_edlib_names_extra(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+def test_missing_edlib_is_a_broken_core_install(
+    tmp_path: Path, monkeypatch: pytest.MonkeyPatch
+) -> None:
     monkeypatch.setitem(sys.modules, "edlib", None)
     rows = [_row("r1", 1, "full", "+", 0, len(SRC))]
-    with pytest.raises(ImportError, match=r"muc-one-span\[bench\]"):
+    with pytest.raises(ImportError, match="core dependency") as err:
         read_metrics(_fq(tmp_path / "r.fq", [("r1", SRC)]), rows, {1: SRC}, WHOLE)
+    assert "bench" not in str(err.value)
 
 
 def test_unknown_read_and_missing_source_rejected(tmp_path: Path, edlib: object) -> None:

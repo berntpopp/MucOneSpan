@@ -3,13 +3,24 @@
 from __future__ import annotations
 
 import json
+from functools import partial
 from pathlib import Path
+from typing import TYPE_CHECKING, Any
 
 import click
 
 from muc_one_span.cli_settings import effective_run_settings, write_run_configuration
+from muc_one_span.deprecations import (
+    LADDER_ENGINE,
+    explicit_command_line_options,
+    ignored_options,
+    warn_deprecations,
+    warn_ignored,
+)
 from muc_one_span.settings import DEFAULT_SETTINGS, RuntimeSettings
-from muc_one_span.version import __version__
+
+if TYPE_CHECKING:
+    from muc_one_span.config import RepeatDictionary
 
 
 def execute_pipeline(
@@ -28,18 +39,19 @@ def execute_pipeline(
     mapping_timeout: float | None = None,
     settings: RuntimeSettings | None = None,
     configuration: Path | None = None,
+    engine: str | None = None,
+    assay: str | None = None,
 ) -> None:
     """Run the full MucOneSpan pipeline."""
     from muc_one_span.alleles import detect_alleles, parse_idxstats
     from muc_one_span.calling import call_variants_per_allele
-    from muc_one_span.classify import classify_sequence
     from muc_one_span.cli import PLATFORM_PRESETS, _bundled_reference
     from muc_one_span.config import load_repeat_dictionary
     from muc_one_span.consensus import build_consensus_per_allele
     from muc_one_span.mapping import get_idxstats, map_reads
+    from muc_one_span.pipeline_tail import finish_run
     from muc_one_span.selection_qc import annotate_selection_qc
     from muc_one_span.tools import check_tools, get_tool_versions
-    from muc_one_span.vcf import parse_vcf_variants
 
     out = Path(output_dir)
     out.mkdir(parents=True, exist_ok=True)
@@ -66,12 +78,18 @@ def execute_pipeline(
         mapping_timeout=mapping_timeout
         if mapping_timeout is not None
         else (settings or DEFAULT_SETTINGS).run.mapping_timeout,
+        **{k: v for k, v in (("engine", engine), ("assay", assay)) if v is not None},
     )
-    if reference is None and (
-        settings.repeat_dictionary is not None
-        or settings.reference_layout.pre != DEFAULT_SETTINGS.reference_layout.pre
-        or settings.reference_layout.after != DEFAULT_SETTINGS.reference_layout.after
-        or settings.consensus.flank_length != DEFAULT_SETTINGS.consensus.flank_length
+    # Only the ladder aligns to a reference FASTA; the hybrid engine builds its own.
+    if (
+        reference is None
+        and settings.run.engine == LADDER_ENGINE
+        and (
+            settings.repeat_dictionary is not None
+            or settings.reference_layout.pre != DEFAULT_SETTINGS.reference_layout.pre
+            or settings.reference_layout.after != DEFAULT_SETTINGS.reference_layout.after
+            or settings.consensus.flank_length != DEFAULT_SETTINGS.consensus.flank_length
+        )
     ):
         raise click.BadParameter(
             "A configured dictionary, reference layout or flank length requires an explicit matching reference.",
@@ -85,9 +103,21 @@ def execute_pipeline(
         settings.consensus.validate_flanks(rd.flanking_left, rd.flanking_right)
     except ValueError as exc:
         raise click.BadParameter(str(exc), param_hint="--config") from exc
+    if settings.run.engine != LADDER_ENGINE and settings.run.report_igv != "off":
+        raise click.BadParameter(
+            f"IGV tracks are not available for the {settings.run.engine} engine; use "
+            "--engine ladder (deprecated) or --report-igv off",
+            param_hint="--report-igv",
+        )
+    ignored = ignored_options(settings, explicit_command_line_options())
+    warn_deprecations(settings)
+    warn_ignored(ignored)
     configuration_record = write_run_configuration(
-        settings, configuration, Path(input_path), ref, out
+        settings, configuration, Path(input_path), ref, out, ignored_options=ignored
     )
+    if settings.run.engine == "hybrid":
+        _run_hybrid(out, input_path, rd, settings, configuration_record, report)
+        return
     igv_requested = settings.run.report_igv != "off"
     check_tools(
         ["minimap2", "samtools", "bcftools", "run_clair3.sh"]
@@ -150,80 +180,58 @@ def execute_pipeline(
         reference_layout=settings.reference_layout,
     )
 
-    # Step 5: Classify repeats
-    click.echo("Step 5/5: Classifying repeats...")
-    from muc_one_span.classify import validate_mutations_against_vcf
+    finish_run(
+        out=out,
+        input_path=input_path,
+        rd=rd,
+        settings=settings,
+        alleles_result=alleles_result,
+        consensus_paths=consensus_paths,
+        vcf_paths=vcf_paths,
+        tool_versions=tool_versions,
+        configuration_record=configuration_record,
+        report=report,
+        bam_path=bam,
+        fasta_path=ref,
+    )
 
-    all_results: dict[str, dict] = {}
-    for allele_key, fa_path in consensus_paths.items():
-        fa_lines = fa_path.read_text().strip().splitlines()
-        sequence = "".join(line for line in fa_lines if not line.startswith(">"))
-        result = classify_sequence(sequence, rd, settings=settings.classification)
 
-        # VCF-backed validation if VCF available
-        if allele_key in vcf_paths:
-            vcf_variants = parse_vcf_variants(vcf_paths[allele_key])
-            result = validate_mutations_against_vcf(
-                result,
-                vcf_variants=vcf_variants,
-                sequence=sequence,
-                repeat_dict=rd,
-                consensus_context=alleles_result[allele_key].get("consensus_context"),
-                settings=settings.confidence,
-            )
+def _run_hybrid(
+    out: Path,
+    input_path: str,
+    rd: RepeatDictionary,
+    settings: RuntimeSettings,
+    configuration_record: dict[str, Any],
+    report: bool,
+) -> None:
+    """Hybrid engine: no mapping, Clair3 or VCF; evidence comes from the reads."""
+    from muc_one_span.hybrid.engine import (
+        annotate_read_support,
+        extra_versions,
+        reconstruct_alleles,
+    )
+    from muc_one_span.pipeline_tail import finish_run
+    from muc_one_span.tools import check_tools
 
-        all_results[allele_key] = result
-        click.echo(f"  {allele_key}: {result['structure']}")
-        if result.get("allele_confidence") is not None:
-            click.echo(f"    confidence: {result['allele_confidence']:.2f}")
-
-    (out / "alleles.json").write_text(json.dumps(alleles_result, indent=2) + "\n")
-
-    # Write combined outputs
-    (out / "repeats.json").write_text(json.dumps(all_results, indent=2) + "\n")
-    structures = {k: v["structure"] for k, v in all_results.items()}
-    (out / "repeats.txt").write_text("\n".join(f"{k}: {v}" for k, v in structures.items()) + "\n")
-
-    # Summary
-    summary = {
-        "run_status": {"status": "analysis_completed"},
-        "alleles": alleles_result,
-        "classifications": {
-            k: {
-                "structure": v["structure"],
-                "mutations": v["mutations_detected"],
-                "reconstruction_status": v.get("reconstruction_status", "unverified"),
-                "ambiguous_bases": v.get("ambiguous_bases", 0),
-                "classification_coverage": v.get("classification_coverage"),
-                "vcf_projection": v.get("vcf_projection"),
-                "confidence_semantics": "heuristic_dictionary_fit_not_probability",
-            }
-            for k, v in all_results.items()
-        },
-        "tool_versions": tool_versions,
-        "pipeline_version": __version__,
-        "configuration": configuration_record,
-    }
-    (out / "summary.json").write_text(json.dumps(summary, indent=2) + "\n")
-
-    effective_igv = settings.run.report_igv
-    if report or effective_igv != "off":
-        from muc_one_span.report import generate_report
-
-        report_path = out / "report.html"
-        generate_report(
-            summary,
-            report_path,
-            sample_name=Path(input_path).stem,
-            detailed_repeats=all_results,
-            report_igv=effective_igv,
-            bam_path=bam,
-            vcf_paths=vcf_paths,
-            fasta_path=ref,
-            execution_status={"status": "analysis_completed"},
-        )
-        click.echo(f"Report: {report_path}")
-
-    summary["run_status"] = {"status": "completed"}
-    (out / "summary.json").write_text(json.dumps(summary, indent=2) + "\n")
-    click.echo("Pipeline complete.")
+    check_tools(["samtools"] if Path(input_path).suffix == ".bam" else [])
+    click.echo("Hybrid engine: reconstructing alleles from reads...")
+    hybrid = reconstruct_alleles(Path(input_path), out, rd, settings)
+    # alleles.json is written once, by finish_run, after read-support annotation.
+    finish_run(
+        out=out,
+        input_path=input_path,
+        rd=rd,
+        settings=settings,
+        alleles_result=hybrid.alleles,
+        consensus_paths=hybrid.consensus_paths,
+        vcf_paths={},
+        tool_versions=extra_versions(hybrid.block["poa_backend"]),
+        configuration_record=configuration_record,
+        report=report,
+        bam_path=None,
+        fasta_path=out / "hybrid_references.fa",
+        annotate=partial(
+            annotate_read_support, rd=rd, members=hybrid.members, settings=settings.hybrid
+        ),
+        extra_summary={"hybrid": hybrid.block},
+    )

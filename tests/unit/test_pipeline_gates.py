@@ -89,7 +89,17 @@ def run_mocked_pipeline(
         ):
             stack.enter_context(manager)
         result = CliRunner().invoke(
-            main, ["run", "--input", str(input_file), "--output-dir", str(tmp_path / "out"), *args]
+            main,
+            [
+                "run",
+                "--input",
+                str(input_file),
+                "--output-dir",
+                str(tmp_path / "out"),
+                "--engine",
+                "ladder",
+                *args,
+            ],
         )
     return result, calls
 

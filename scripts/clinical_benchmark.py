@@ -13,12 +13,14 @@ from typing import Any
 from muc_one_span.clinical_data import fetch_inventory, prepare_run, validate_inventory
 from muc_one_span.clinical_provenance import (
     freeze_environment,
+    frozen_model_path,
     object_hash,
     sha256_file,
     verify_environment,
     write_json,
 )
-from muc_one_span.clinical_runner import run_case
+from muc_one_span.clinical_runner import LEGACY_UNHASHED_ENGINE, run_case
+from muc_one_span.settings import DEFAULT_SETTINGS
 
 
 def read(path: Path) -> dict[str, Any]:
@@ -52,7 +54,9 @@ def parser() -> argparse.ArgumentParser:
     prepare.add_argument("--run", action="append", default=[])
     freeze = commands.add_parser("freeze")
     freeze.add_argument("--checkout", type=Path, default=Path.cwd())
-    freeze.add_argument("--model", type=Path, required=True)
+    freeze.add_argument(
+        "--model", type=Path, default=None, help="Clair3 model (ladder engine only)"
+    )
     freeze.add_argument("--output", type=Path, required=True)
     truth = commands.add_parser("truth")
     truth.add_argument("--ledger", type=Path, required=True)
@@ -67,6 +71,8 @@ def parser() -> argparse.ArgumentParser:
     run.add_argument("--timeout", type=float, default=3600)
     run.add_argument("--run", action="append", default=[])
     run.add_argument("--resume", action="store_true")
+    run.add_argument("--engine", choices=("ladder", "hybrid"), default=DEFAULT_SETTINGS.run.engine)
+    run.add_argument("--assay", choices=("amplicon", "genomic"), default=None)
     score = commands.add_parser("score")
     score.add_argument("--manifest", type=Path, required=True)
     score.add_argument("--truth", type=Path, required=True)
@@ -123,13 +129,24 @@ def main(argv: list[str] | None = None) -> int:
                     environment = read(args.environment)
                     checkout = Path(__file__).resolve().parents[1]
                     verify_environment(environment, checkout)
+                    model = frozen_model_path(environment)
+                    if model is None and args.engine == LEGACY_UNHASHED_ENGINE:
+                        raise SystemExit(
+                            "the ladder engine needs a frozen Clair3 model; freeze with --model"
+                        )
                     settings = {
                         "threads": args.threads,
                         "timeout": args.timeout,
-                        "model": environment["model"]["path"],
+                        "model": model,
                         "environment": environment,
                         "environment_sha256": object_hash(environment),
                         "report_igv": "off",
+                        # The ladder hashes without an engine key (the pre-0.17 hash),
+                        # so existing ladder attempts stay resumable.
+                        **(
+                            {"engine": args.engine} if args.engine != LEGACY_UNHASHED_ENGINE else {}
+                        ),
+                        **({"assay": args.assay} if args.assay else {}),
                         "repeat_policy": "one observed execution per library",
                         "harness_sha256": {
                             str(p.relative_to(checkout)): sha256_file(p)

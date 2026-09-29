@@ -58,16 +58,30 @@ def installed_packages() -> dict[str, str]:
     return dict(sorted((d.metadata["Name"], d.version) for d in importlib.metadata.distributions()))
 
 
-def freeze_environment(checkout: Path, model: Path) -> dict[str, Any]:
-    """Record caller sources, resources, locked packages, model and executable identity."""
-    tools = ["minimap2", "samtools", "bcftools", "run_clair3.sh"]
+LADDER_TOOLS = ["minimap2", "samtools", "bcftools", "run_clair3.sh"]
+HYBRID_TOOLS = ["samtools"]  # BAM input only; FASTQ input runs no external tool
+
+
+def frozen_model_path(environment: dict[str, Any]) -> str | None:
+    """The frozen Clair3 model path, or ``None`` for a hybrid-only (model-less) freeze."""
+    model = environment.get("model")
+    return None if model is None else str(model["path"])
+
+
+def freeze_environment(checkout: Path, model: Path | None) -> dict[str, Any]:
+    """Record caller sources, resources, locked packages, model and executable identity.
+
+    Without ``model`` the environment can run only the hybrid engine: no Clair3 model is
+    frozen, and only the tools the hybrid path may call are recorded.
+    """
+    tools = HYBRID_TOOLS if model is None else LADDER_TOOLS
     executables = {}
     for tool in tools:
         path = shutil.which(tool)
         if path is None:
             raise ValueError(f"missing executable: {tool}")
         executables[tool] = {"path": path, "sha256": sha256_file(Path(path))}
-    if not model.is_dir() or not any(model.iterdir()):
+    if model is not None and (not model.is_dir() or not any(model.iterdir())):
         raise ValueError("model directory missing or empty")
     harness_root = Path(__file__).resolve().parents[2]
     return {
@@ -90,7 +104,9 @@ def freeze_environment(checkout: Path, model: Path) -> dict[str, Any]:
             p.name: sha256_file(p) for p in sorted(Path(__file__).parent.glob("clinical_*.py"))
         },
         "harness_entrypoint_sha256": sha256_file(harness_root / "scripts/clinical_benchmark.py"),
-        "model": {"path": str(model.resolve()), "files": file_manifest(model)},
+        "model": None
+        if model is None
+        else {"path": str(model.resolve()), "files": file_manifest(model)},
         "tools": executables,
         "tool_versions": get_tool_versions(tools),
         "python": sys.version,
@@ -139,7 +155,7 @@ def verify_environment(environment: dict[str, Any], checkout: Path) -> None:
     ):
         raise ValueError("frozen benchmark entrypoint mismatch")
     model = environment["model"]
-    if file_manifest(Path(model["path"])) != model["files"]:
+    if model is not None and file_manifest(Path(model["path"])) != model["files"]:
         raise ValueError("frozen model content mismatch")
     for name, metadata in environment["tools"].items():
         path = shutil.which(name)

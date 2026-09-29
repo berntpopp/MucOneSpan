@@ -46,3 +46,5 @@
 - MucOneSpan planning written (not committed, awaiting review):
   `.planning/2026-09-24-realistic-benchmark-plan.md`, `.planning/2026-09-24-execution-order.md`.
 - Next: owner reviews both; then Phase 0 (P0 clinical fixes incl. D1 MP4 at calling.py:528-539).
+
+feat/benchsim `bench` extra must use `edlib>=1.3.9` (no marker) to match `hybrid` (plan v2 D1).

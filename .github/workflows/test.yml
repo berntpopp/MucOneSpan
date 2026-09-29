@@ -15,6 +15,10 @@ concurrency:
 
 env:
   UV_VERSION: '0.11.28'
+  # Part of every uv cache key. setup-uv restores exact keys only, so bumping
+  # this discards cached source builds; it was bumped when pyabpoa switched from
+  # -march=native to the portable SSE4.1 build (pyproject.toml).
+  UV_CACHE_EPOCH: 'portable-1'
 
 jobs:
   quality:
@@ -51,6 +55,9 @@ jobs:
               - '.github/workflows/**'
               - '.github/actions/**'
               - '.pre-commit-config.yaml'
+              # Read by tests/unit/test_version_pins.py (pinned to version.py).
+              - 'docker/muconespan.def'
+              - 'docs/about/citation.md'
             package:
               - 'src/**'
               - 'scripts/**'
@@ -80,7 +87,7 @@ jobs:
           python-version: '3.10'
           enable-cache: true
           cache-dependency-glob: uv.lock
-          cache-suffix: quality
+          cache-suffix: quality-${{ env.UV_CACHE_EPOCH }}
       - run: make quality
 
   test:
@@ -101,12 +108,16 @@ jobs:
           python-version: ${{ matrix.python }}
           enable-cache: true
           cache-dependency-glob: uv.lock
-          cache-suffix: test-${{ matrix.python }}
-      # Measure coverage on the fastest supported interpreter; all versions run every unit.
+          cache-suffix: test-${{ matrix.python }}-${{ env.UV_CACHE_EPOCH }}
+      # Every interpreter runs every unit test except the heavy safety sweeps (their own
+      # job below); coverage is measured on the fastest supported interpreter.
       - if: matrix.python == '3.14'
-        run: make test-unit
+        run: make test-core-cov
       - if: matrix.python != '3.14'
-        run: make test-fast
+        run: make test-core
+      # A cached or restored -march=native build may only crash on another CPU.
+      - name: Verify portable compiled extensions
+        run: make portable-check
       - name: Upload coverage
         if: matrix.python == '3.14'
         uses: codecov/codecov-action@303a32d7a59b442fa8d48b6a1cc6825c09c847a5 # v7
@@ -115,6 +126,34 @@ jobs:
           files: ./coverage.xml
           flags: unittests
           fail_ci_if_error: false
+
+  # The heavy synthetic safety sweeps (pytest marker safety_sweep: full pipeline runs on
+  # synthetic samples; never NEGATIVE on a pathogenic minority, never PATHOGENIC on a
+  # wild type). They run on every interpreter of the unit matrix, on every PR whose
+  # runtime changed and on every push, with 4 xdist workers. Measured on a standard
+  # runner (Python 3.12): 17m43s for the sweeps of 32f732e; the within-run event
+  # sweeps add about 3 minutes (estimate). 45 minutes leaves room for slower
+  # interpreters and runners.
+  safety-sweeps:
+    name: Safety Sweeps (Python ${{ matrix.python }})
+    needs: quality
+    if: github.event_name != 'pull_request' || needs.quality.outputs.runtime == 'true'
+    runs-on: ubuntu-24.04
+    timeout-minutes: 45
+    strategy:
+      fail-fast: false
+      matrix:
+        python: ['3.10', '3.11', '3.12', '3.13', '3.14']
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7
+      - uses: astral-sh/setup-uv@bec219d24cd3e171d82865faccec33120bb574f4 # v10.1.0
+        with:
+          version: ${{ env.UV_VERSION }}
+          python-version: ${{ matrix.python }}
+          enable-cache: true
+          cache-dependency-glob: uv.lock
+          cache-suffix: sweeps-${{ matrix.python }}-${{ env.UV_CACHE_EPOCH }}
+      - run: make test-sweeps
 
   integration:
     name: Integration Tests
@@ -141,7 +180,7 @@ jobs:
           python-version: '3.10'
           enable-cache: true
           cache-dependency-glob: uv.lock
-          cache-suffix: integration
+          cache-suffix: integration-${{ env.UV_CACHE_EPOCH }}
       - name: Verify tools and run integration tests
         shell: bash -el {0}
         run: |
@@ -164,7 +203,7 @@ jobs:
           python-version: '3.12'
           enable-cache: true
           cache-dependency-glob: uv.lock
-          cache-suffix: package
+          cache-suffix: package-${{ env.UV_CACHE_EPOCH }}
       - run: make build-check
 
   security:
@@ -181,13 +220,13 @@ jobs:
           python-version: '3.10'
           enable-cache: true
           cache-dependency-glob: uv.lock
-          cache-suffix: security
+          cache-suffix: security-${{ env.UV_CACHE_EPOCH }}
       - run: make security-check
 
   gate:
     name: CI Gate
     if: always()
-    needs: [quality, test, integration, package, security]
+    needs: [quality, test, safety-sweeps, integration, package, security]
     runs-on: ubuntu-24.04
     timeout-minutes: 2
     steps:
@@ -195,6 +234,7 @@ jobs:
         env:
           QUALITY: ${{ needs.quality.result }}
           TEST: ${{ needs.test.result }}
+          SWEEPS: ${{ needs.safety-sweeps.result }}
           INTEGRATION: ${{ needs.integration.result }}
           PACKAGE: ${{ needs.package.result }}
           SECURITY: ${{ needs.security.result }}
@@ -211,6 +251,7 @@ jobs:
             fi
           }
           check_result "$RUNTIME_REQUIRED" "$TEST"
+          check_result "$RUNTIME_REQUIRED" "$SWEEPS"
           check_result "$RUNTIME_REQUIRED" "$INTEGRATION"
           check_result "$PACKAGE_REQUIRED" "$PACKAGE"
           check_result "$SECURITY_REQUIRED" "$SECURITY"

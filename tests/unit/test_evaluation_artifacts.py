@@ -349,3 +349,49 @@ def test_known_status_in_other_location_cannot_mask_unknown_evidence(tmp_path, f
     data["classifications"]["p"][field] = "new_unresolved_state"
     path.write_text(json.dumps(data))
     assert load_observation(tmp_path, {"exit_code": 0}).status == "ambiguous_reconstruction"
+
+
+def _edit_first_mutation(tmp_path, **changes):
+    path = tmp_path / "summary.json"
+    summary = json.loads(path.read_text())
+    summary["classifications"]["p"]["mutations"][0].update(changes)
+    path.write_text(json.dumps(summary))
+
+
+def test_read_support_is_loaded_and_counts_as_support(tmp_path):
+    write_valid_artifacts(tmp_path)
+    _edit_first_mutation(
+        tmp_path,
+        vcf_support=False,
+        vcf_support_status="not_applicable_read_consensus",
+        read_support={"status": "supported", "n": 40},
+    )
+    event = load_observation(tmp_path).predictions[0].events[0]
+    assert event.read_support_status == "supported"
+    assert event.supported and not event.legacy_supported
+
+
+def test_unsupported_read_evidence_is_not_support(tmp_path):
+    write_valid_artifacts(tmp_path)
+    _edit_first_mutation(
+        tmp_path,
+        vcf_support=False,
+        vcf_support_status="not_applicable_read_consensus",
+        read_support={"status": "discordant"},
+    )
+    assert not load_observation(tmp_path).predictions[0].events[0].supported
+
+
+def test_malformed_read_support_is_invalid(tmp_path):
+    write_valid_artifacts(tmp_path)
+    _edit_first_mutation(tmp_path, read_support="supported")
+    assert load_observation(tmp_path).status == "invalid_artifacts"
+
+
+def test_unconfirmed_single_site_allele_is_ambiguous(tmp_path):
+    write_valid_artifacts(tmp_path)
+    path = tmp_path / "summary.json"
+    summary = json.loads(path.read_text())
+    summary["alleles"]["p"]["phase_status"] = "unresolved_single_site"
+    path.write_text(json.dumps(summary))
+    assert load_observation(tmp_path).status == "ambiguous_reconstruction"

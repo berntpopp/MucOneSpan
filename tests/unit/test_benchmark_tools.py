@@ -157,7 +157,9 @@ def test_pipeline_controls_are_forwarded_and_recorded(tmp_path: Path) -> None:
     reads = tmp_path / "reads.fq.gz"
     reads.touch()
     model = tmp_path / "models" / "ont"
-    record = run_pipeline("sample", reads, tmp_path / "out", "ont", str(model), 7, runner=Runner())
+    record = run_pipeline(
+        "sample", reads, tmp_path / "out", "ont", str(model), 7, runner=Runner(), engine="ladder"
+    )
     assert record["platform"] == "ont"
     assert record["model"] == str(model)
     assert record["threads"] == 7
@@ -173,10 +175,47 @@ def test_pipeline_controls_are_forwarded_and_recorded(tmp_path: Path) -> None:
         "7",
         "--platform",
         "ont",
+        "--engine",
+        "ladder",
+    ]
+    hybrid = run_pipeline("sample", reads, tmp_path / "h", "ont", str(model), 7, runner=Runner())
+    # The hybrid engine ignores these, so they are recorded but not passed to the CLI.
+    assert (hybrid["platform"], hybrid["model"], hybrid["threads"]) == ("ont", str(model), 7)
+    assert hybrid["cli_args"] == [
+        "run",
+        "--input",
+        str(reads.resolve()),
+        "--output-dir",
+        str((tmp_path / "h").resolve()),
+        "--engine",
+        "hybrid",
     ]
 
 
-def test_engine_is_forwarded_only_when_not_ladder(tmp_path: Path) -> None:
+def test_empty_model_is_not_forwarded(tmp_path: Path) -> None:
+    from muc_one_span.benchmarking import run_pipeline
+
+    class Result:
+        exit_code = 0
+        output = "ok"
+        exception = None
+
+    class Runner:
+        def invoke(self, command, args):
+            return Result()
+
+    reads = tmp_path / "reads.fastq"
+    reads.touch()
+    record = run_pipeline("sample", reads, tmp_path / "out", "ont", "", 1, runner=Runner())
+    assert "--clair3-model" not in record["cli_args"]
+    assert record["model"] == ""
+
+
+def test_benchmark_script_defaults_to_hybrid() -> None:
+    assert script_module("benchmark").parser().parse_args([]).engine == "hybrid"
+
+
+def test_engine_is_always_forwarded_and_defaults_to_hybrid(tmp_path: Path) -> None:
     from muc_one_span.benchmarking import run_pipeline
 
     class Result:
@@ -191,16 +230,16 @@ def test_engine_is_forwarded_only_when_not_ladder(tmp_path: Path) -> None:
     reads = tmp_path / "reads.fastq"
     reads.touch()
     default_record = run_pipeline(
-        "sample", reads, tmp_path / "ladder", "ont", "model", 1, runner=Runner()
+        "sample", reads, tmp_path / "hybrid", "ont", "model", 1, runner=Runner()
     )
-    assert "--engine" not in default_record["cli_args"]
-    assert default_record["engine"] == "ladder"
+    assert default_record["cli_args"][-2:] == ["--engine", "hybrid"]
+    assert default_record["engine"] == "hybrid"
 
-    hybrid_record = run_pipeline(
-        "sample", reads, tmp_path / "hybrid", "ont", "model", 1, runner=Runner(), engine="hybrid"
+    ladder_record = run_pipeline(
+        "sample", reads, tmp_path / "ladder", "ont", "model", 1, runner=Runner(), engine="ladder"
     )
-    assert hybrid_record["cli_args"][-2:] == ["--engine", "hybrid"]
-    assert hybrid_record["engine"] == "hybrid"
+    assert ladder_record["cli_args"][-2:] == ["--engine", "ladder"]
+    assert ladder_record["engine"] == "ladder"
 
 
 def test_ambiguous_input_is_an_explicit_failure(tmp_path: Path) -> None:
@@ -275,3 +314,28 @@ def test_mixed_platform_inventory_rejects_one_shared_model(tmp_path):
     assert len(records) == 2
     assert all(r["status"] == "not_attempted" for r in records)
     assert all("per-sample models" in r["error"] for r in records)
+
+
+def test_config_is_forwarded_as_the_global_option(tmp_path: Path) -> None:
+    from muc_one_span.benchmarking import run_pipeline
+
+    class Result:
+        exit_code = 0
+        output = "ok"
+        exception = None
+
+    class Runner:
+        def invoke(self, command, args):
+            return Result()
+
+    reads = tmp_path / "reads.fastq"
+    reads.touch()
+    config = tmp_path / "overlay.json"
+    config.write_text("{}")
+    plain = run_pipeline("sample", reads, tmp_path / "plain", "ont", "model", 1, runner=Runner())
+    assert "--config" not in plain["cli_args"]
+    record = run_pipeline(
+        "sample", reads, tmp_path / "cfg", "ont", "model", 1, runner=Runner(), config=config
+    )
+    assert record["cli_args"][:3] == ["--config", str(config.resolve()), "run"]
+    assert record["config"] == str(config.resolve())

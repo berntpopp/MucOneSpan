@@ -8,7 +8,7 @@ import shlex
 from pathlib import Path
 from typing import Any
 
-from muc_one_span.config import RepeatDictionary, _apply_mutation
+from muc_one_span.config import RepeatDictionary, apply_mutation
 
 from .models import Event, TruthHaplotype, TruthSample
 
@@ -140,7 +140,7 @@ def _load(root: Path, rd: RepeatDictionary) -> TruthSample:
                     raise ValueError(f"{name}: mutation disallowed on {parent}")
                 key = f"{name}_repeat_{position}"
                 sequence = units.get(key, "")
-                if sequence != _apply_mutation(rd.repeats[parent], definition["changes"]):
+                if sequence != apply_mutation(rd.repeats[parent], definition["changes"]):
                     raise ValueError(f"{key}: mutated unit inconsistent with dictionary edits")
                 used_units.add(key)
                 events.append(Event(position, parent, mutation_name))

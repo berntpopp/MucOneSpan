@@ -50,7 +50,7 @@ class RepeatDictionary:
     seq_to_id: dict[str, str]
 
 
-def _apply_mutation(sequence: str, changes: list[dict]) -> str:
+def apply_mutation(sequence: str, changes: list[dict]) -> str:
     """Apply mutation changes to a repeat sequence.
 
     Uses 1-based indexing (matching MucOneUp/Vrbacka conventions):
@@ -92,7 +92,7 @@ def _precompute_mutated_sequences(
             if repeat_id not in repeats:
                 continue
             seq = repeats[repeat_id]
-            mutated = _apply_mutation(seq, mut_def["changes"])
+            mutated = apply_mutation(seq, mut_def["changes"])
             result[mutated] = (repeat_id, mut_name)
     return result
 

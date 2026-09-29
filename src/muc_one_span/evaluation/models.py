@@ -19,11 +19,14 @@ class Event:
     template_match: bool = field(default=False, compare=False)
     vcf_support: bool = field(default=False, compare=False)
     support_status: str = field(default="unknown", compare=False)
+    read_support_status: str = field(default="unknown", compare=False)
 
     @property
     def supported(self) -> bool:
-        """Return whether exact template and sequence-projection evidence agree."""
-        return self.legacy_supported and self.support_status == "exact_sequence_concordance"
+        """Exact template plus sequence-projection (VCF) or read-level support."""
+        if self.legacy_supported and self.support_status == "exact_sequence_concordance":
+            return True
+        return self.frameshift and self.template_match and self.read_support_status == "supported"
 
     @property
     def legacy_supported(self) -> bool:

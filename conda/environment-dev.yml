@@ -13,3 +13,6 @@ dependencies:
   - samtools>=1.21
   - bcftools>=1.10
   - htslib
+  - edlib
+  - pyabpoa
+  - pyspoa

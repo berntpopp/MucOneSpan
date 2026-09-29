@@ -7,8 +7,159 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+## [0.17.0] - Unreleased
+
+The read-centric **hybrid engine is now the default** for every input type
+(amplicon and genomic), and the **ladder engine is deprecated**. See the
+migration guide (`docs/guides/migration.md`) for what changes and how to keep
+the ladder for now.
+
+Hybrid validation at the 0.17.0 defaults (MucSim-Bench v4, commit `1d2c416`;
+development split for tuning, validation split for confirmation, sealed test
+split not run; decision rule v7: pooled INCONCLUSIVE `standard` <= 0.20, `clean`
+<= 0.15, per-profile informational; PATHOGENIC floors `standard` >= 0.80, `clean`
+>= 0.90; 0 false positives): `standard` PATHOGENIC 0.895 (dev) / 0.895 (val)
+and INCONCLUSIVE 0.156 / 0.189; `clean` PATHOGENIC 0.930 / 0.930 and
+INCONCLUSIVE 0.111 / 0.100; `clean2` PATHOGENIC 0.947 / 0.895; false positives 0
+and NEGATIVE on a pathogenic case 0 on every set. Frozen panels (commit `1d2c416`):
+no false positive and no NEGATIVE on a pathogenic case. PRJEB92208 (re-run at
+`1d2c416`): MP1-MP4 PATHOGENIC with supported dupC read support, HG002 amplicon
+alleles literal sequence-exact, HG001-HG004 not PATHOGENIC.
+
+Known limits (clinically relevant; details in `docs/reference/limitations.md`):
+
+- A site-specific wild-type artefact from about 0.45 of an equal-length peak's
+  reads (a run-length artefact, or an insertion/deletion artefact such as a G or
+  AT inside a C7 run) can be called PATHOGENIC like a real minor allele;
+  synthetic artefacts at 0.30-0.40 were never PATHOGENIC.
+- An equal-length heterozygote needs roughly 350 or more reads in its peak for
+  the single-event split; below that it is INCONCLUSIVE (never NEGATIVE).
+- Within-peak minorities (mosaicism, a third haplotype) below the synthetic
+  detection floors can be NEGATIVE. Floors (fraction of the event allele's
+  reads; 0 of 60 seeds NEGATIVE at the floor):
+
+  | Minority | HiFi-like, 600 reads | HiFi-like, 2000 | ONT-like, 600 | ONT-like saturating, 600 |
+  | --- | --- | --- | --- | --- |
+  | dupC run, two peaks | 0.50 | 0.30 | 0.30 | 0.25 |
+  | dupC run, one peak | 0.35 | 0.25 | none up to 0.40 (a) | 0.20 |
+  | insG / insG_pos58 / delinsAT inside the C7 run | 0.30 | 0.30 (insG) | 0.30 | 0.30 |
+  | insertion (dupA) at a column/slot, two peaks | about 0.30 (20 seeds) | - | about 0.30 (20 seeds) | - |
+
+  (a) the ONT-like strand-asymmetric single peak has no tier floor; those
+  samples were never NEGATIVE (0/120 at 0.40) through other gates.
+- 77/80 alleles sequence-exact on the frozen `simpanel` (commit `ca81a97`,
+  single-base homopolymer-adjacent consensus misses); on ONT reads with
+  saturating "+" strand stutter up to 25% wild-type reads can pass as a pure
+  dupC; equal-length normals with strong stutter at a single run are
+  INCONCLUSIVE, not NEGATIVE; whole-unit PCR slippage clusters keep PRJEB92208
+  HG001-HG004 INCONCLUSIVE; validation `clean2` PATHOGENIC is 0.895, one case
+  short of 0.90; the in-house genomic numbers come from an earlier commit
+  (`2b0072b`) and were not re-run.
+
+### Changed
+
+- The `run` command moved from `cli.py` to `cli_run.py`; `from
+  muc_one_span.cli import run` keeps working.
+- **Default engine.** `muconespan run` now defaults to `--engine hybrid`
+  (`run.engine = "hybrid"`) for amplicon and genomic input. A FASTQ run calls
+  no external tool; a BAM input needs `samtools`. `--assay` stays recorded for
+  provenance only; it is not auto-detected.
+- **Ladder-only options on a hybrid run.** `--clair3-model`, `--min-qual`,
+  `--minimap2-preset`, `--platform`, `--min-coverage`, `--threads`,
+  `--mapping-timeout` and `--reference` (every `run` option the hybrid path
+  does not use), given on the command line or through a non-default
+  configuration value, print `Warning: <option> is ignored by the hybrid
+  engine; use --engine ladder (deprecated)` and are listed in the new additive
+  `ignored_options` field of `summary.json` and `run_configuration.json`. For a
+  hybrid run `run_configuration.json` records `resolved_minimap2_preset: null`
+  and `model_selection: "not used (hybrid engine)"`. `--report-igv
+  embedded|sidecar` stays an error for the hybrid engine; it is now raised
+  before `run_configuration.json` is written and names both remedies
+  (`--engine ladder` (deprecated) or `--report-igv off`). A custom repeat
+  dictionary, reference layout or flank length no longer requires `--reference`
+  with the hybrid engine, which reads no reference FASTA.
+- **Hybrid anchors follow the reference layout.** Read anchoring uses the
+  layout's outer fixed repeats (`reference_layout.left_anchor_id` /
+  `right_anchor_id`) instead of the literal repeat IDs "1" and "9"; the default
+  layout gives the same anchors.
+- **Hybrid output hygiene.** Reported hybrid fractions share one precision (3
+  decimals; the length-model fractions were 4). A resolved homozygote reports
+  `allele_multiplicity_status: "resolved"` (was `"unresolved"`). `alleles.json`
+  is written once per hybrid run. The FASTQ parser rejects a record without a
+  `+` separator line or with sequence and quality of different lengths.
+- **Dependencies.** `edlib` and `pyabpoa` (the default POA backend) are core
+  dependencies, imported at load time; `pyabpoa` builds from source (C compiler
+  and zlib). `pyspoa` (the alternative backend) stays in the optional `hybrid`
+  extra, which also still lists `edlib` and `pyabpoa`, so older
+  `pip install 'muc_one_span[hybrid]'` commands keep working; selecting
+  `pyspoa` without it fails with an `ImportError` naming the extra. The
+  `benchsim` realism metrics no longer point to the `bench` extra for `edlib`.
+- **Harness defaults.** `scripts/benchmark.py --engine`,
+  `scripts/clinical_benchmark.py run --engine` and `scripts/benchsim.py
+  run|evaluate --engines` default to `hybrid`. `benchmarking.run_pipeline`
+  always passes `--engine`, and passes `--clair3-model`, `--threads` and
+  `--platform` only to the ladder engine; `benchsim run` looks up a Clair3
+  model only for the ladder engine. `clinical_benchmark.py` keeps hashing ladder
+  runs without an `engine` key, passes `--engine ladder` to the worker
+  explicitly and the ladder-only options only for ladder runs; `freeze --model`
+  is optional (a model-less environment runs the hybrid engine only).
+  `benchsim report --baseline` stays `ladder`.
+- **Ladder-visible changes since 0.16.1.** Fail-closed depth rule: when an
+  allele carries a `depth_basis`, any `depth_status` other than `adequate`
+  (including an unknown or missing value) blocks a result. A ladder run in
+  which one allele's `depth_status` is `not_assessed` while another allele's
+  depth is assessed is now INCONCLUSIVE instead of NEGATIVE, and a frameshift
+  on the `not_assessed` allele is no longer PATHOGENIC. The
+  unresolved-selection reason no longer prints `secondary mode fraction None`
+  when the fraction is unknown.
+- `benchmarks/clinical/prjeb92208/hybrid-engine.json` refreshed at the final
+  defaults (amplicon cohort and `--assay genomic` WGS pass).
+
+### Deprecated
+
+- The ladder engine (`--engine ladder`, `run.engine = "ladder"`). It still
+  works and keeps its output schema; a run prints a warning on stderr,
+  `summary.json` records it in the new additive `deprecations` list (empty for
+  hybrid runs), and the HTML report shows a "Deprecated" banner. Removal
+  happens no earlier than the next minor release and is announced in the
+  changelog of the release before it.
+
 ### Added
 
+- `benchsim calibrate` and `benchsim calibrate-report`: run a grid of runtime
+  settings overlays through `run` and `evaluate` on `dev` (resumable,
+  content-addressed, validated by the strict settings loader, `test` refused).
+  Rank the points under a selection rule declared in `objective.json`, with
+  cluster-bootstrap CIs. Write a `recommended-config.json` loadable by
+  `--config`, with a provenance sidecar. Confirm on `val` with the dev → val
+  shift. `benchsim run --config` forwards a settings file to every run.
+- `benchsim calibrate --stage lengths`: fits only the hybrid length model
+  (anchor search, peak fitting, the smear significance test) on each case's
+  spanning reads and scores the peaks against the case truth (allele count,
+  allele lengths, false/missed alleles, `smear_ambiguous` rate), so a
+  smear/peak threshold sweep takes seconds instead of a full pipeline run per
+  point. Refuses a grid key that cannot affect the length model, and an
+  engine other than `hybrid`, before any point runs. `calibrate-report` ranks
+  and recommends a `--stage lengths` calibration through the same calibration
+  machinery as a full one.
+- The hybrid engine (`--engine hybrid`, the default from this release) and
+  `--assay {amplicon,genomic}` for `muconespan run`: a read-centric allele
+  reconstruction path (motif anchoring, a length model, partial-order-alignment
+  consensus, linked-site phase splitting, all-read assignment, polishing, and
+  per-event read-level support) that runs no minimap2, Clair3 or bcftools for
+  FASTQ input.
+- The `hybrid.*` settings section (`HybridSettings`); see the configuration
+  guide. `summary.json["deprecations"]` lists deprecated options a run
+  selected.
+- Migration guide for 0.17.0 (`docs/guides/migration.md`).
+- Additive hybrid evidence fields: per-allele `spanning_reads`,
+  `assigned_reads`, `depth_status`, `depth_basis`, `selection_status`,
+  `selection_detail`, `split_basis`, `phase_status`,
+  `consensus_concordance_fraction`, `classification_confidence_status`;
+  per-sample `summary["hybrid"]` (read categories, rejected length peaks,
+  `undecided_reads`, `off_target_reads`, unassigned/short-product fractions,
+  POA backend and package versions); per-mutation `read_support` (kind,
+  counts, fractions, `alternative_frac`, status).
 - MucSim-Bench, a realistic simulated benchmark (`scripts/benchsim.py`,
   `muc_one_span.benchsim`): stratified designs for three profiles (HiFi
   uncalibrated), generation with MucOneUp >= 0.45.0 kept outside Git, engine runs
@@ -64,6 +215,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
   (`decision.targets`); adoption now needs the relative rule and every named
   set's targets to pass. The decision rule is now v4; a changed threshold,
   comparator, basis or set membership needs a new pre-registration.
+- `muconespan settings show [--section NAME] [--config FILE]` prints the
+  effective settings as schema-1 JSON that loads back with `--config`, and
+  `muconespan settings validate FILE` reports the strict loader's first error
+  and exits non-zero on an invalid file. `examples/runtime-settings.json` is
+  kept identical to `settings show` by a unit test.
 - Benchmark final-review fixes. `first_evaluation.json` records the rule that
   unsealed `test`, and only that rule is accepted afterwards. `generate` also
   refuses to reuse a case whose MucOneUp version, base read profile, MucOneUp
@@ -76,15 +232,280 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
   its case. Engines scored on different cases give a clean `report` error. The
   `bench` extra now requires `edlib>=1.3.9` on every Python version, and on
   3.14 edlib builds from source.
-- Task C1 owner ruling (2026-09-25): the relative false-positive
+- Decision rule v5: the relative false-positive
   non-inferiority margin (`report.ni_margin`) is dropped from the decision
   rule -- at the planned `test` size (280 normals per profile) its Newcombe
   upper bound could never clear a meaningful margin, even with 0 observed
   false positives in both engines. The false-positive `PATHOGENIC` rate is now
   judged solely by Part 2's absolute `false_positive_rate` targets, and is
   reported per profile with a Clopper-Pearson interval for information only.
-  A bench config still naming `report.ni_margin` is rejected. The decision
-  rule is now v5; a fresh `test` pre-registration is required.
+  A bench config still naming `report.ni_margin` is rejected. A fresh `test`
+  pre-registration is required.
+- Decision rule v6: every absolute
+  target has a `scope` (`targets.by_set.<set>.<metric>.scope`):
+  `pooled_and_profiles` (the default, and the behaviour of files without a
+  scope) or `pooled`. The default INCONCLUSIVE targets (`standard` <= 0.20,
+  `clean` <= 0.10) now bind on the pooled set only; per-profile INCONCLUSIVE
+  rates are still reported, marked `info only`, and never fail a set. The
+  false-positive target (0), the PATHOGENIC floors and the whole of Part 1
+  still bind per profile. The rule text states each target's scope (SHA-256
+  `85c869a6...`), so a fresh pre-registration is required; a sealed split
+  registered under v5 can append v6 before its first evaluation
+  (`docs/benchmark.md`). Scopes do not enter the generation hash.
+- Decision rule v7: the default pooled
+  `clean` INCONCLUSIVE ceiling is 0.15 (was 0.10); the scope stays `pooled`,
+  and the `standard` ceiling (0.20), the PATHOGENIC floors, the 0
+  false-positive target and Part 1 are unchanged. The rule text changes
+  (SHA-256 `c77d513f...`), so a fresh pre-registration is required; a sealed
+  split registered under v6 can append v7 before its first evaluation by
+  changing only `targets.by_set.clean.inconclusive_rate.threshold` in its
+  bench-config copy (`docs/benchmark.md`). The `report.md` note on `info only`
+  rows is printed only when the table has one.
+
+### Fixed
+
+- **Review follow-ups.**
+  - New settings `hybrid.event_min_reads` (20) and `hybrid.event_min_alt_frac`
+    (0.30) set the read-count and alt-share floors of competition
+    (non-homopolymer) event support, which reused `hp_min_reads` /
+    `hp_min_alt_frac`; the defaults are those values, so results are unchanged.
+  - The pileup that builds an event's read-derived alternative is capped at
+    `hybrid.polish_max_reads` reads (a seeded sample), as the allele polish is;
+    the support counts still use every assigned read.
+  - The opt-in quality single-event alternative (`phase_quality_single_event`)
+    is never offered when its one remaining event rests on a site kept only by
+    the known-event guard although poor reads explain it. A custom dictionary
+    template without a site-table signature is logged whenever the signatures
+    are in use (a quality rule, or the run-minority tier's `known_events` scope
+    or within-run test). `phase_quality_single_event` with
+    `phase_single_event_split = "off"` is refused (it would do nothing).
+  - `benchsim calibrate` writes `caller.json` for every point, as `run` does;
+    the lengths-stage matcher refuses more than two truth lengths or peaks
+    (a failed row) instead of an unbounded search.
+  - The HTML report shows `classification_confidence_status` as a readable
+    label, and its quality colour bands are named constants.
+  - `make portable-check` also rejects POPCNT, LZCNT, BMI1/BMI2 and SSE4.2
+    instructions. The Apptainer definition builds from the 0.17.0 image.
+  - CI: the heavy synthetic safety sweeps (pytest marker `safety_sweep`) run in
+    their own "Safety Sweeps" jobs, one per supported Python (3.10-3.14), on
+    every push and every pull request that changes the runtime; the "Test
+    Suite" jobs run the rest in parallel (pytest-xdist, new in the `test` group)
+    and stay well inside their 10-minute timeout. `make test-unit` and
+    `make ci-check` still run every sweep. `config.apply_mutation` (was
+    `_apply_mutation`) is public.
+
+- **Portable `pyabpoa` builds.** `pyabpoa` compiles with `-march=native` on
+  x86-64 Linux by default, so a build reused on another CPU (a cached CI
+  environment, a container image, a shared cluster install) could crash with
+  `Illegal instruction` on import. uv now builds it with `SSE4=1` (portable
+  `-msse4.1`; `[tool.uv.extra-build-variables]` in `pyproject.toml`), and so do
+  the Docker builder stage and hence the Apptainer image. The CI uv caches are
+  re-keyed (`UV_CACHE_EPOCH`) so native builds are never restored. The new
+  `scripts/check_portable_build.py` (`make portable-check`) fails when the
+  installed extension contains AVX-family instructions; CI and the Docker
+  build run it. aarch64 Linux builds were already portable
+  (`armv8-a+simd`). Existing uv environments need `uv cache clean pyabpoa`
+  and a reinstall; the installation guide documents `SSE4=1` for pip.
+- `hybrid.min_linked_sites` now has a minimum of 2 (was 0). At 1 a single
+  heterozygous event became a `linked_sites` split that bypassed the
+  single-event share-bound gate, so a wild-type sample with a 30%
+  site-specific +1 excess at one C7 run could be called PATHOGENIC. A config
+  value below 2 is rejected.
+- `depth_status` values other than `"adequate"` (including `"insufficient"`,
+  previously ungated), `allele_genotype_status ==
+  "residual_heterogeneity"`, and a `read_support.status` other than
+  `"supported"` now gate the clinical decision through the shared evidence
+  gates in `clinical_gates.py`.
+- Hybrid engine: the homopolymer event/no-event mixture fit convolves each
+  allele with the stutter profile of its own run length (new
+  `hybrid.hp_stutter_model`, default `"length"`; `"shift"` keeps the former
+  shifted background). A length without `hybrid.hp_stutter_min_class_runs`
+  peer runs and `hybrid.hp_stutter_min_class_reads` observations is
+  extrapolated from the two nearest measured lengths, with the per-base growth
+  capped at `hybrid.hp_stutter_max_growth`; an extrapolated event profile that
+  puts more than `hybrid.hp_stutter_max_event_confusion` of its mass on the
+  no-event length falls back to the shift model on that strand. A true dupC with heavy C8 deletion
+  stutter is no longer rated a C7/C8 mixture (simulated HiFi D1/HD4
+  alternative share 0.263/0.284 -> 0.140/0.187; `event_max_alternative_frac`
+  unchanged).
+- Hybrid engine: an equal-length heterozygote whose alleles differ at one
+  event (e.g. dupA on one allele, both alleles the same repeat count) could
+  be merged into one wild-type consensus and reported NEGATIVE. Homopolymer-run
+  phase sites now use a stutter-aware strand-bias test (strand-asymmetric ONT
+  stutter was read as strand bias and dropped the only heterozygous site), and
+  a single-peak length model splits on its single length-changing event
+  (new setting `hybrid.phase_single_event_split`, default `"indel"`) when the
+  lower confidence bound of its minor share (`hybrid.phase_single_event_alpha`)
+  reaches `het_af_min` over a fixed sample of `hybrid.phase_single_event_bound_reads`
+  reads; run error profiles use `hybrid.phase_run_error_cap`. A peak
+  left unsplit names its site in `selection_detail` ("unresolved heterozygous
+  site at repeat N") and keeps a negative call blocked. The `--assay` help
+  text now says the option is recorded for provenance only.
+- Hybrid engine: an equal-length heterozygous homopolymer event whose run
+  share stays below the candidate-site floor (`phase_run_bg_multiplier` x the
+  peer stutter background) was merged into one wild-type consensus and
+  reported NEGATIVE (simulated HiFi dupC, 42% C8 against a 0.55 floor). A
+  single unsplit length peak now tests every homopolymer run against a lower
+  safety floor (new setting `hybrid.phase_run_safety_multiplier`, default
+  2.0); a run above it gives the new phase basis `unconfirmed_run_site` and
+  selection status `unresolved_run_site`, which makes the result INCONCLUSIVE
+  with the located reason. The tier never creates an event or a PATHOGENIC
+  call.
+- Hybrid engine: PCR dimer products and smear between the two alleles no longer
+  count as unexplained length peaks, the main cause of INCONCLUSIVE results on
+  ONT amplicons. A spanning read with an internal motif-9 -> motif-1 amplicon
+  junction whose two parts each match an accepted allele is a dimer product
+  (new settings `hybrid.dimer_recognition`, default on, and
+  `hybrid.dimer_max_parent_frac`, default 0.05). Dimer products are removed
+  before the final peak fit, never join an allele and are recorded as a
+  `dimer` rejected peak (with `parent_units`) and in the new
+  `dimer_product_reads`/`dimer_product_fraction` fields. A real allele at
+  twice an allele's length has no junction and stays a gate-relevant peak.
+  The smear significance test now also covers the region between the alleles
+  when the shorter allele is the top peak (new setting
+  `hybrid.smear_test_inter_allele`, default on); smear-tested rejected peaks
+  name their `smear_region`. `benchsim calibrate --stage lengths` flags cases
+  with a gate-relevant rejected peak (`gate_relevant_rejected_peak`), for use
+  as a reason metric.
+- Hybrid engine (safety): two false NEGATIVE paths on pathogenic samples are
+  closed. (1) An equal-length heterozygous insertion next to a stuttering
+  homopolymer run (dupA after an X unit's C7 run, ONT) was refused by the
+  column strand-bias test, because stuttered carrier reads align the inserted
+  base into the run on the heavier-stutter strand; nothing blocked NEGATIVE.
+  Such a column or insertion site, refused only for strand bias in an unsplit
+  single length peak, now gives the phase basis
+  `unconfirmed_strand_biased_site` and selection status
+  `unresolved_strand_biased_site`: INCONCLUSIVE with the located site, never an
+  event. (2) The below-top smear test relabelled a real near-length allele
+  (93 units, 531 reads, next to a 96-unit top with 537) as smear, because its
+  background side next to the top was clipped to a 0.36 bp sliver. A length
+  candidate with at least `hybrid.smear_guard_top_frac` (new setting, default
+  0.5) of the top peak's reads is never smear-tested (below-top or between the
+  alleles). The engine's one-group allele fields now come from one builder
+  (`allele_fields.single_group_fields`), and an audit test checks every
+  unresolved status the engine emits through `compute_clinical_decision`.
+- Hybrid engine: within one peak of a two-peak sample, a candidate phase site
+  explained by a low-accuracy read subset no longer leaves the sample
+  `unresolved_single_site` (or splits the peak into a third group,
+  `unresolved_max_alleles`). On simulated HiFi amplicons, reads with lower base
+  quality share systematic errors (short-run length changes, single columns)
+  that reach just above `hybrid.het_af_min`. Such a site is dropped from site
+  detection only when its minor carriers have significantly lower mean base
+  quality than its major carriers (new `hybrid.phase_quality_alpha`; opt-in and
+  experimental, default 0 = off, 0.001 is the dev-calibrated level
+  to opt in with) and its minor allele fraction among the best
+  `hybrid.phase_quality_keep_frac` (new, default 0.5) of reads is significantly
+  below `het_af_min` (exact binomial upper bound, new
+  `hybrid.phase_quality_af_alpha`, default 0.001); it is kept when fewer than
+  `ceil(phase_min_minor_reads / het_af_min)` high-quality reads remain or any
+  read lacks base qualities. The rule changes only the basis of an unsplit peak:
+  it never changes group membership (peak support, consensus, event evidence)
+  and never applies to a single-peak genotype. Dropped sites are reported in
+  `summary["hybrid"]["quality_associated_sites"]`.
+- Hybrid engine: the low-accuracy-subset test no longer drops a site whose change
+  is the site-table signature of a bundled-dictionary template. The signatures
+  are derived by running every template (insertions, deletions and
+  delete-inserts) in each allowed unit through the site table: run lengthenings
+  and shortenings with their base and lengths (dupC C7 -> C8; insG, insG_pos54,
+  insG_pos58 and delinsAT split the C7 run, seen as C7 -> C6, C5 or C4; the
+  deletions shorten C3/C4 runs) and inserted strings of insertion slots (dupA).
+  insG_pos54 in unit J changes no site and cannot be protected. Switching
+  `phase_quality_single_event` or `phase_quality_group_exclusion` on while
+  `phase_quality_alpha` is 0 is now a configuration error. A synthetic two-peak sample
+  whose dupC minority (15% of one allele) was carried only by low-quality reads,
+  with insertion stutter of other low-quality reads at that run, had its dupC run
+  site explained away and was reported NEGATIVE; it is now INCONCLUSIVE.
+- Hybrid engine: new opt-in `hybrid.phase_quality_single_event` (default off).
+  When an equal-length (single-peak) peak has more than
+  one candidate event and the sites the low-accuracy test keeps form exactly one
+  event, the peak is split on that event under every single-event gate (share
+  bound, group size, differing drafts); the selection stays
+  `unresolved_single_site` with the dropped sites named, so it can turn
+  INCONCLUSIVE into PATHOGENIC but never into NEGATIVE. It recovers one v4 dev
+  HiFi dupA carrier, but it also lets a wild-type site-specific +1 C excess of
+  0.35-0.40 at one C7 run (beyond the single-event split's validated range)
+  become PATHOGENIC where a second, low-accuracy site kept it INCONCLUSIVE, so
+  it is off by default.
+- Hybrid engine: in a two-peak sample, a linked-site group of low-quality reads
+  is no longer counted as a third allele (`unresolved_max_alleles`) when it is
+  the smaller group, its reads have significantly lower mean base quality, its
+  share of the highest-quality reads is significantly below `het_af_min`
+  (confidence bound), it has no distinct length, and its draft differs from the
+  other group's by substitutions only (new `hybrid.phase_quality_group_exclusion`,
+  opt-in and experimental, default off; it needs `phase_quality_alpha` > 0 and
+  reuses the `phase_quality_*` levels). The group never joins an
+  allele consensus; its reads count as spanning reads assigned to no allele and
+  it is reported in `summary["hybrid"]["quality_excluded_groups"]`. A group
+  carrying an insertion or deletion (dupC, any frameshift) is never excluded.
+- Hybrid engine: the low-accuracy-subset site drop and the group exclusion
+  ship **off** (opt-in, experimental). The site rule gained 1 development case and 0 validation cases against a
+  demonstrated synthetic NEGATIVE path (a two-peak dupC minority whose reads are
+  all low quality and whose dupC run stays below both run tiers); the group
+  exclusion has no development-split evidence. At the defaults HiFi
+  INCONCLUSIVE returns to the level before the site rule.
+- **Hybrid engine: a within-peak run-length minority blocks NEGATIVE.**
+  A minority haplotype inside a length peak (mosaicism, a third haplotype)
+  carrying dupC at 15-30% of an allele stayed below the candidate floor and the
+  single-peak-only run-site tier, so a two-peak sample could be NEGATIVE
+  (synthetic, 15% of one allele). In
+  every unsplit length peak each homopolymer run's clean observations are now
+  explained as a mixture of its modal length and each other length, each
+  convolved with the run-length stutter profile of its own length from the
+  peak's peer runs; when the one-sided lower bound of the minority share
+  (`hybrid.phase_run_minor_alpha`, 0.001) reaches
+  `hybrid.phase_run_minor_min_share` (0.09, dev-calibrated) the result is
+  INCONCLUSIVE with the located site (new phase basis `unconfirmed_run_minor`,
+  selection status `unresolved_run_minor`); it never splits a peak or creates
+  an event. New settings `phase_run_minor_scope` (`all`), `phase_run_minor_alpha`,
+  `phase_run_minor_min_share`, `phase_run_minor_max_reads` (2000). v4 dev:
+  2 clean and 1 standard HiFi normals become INCONCLUSIVE (position-specific
+  simulated HiFi run errors). The detection floors per stutter shape and depth
+  are in `docs/reference/limitations.md`.
+- **Hybrid engine: a within-run insG, insG_pos58 or delinsAT minority blocks
+  NEGATIVE.** These templates put another base inside an X unit's C7 run, so a
+  carrier read never observes that run cleanly and the run-minority tier could
+  not see such a minority: a synthetic HiFi-like two-peak insG minority at 30%
+  of one allele (2000 reads) or 40% (600 reads) was NEGATIVE. The tier now also
+  tests, for each known-event run signature (C7 -> C6, C5, C4), the reads that
+  keep both bounding bases of the run and show the signature inside it against
+  the peer runs' rate (new `hybrid.phase_run_minor_in_run`, default `true`).
+  Synthetic detection floor: 0.30 of the event allele at 600 reads for every
+  event, stutter shape and layout (0 of 60 seeds NEGATIVE each). No v4
+  development or validation normal is flagged by it.
+- **Hybrid engine: the single-event split bounds both shares.** The share
+  bound tested only the site's non-draft allele. A synthetic HiFi-like normal
+  with a delinsAT-shaped artefact in 40% of its reads was drafted with the
+  artefact, so the wild type (60%) was the "minor" allele, the split was made
+  and the artefact group was called PATHOGENIC (1 of 10 seeds). The minor and
+  the major share must now both reach `phase_single_event_min_share`. At a
+  column or insertion site each share is now taken over every read observing
+  the site: reads showing neither allele (wild-type reads misaligned next to a
+  stuttering run) were skipped, which inflated both shares of the same artefact
+  under saturating ONT-like stutter (2 of 30 seeds PATHOGENIC after the first
+  fix). Both changes only refuse splits (INCONCLUSIVE, never NEGATIVE).
+- **Hybrid engine: a wild-type run artefact of 30-40% is never PATHOGENIC.**
+  A C inserted into a C unit's C6 run reads exactly like an X unit
+  carrying dupA; synthetic HiFi-like normals with such a site-specific artefact
+  in 30-40% of reads were split on it and called PATHOGENIC (the simulated HiFi
+  normal `simpanel/H1_hifi` carries one at 0.327). The single-event split now
+  needs its share bound to reach the new `hybrid.phase_single_event_min_share`
+  (0.4, was `het_af_min` 0.2), for a run site also with run-length-aware
+  stutter profiles (the pooled per-strand error profiles inflated the share of
+  a C unit's single C6 run), and `hybrid.phase_single_event_bound_reads`
+  changes from 300 to 1000 so equal-length heterozygotes at adequate depth
+  keep their call. An equal-length heterozygote with fewer than about 350
+  reads in its peak is now INCONCLUSIVE instead of PATHOGENIC (v4 dev: one standard ONT
+  genomic carrier, 189 reads). `phase_single_event_min_share` must be at least
+  `het_af_min`: a configuration that raises `het_af_min` above 0.4 is now refused
+  unless it raises `phase_single_event_min_share` too (the error names both keys).
+- **Hybrid engine: insertion slots next to a homopolymer run are recorded.**
+  insG_pos54 in unit J inserts a G right before a C run, where the
+  phase site table recorded no insertion slot, so the event was invisible to
+  site detection: a synthetic HiFi-like equal-length heterozygote was NEGATIVE
+  and a within-peak minority carrying it was never flagged. Slots before and
+  after a run now hold the inserted bases other than the run's own base (which
+  lengthen the run). Every dictionary template now has a site-table signature
+  (the known-event guard of the opt-in quality rules covers insG_pos54 in J).
 
 ## [0.16.1] - 2026-09-24
 
@@ -511,7 +932,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 - Project scaffolding with uv, ruff, mypy, pytest, CI
 - Initial pipeline implementation
 
-[Unreleased]: https://github.com/berntpopp/MucOneSpan/compare/v0.16.1...HEAD
+[Unreleased]: https://github.com/berntpopp/MucOneSpan/compare/v0.17.0...HEAD
+[0.17.0]: https://github.com/berntpopp/MucOneSpan/compare/v0.16.1...v0.17.0
 [0.16.1]: https://github.com/berntpopp/MucOneSpan/compare/v0.16.0...v0.16.1
 [0.16.0]: https://github.com/berntpopp/MucOneSpan/compare/v0.15.1...v0.16.0
 [0.15.1]: https://github.com/berntpopp/MucOneSpan/compare/v0.15.0...v0.15.1

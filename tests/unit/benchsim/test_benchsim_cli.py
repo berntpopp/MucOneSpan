@@ -249,10 +249,10 @@ def test_run_derives_engines_results_root_and_models(
     )
     assert rc == 0 and len(calls) == 1
     _, engines, results_root, threads, jobs = calls[0]
-    assert engines == ["ladder"] and threads == 4 and jobs == 1
+    assert engines == ["hybrid"] and threads == 4 and jobs == 1
     assert results_root == tmp_path / "data" / "results" / "dev"
-    caller = json.loads((results_root / "ladder" / "caller.json").read_text())
-    assert caller["engine"] == "ladder" and caller["caller_commit"]  # fake git output
+    caller = json.loads((results_root / "hybrid" / "caller.json").read_text())
+    assert caller["engine"] == "hybrid" and caller["caller_commit"]  # fake git output
     assert caller["caller_version"] == __version__
 
 
@@ -325,3 +325,19 @@ def test_run_without_a_model_fails_only_when_a_case_needs_it(
 
     monkeypatch.setattr(cli, "run_split", fake_run_split)
     assert cli.main(["run", "--manifest", str(manifest), "--model-ont", "m"]) == 0
+
+
+def test_run_forwards_a_runtime_config(tmp_path: Path, monkeypatch: pytest.MonkeyPatch) -> None:
+    cli = _cli(tmp_path, monkeypatch)
+    manifest = _manifest(tmp_path)
+    seen: list[Any] = []
+
+    def fake_run_split(*args: Any, **kwargs: Any) -> list[Any]:
+        seen.append(kwargs.get("config"))
+        return []
+
+    monkeypatch.setattr(cli, "run_split", fake_run_split)
+    config = tmp_path / "settings.json"
+    config.write_text('{"schema_version": 1}')
+    assert cli.main(["run", "--manifest", str(manifest), "--config", str(config)]) == 0
+    assert seen == [config.resolve()]

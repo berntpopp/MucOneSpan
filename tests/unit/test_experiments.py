@@ -170,7 +170,7 @@ def test_bam_validation_uses_primary_records_with_sequence(tmp_path, monkeypatch
 
 def fake_simulator(cmd, **kwargs):
     """Write independently reconstructed diploid simulator-format truth."""
-    from muc_one_span.config import _apply_mutation, load_repeat_dictionary
+    from muc_one_span.config import apply_mutation, load_repeat_dictionary
 
     if "--version" in cmd:
         return "MucOneUp, version fixture"
@@ -186,7 +186,7 @@ def fake_simulator(cmd, **kwargs):
         labels = ["X"] * length
         details = []
         if mutation and hap == 1:
-            sequences[9] = _apply_mutation(rd.repeats["X"], rd.mutations["dupC"]["changes"])
+            sequences[9] = apply_mutation(rd.repeats["X"], rd.mutations["dupC"]["changes"])
             labels[9] = "Xm"
             details = [{"position": 10, "repeat": "X"}]
             (out / "s.mutated_unit.fa").write_text(f">haplotype_1_repeat_10\n{sequences[9]}\n")

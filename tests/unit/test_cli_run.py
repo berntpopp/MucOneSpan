@@ -99,7 +99,15 @@ class TestRunSubcommand:
             runner = CliRunner()
             result = runner.invoke(
                 main,
-                ["run", "--input", str(input_file), "--output-dir", str(output_dir)],
+                [
+                    "run",
+                    "--input",
+                    str(input_file),
+                    "--output-dir",
+                    str(output_dir),
+                    "--engine",
+                    "ladder",
+                ],
             )
 
         assert result.exit_code == 0, result.output
@@ -168,7 +176,16 @@ class TestRunReportFallback:
             runner = CliRunner()
             result = runner.invoke(
                 main,
-                ["run", "--input", str(input_file), "--output-dir", str(output_dir), "--report"],
+                [
+                    "run",
+                    "--input",
+                    str(input_file),
+                    "--output-dir",
+                    str(output_dir),
+                    "--report",
+                    "--engine",
+                    "ladder",
+                ],
             )
 
         import json

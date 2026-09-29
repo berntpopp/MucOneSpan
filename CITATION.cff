@@ -10,8 +10,8 @@ authors:
 repository-code: "https://github.com/berntpopp/MucOneSpan"
 url: "https://berntpopp.github.io/MucOneSpan/"
 license: MIT
-version: "0.13.0"
-date-released: "2026-09-15"
+version: "0.17.0"
+date-released: "2026-09-26"
 keywords:
   - MUC1
   - VNTR

@@ -19,7 +19,13 @@ except ImportError:
 
 from typing import Any
 
-from muc_one_span.clinical_gates import allele_gate_reasons, mutation_blockers
+from muc_one_span.clinical_gates import (
+    LOW_DEPTH_STATUSES,
+    allele_gate_reasons,
+    depth_assessed,
+    depth_gate_failure,
+    mutation_blockers,
+)
 from muc_one_span.decision_settings import resolve_decision_settings
 from muc_one_span.nomenclature import enrich_mutation_record
 from muc_one_span.report_assets import (
@@ -36,6 +42,25 @@ from muc_one_span.version import __version__
 def _enrich_mutation_nomenclature(mutation: dict) -> dict:
     """Enrich a detected mutation dict with HGVS cDNA and repeat form."""
     return enrich_mutation_record(mutation)
+
+
+# Readable labels for status enums the HTML report shows; any other value is rendered
+# by `status_label`'s generic fallback (underscores to spaces, first letter capitalised).
+STATUS_LABELS = {
+    "not_applicable_dictionary_fit_heuristic": "Not applicable (dictionary-fit heuristic)",
+}
+# Colour bands of the Quality Metrics progress bars, in percent: at or above GOOD is
+# green, at or above OK yellow, else red. Presentation only; no decision uses them.
+QUALITY_BAND_GOOD_PCT = 80
+QUALITY_BAND_OK_PCT = 50
+
+
+def status_label(value: str) -> str:
+    """Human-readable label for a status enum value shown in the HTML report."""
+    if value in STATUS_LABELS:
+        return STATUS_LABELS[value]
+    text = value.replace("_", " ")
+    return text[:1].upper() + text[1:]
 
 
 def _exact_match_percentage(value: Any) -> float | None:
@@ -102,10 +127,10 @@ def compute_clinical_decision(
     a1 = alleles.get("allele_1", {}) if isinstance(alleles, dict) else {}
     a2 = alleles.get("allele_2", {}) if isinstance(alleles, dict) else {}
     carriers = {"allele_1": a1, "allele_2": a2}
-    depth_assessed = any(a.get("depth_status") in ("adequate", "low") for a in (a1, a2))
+    assessed = depth_assessed([a1, a2])
     total_reads = (a1.get("reads", 0) or 0) + (a2.get("reads", 0) or 0)
     low_coverage = (
-        not depth_assessed
+        not assessed
         and total_reads < decision_settings.legacy_min_total_reads
         and (bool(a1) or bool(a2))
     )
@@ -122,8 +147,11 @@ def compute_clinical_decision(
             mut_copy = dict(mut)
             mut_copy["allele"] = allele_key
             blockers = mutation_blockers(mut)
-            if carrier.get("depth_status") == "low":
+            carrier_depth = depth_gate_failure(carrier, assessed=assessed)
+            if carrier_depth in LOW_DEPTH_STATUSES:
                 blockers.append("carrying allele is below the per-allele depth gate")
+            elif carrier_depth is not None:
+                blockers.append(f"carrying allele depth status {carrier_depth!r} is not adequate")
             if low_coverage:
                 blockers.append("total read depth is below the diagnostic threshold")
             mut_copy["decision_blockers"] = blockers
@@ -162,8 +190,8 @@ def compute_clinical_decision(
                 )
 
     selection_reasons = (
-        allele_gate_reasons(a1, "Allele 1")
-        + allele_gate_reasons(a2, "Allele 2")
+        allele_gate_reasons(a1, "Allele 1", assessed=assessed)
+        + allele_gate_reasons(a2, "Allele 2", assessed=assessed)
         + stage_concordance_reasons(a1, "Allele 1")
         + stage_concordance_reasons(a2, "Allele 2")
     )
@@ -389,6 +417,7 @@ def generate_report(
         autoescape=True,
     )
     env.filters["exact_match_percentage"] = _exact_match_percentage
+    env.filters["status_label"] = status_label
     template = env.get_template("report.html.j2")
 
     versions = tool_versions or summary.get("tool_versions", {})
@@ -450,6 +479,8 @@ def generate_report(
         igv=igv_context,
         igv_payload=igv_payload_b64,
         igv_provenance=igv_provenance_str,
+        band_good=QUALITY_BAND_GOOD_PCT,
+        band_ok=QUALITY_BAND_OK_PCT,
     )
 
     output_path.parent.mkdir(parents=True, exist_ok=True)

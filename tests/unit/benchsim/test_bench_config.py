@@ -9,6 +9,7 @@ from muc_one_span.benchsim.bench_config import (
     TARGET_BASIS_NAMES,
     TARGET_COMPARATOR_NAMES,
     TARGET_METRIC_NAMES,
+    TARGET_SCOPE_NAMES,
     BenchConfig,
     Target,
     load_bench_config,
@@ -149,6 +150,36 @@ def test_json_overlays_defaults_and_coerces_lists(tmp_path: Path) -> None:
                 "schema_version": 1,
                 "targets": {
                     "by_set": {
+                        "standard": {
+                            "inconclusive_rate": {
+                                "comparator": "le",
+                                "threshold": 0.2,
+                                "scope": "per_profile_only",
+                            }
+                        },
+                    }
+                },
+            },
+            r"targets\.by_set\.standard\.inconclusive_rate\.scope",
+        ),
+        (
+            {
+                "schema_version": 1,
+                "targets": {
+                    "by_set": {
+                        "standard": {
+                            "inconclusive_rate": {"comparator": "le", "threshold": 0.2, "x": 1}
+                        },
+                    }
+                },
+            },
+            "unknown targets.by_set.standard.inconclusive_rate fields",
+        ),
+        (
+            {
+                "schema_version": 1,
+                "targets": {
+                    "by_set": {
                         "standard": {"pathogenic_rate": {"comparator": "ge"}},
                     }
                 },
@@ -240,22 +271,62 @@ def test_atlas_expected_sets_must_be_defined(tmp_path: Path) -> None:
 
 
 def test_target_defaults_match_the_owner_directive() -> None:
-    # Owner ruling 2026-09-25 (task 12e): clean >=0.90 PATHOGENIC / <=0.10 INCONCLUSIVE / 0
-    # FP; standard >=0.80 / <=0.20 / 0 FP; stress reported only, no target.
+    # clean >=0.90 PATHOGENIC / <=0.10 INCONCLUSIVE / 0
+    # FP; standard >=0.80 / <=0.20 / 0 FP; stress reported only, no target. Owner decision
+    # 2026-09-27 (task 15o, rule v6): INCONCLUSIVE binds on the pooled set only. Owner
+    # decision 2026-09-28 (task 15n, rule v7): the pooled clean INCONCLUSIVE ceiling is 0.15.
     targets = CFG.targets
     assert targets.basis == "point"
     standard, clean = targets.by_set["standard"], targets.by_set["clean"]
     assert standard == {
         "pathogenic_rate": Target("ge", 0.80),
-        "inconclusive_rate": Target("le", 0.20),
+        "inconclusive_rate": Target("le", 0.20, "pooled"),
         "false_positive_rate": Target("le", 0.0),
     }
     assert clean == {
         "pathogenic_rate": Target("ge", 0.90),
-        "inconclusive_rate": Target("le", 0.10),
+        "inconclusive_rate": Target("le", 0.15, "pooled"),
         "false_positive_rate": Target("le", 0.0),
     }
     assert "stress" not in targets.by_set
+
+
+def test_target_scope_defaults_to_pooled_and_profiles() -> None:
+    assert TARGET_SCOPE_NAMES == ("pooled_and_profiles", "pooled")
+    assert Target("ge", 0.5).scope == "pooled_and_profiles"
+    for metrics in CFG.targets.by_set.values():
+        assert metrics["pathogenic_rate"].scope == "pooled_and_profiles"
+        assert metrics["false_positive_rate"].scope == "pooled_and_profiles"
+        assert metrics["inconclusive_rate"].scope == "pooled"
+
+
+def test_target_scope_json_round_trip(tmp_path: Path) -> None:
+    # The effective settings (to_dict) load back unchanged, scope included.
+    assert load_bench_config(_write(tmp_path, CFG.to_dict())) == CFG
+    data = {
+        "schema_version": 1,
+        "targets": {
+            "by_set": {
+                "clean": {
+                    "inconclusive_rate": {"comparator": "le", "threshold": 0.1, "scope": "pooled"},
+                    # A file written before scopes existed omits it: the pre-v6 behaviour.
+                    "pathogenic_rate": {"comparator": "ge", "threshold": 0.9},
+                }
+            }
+        },
+    }
+    cfg = load_bench_config(_write(tmp_path, data))
+    assert cfg.targets.by_set["clean"] == {
+        "inconclusive_rate": Target("le", 0.1, "pooled"),
+        "pathogenic_rate": Target("ge", 0.9, "pooled_and_profiles"),
+    }
+    assert cfg.generation_sha256() == CFG.generation_sha256()
+
+
+def test_target_scope_is_validated_in_code() -> None:
+    bad = {"standard": {"inconclusive_rate": Target("le", 0.2, "nope")}}
+    with pytest.raises(ValueError, match=r"targets\.by_set\.standard\.inconclusive_rate\.scope"):
+        type(CFG.targets)(by_set=bad)
 
 
 def test_target_names_are_exhaustive_and_known() -> None:

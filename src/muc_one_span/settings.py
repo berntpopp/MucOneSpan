@@ -4,51 +4,37 @@ from __future__ import annotations
 
 import json
 import logging
-import math
 from collections.abc import Callable, Mapping
 from dataclasses import asdict, dataclass, field, fields
 from pathlib import Path
 from typing import Any
 
+from muc_one_span.settings_hybrid import SMEAR_CORRECTIONS, HybridSettings
+from muc_one_span.settings_validation import (
+    _boolean,
+    _choice,
+    _integer,
+    _number,
+    _open_unit_interval,
+    _string,
+)
+
+# Re-exported for backward compatibility: these validation helpers and HybridSettings
+# used to live in this module; existing `from muc_one_span.settings import ...` call
+# sites (in src and tests) keep working unchanged. See settings_validation.py and
+# settings_hybrid.py for their definitions.
+__all__ = [
+    "SMEAR_CORRECTIONS",
+    "HybridSettings",
+    "_boolean",
+    "_choice",
+    "_integer",
+    "_number",
+    "_open_unit_interval",
+    "_string",
+]
+
 logger = logging.getLogger(__name__)
-
-
-def _integer(name: str, value: object, minimum: int = 0) -> None:
-    if type(value) is not int or value < minimum:
-        raise ValueError(f"{name} must be an integer >= {minimum}")
-
-
-def _number(name: str, value: object, minimum: float = 0, maximum: float | None = None) -> None:
-    try:
-        finite = isinstance(value, (int, float)) and math.isfinite(value)
-    except OverflowError:
-        finite = False
-    if (
-        not isinstance(value, (int, float))
-        or isinstance(value, bool)
-        or not finite
-        or value < minimum
-        or (maximum is not None and value > maximum)
-    ):
-        limit = f" in [{minimum}, {maximum}]" if maximum is not None else f" >= {minimum}"
-        raise ValueError(f"{name} must be a finite number{limit}")
-
-
-def _boolean(name: str, value: object) -> None:
-    if type(value) is not bool:
-        raise ValueError(f"{name} must be a boolean")
-
-
-def _string(name: str, value: object, *, optional: bool = False, empty: bool = False) -> None:
-    if optional and value is None:
-        return
-    if not isinstance(value, str) or (not value.strip() and not (empty and value == "")):
-        raise ValueError(f"{name} must be a nonempty string" + (" or null" if optional else ""))
-
-
-def _choice(name: str, value: object, allowed: tuple[str, ...]) -> None:
-    if not isinstance(value, str) or value not in allowed:
-        raise ValueError(f"{name} must be one of {allowed!r}")
 
 
 @dataclass(frozen=True)
@@ -65,6 +51,8 @@ class RunSettings:
     mapping_timeout: float = 3600.0
     report: bool = False
     report_igv: str = "off"
+    engine: str = "hybrid"
+    assay: str = "amplicon"
 
     def __post_init__(self) -> None:
         _integer("run.threads", self.threads, 1)
@@ -81,6 +69,8 @@ class RunSettings:
         _boolean("run.report", self.report)
         if self.report_igv not in ("off", "embedded", "sidecar"):
             raise ValueError("run.report_igv must be off, embedded, or sidecar")
+        _choice("run.engine", self.engine, ("ladder", "hybrid"))
+        _choice("run.assay", self.assay, ("amplicon", "genomic"))
 
 
 @dataclass(frozen=True)
@@ -390,6 +380,7 @@ class RuntimeSettings:
     calling: CallingSettings = field(default_factory=CallingSettings)
     read_phasing: ReadPhasingSettings = field(default_factory=ReadPhasingSettings)
     reference_layout: ReferenceLayoutSettings = field(default_factory=ReferenceLayoutSettings)
+    hybrid: HybridSettings = field(default_factory=HybridSettings)
     clinical_decision: ClinicalDecisionSettings = field(default_factory=ClinicalDecisionSettings)
     repeat_dictionary: str | None = None
 
@@ -411,6 +402,7 @@ _SECTIONS = {
     "calling": CallingSettings,
     "read_phasing": ReadPhasingSettings,
     "reference_layout": ReferenceLayoutSettings,
+    "hybrid": HybridSettings,
     "clinical_decision": ClinicalDecisionSettings,
 }
 DEFAULT_SETTINGS = RuntimeSettings()

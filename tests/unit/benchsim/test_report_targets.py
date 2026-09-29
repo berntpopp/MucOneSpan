@@ -1,7 +1,7 @@
-"""benchsim.report.decide: the task 12e absolute targets and the task C1 FP ruling.
+"""benchsim.report.decide: the absolute targets and the false-positive rule of v5 on.
 
 Split out of ``test_report.py`` (file-size gate): this covers Part 2 of the decision
-rule (``targets.by_set``) and, since task C1, the false-positive criterion that now
+rule (``targets.by_set``) and, since decision rule v5, the false-positive criterion that now
 lives there instead of in Part 1's relative comparison.
 """
 
@@ -11,7 +11,7 @@ from typing import Any
 from muc_one_span.benchsim.bench_config import DEFAULT_BENCH_CONFIG, BenchConfig, TargetsConfig
 from muc_one_span.benchsim.report import decide, render_markdown
 
-# Bypasses the task 12e absolute targets (part 2) so a fixture that exercises only the
+# Bypasses the absolute targets (part 2) so a fixture that exercises only the
 # relative rule (part 1) does not also need pathogenic/decision/inconclusive fields.
 NO_TARGETS = BenchConfig(targets=TargetsConfig(by_set={}))
 
@@ -58,7 +58,7 @@ def _standard_fixture(
 
 
 def _clean_fixture(n_path: int, n_normal: int) -> list[dict[str, Any]]:
-    """Candidate-only ``clean``-set rows meeting its targets (>= 0.90 / <= 0.10 / <= 0)."""
+    """Candidate-only ``clean``-set rows meeting its targets (>= 0.90 / <= 0.15 / <= 0)."""
     cand = [
         _target_row(f"cp{i}", "ont_amplicon_r10", "clean", 1, "pathogenic", "PATHOGENIC")
         for i in range(n_path)
@@ -111,7 +111,7 @@ _STANDARD_ONLY = BenchConfig(
 
 def test_decide_adopts_at_planned_test_size_with_zero_fp() -> None:
     # Task C1, the exact final-review scenario: 280 normals/profile, 0 FP in both
-    # engines. Before the owner's ruling this could never ADOPT (the Newcombe
+    # engines. Under the former relative rule this could never ADOPT (the Newcombe
     # non-inferiority upper bound, 0.00957, exceeded the 0.005 margin even at 0
     # observed FP). FP is now judged only by the absolute `false_positive_rate <= 0`
     # target, which 0 FP clears, so this now adopts.
@@ -125,7 +125,7 @@ def test_decide_adopts_at_planned_test_size_with_zero_fp() -> None:
 
 
 def test_decide_candidate_fp_on_a_target_set_still_fails_adoption() -> None:
-    # The relative rule no longer looks at FP at all (task C1); a single candidate
+    # The relative rule no longer looks at FP at all (decision rule v5); a single candidate
     # false positive on a targeted, headline-set profile still fails adoption
     # through part 2's absolute `false_positive_rate` target.
     base, cand = _standard_fixture(n_path=30, n_normal=280)
@@ -166,3 +166,72 @@ def test_render_markdown_shows_the_absolute_targets_table() -> None:
     assert "| standard | pooled | pathogenic_rate |" in text
     assert "Set verdict: standard=True, clean=True" in text
     assert "**ADOPT**" in text
+
+
+def _inconclusive_heavy_profile(n_path: int, n_inconclusive: int) -> tuple[list[Any], list[Any]]:
+    """(baseline, candidate) `hifi_amplicon` rows: candidate superior, INCONCLUSIVE on normals."""
+    base, cand = [], []
+    for i in range(n_path):
+        sample = f"hp{i}"
+        base.append(_target_row(sample, "hifi_amplicon", "standard", 0, "pathogenic", "NO_CALL"))
+        cand.append(_target_row(sample, "hifi_amplicon", "standard", 1, "pathogenic", "PATHOGENIC"))
+    for i in range(n_inconclusive):
+        sample = f"hn{i}"
+        base.append(_target_row(sample, "hifi_amplicon", "standard", 0, "normal", "NO_CALL"))
+        cand.append(_target_row(sample, "hifi_amplicon", "standard", 1, "normal", "INCONCLUSIVE"))
+    return base, cand
+
+
+def test_decide_v6_inconclusive_binds_on_the_pooled_set_only() -> None:
+    # Rule v6 onwards: one profile at 10/30 INCONCLUSIVE
+    # (> 0.20) no longer fails adoption while the pooled rate (10/340) clears 0.20.
+    base, cand = _standard_fixture(n_path=30, n_normal=280)
+    hifi_base, hifi_cand = _inconclusive_heavy_profile(n_path=20, n_inconclusive=10)
+    reports = {"ladder": base + hifi_base, "hybrid": cand + hifi_cand}
+    result = decide(reports, "ladder", "hybrid", _STANDARD_ONLY)
+    table = result["targets"]["standard"]["table"]
+    hifi_inc = next(
+        r for r in table if r["grouping"] == "hifi_amplicon" and r["metric"] == "inconclusive_rate"
+    )
+    assert hifi_inc["pass"] is False and hifi_inc["binding"] is False
+    assert result["targets"]["standard"]["pass"] is True
+    assert all(p["pass"] for p in result["profiles"].values())
+    assert result["adopt"] is True
+    assert "info only" in render_markdown(result)
+
+    # The pre-v6 scope (every profile binding) would have refused the same rows.
+    per_profile = {
+        m: replace(t, scope="pooled_and_profiles")
+        for m, t in DEFAULT_BENCH_CONFIG.targets.by_set["standard"].items()
+    }
+    old = BenchConfig(targets=TargetsConfig(by_set={"standard": per_profile}))
+    refused = decide(reports, "ladder", "hybrid", old)
+    assert refused["targets"]["standard"]["pass"] is False and refused["adopt"] is False
+    assert refused["rule_sha256"] != result["rule_sha256"]
+
+
+def test_decide_v7_clean_inconclusive_ceiling_is_0_15_pooled() -> None:
+    # Rule v7: the pooled clean INCONCLUSIVE rate
+    # 3/24 (0.125) passes v7 while it failed the v6 ceiling 0.10.
+    base, cand = _standard_fixture(n_path=30, n_normal=280)
+    clean = _clean_fixture(18, 6)
+    for i in range(18, 21):  # three normals, so the PATHOGENIC floor stays met
+        clean[i] = clean[i] | {"decision": "INCONCLUSIVE", "inconclusive": 1}
+    reports = {"ladder": base, "hybrid": cand + clean}
+    result = decide(reports, "ladder", "hybrid")
+    pooled = next(
+        r
+        for r in result["targets"]["clean"]["table"]
+        if r["grouping"] == "pooled" and r["metric"] == "inconclusive_rate"
+    )
+    assert (pooled["k"], pooled["n"], pooled["threshold"]) == (3, 24, 0.15)
+    assert pooled["pass"] is True and result["targets"]["clean"]["pass"] is True
+    v6_clean = dict(DEFAULT_BENCH_CONFIG.targets.by_set["clean"])
+    v6_clean["inconclusive_rate"] = replace(v6_clean["inconclusive_rate"], threshold=0.10)
+    v6 = BenchConfig(
+        targets=replace(
+            DEFAULT_BENCH_CONFIG.targets,
+            by_set={**DEFAULT_BENCH_CONFIG.targets.by_set, "clean": v6_clean},
+        )
+    )
+    assert decide(reports, "ladder", "hybrid", v6)["targets"]["clean"]["pass"] is False

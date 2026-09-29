@@ -17,15 +17,25 @@ ENV PATH="/opt/conda/envs/muconespan-tools/bin:${PATH}"
 FROM tools-runtime AS app-builder
 COPY --from=uv /uv /usr/local/bin/uv
 USER root
+# pyabpoa is sdist-only; compilers stay in the builder, only /opt/venv is copied.
+RUN apt-get update && apt-get install -y --no-install-recommends gcc libc6-dev zlib1g-dev \
+    && rm -rf /var/lib/apt/lists/*
 RUN mkdir /opt/venv && chown "$MAMBA_USER:$MAMBA_USER" /opt/venv
 USER $MAMBA_USER
-ENV UV_PROJECT_ENVIRONMENT=/opt/venv UV_PYTHON_DOWNLOADS=never UV_LINK_MODE=copy
+# pyabpoa's setup.py defaults to -march=native, which would tie the image to the
+# build host's CPU ("Illegal instruction" elsewhere). SSE4=1 selects -msse4.1;
+# pyproject.toml sets it for uv too, this also covers any non-uv build. aarch64
+# builds ignore it and use armv8-a+simd.
+ENV UV_PROJECT_ENVIRONMENT=/opt/venv UV_PYTHON_DOWNLOADS=never UV_LINK_MODE=copy SSE4=1
 WORKDIR /app
 COPY --chown=$MAMBA_USER:$MAMBA_USER pyproject.toml uv.lock README.md ./
-RUN uv sync --locked --no-default-groups --extra report --no-install-project --no-editable \
+RUN uv sync --locked --no-default-groups --extra report --extra hybrid --no-install-project --no-editable \
     --python /opt/conda/envs/muconespan-tools/bin/python
 COPY --chown=$MAMBA_USER:$MAMBA_USER src/ ./src/
-RUN uv sync --locked --no-default-groups --extra report --no-editable
+RUN uv sync --locked --no-default-groups --extra report --extra hybrid --no-editable
+# Reject a non-portable extension before it reaches the image (objdump comes with gcc).
+RUN --mount=type=bind,source=scripts/check_portable_build.py,target=/tmp/check_portable_build.py \
+    /opt/venv/bin/python /tmp/check_portable_build.py pyabpoa
 
 FROM tools-runtime AS app-runtime
 # Source edits replace only this small app environment, not the multi-GB toolchain.

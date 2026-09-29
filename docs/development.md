@@ -29,13 +29,16 @@ When intentionally changing dependencies, edit
 | Command | Purpose |
 | --- | --- |
 | `make quality` | Ruff, formatting, configured mypy, file size, and workflow syntax |
-| `make test-fast` | Unit tests without coverage or external tools |
-| `make test-unit` | Unit tests with the 80% coverage gate |
-| `make ci-check` | Quality and unit tests with at least 80% coverage |
+| `make test-fast` | Every unit test (safety sweeps included) without coverage or external tools |
+| `make test-unit` | Every unit test (safety sweeps included) with the 80% coverage gate |
+| `make ci-check` | Quality and every unit test with at least 80% coverage |
+| `make test-core` / `make test-core-cov` | Unit tests except the safety sweeps (the CI Test Suite jobs) |
+| `make test-sweeps` | Only the heavy safety sweeps (the CI Safety Sweeps job) |
 | `make test-int` | Tests marked as tool-dependent integration tests |
 | `make docs-check` | Strict documentation build |
 | `make security-check` | Audit all locked extras against published Python advisories |
 | `make build-check` | Distribution build and package validation |
+| `make portable-check` | Fail if `pyabpoa` was compiled for the local CPU (x86-64; needs `objdump`) |
 | `make docker-test` | BuildKit runtime checks without image export/load |
 | `make docker-build docker-smoke` | Build and test an image through Docker |
 | `make format` | Apply Ruff formatting |
@@ -47,6 +50,22 @@ using the settings in `pyproject.toml`, including required function annotations.
 Coverage includes branch measurement;
 the 80% gate applies to the aggregate unit test result, not each individual file.
 Do not weaken checks or swallow failures to make a change pass.
+
+The unit targets run in parallel with pytest-xdist, `PYTEST_WORKERS` worker
+processes (default 4; each holds a full pipeline in memory, so raise it only with
+RAM to spare, e.g. `make ci-check PYTEST_WORKERS=8`). Tests marked
+`safety_sweep` are the heavy synthetic safety sweeps: full pipeline runs over
+seeds, stutter shapes and depths asserting that a pathogenic minority is never
+NEGATIVE and a wild type never PATHOGENIC. They are about four fifths of the unit
+suite's run time. CI runs them in their own "Safety Sweeps" jobs, one per supported
+Python (3.10-3.14), on every push and on every pull request that changes the
+runtime (45-minute timeout; the sweeps of `32f732e` took 17m43s on a standard
+runner with Python 3.12, and the within-run event sweeps add a few minutes), while
+the five "Test Suite" jobs run everything else (10-minute timeout, 3-5 minutes
+each); the CI Gate requires both. `make test-unit` and `make ci-check` run both
+parts, so no sweep is skipped locally either. Mark a new multi-seed pipeline sweep
+`@pytest.mark.safety_sweep` (a whole module with `pytestmark` only when it holds no
+cheap test) so the Test Suite jobs stay inside their timeout.
 
 For a focused test:
 
@@ -74,6 +93,8 @@ description is not the implementation contract; see
 | `calling.py`, `vcf.py` | Allele read extraction/remapping, Clair3 calls, VCF processing |
 | `consensus.py` | Allele consensus sequences using bcftools |
 | `classify.py`, `classify_types.py`, `repeat_alignment.py` | Repeat segmentation, nomenclature, mutation interpretation |
+| `hybrid/`, `settings_hybrid.py` | Default read-centric engine: anchoring, length model, POA consensus, phasing, assignment, polishing, read support |
+| `pipeline.py`, `pipeline_tail.py`, `deprecations.py` | Engine dispatch, shared classification/summary tail, deprecated-option warnings and `summary["deprecations"]` |
 | `report.py`, `templates/` | Structured results and optional HTML report |
 | `tools.py` | External command execution, environments, errors, tool versions |
 | `scripts/` | Reference generation, simulation, benchmark and maintenance helpers |
@@ -365,7 +386,9 @@ supports PATHOGENIC only when all of these hold:
 - it is an exact dictionary template (`template_match` and `mutation_name`);
 - its localization is not ambiguous;
 - it has explicit support (exact VCF concordance or `read_support.status=supported`);
-- its allele's `depth_status` is not `low`.
+- its allele's `depth_status` is `adequate` (with a `depth_basis`, any other value,
+  including a missing or unknown one, blocks PATHOGENIC; legacy summaries without a basis
+  block `low` and `insufficient` only).
 
 NEGATIVE additionally requires:
 
