@@ -1,0 +1,23 @@
+{
+  "schema_version": 1,
+  "gene": "MUC1",
+  "transcript": "ENST00000620103.4",
+  "transcript_label": "MUC1-225 (Ensembl canonical; exons identical to NM_001204285.2)",
+  "assembly": "GRCh38",
+  "chrom": "chr1",
+  "strand": "-",
+  "source": "Ensembl release 116 REST lookup/symbol/homo_sapiens/MUC1?expand=1 (retrieved 2026-10-05)",
+  "coordinate_system": "1-based inclusive, genomic plus-strand coordinates",
+  "exons": [
+    [155185824, 155186209],
+    [155187225, 155187374],
+    [155187455, 155187576],
+    [155187722, 155187858],
+    [155188008, 155188063],
+    [155188163, 155188616],
+    [155191908, 155192283],
+    [155192786, 155192915]
+  ],
+  "cds": [155186135, 155192843],
+  "note": "The transcript holds fewer VNTR units than GRCh38, so its exon 2 aligns as two blocks around the VNTR. Display projection merges the blocks flanking the bundled VNTR region into one exon 2 that spans each allele's repeat array."
+}

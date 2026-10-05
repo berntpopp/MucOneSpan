@@ -84,6 +84,9 @@ class HybridResult:
     consensus_paths: dict[str, Path]
     block: dict[str, Any]
     members: dict[str, list[tuple[str, str]]]
+    # Allele -> names of the reads the engine assigned to it: its spanning members
+    # and the partial reads assigned by edit-distance competition (IGV display).
+    read_names: dict[str, list[str]] = field(default_factory=dict)
 
 
 @dataclass
@@ -366,11 +369,16 @@ def reconstruct_alleles(
     refs = hybrid_references(
         {n: g.draft for n, g in zip(names, kept, strict=True)}, rd, h.assign_flank_bp
     )
+    partial_names: dict[str, list[str]] = {}
     extra = assign_reads(
-        cats.left_anchored + cats.right_anchored + cats.internal_or_offtarget, refs, h
+        cats.left_anchored + cats.right_anchored + cats.internal_or_offtarget,
+        refs,
+        h,
+        partial_names,
     )
     alleles: dict[str, Any] = {}
     paths: dict[str, Path] = {}
+    read_names: dict[str, list[str]] = {}
     members: dict[str, list[tuple[str, str]]] = {}
     seqs: dict[str, str] = {}
     fixed = settings.reference_layout.fixed_repeat_count
@@ -411,6 +419,7 @@ def reconstruct_alleles(
         )
         alleles[name]["polish"] = info
         members[name] = [(m.seq, m.strand) for m in group.members]
+        read_names[name] = [m.name for m in group.members] + partial_names.get(name, [])
         paths[name] = _write_allele(output_dir, name, cons, len(group.members))
         seqs[name] = cons
     if SINGLE_EVENT in split_bases and len(set(seqs.values())) < len(seqs):
@@ -469,7 +478,7 @@ def reconstruct_alleles(
     (output_dir / "hybrid_references.fa").write_text(
         "".join(f">hybrid_{k}\n{v}\n" for k, v in refs.items())
     )
-    return HybridResult(alleles, paths, block, members)
+    return HybridResult(alleles, paths, block, members, read_names)
 
 
 def annotate_read_support(

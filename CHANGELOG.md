@@ -7,6 +7,53 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+## [0.18.0] - 2026-10-05
+
+The hybrid engine gains an IGV alignment browser in the HTML report and an
+optional IGV Desktop output folder. Variant calls and every non-IGV output are
+unchanged.
+
+### Added
+
+- `--report-igv embedded|sidecar` now works with the hybrid engine. Each allele
+  shows exactly the reads the engine assigned to it (spanning members and
+  assigned partial reads), aligned (minimap2, new setting
+  `hybrid.igv_minimap2_preset`, default `lr:hq`) to that allele's display
+  reference: the polished consensus with every mutated repeat unit restored to
+  its canonical parent unit, in `hybrid.assign_flank_bp` ladder flanks. Reads
+  carrying a detected mutation therefore show it as an insertion, deletion or
+  mismatch. The alignment is for display only and never feeds a call; it is
+  written to `igv/` (`igv_reference.fa`, `mapping.bam`, per-allele inputs). A
+  **Detected mutations** track (`igv/mutations.bed`) marks the changed reference
+  bases, with insertions and deletions left-normalized within a homopolymer run
+  (a dupC: before the first C of the run, where aligners record it). The
+  navigation table (`igv/loci.bed`) lists each allele and each mutation, and the
+  report opens on the first mutation. A mutation row is its 1-bp site: reads are
+  sorted by base there (carriers first) and `hybrid.igv_context_units` (default 1)
+  repeat units are shown on each side. The whole contig is embedded, so the view
+  can be panned and zoomed out to the full gene (at most
+  `hybrid.igv_max_reads_per_allele`, default 300, reads per allele; seeded
+  subsample). Two more tracks: **MUC1 gene**, the bundled Ensembl canonical
+  transcript ENST00000620103.4 (new data file `data/annotation/muc1_gene.json`,
+  Ensembl 116) projected onto each allele with exon 2 spanning its repeat array
+  (`hybrid.igv_gene_annotation`, `hybrid.igv_gene_margin_bp`), and **Repeat
+  units**, each unit labelled and coloured as in the report's repeat map.
+- `muconespan run --igv-session` (`run.igv_session`, hybrid engine): keeps `igv/`
+  in the output folder for IGV Desktop: `igv_session.xml` (relative paths; every
+  allele and mutation as a region of interest), the display reference with its
+  `.fai`, the aligned-allele BAM with its `.bai`, and the gene, repeat-unit,
+  mutation and locus BEDs. Works with or without `--report-igv`; without it, an
+  IGV report's intermediate `igv/` folder is removed. Refused with the ladder
+  engine. A hybrid IGV run needs
+  `minimap2`, `samtools` and `create_report` (igv-reports 1.13.0 verified), and
+  uses `--threads` and `--mapping-timeout` for the alignment (no longer listed as
+  ignored). Runs without `--report-igv` are unchanged.
+
+### Changed
+
+- The hybrid engine no longer rejects `--report-igv` (0.17.0 refused it before
+  writing any output).
+
 ## [0.17.0] - 2026-09-29
 
 The read-centric **hybrid engine is now the default** for every input type
@@ -932,7 +979,8 @@ Known limits (clinically relevant; details in `docs/reference/limitations.md`):
 - Project scaffolding with uv, ruff, mypy, pytest, CI
 - Initial pipeline implementation
 
-[Unreleased]: https://github.com/berntpopp/MucOneSpan/compare/v0.17.0...HEAD
+[Unreleased]: https://github.com/berntpopp/MucOneSpan/compare/v0.18.0...HEAD
+[0.18.0]: https://github.com/berntpopp/MucOneSpan/compare/v0.17.0...v0.18.0
 [0.17.0]: https://github.com/berntpopp/MucOneSpan/compare/v0.16.1...v0.17.0
 [0.16.1]: https://github.com/berntpopp/MucOneSpan/compare/v0.16.0...v0.16.1
 [0.16.0]: https://github.com/berntpopp/MucOneSpan/compare/v0.15.1...v0.16.0

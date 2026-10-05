@@ -30,9 +30,12 @@ behaviour while it is still available.
   `run_configuration.json["ignored_options"]` (additive). A hybrid run records
   `resolved_minimap2_preset: null` and `model_selection: "not used (hybrid engine)"`
   in `run_configuration.json`. The run still completes.
-- `--report-igv embedded|sidecar` is **rejected** by the hybrid engine (a
-  hybrid run has no alignment tracks) before any output is written. The error
-  names both remedies: `--engine ladder` (deprecated) or `--report-igv off`.
+- `--report-igv embedded|sidecar` now works with the hybrid engine
+  (0.17.0 rejected it). The reads are aligned to the flanked polished consensus
+  for display (mutated units restored to their canonical parents, so the variant
+  reads show the change), and detected mutations appear as an IGV track; see the
+  configuration guide. `--threads` and `--mapping-timeout` then apply to that
+  alignment and are not reported as ignored.
 - `--assay {amplicon,genomic}` is recorded for provenance only
   (`summary["hybrid"]["assay"]`); it does not change any setting and is not
   auto-detected.

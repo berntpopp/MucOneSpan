@@ -51,6 +51,9 @@ class RunSettings:
     mapping_timeout: float = 3600.0
     report: bool = False
     report_igv: str = "off"
+    # Hybrid engine: keep igv/ (aligned-allele BAM, display reference, track BEDs and
+    # an IGV Desktop session) in the output, with or without an HTML IGV report.
+    igv_session: bool = False
     engine: str = "hybrid"
     assay: str = "amplicon"
 
@@ -67,6 +70,7 @@ class RunSettings:
         _string("run.reference", self.reference, optional=True)
         _string("run.minimap2_preset", self.minimap2_preset, optional=True)
         _boolean("run.report", self.report)
+        _boolean("run.igv_session", self.igv_session)
         if self.report_igv not in ("off", "embedded", "sidecar"):
             raise ValueError("run.report_igv must be off, embedded, or sidecar")
         _choice("run.engine", self.engine, ("ladder", "hybrid"))

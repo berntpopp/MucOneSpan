@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import json
 from collections.abc import Callable
+from dataclasses import dataclass
 from pathlib import Path
 from typing import Any
 
@@ -15,6 +16,23 @@ from muc_one_span.settings import RuntimeSettings
 from muc_one_span.version import __version__
 
 Annotate = Callable[[str, str, dict[str, Any]], dict[str, Any]]
+
+
+@dataclass(frozen=True)
+class IgvInputs:
+    """IGV report inputs built from the classification (hybrid ``--report-igv``)."""
+
+    fasta: Path
+    bam: Path
+    loci_bed: Path
+    tracks: list[tuple[str, Path]]
+    flanking: int
+    window: int
+    preferred_rows: list[str]
+
+
+# Classification results -> IGV reference, alignment, locus rows and annotation tracks.
+IgvTracks = Callable[[dict[str, dict[str, Any]]], IgvInputs]
 
 
 def finish_run(
@@ -33,6 +51,7 @@ def finish_run(
     fasta_path: Path | None,
     annotate: Annotate | None = None,
     extra_summary: dict[str, Any] | None = None,
+    igv_tracks: IgvTracks | None = None,
 ) -> dict[str, Any]:
     """Classify each consensus, write repeats/summary files and the optional report."""
     # Imported here so that tests patching these module attributes keep working.
@@ -106,10 +125,18 @@ def finish_run(
     (out / "summary.json").write_text(json.dumps(summary, indent=2) + "\n")
 
     effective_igv = settings.run.report_igv
+    # IGV inputs are built whenever requested (HTML report or kept igv/ session).
+    inputs = igv_tracks(all_results) if igv_tracks is not None else None
     if report or effective_igv != "off":
         from muc_one_span.report import generate_report
 
         report_path = out / "report.html"
+        loci_bed, tracks = None, None
+        flanking, window, preferred = 0, None, None
+        if inputs is not None and effective_igv != "off":
+            fasta_path, bam_path = inputs.fasta, inputs.bam
+            loci_bed, tracks = inputs.loci_bed, inputs.tracks
+            flanking, window, preferred = inputs.flanking, inputs.window, inputs.preferred_rows
         generate_report(
             summary,
             report_path,
@@ -119,6 +146,11 @@ def finish_run(
             bam_path=bam_path,
             vcf_paths=vcf_paths,
             fasta_path=fasta_path,
+            bed_path=loci_bed,
+            annotation_tracks=tracks,
+            igv_flanking=flanking,
+            igv_window=window,
+            igv_preferred_rows=preferred,
             execution_status={"status": "analysis_completed"},
         )
         click.echo(f"Report: {report_path}")

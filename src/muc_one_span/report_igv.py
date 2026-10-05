@@ -29,6 +29,9 @@ from muc_one_span.tools import run_tool
 
 logger = logging.getLogger(__name__)
 
+# (track name, BED path) annotation tracks shown above the alignments, in order.
+AnnotationTracks = list[tuple[str, Path]]
+
 
 def _reference_lengths(fasta_path: Path) -> dict[str, int]:
     """Read reference contig names and lengths from its index or sequence."""
@@ -152,6 +155,8 @@ def run_igv_report(
     *,
     report_igv: str = DEFAULT_REPORT_IGV,
     vcf_paths: dict[str, Path] | None = None,
+    annotation_tracks: AnnotationTracks | None = None,
+    window: int | None = None,
 ) -> Path:
     """Execute igv-reports against the controlled offline template.
 
@@ -165,6 +170,10 @@ def run_igv_report(
         report_igv: One of 'embedded' or 'sidecar'.
         vcf_paths: Named VCFs; when supplied overrides singular vcf_file.
             Shared paths produce one explicitly shared track.
+        annotation_tracks: Optional (name, BED) annotation tracks, shown in order
+            above the alignments; BED ``itemRgb`` colours are used.
+        window: Optional initial view width around each locus (``--window``); the
+            embedded data still spans ``flanking`` around it.
 
     Returns:
         Path to the generated HTML file.
@@ -187,6 +196,8 @@ def run_igv_report(
         "--fasta",
         str(fasta_file),
     ]
+    if window is not None:
+        cmd.extend(["--window", str(window)])
     requested_vcfs = (
         vcf_paths
         if vcf_paths is not None
@@ -199,6 +210,18 @@ def run_igv_report(
             raise FileNotFoundError(f"Requested VCF track does not exist: {path}")
         grouped.setdefault(resolved, []).append(allele.replace("_", " ").title())
     configs = []
+    for name, bed in annotation_tracks or []:
+        if not Path(bed).is_file():
+            raise FileNotFoundError(f"Requested annotation BED does not exist: {bed}")
+        configs.append(
+            {
+                "url": str(Path(bed).resolve()),
+                "name": name,
+                "format": "bed",
+                "type": "annotation",
+                "displayMode": "EXPANDED",
+            }
+        )
     for path, labels in grouped.items():
         name = (
             ("Variants" if labels == ["Variants"] else f"{labels[0]} variants")
@@ -321,6 +344,8 @@ def build_igv_context(
     contig_names: list[str] | None = None,
     *,
     vcf_paths: dict[str, Path] | None = None,
+    annotation_tracks: AnnotationTracks | None = None,
+    window: int | None = None,
 ) -> dict[str, Any]:
     """Prepare IGV report and extract context for template injection."""
     if report_igv == REPORT_IGV_OFF:
@@ -359,6 +384,8 @@ def build_igv_context(
                 bam_file=bam_path,
                 vcf_file=vcf_path,
                 vcf_paths=vcf_paths,
+                annotation_tracks=annotation_tracks,
+                window=window,
                 flanking=flanking,
                 report_igv=REPORT_IGV_EMBEDDED,
             )
@@ -380,6 +407,8 @@ def build_igv_context(
                 bam_file=bam_path,
                 vcf_file=vcf_path,
                 vcf_paths=vcf_paths,
+                annotation_tracks=annotation_tracks,
+                window=window,
                 flanking=flanking,
                 report_igv=REPORT_IGV_SIDECAR,
             )

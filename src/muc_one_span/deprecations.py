@@ -39,6 +39,8 @@ LADDER_ONLY_OPTIONS = {
     "mapping_timeout": "--mapping-timeout",
     "reference": "--reference",
 }
+# Ladder options a hybrid run uses when it aligns reads for an IGV report (--report-igv).
+HYBRID_IGV_OPTIONS = frozenset({"threads", "mapping_timeout"})
 IGNORED_OPTION_WARNING = (
     "{option} is ignored by the hybrid engine; use --engine ladder (deprecated)"
 )
@@ -78,12 +80,20 @@ def explicit_command_line_options() -> set[str]:
 
 
 def ignored_options(settings: RuntimeSettings, explicit: Iterable[str]) -> list[dict[str, Any]]:
-    """Ladder-only options a non-ladder run was given explicitly or by a non-default value."""
+    """Ladder-only options a non-ladder run was given explicitly or by a non-default value.
+
+    With ``--report-igv`` or ``--igv-session`` a hybrid run aligns its reads for display, so it uses
+    ``HYBRID_IGV_OPTIONS`` (threads, mapping timeout) and they are not ignored.
+    """
     if settings.run.engine == LADDER_ENGINE:
         return []
     chosen = set(explicit)
+    aligns = settings.run.report_igv != "off" or settings.run.igv_session
+    used = HYBRID_IGV_OPTIONS if aligns else frozenset()
     records = []
     for name, option in LADDER_ONLY_OPTIONS.items():
+        if name in used:
+            continue
         value = getattr(settings.run, name)
         if name in chosen or value != getattr(DEFAULT_SETTINGS.run, name):
             records.append(

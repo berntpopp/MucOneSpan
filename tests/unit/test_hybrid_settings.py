@@ -67,6 +67,15 @@ def test_hybrid_assign_flank_bp_default_unchanged() -> None:
     assert DEFAULT_SETTINGS.hybrid.assign_flank_bp == 500
 
 
+def test_hybrid_igv_alignment_preset_suits_accurate_long_reads() -> None:
+    # Display-only IGV alignment (--report-igv): one preset for HiFi and ONT Q20+.
+    assert DEFAULT_SETTINGS.hybrid.igv_minimap2_preset == "lr:hq"
+    assert DEFAULT_SETTINGS.hybrid.igv_context_units == 1
+    assert DEFAULT_SETTINGS.hybrid.igv_gene_margin_bp == 500
+    assert DEFAULT_SETTINGS.hybrid.igv_max_reads_per_allele == 300
+    assert DEFAULT_SETTINGS.hybrid.igv_gene_annotation is None
+
+
 def test_hybrid_engine_orchestration_defaults() -> None:
     # Replace the brief's n_poa * 3 polishing cap, MAX_QC_READS = 200 and the
     # one-unit partial-fragment floor with validated fields; defaults keep those values.
@@ -203,6 +212,12 @@ def test_hybrid_phase_tunables_default_unchanged() -> None:
         ("event_context_units", -0.5),
         ("event_max_alternative_frac", -0.1),
         ("event_max_alternative_frac", 1.5),
+        ("igv_minimap2_preset", ""),
+        ("igv_minimap2_preset", 3),
+        ("igv_context_units", -1),
+        ("igv_gene_margin_bp", -1),
+        ("igv_max_reads_per_allele", 0),
+        ("igv_gene_annotation", ""),
     ],
 )
 def test_hybrid_rejects_invalid(field: str, value: object) -> None:

@@ -1,9 +1,9 @@
 Bootstrap: docker
-From: ghcr.io/berntpopp/muconespan:0.17.0
+From: ghcr.io/berntpopp/muconespan:0.18.0
 
 %labels
     Author Bernt Popp
-    Version 0.17.0
+    Version 0.18.0
     Description MucOneSpan: MUC1 VNTR analysis pipeline for PacBio HiFi and ONT amplicon data
 
 # Portability is inherited: this image copies the published Docker image, whose

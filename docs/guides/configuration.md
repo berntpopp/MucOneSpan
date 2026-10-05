@@ -76,6 +76,8 @@ scientific defaults, not recommendations to tune against a validation sample.
 | `run.minimap2_preset` | `null` | Explicit preset or automatic platform selection. |
 | `run.mapping_timeout` | `3600.0` | Total mapping budget in seconds, including sorting, indexing and cleanup; finite number >0. `map`/`run --mapping-timeout` overrides it. |
 | `run.report` | `false` | Generate the optional HTML report. |
+| `run.report_igv` | `"off"` | IGV alignment browser in the HTML report: `embedded`, `sidecar` or `off`. With the hybrid engine it shows the MUC1 gene, repeat-unit and mutation tracks above each allele's assigned reads. |
+| `run.igv_session` | `false` | Hybrid engine only (`--igv-session`): keep `igv/` in the output for IGV Desktop: `igv_session.xml` (relative paths; open via File > Open Session), `igv_reference.fa` + `.fai` (the display alleles), `mapping.bam` + `.bai` (each allele's assigned reads), `genes.bed`, `units.bed`, `mutations.bed` and `loci.bed` (every allele and mutation is a region of interest). Works with or without `run.report_igv`; without it, an IGV report's intermediate `igv/` folder is removed. Boolean. |
 | `allele_selection.min_gap` | `5` | Minimum gap between contig repeat counts separating clusters; integer >=1. |
 | `allele_selection.valley_min_points` | `3` | Minimum points for valley consideration; integer >=3. |
 | `allele_selection.valley_min_separation` | `3` | Minimum peak separation; integer >=1. |
@@ -243,9 +245,12 @@ muconespan run \
 `--engine` is `hybrid` (default) or `ladder` (`run.engine`, deprecated); `--assay` is `amplicon` or
 `genomic` (`run.assay`) and is recorded for provenance
 (`summary["hybrid"]["assay"]`) -- it does not change any `hybrid.*` default
-and is never auto-detected. `--report-igv` is rejected by the hybrid engine (a
-hybrid run has no BAM alignment tracks to show; the error names `--engine
-ladder` (deprecated) and `--report-igv off`). The ladder-only options
+and is never auto-detected. With `--report-igv embedded|sidecar` a hybrid run
+aligns each allele's assigned reads for display to that flanked allele consensus
+with its mutated units restored to their canonical parents
+(`hybrid.igv_minimap2_preset`, needs `minimap2`, `samtools` and `create_report`)
+and adds a **Detected mutations** track; it then uses `--threads` and
+`--mapping-timeout` for that alignment. The ladder-only options
 `--clair3-model`, `--min-qual`, `--minimap2-preset`, `--platform`,
 `--min-coverage`, `--threads`, `--mapping-timeout` and `--reference` (and their
 `run.*` values) are unused by the hybrid path: the engine takes its thresholds
@@ -382,6 +387,11 @@ no hardcoded thresholds in the hybrid engine.
 | `hybrid.assign_flank_bp` | `500` | Ladder flank width wrapped around each allele draft to build the reference every read is assigned against; integer >=1. |
 | `hybrid.assign_margin` | `3` | Minimum edit-distance gap to the second-best reference before a read is assigned (else `undecided`); integer >=0. |
 | `hybrid.assign_max_error_rate` | `0.15` | Reads needing more than this fraction of edits even to the best reference are `off_target`; number in [0,1]. |
+| `hybrid.igv_context_units` | `1` | IGV report only: repeat units shown on each side of a navigation row's locus when it opens (a mutation row is its 1-bp site, with the reads sorted by base there). Integer >=0. |
+| `hybrid.igv_gene_annotation` | `null` | IGV report only: gene model JSON shown as the **MUC1 gene** track (`null` = the bundled Ensembl canonical MUC1 transcript ENST00000620103.4, GRCh38). It must be a minus-strand model of the bundled flanks' locus; the exons around the VNTR are merged into one exon spanning each allele. Path or null. |
+| `hybrid.igv_gene_margin_bp` | `500` | IGV report only: bases of GRCh38 flank shown beyond the gene model on each side (the display flanks hold the whole transcript plus this margin, capped by the bundled flank length). Integer >=0. |
+| `hybrid.igv_max_reads_per_allele` | `300` | IGV report only: at most this many of an allele's assigned reads are shown (seeded subsample with `hybrid.seed`); the whole contig is embedded for every navigation row, so this bounds the report size for deep amplicon data. Integer >=1. |
+| `hybrid.igv_minimap2_preset` | `"lr:hq"` | minimap2 `-x` preset aligning the reads to the IGV display reference (flanked allele consensus with mutated units restored to their canonical parents) for the IGV report (`--report-igv embedded|sidecar` only; display only, never used for a call). `lr:hq` suits accurate long reads (HiFi, ONT Q20+). Nonempty string. |
 | `hybrid.min_fragment_bp` | `1000` | Minimum length of a left/right-anchored or internal fragment considered for assignment; integer >=0. |
 
 #### Depth thresholds
