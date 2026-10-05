@@ -8,7 +8,7 @@ bioinformatics tools and a Clair3 model.
 ## Install the Python package
 
 ```bash
-pip install 'muc_one_span[report] @ git+https://github.com/berntpopp/MucOneSpan.git@v0.17.0'
+pip install 'muc_one_span[report] @ git+https://github.com/berntpopp/MucOneSpan.git@v0.18.0'
 muconespan --version
 ```
 
@@ -33,7 +33,7 @@ home directories, and cached CI environments. Set `SSE4=1` and bypass cached
 builds:
 
 ```bash
-SSE4=1 pip install --no-cache-dir 'muc_one_span[report] @ git+https://github.com/berntpopp/MucOneSpan.git@v0.17.0'
+SSE4=1 pip install --no-cache-dir 'muc_one_span[report] @ git+https://github.com/berntpopp/MucOneSpan.git@v0.18.0'
 ```
 
 The project's uv configuration (`[tool.uv.extra-build-variables]` in
@@ -121,7 +121,7 @@ docker run --rm \
   run --input /data/reads.bam --output-dir /data/results/
 ```
 
-Use a version tag such as `0.17.0` in place of `latest` to select a release.
+Use a version tag such as `0.18.0` in place of `latest` to select a release.
 
 ## Verify installation
 
