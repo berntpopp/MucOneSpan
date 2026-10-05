@@ -16,6 +16,7 @@ from muc_one_span.settings_validation import (
     _integer,
     _number,
     _open_unit_interval,
+    _string,
 )
 
 # Multiple-candidate corrections for the smear significance test (hybrid.lengths):
@@ -71,6 +72,20 @@ class HybridSettings:
     # S5/S6 (Task 7): ladder-flank width wrapped around each allele draft to build the
     # references that reads are assigned against.
     assign_flank_bp: int = 500
+    # IGV report only (--report-igv): minimap2 -x preset aligning the reads to the
+    # flanked polished consensus for display. It never feeds a call. lr:hq suits
+    # accurate long reads (HiFi, ONT Q20+), so the hybrid engine stays platform-free.
+    igv_minimap2_preset: str = "lr:hq"
+    # IGV report only: a navigation row opens on its locus with igv_context_units repeat
+    # units shown on each side (the whole display contig is embedded, so the view can be
+    # panned and zoomed out freely). The display flanks hold the bundled MUC1 gene model
+    # (igv_gene_annotation, null = bundled) plus igv_gene_margin_bp on each side. At most
+    # igv_max_reads_per_allele assigned reads per allele are shown (seeded subsample),
+    # which bounds the report size for deep amplicon data.
+    igv_context_units: int = 1
+    igv_gene_annotation: str | None = None
+    igv_gene_margin_bp: int = 500
+    igv_max_reads_per_allele: int = 300
     qc_residual_af: float = 0.25
     max_unassigned_spanning_fraction: float = 0.2
     depth_adequate_spanning: int = 30
@@ -400,6 +415,11 @@ class HybridSettings:
             raise ValueError("hybrid.hp_llr_min must be > 0")
         _boolean("hybrid.hp_vote", self.hp_vote)
         _choice("hybrid.poa_backend", self.poa_backend, ("pyabpoa", "pyspoa"))
+        _string("hybrid.igv_minimap2_preset", self.igv_minimap2_preset)
+        _integer("hybrid.igv_context_units", self.igv_context_units, 0)
+        _string("hybrid.igv_gene_annotation", self.igv_gene_annotation, optional=True)
+        _integer("hybrid.igv_gene_margin_bp", self.igv_gene_margin_bp, 0)
+        _integer("hybrid.igv_max_reads_per_allele", self.igv_max_reads_per_allele, 1)
         _number("hybrid.kde_bandwidth_base_bp", self.kde_bandwidth_base_bp, 1.0)
         _number("hybrid.kde_bandwidth_per_bp", self.kde_bandwidth_per_bp, 0)
         _number("hybrid.kde_kernel_truncation_bw", self.kde_kernel_truncation_bw, 1.0)

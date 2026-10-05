@@ -69,11 +69,15 @@ def assign_read(seq: str, refs: dict[str, str], margin: int, max_error_rate: flo
 
 
 def assign_reads(
-    reads: list[ReadRecord], refs: dict[str, str], settings: HybridSettings
+    reads: list[ReadRecord],
+    refs: dict[str, str],
+    settings: HybridSettings,
+    names: dict[str, list[str]] | None = None,
 ) -> dict[str, list[str]]:
     """Map allele -> oriented read sequences, plus ``undecided`` and ``off_target``.
 
-    Reads shorter than ``settings.min_fragment_bp`` are not considered.
+    Reads shorter than ``settings.min_fragment_bp`` are not considered. When ``names``
+    is given, the read names are appended to it under the same keys (same order).
     """
     out: dict[str, list[str]] = {name: [] for name in refs}
     out[UNDECIDED] = []
@@ -85,6 +89,8 @@ def assign_reads(
             rec.seq.upper(), refs, settings.assign_margin, settings.assign_max_error_rate
         )
         out[got.allele or UNDECIDED].append(got.oriented)
+        if names is not None:
+            names.setdefault(got.allele or UNDECIDED, []).append(rec.name)
     return out
 
 

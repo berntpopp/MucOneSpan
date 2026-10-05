@@ -7,7 +7,6 @@ from dataclasses import replace
 from pathlib import Path
 from unittest.mock import patch
 
-import click
 import pytest
 from click.testing import CliRunner
 
@@ -59,6 +58,7 @@ def test_every_run_option_is_either_used_by_hybrid_or_listed() -> None:
 
     flags = {opt for p in run.params for opt in p.opts if opt.startswith("--")}
     used = {"--input", "--output-dir", "--report", "--report-igv", "--engine", "--assay"}
+    used |= {"--igv-session"}
     assert flags - used == HYBRID_UNUSED_FLAGS
 
 
@@ -134,15 +134,22 @@ def test_ladder_run_ignores_nothing_and_keeps_model_provenance(tmp_path: Path) -
     assert record["resolved_minimap2_preset"] == "map-hifi"
 
 
-def test_report_igv_with_hybrid_fails_before_configuration_names_both_remedies(
+def test_report_igv_with_hybrid_runs_and_uses_threads_and_mapping_timeout(
     tmp_path: Path,
 ) -> None:
-    result, hybrid = _invoke(tmp_path, "--report-igv", "embedded")
-    assert result.exit_code == 2
-    text = " ".join(result.output.split())
-    assert "--engine ladder (deprecated)" in text and "--report-igv off" in text
-    assert not (tmp_path / "out" / "run_configuration.json").exists()
-    hybrid.assert_not_called()
+    result, hybrid = _invoke(
+        tmp_path, "--report-igv", "embedded", "--threads", "2", "--mapping-timeout", "60"
+    )
+    assert result.exit_code == 0, result.output
+    hybrid.assert_called_once()
+    assert "ignored by the hybrid engine" not in result.stderr
+    assert _record(tmp_path)["ignored_options"] == []
+
+
+def test_hybrid_without_igv_still_ignores_threads(tmp_path: Path) -> None:
+    result, _ = _invoke(tmp_path, "--threads", "2")
+    assert result.exit_code == 0, result.output
+    assert [r["option"] for r in _record(tmp_path)["ignored_options"]] == ["--threads"]
 
 
 def _execute(tmp_path: Path, settings: RuntimeSettings, **kwargs: str) -> None:
@@ -173,13 +180,20 @@ def test_engine_none_takes_the_engine_from_the_configuration(tmp_path: Path) -> 
     assert run_hybrid.call_count == 0
 
 
-def test_config_only_hybrid_engine_still_refuses_igv(tmp_path: Path) -> None:
+def test_config_only_hybrid_engine_with_igv_reaches_the_hybrid_path(tmp_path: Path) -> None:
     run = replace(DEFAULT_SETTINGS.run, engine="hybrid", report_igv="embedded")
     configured = replace(DEFAULT_SETTINGS, run=run)
-    with (
-        patch("muc_one_span.pipeline._run_hybrid") as run_hybrid,
-        pytest.raises(click.BadParameter, match="--engine ladder"),
-    ):
+    with patch("muc_one_span.pipeline._run_hybrid") as run_hybrid:
         _execute(tmp_path, configured, report_igv="embedded")
-    assert run_hybrid.call_count == 0
-    assert not (tmp_path / "out" / "run_configuration.json").exists()
+    assert run_hybrid.call_count == 1
+
+
+def test_igv_session_uses_threads_and_is_refused_by_the_ladder(tmp_path: Path) -> None:
+    result, hybrid = _invoke(tmp_path / "h", "--igv-session", "--threads", "2")
+    assert result.exit_code == 0, result.output
+    hybrid.assert_called_once()
+    record = json.loads((tmp_path / "h" / "out" / "run_configuration.json").read_text())
+    assert record["ignored_options"] == []
+    assert record["settings"]["run"]["igv_session"] is True
+    ladder, _ = _invoke(tmp_path / "l", "--engine", "ladder", "--igv-session")
+    assert ladder.exit_code == 2 and "hybrid engine only" in " ".join(ladder.output.split())

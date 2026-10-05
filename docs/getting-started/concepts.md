@@ -145,8 +145,24 @@ The **allele confidence** is the mean of all per-repeat confidences. VCF cross-v
 with a read-centric reconstruction that never invokes minimap2, Clair3 or
 bcftools for FASTQ input (a BAM input still needs `samtools` to extract
 primary reads). It is the default for amplicon and genomic input since 0.17.0.
-`--report-igv` is unavailable with the hybrid engine because a hybrid run
-produces no BAM alignment tracks.
+With `--report-igv embedded|sidecar` a hybrid run additionally aligns, for display
+only, each allele's *assigned* reads (its spanning members and the partial reads
+the engine assigned to it) to that allele's *display reference* (minimap2,
+`hybrid.igv_minimap2_preset`); the alignment never feeds a call. The display
+reference is the polished allele consensus with every mutated repeat unit restored
+to its canonical parent unit, in GRCh38 flanks wide enough to hold the whole MUC1
+gene (`hybrid.igv_gene_margin_bp` beyond it), so reads carrying a detected mutation
+show it as an insertion, deletion or mismatch. Three tracks sit above the reads:
+**MUC1 gene** (the bundled Ensembl canonical transcript ENST00000620103.4 projected
+onto the allele, exon 2 spanning its repeat array), **Repeat units** (each unit
+labelled and coloured as in the report's repeat map) and **Detected mutations** (the
+changed reference bases; insertions and deletions left-normalized within a
+homopolymer run, where aligners place them). The navigation table lists every
+allele and every mutation, and the report opens on the first mutation. A mutation
+row is its 1-bp site: the reads are sorted by base there (carriers first) and the
+view shows `hybrid.igv_context_units` repeat units on each side. The whole contig
+is embedded, so the view can be panned and zoomed out to the full gene; at most
+`hybrid.igv_max_reads_per_allele` reads per allele are shown (seeded subsample).
 
 !!! note "Defaults and validation"
     Every `hybrid.*` setting default was tuned on the benchmark development

@@ -32,6 +32,17 @@ is streamed read by read through `samtools fastq`, so subset a WGS BAM to the MU
 region first (for example `samtools view -b in.bam chr1:155185000-155195000` on hg38,
 which covers the MUC1 gene; adjust the coordinates for other builds).
 
+Add `--report-igv embedded` for an interactive alignment browser in the report
+(needs `minimap2`, `samtools` and igv-reports `create_report`; 1.13.0 verified), and
+`--igv-session` to keep the aligned-allele BAM, the display reference, the MUC1 gene,
+repeat-unit and mutation tracks and an IGV Desktop session (`igv/igv_session.xml`)
+in the output folder:
+
+```bash
+muconespan run --input reads.bam --output-dir results/ --report \
+  --report-igv embedded --igv-session
+```
+
 **What happens** (see [Core Concepts](concepts.md#hybrid-engine)):
 
 1. Anchors every read on the conserved motifs and sorts spanning, partial and off-target reads

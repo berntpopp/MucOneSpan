@@ -11,8 +11,10 @@ from unittest.mock import patch
 
 import pytest
 
+from muc_one_span.classify import classify_sequence
 from muc_one_span.evaluation import load_observation
 from muc_one_span.hybrid.engine import reconstruct_alleles
+from muc_one_span.hybrid.igv_gene import display_flanks, load_gene_model, parse_region
 from muc_one_span.hybrid.phase import PhaseResult
 from muc_one_span.hybrid.spans import ReadRecord, SpanRead
 from muc_one_span.pipeline import execute_pipeline
@@ -22,6 +24,7 @@ from muc_one_span.settings import DEFAULT_SETTINGS
 from tests.unit.hybrid import synth
 
 A = synth.allele(["X"] * 25)
+RD_X = synth.RD.repeats["X"]
 B = synth.allele(["X"] * 14 + [synth.dupc()] + ["X"] * 30)
 
 
@@ -138,25 +141,101 @@ def test_hybrid_pipeline_end_to_end(tmp_path: Path) -> None:
     assert load_observation(out).status != "invalid_artifacts"
 
 
-def test_hybrid_rejects_igv_tracks(tmp_path: Path) -> None:
-    import click
+def test_hybrid_igv_report_shows_each_alleles_reads_and_the_sorted_dupc_site(
+    tmp_path: Path,
+) -> None:
+    out = tmp_path / "o"
+    captured: dict[str, Any] = {}
+    maps: list[tuple[list[str], str, str]] = []
 
-    with patch("muc_one_span.tools.check_tools"), pytest.raises(click.BadParameter):
+    def fake_map(reads, reference, output_dir, threads, *, preset, timeout):
+        # Per-allele inputs are removed after merging: keep their content.
+        headers = reads.read_text().splitlines()[::4]
+        maps.append((headers, reference.read_text().splitlines()[0], preset))
+        bam = output_dir / "mapping.bam"
+        bam.write_bytes(b"")
+        return bam
+
+    def fake_context(**kwargs):
+        captured.update(kwargs)
+        return {
+            "mode": "off",
+            "has_igv": False,
+            "igv_content": "",
+            "sidecar_path": None,
+            "table_json": "[]",
+            "session_dictionary": "{}",
+        }
+
+    with (
+        patch("muc_one_span.tools.check_tools") as check,
+        patch("muc_one_span.tools.get_tool_versions", return_value={"minimap2": "2.28"}),
+        patch("muc_one_span.report_igv.preflight_igv_report") as preflight,
+        patch("muc_one_span.hybrid.igv_alignment.map_reads", side_effect=fake_map),
+        patch("muc_one_span.hybrid.igv_alignment.run_tool") as tool,
+        patch("muc_one_span.report_igv.build_igv_context", side_effect=fake_context),
+    ):
         execute_pipeline(
             str(_sample(tmp_path)),
-            str(tmp_path / "o"),
+            str(out),
             None,
             "",
             1,
             10,
             5.0,
-            False,
+            True,
             "ont",
             None,
             report_igv="embedded",
+            igv_session=True,
             engine="hybrid",
             settings=DEFAULT_SETTINGS,
         )
+    h = DEFAULT_SETTINGS.hybrid
+    check.assert_called_once_with(["minimap2", "samtools", "create_report"])
+    preflight.assert_called_once()
+    igv = out / "igv"
+    reference = igv / "igv_reference.fa"
+    assert captured["fasta_path"] == reference and captured["bam_path"] == igv / "mapping.bam"
+    commands = [c.args[0][:2] for c in tool.call_args_list]
+    assert commands == [["samtools", "merge"], ["samtools", "index"], ["samtools", "faidx"]]
+    assert not (igv / "allele_1").exists() and not (igv / "allele_2").exists()
+    # Each allele's own reads (A reads r1_*, B reads r2_*) go to its own contig only.
+    assert [m[2] for m in maps] == [h.igv_minimap2_preset] * 2
+    for (headers, header, _), allele, prefix in zip(
+        maps, ("allele_1", "allele_2"), ("@r1_", "@r2_"), strict=True
+    ):
+        assert headers and all(name.startswith(prefix) for name in headers)
+        assert header == f">hybrid_{allele}"
+    session = (igv / "igv_session.xml").read_text()
+    assert 'genome="igv_reference.fa"' in session and 'path="mapping.bam"' in session
+    lines = reference.read_text().splitlines()
+    contigs = dict(zip(lines[::2], lines[1::2], strict=True))
+    # The dupC unit is shown as its canonical parent X, so dupC reads show the +C; the
+    # flanks hold the MUC1 gene model plus the margin.
+    left, right = display_flanks(
+        load_gene_model(),
+        parse_region(synth.RD.vntr_region),
+        h.igv_gene_margin_bp,
+        (len(synth.RD.flanking_left), len(synth.RD.flanking_right)),
+    )
+    shown = contigs[">hybrid_allele_2"]
+    assert shown[left : len(shown) - right] == B.replace(synth.dupc(), RD_X)
+    tracks = dict(captured["annotation_tracks"])
+    assert list(tracks) == ["MUC1 gene", "Repeat units", "Detected mutations"]
+    (feature,) = tracks["Detected mutations"].read_text().splitlines()
+    contig, start, _, name = feature.split("\t")
+    assert contig == "hybrid_allele_2" and name.endswith(":X:dupC")
+    site = int(start) + 1
+    assert contigs[">hybrid_allele_2"][site] == "C" != contigs[">hybrid_allele_2"][site - 1]
+    loci = captured["bed_path"].read_text().splitlines()
+    assert loci[2].split("\t") == [contig, str(site), str(site + 1), name]
+    unit = synth.RD.repeat_length_bp
+    assert captured["window"] == 2 * h.igv_context_units * unit
+    assert captured["flanking"] == 2 * max(len(seq) for seq in contigs.values())
+    summary = json.loads((out / "summary.json").read_text())
+    assert summary["tool_versions"]["minimap2"] == "2.28"
+    assert summary["run_status"]["status"] == "completed"
 
 
 def test_read_input_streams_fastq_gzip_and_bam(tmp_path: Path) -> None:
@@ -309,3 +388,83 @@ def test_extra_versions_reports_missing_packages() -> None:
 
     with patch("importlib.metadata.version", side_effect=metadata.PackageNotFoundError):
         assert extra_versions("pyspoa") == {"edlib": "unknown", "pyspoa": "unknown"}
+
+
+def test_igv_reads_per_allele_are_capped_by_a_seeded_subsample(tmp_path: Path) -> None:
+    from muc_one_span.pipeline import _hybrid_igv_inputs
+
+    cap = 5
+    settings = replace(
+        DEFAULT_SETTINGS, hybrid=replace(DEFAULT_SETTINGS.hybrid, igv_max_reads_per_allele=cap)
+    )
+    seq = synth.allele(["X"] * 4)
+    names = {"allele_1": [f"r{i}" for i in range(40)], "allele_2": ["a", "b"]}
+    shown: list[dict[str, list[str]]] = []
+
+    def fake_align(input_path, fasta, read_names, out_dir, **_):
+        shown.append(read_names)
+        return out_dir / "mapping.bam"
+
+    with patch("muc_one_span.hybrid.igv_alignment.align_assigned_reads", side_effect=fake_align):
+        for _ in range(2):
+            _hybrid_igv_inputs(
+                tmp_path,
+                "in.fastq",
+                synth.RD,
+                settings,
+                {"allele_1": seq, "allele_2": seq},
+                names,
+                {k: classify_sequence(seq, synth.RD) for k in names},
+            )
+    first, second = shown
+    assert first == second  # seeded: identical across runs
+    assert len(first["allele_1"]) == cap and set(first["allele_1"]) <= set(names["allele_1"])
+    assert first["allele_2"] == ["a", "b"]
+
+
+def _igv_run(tmp_path: Path, **options: Any) -> tuple[Path, Any, Any]:
+    out = tmp_path / "o"
+
+    def fake_align(input_path, fasta, read_names, out_dir, **_):
+        bam = out_dir / "mapping.bam"
+        bam.write_bytes(b"")
+        return bam
+
+    with (
+        patch("muc_one_span.tools.check_tools") as check,
+        patch("muc_one_span.tools.get_tool_versions", return_value={}),
+        patch("muc_one_span.report_igv.preflight_igv_report") as preflight,
+        patch("muc_one_span.hybrid.igv_alignment.align_assigned_reads", side_effect=fake_align),
+        patch("muc_one_span.report_igv.build_igv_context", return_value={"mode": "off"}),
+    ):
+        execute_pipeline(
+            str(_sample(tmp_path)),
+            str(out),
+            None,
+            "",
+            1,
+            10,
+            5.0,
+            True,
+            "ont",
+            None,
+            engine="hybrid",
+            settings=DEFAULT_SETTINGS,
+            **options,
+        )
+    return out, check, preflight
+
+
+def test_igv_session_alone_keeps_igv_without_create_report(tmp_path: Path) -> None:
+    out, check, preflight = _igv_run(tmp_path, igv_session=True)
+    check.assert_called_once_with(["minimap2", "samtools"])
+    preflight.assert_not_called()
+    kept = {p.name for p in (out / "igv").iterdir()}
+    assert {"igv_session.xml", "igv_reference.fa", "mapping.bam", "mutations.bed"} <= kept
+
+
+def test_report_igv_without_session_removes_the_intermediate_folder(tmp_path: Path) -> None:
+    out, check, preflight = _igv_run(tmp_path, report_igv="embedded")
+    check.assert_called_once_with(["minimap2", "samtools", "create_report"])
+    preflight.assert_called_once()
+    assert (out / "report.html").exists() and not (out / "igv").exists()

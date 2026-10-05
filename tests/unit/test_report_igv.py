@@ -350,3 +350,93 @@ def test_preflight_failure_is_actionable(tmp_path: Path) -> None:
         pytest.raises(RuntimeError, match="IGV report preflight failed for --report-igv sidecar"),
     ):
         preflight_igv_report(REPORT_IGV_SIDECAR, tmp_path)
+
+
+def test_annotation_tracks_are_shown_in_order_above_alignments(tmp_path):
+    import json
+
+    fasta = tmp_path / "ref.fa"
+    fasta.write_text(">c\nACGT\n")
+    bed = tmp_path / "locus.bed"
+    bed.write_text("c\t0\t4\tlocus\n")
+    mutations = tmp_path / "mutations.bed"
+    mutations.write_text("c\t0\t4\tallele_1:repeat_1:X:dupC\t0\t.\t1\t2\n")
+    bam = tmp_path / "reads.bam"
+    bam.touch()
+    configs = []
+
+    def capture_config(cmd):
+        configs.extend(json.loads(Path(cmd[cmd.index("--track-config") + 1]).read_text()))
+
+    with patch("muc_one_span.report_igv.run_tool", side_effect=capture_config):
+        run_igv_report(
+            bed,
+            fasta,
+            tmp_path / "igv.html",
+            bam_file=bam,
+            annotation_tracks=[("MUC1 gene", mutations), ("Detected mutations", mutations)],
+            report_igv="embedded",
+        )
+    assert [c["name"] for c in configs] == ["MUC1 gene", "Detected mutations", "Alignments"]
+    assert configs[0]["format"] == "bed" and configs[0]["type"] == "annotation"
+    assert configs[0]["url"] == str(mutations.resolve())
+
+
+def test_missing_annotation_bed_is_an_error(tmp_path):
+    fasta = tmp_path / "ref.fa"
+    fasta.write_text(">c\nACGT\n")
+    bed = tmp_path / "locus.bed"
+    bed.write_text("c\t0\t4\tlocus\n")
+    with pytest.raises(FileNotFoundError, match="annotation BED"):
+        run_igv_report(
+            bed,
+            fasta,
+            tmp_path / "igv.html",
+            annotation_tracks=[("Detected mutations", tmp_path / "missing.bed")],
+            report_igv="embedded",
+        )
+
+
+def test_window_sets_the_initial_view_and_flanking_the_embedded_span(tmp_path):
+    fasta = tmp_path / "ref.fa"
+    fasta.write_text(">c\nACGT\n")
+    bed = tmp_path / "locus.bed"
+    bed.write_text("c\t0\t1\tsite\n")
+    commands = []
+    with patch("muc_one_span.report_igv.run_tool", side_effect=commands.append):
+        run_igv_report(
+            bed, fasta, tmp_path / "igv.html", flanking=1200, window=120, report_igv="embedded"
+        )
+    cmd = commands[0]
+    assert cmd[cmd.index("--window") + 1] == "120"
+    assert cmd[cmd.index("--flanking") + 1] == "1200"
+
+
+def test_report_opens_on_the_first_preferred_row(tmp_path: Path):
+    ref_fa = tmp_path / "ref.fa"
+    ref_fa.write_text(">contig_51\n" + "ACGT" * 50 + "\n")
+    summary = {
+        "alleles": {"allele_1": {"length": 51, "reads": 10, "contig_name": "contig_51"}},
+        "classifications": {"allele_1": {"structure": "1 2 3", "mutations": []}},
+    }
+
+    def fake_run_tool(cmd):
+        html = (
+            '<html><body><div id="container"><div id="igvDiv"></div></div></body>\n'
+            'const tableJson = {"headers":["unique_id","Name"],"rows":[[0,"a"],[1,"m"]]};\n'
+            'const sessionDictionary = {"0": "data:,", "1": "data:,"};\n</html>'
+        )
+        Path(cmd[cmd.index("--output") + 1]).write_text(html, encoding="utf-8")
+
+    out = tmp_path / "report.html"
+    with patch("muc_one_span.report_igv.run_tool", side_effect=fake_run_tool):
+        generate_report(
+            summary,
+            out,
+            report_igv=REPORT_IGV_EMBEDDED,
+            fasta_path=ref_fa,
+            igv_preferred_rows=["m"],
+        )
+    html = out.read_text(encoding="utf-8")
+    assert 'const preferredRowNames = ["m"];' in html
+    assert "initialRowIndex()" in html

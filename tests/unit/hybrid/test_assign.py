@@ -3,7 +3,13 @@
 from __future__ import annotations
 
 from muc_one_span.hybrid.align import rc
-from muc_one_span.hybrid.assign import OFF_TARGET, assign_read, assign_reads, hybrid_references
+from muc_one_span.hybrid.assign import (
+    OFF_TARGET,
+    UNDECIDED,
+    assign_read,
+    assign_reads,
+    hybrid_references,
+)
 from muc_one_span.hybrid.spans import ReadRecord
 from muc_one_span.settings import HybridSettings
 from tests.unit.hybrid import synth
@@ -47,6 +53,18 @@ def test_off_target_read_is_not_assigned() -> None:
     reads = [ReadRecord("junk", "ACGT" * 400, "5" * 1600)]
     out = assign_reads(reads, REFS, S)
     assert len(out[OFF_TARGET]) == 1 and not out["allele_1"] and not out["allele_2"]
+
+
+def test_read_names_are_collected_under_the_same_keys() -> None:
+    reads = [
+        ReadRecord("junk", "ACGT" * 400, "5" * 1600),
+        ReadRecord("frag", synth.allele(A)[600:2400], "5" * 1800),
+    ]
+    names: dict[str, list[str]] = {}
+    out = assign_reads(reads, REFS, S, names)
+    assert names[OFF_TARGET] == ["junk"]
+    assigned = [k for k in REFS if out[k]] + ([UNDECIDED] if out[UNDECIDED] else [])
+    assert [n for k in assigned for n in names[k]] == ["frag"]
 
 
 def test_single_reference_assigns_on_target_and_guards_off_target() -> None:

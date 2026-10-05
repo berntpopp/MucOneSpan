@@ -463,6 +463,16 @@
 <script>
 const tableJson = {{ igv.table_json | safe }};
 const sessionDictionary = {{ igv.session_dictionary | safe }};
+// Locus names to open first (detected mutations), in table order; else the first row.
+const preferredRowNames = {{ igv.preferred_rows | default([]) | tojson }};
+
+function initialRowIndex() {
+    if (!tableJson || !tableJson.rows) return 0;
+    const found = tableJson.rows.findIndex(function (rowData) {
+        return preferredRowNames.indexOf(String(rowData[rowData.length - 1])) !== -1;
+    });
+    return found === -1 ? 0 : found;
+}
 const IGV_GZ_B64 = "{{ igv_payload }}";
 let igvBrowser = null;
 
@@ -512,14 +522,15 @@ function initTable() {
     });
 
     const body = table.createTBody();
+    const initial = initialRowIndex();
     tableJson.rows.forEach(function (rowData, rowIndex) {
         const row = body.insertRow();
         row.dataset.id = rowData[0];
-        row.setAttribute("aria-selected", String(rowIndex === 0));
+        row.setAttribute("aria-selected", String(rowIndex === initial));
         const action = row.insertCell();
         const button = document.createElement("button");
         button.type = "button";
-        button.textContent = rowIndex === 0 ? "Showing" : "Show";
+        button.textContent = rowIndex === initial ? "Showing" : "Show";
         button.setAttribute("aria-label", button.textContent + " " + describeRow(tableJson.headers, rowData));
         button.addEventListener("click", function () {
             showSession(row, button);
@@ -560,7 +571,9 @@ document.addEventListener("DOMContentLoaded", function () {
             }
             const igvDiv = document.getElementById("igvDiv");
             if (!igvDiv) return;
-            const firstKey = Object.keys(sessionDictionary)[0];
+            const firstKey = tableJson && tableJson.rows && tableJson.rows.length
+                ? String(tableJson.rows[initialRowIndex()][0])
+                : Object.keys(sessionDictionary)[0];
             const options = {
                 sessionURL: sessionDictionary[firstKey],
                 showChromosomeWidget: false,

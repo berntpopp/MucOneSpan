@@ -65,7 +65,16 @@ from muc_one_span.settings import DEFAULT_SETTINGS
     "--report-igv",
     type=click.Choice(["embedded", "sidecar", "off"], case_sensitive=False),
     default="off",
-    help="IGV alignment browser mode in HTML report (ladder engine only; default: off).",
+    help="IGV alignment browser mode in HTML report (default: off).",
+)
+@click.option(
+    "--igv-session/--no-igv-session",
+    default=None,
+    help=(
+        "Keep igv/ in the output: aligned-allele BAM, display reference, MUC1 gene, "
+        "repeat-unit and mutation tracks, and igv_session.xml for IGV Desktop "
+        "(hybrid engine; default: off)."
+    ),
 )
 @click.option(
     "--platform",
@@ -111,6 +120,7 @@ def run(
     min_qual: float,
     report: bool,
     report_igv: str,
+    igv_session: bool | None,
     platform: str,
     minimap2_preset: str | None,
     mapping_timeout: float = DEFAULT_SETTINGS.run.mapping_timeout,
@@ -132,6 +142,7 @@ def run(
         platform,
         minimap2_preset,
         report_igv=report_igv,
+        igv_session=igv_session,
         mapping_timeout=mapping_timeout,
         settings=current_settings(),
         configuration=current_configuration_path(),

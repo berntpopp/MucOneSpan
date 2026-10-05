@@ -366,6 +366,10 @@ def generate_report(
     bed_path: Path | None = None,
     vcf_paths: dict[str, Path] | None = None,
     execution_status: dict | None = None,
+    annotation_tracks: list[tuple[str, Path]] | None = None,
+    igv_flanking: int = 0,
+    igv_window: int | None = None,
+    igv_preferred_rows: list[str] | None = None,
 ) -> Path:
     """Render pipeline results as a self-contained HTML report.
 
@@ -394,6 +398,10 @@ def generate_report(
             run_status. Missing legacy status retains prior evidence decisions.
             analysis_completed is reserved for the successful pipeline analysis
             before its report callback has returned; it is not terminal status.
+        annotation_tracks: Optional (name, BED) IGV annotation tracks, in order.
+        igv_flanking: Bases of reads/reference embedded around every locus row.
+        igv_window: Optional initial view width around every locus row.
+        igv_preferred_rows: Locus names to open first (the first one in the table).
 
     Returns:
         The resolved *output_path* after writing the report.
@@ -458,10 +466,13 @@ def generate_report(
             vcf_path=vcf_path,
             vcf_paths=vcf_paths,
             bed_path=bed_path,
+            annotation_tracks=annotation_tracks,
             report_igv=report_igv,
-            flanking=0,
+            flanking=igv_flanking,
+            window=igv_window,
             contig_names=contig_names or None,
         )
+        igv_context["preferred_rows"] = list(igv_preferred_rows or [])
         igv_payload_b64 = igv_payload(report_igv)
         igv_provenance_str = igv_provenance(report_igv)
 
