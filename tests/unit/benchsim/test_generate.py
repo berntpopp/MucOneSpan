@@ -288,6 +288,17 @@ def test_amplicon_amount_uses_artefacts_and_pcr_share(tmp_path: Path) -> None:
     # The design's concatemer level (0) wins over the base profile's 0.2.
     assert own["requested_amount"] == math.ceil(10 / (0.5 * (1 - 0.25 - 0.05)))
 
+    # v3 unit stutter turns rate * units of the full products into stutter products.
+    data["molecules"] = {"concatemer_rate": 0.0, "unit_stutter_rate": 0.01}
+    base.write_text(json.dumps(data))
+    with (
+        patch(f"{MOD}.run_tool", side_effect=FakeMucOneUp()),
+        patch(f"{MOD}.load_repeat_dictionary", return_value=_rd()),
+    ):
+        st = generate_case(replace(design, design_id="stutter-0001"), ctx)
+    loss = 0.01 * max(st["actual_lengths"])
+    assert st["requested_amount"] == math.ceil(10 / (0.5 * (1 - 0.3) * (1 - loss)))
+
 
 def test_amplicon_amount_is_capped_at_the_minor_share_floor(tmp_path: Path) -> None:
     # Strong PCR bias and a large length difference give a minor share ~1e-4; the
