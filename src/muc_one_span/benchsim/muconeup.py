@@ -7,9 +7,9 @@ from pathlib import Path
 
 from muc_one_span.tools import run_tool
 
-MIN_MUCONEUP = (0, 52, 0)  # first release with ont_r10_sup_amplicon_v3
+MIN_MUCONEUP = (0, 53, 0)  # first release with ont_r10_sup_amplicon_v4
 BUILTIN_PROFILE = {
-    "ont_amplicon_r10": "ont_r10_sup_amplicon_v3",
+    "ont_amplicon_r10": "ont_r10_sup_amplicon_v4",
     "ont_genomic_targeted": "ont_r10_genomic_v2",
     "hifi_amplicon": "hifi_amplicon_v1",
 }

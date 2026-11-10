@@ -15,7 +15,7 @@ from muc_one_span.benchsim.profiles import builtin_profile_dir, variant_name, wr
 P = DEFAULT_BENCH_CONFIG.profiles
 BASE = {
     "schema_version": 1,
-    "name": "ont_r10_sup_amplicon_v3",
+    "name": "ont_r10_sup_amplicon_v4",
     "platform": "ont",
     "config_overrides": {"amplicon_params": {"pcr_bias": {"preset": "madritsch2025_r10"}}},
     "molecules": {
@@ -55,7 +55,7 @@ def test_variant_applies_all_levels(tmp_path: Path) -> None:
     alpha = P.strong_pcr_alpha_factor * P.r10_pcr_alpha
     assert data["config_overrides"]["amplicon_params"]["pcr_bias"]["alpha"] == alpha
     assert data["name"] == variant_name(_design()) and len(sha) == 64
-    assert data["provenance"]["derived_from"]["name"] == "ont_r10_sup_amplicon_v3"
+    assert data["provenance"]["derived_from"]["name"] == "ont_r10_sup_amplicon_v4"
 
 
 def test_variant_written_once_and_stable(tmp_path: Path) -> None:

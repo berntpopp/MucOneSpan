@@ -16,8 +16,8 @@ MOD = "muc_one_span.benchsim.muconeup"
 @pytest.mark.parametrize(
     "out,ok",
     [
-        ("muconeup, version 0.52.0\n", True),
-        ("muconeup, version 0.51.9\n", False),
+        ("muconeup, version 0.53.0\n", True),
+        ("muconeup, version 0.52.9\n", False),
         ("muconeup, version 1.2.3\n", True),
     ],
 )
@@ -26,7 +26,7 @@ def test_version_gate(out: str, ok: bool) -> None:
         if ok:
             assert require_muconeup("muconeup") == out.split()[-1]
         else:
-            with pytest.raises(RuntimeError, match=r"0\.52\.0"):
+            with pytest.raises(RuntimeError, match=r"0\.53\.0"):
                 require_muconeup("muconeup")
 
 
