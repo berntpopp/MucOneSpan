@@ -15,7 +15,7 @@ from muc_one_span.benchsim.profiles import builtin_profile_dir, variant_name, wr
 P = DEFAULT_BENCH_CONFIG.profiles
 BASE = {
     "schema_version": 1,
-    "name": "ont_r10_sup_amplicon_v1",
+    "name": "ont_r10_sup_amplicon_v3",
     "platform": "ont",
     "config_overrides": {"amplicon_params": {"pcr_bias": {"preset": "madritsch2025_r10"}}},
     "molecules": {
@@ -32,6 +32,7 @@ BASE = {
         "deletion_rate": 0.008,
         "insertion_len_pmf": {"1": 1.0},
         "deletion_len_pmf": {"1": 1.0},
+        "strand_rates": {"+": {"mismatch_rate": 0.012}, "-": {"deletion_rate": 0.004}},
     },
 }
 
@@ -48,10 +49,13 @@ def test_variant_applies_all_levels(tmp_path: Path) -> None:
     data = json.loads(path.read_text())
     assert data["molecules"]["smear_rate"] == 0.5 and data["molecules"]["chimera_rate"] == 0.05
     assert data["errors"]["mismatch_rate"] == 0.007 * P.poor_error_scale
+    strands = data["errors"]["strand_rates"]
+    assert strands["+"] == {"mismatch_rate": 0.012 * P.poor_error_scale}
+    assert strands["-"] == {"deletion_rate": 0.004 * P.poor_error_scale}
     alpha = P.strong_pcr_alpha_factor * P.r10_pcr_alpha
     assert data["config_overrides"]["amplicon_params"]["pcr_bias"]["alpha"] == alpha
     assert data["name"] == variant_name(_design()) and len(sha) == 64
-    assert data["provenance"]["derived_from"]["name"] == "ont_r10_sup_amplicon_v1"
+    assert data["provenance"]["derived_from"]["name"] == "ont_r10_sup_amplicon_v3"
 
 
 def test_variant_written_once_and_stable(tmp_path: Path) -> None:
@@ -139,7 +143,7 @@ def test_genomic_profile_excludes_artefact_and_pcr(tmp_path: Path) -> None:
     """ont_genomic_targeted: no smear/chimera in name or molecules, no PCR override."""
     genomic_base = {
         "schema_version": 1,
-        "name": "ont_r10_genomic_v1",
+        "name": "ont_r10_genomic_v2",
         "platform": "ont",
         "config_overrides": {"amplicon_params": {"pcr_bias": {"preset": "madritsch2025_r10"}}},
         "molecules": {"forward_frac": 0.5, "smear_rate": 0.0, "chimera_rate": 0.0},

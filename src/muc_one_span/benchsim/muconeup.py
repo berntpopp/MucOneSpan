@@ -7,10 +7,10 @@ from pathlib import Path
 
 from muc_one_span.tools import run_tool
 
-MIN_MUCONEUP = (0, 45, 0)
+MIN_MUCONEUP = (0, 52, 0)  # first release with ont_r10_sup_amplicon_v3
 BUILTIN_PROFILE = {
-    "ont_amplicon_r10": "ont_r10_sup_amplicon_v1",
-    "ont_genomic_targeted": "ont_r10_genomic_v1",
+    "ont_amplicon_r10": "ont_r10_sup_amplicon_v3",
+    "ont_genomic_targeted": "ont_r10_genomic_v2",
     "hifi_amplicon": "hifi_amplicon_v1",
 }
 
@@ -20,7 +20,8 @@ def require_muconeup(executable: str) -> str:
     out = run_tool([executable, "--version"])
     match = re.search(r"(\d+)\.(\d+)\.(\d+)", out)
     if not match or tuple(map(int, match.groups())) < MIN_MUCONEUP:
-        raise RuntimeError(f"MucOneUp >= 0.45.0 is required, found: {out.strip()!r}")
+        minimum = ".".join(map(str, MIN_MUCONEUP))
+        raise RuntimeError(f"MucOneUp >= {minimum} is required, found: {out.strip()!r}")
     return match.group(0)
 
 

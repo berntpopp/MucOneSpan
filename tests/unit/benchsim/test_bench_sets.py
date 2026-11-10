@@ -151,6 +151,7 @@ def test_simulator_threads_do_not_shape_generation() -> None:
 def test_typical_rates_equal_the_calibrated_base_profile() -> None:
     import os
 
+    from muc_one_span.benchsim.muconeup import BUILTIN_PROFILE
     from muc_one_span.benchsim.profiles import builtin_profile_dir
 
     explicit = os.environ.get("MUCONEUP_PROFILES")
@@ -158,7 +159,8 @@ def test_typical_rates_equal_the_calibrated_base_profile() -> None:
         directory = builtin_profile_dir(Path(explicit) if explicit else None)
     except FileNotFoundError:
         pytest.skip("MucOneUp read profiles not available (set MUCONEUP_PROFILES)")
-    base = json.loads((directory / "ont_r10_sup_amplicon_v1.json").read_text())["molecules"]
+    path = directory / f"{BUILTIN_PROFILE['ont_amplicon_r10']}.json"
+    base = json.loads(path.read_text())["molecules"]
     assert (base["smear_rate"], base["chimera_rate"]) == (TYPICAL_SMEAR, TYPICAL_CHIMERA)
     standard = SETS.definitions["standard"].profiles["ont_amplicon_r10"]
     assert standard.concatemer_levels == (base["concatemer_rate"],)

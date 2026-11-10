@@ -13,6 +13,7 @@ import pytest
 from muc_one_span.benchsim.bench_config import DEFAULT_BENCH_CONFIG, AmountConfig, BenchConfig
 from muc_one_span.benchsim.design import Design, build_split
 from muc_one_span.benchsim.generate import GenerateContext, generate_case, write_manifest
+from muc_one_span.benchsim.muconeup import BUILTIN_PROFILE
 from muc_one_span.config import load_repeat_dictionary
 from muc_one_span.evaluation.models import Event, TruthHaplotype, TruthSample
 
@@ -28,7 +29,7 @@ FASTQ = {
 def _ctx(tmp_path: Path, **kw: Any) -> GenerateContext:
     prof = tmp_path / "profiles"
     prof.mkdir(exist_ok=True)
-    for name in ("ont_r10_sup_amplicon_v1", "ont_r10_genomic_v1", "hifi_amplicon_v1"):
+    for name in BUILTIN_PROFILE.values():
         (prof / f"{name}.json").write_text(
             json.dumps({"schema_version": 1, "name": name, "platform": "ont", "molecules": {}})
         )
@@ -265,7 +266,7 @@ def test_amplicon_amount_uses_artefacts_and_pcr_share(tmp_path: Path) -> None:
         _plain(DEV, event=False), smear=0.25, chimera=0.05, depth=10, pcr="none", concatemer=None
     )  # a pre-set design: the base profile's concatemer rate applies
     ctx = _ctx(tmp_path)
-    base = ctx.profile_dir / "ont_r10_sup_amplicon_v1.json"
+    base = ctx.profile_dir / f"{BUILTIN_PROFILE['ont_amplicon_r10']}.json"
     data = json.loads(base.read_text())
     data["molecules"] = {"concatemer_rate": 0.2}
     base.write_text(json.dumps(data))
@@ -522,7 +523,7 @@ def test_case_records_simulator_provenance_hashes(tmp_path: Path) -> None:
         patch(f"{MOD}.load_repeat_dictionary", return_value=_rd()),
     ):
         case = generate_case(design, ctx)
-    base = ctx.profile_dir / "ont_r10_sup_amplicon_v1.json"
+    base = ctx.profile_dir / f"{BUILTIN_PROFILE['ont_amplicon_r10']}.json"
     assert case["muconeup_version"] == ctx.muconeup_version
     assert case["base_profile_sha256"] == compute_sha256(base)
     assert case["muconeup_config_sha256"] == compute_sha256(ctx.config)
@@ -549,7 +550,7 @@ def test_resume_refuses_a_case_made_by_another_simulator_setup(tmp_path: Path, c
             ctx.config.write_text(json.dumps({"amplicon_params": {"forward_primer": "TA"}}))
             key = "muconeup_config_sha256"
         elif change == "base_profile":
-            base = ctx.profile_dir / "ont_r10_sup_amplicon_v1.json"
+            base = ctx.profile_dir / f"{BUILTIN_PROFILE['ont_amplicon_r10']}.json"
             base.write_text(base.read_text().replace('"molecules": {}', '"molecules": {"x": 1}'))
         else:
             flank = tmp_path / "flank.fa"
