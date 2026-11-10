@@ -120,6 +120,29 @@ def test_histogram_bins_must_match_the_target_bins() -> None:
         compare(metrics, ok, "ont_amplicon_r10", wider)
 
 
+def test_span_shape_is_scored_on_the_real_allele_support() -> None:
+    peak = [0] * 12 + [1.0] + [0] * 4
+    pmf = {key: {"p": peak} for key in REALISM.size_keys}
+    support = [{"units": 40.0}, {"units": 83.0}]
+    sec = {"span_offset_pmf_15bp_bins": pmf, "per_allele_stutter_and_length_noise": support}
+    targets = {"ont_amplicon_PRJEB92208": sec}
+    tail = [5] + [0] * 11 + [5] + [0] * 4
+    by_allele = {"2400": [0] * 12 + [9] + [0] * 4, "1800": tail, "6000": tail}  # 40, 30, 100 u
+    metrics = {
+        "span_offset_hist": {"lt55u": [5] + [0] * 11 + [14] + [0] * 4, "ge55u": tail},
+        "span_offset_hist_by_allele": by_allele,
+    }
+    res = compare(metrics, targets, "ont_amplicon_r10")
+    assert res["span_offset_jsd_lt55u"]["sim"] == pytest.approx(0.0)  # only the 40 u allele
+    assert "40-83 units" in res["span_offset_jsd_lt55u"]["tolerance"]
+    assert "span_offset_jsd_ge55u" not in res  # no ge55u allele inside the support
+    for size in REALISM.size_keys:
+        out = res[f"span_offset_jsd_{size}_out_of_support"]
+        assert out["pass"] is None and out["sim"] == pytest.approx(js_distance(tail, peak))
+    legacy = compare({"span_offset_hist": metrics["span_offset_hist"]}, targets, "ont_amplicon_r10")
+    assert legacy["span_offset_jsd_lt55u"]["sim"] > 0 and "out_of_support" not in str(legacy)
+
+
 def test_size_split_must_exist_in_the_target_file() -> None:
     other = replace(REALISM, size_split_units=60)
     metrics = {"span_offset_hist": {key: [1] * other.n_bins for key in other.size_keys}}

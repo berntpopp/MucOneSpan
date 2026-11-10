@@ -32,6 +32,16 @@ metric given as an `aggregate` spread must also keep its median within
 +/- ``range_median_rel_tol`` [25 %] of the real median. The configured
 span-offset bins must equal the target's ``bin_lo_bp`` when it lists them. Checks whose simulated value or target is
 missing are omitted from the result.
+
+Allele support: the span-offset shape depends on allele length (unit stutter
+and length noise grow with it), and the real libraries cover only the allele
+lengths in ``per_allele_stutter_and_length_noise[].units`` (about 40-83 units).
+When the metrics carry ``span_offset_hist_by_allele``, the JS check therefore
+uses only alleles inside that ``[min, max]`` and the rest is reported as
+``span_offset_jsd_<size>_out_of_support`` (``pass`` is ``None``: not scored).
+This restricts rather than reweights, so no allele-length model is assumed
+outside the real data. Older metrics without per-allele histograms are scored
+on ``span_offset_hist`` as before.
 """
 
 from __future__ import annotations
@@ -44,6 +54,7 @@ from pathlib import Path
 from typing import Any
 
 from .bench_config import DEFAULT_BENCH_CONFIG, PERCENT, RealismConfig
+from .realism import UNIT
 
 PROFILE_SECTIONS = {
     "ont_amplicon_r10": "ont_amplicon_PRJEB92208",
@@ -128,6 +139,26 @@ def _range(sim: Any, real: dict[str, float], cfg: RealismConfig) -> dict[str, An
     return _check(sim, target, rule, in_range and near)
 
 
+def allele_support(section: dict[str, Any]) -> tuple[float, float] | None:
+    """Real allele-length range (repeat units) of a target section, if it lists alleles."""
+    units = [row["units"] for row in section.get("per_allele_stutter_and_length_noise") or []]
+    return (min(units), max(units)) if units else None
+
+
+def _split_by_support(
+    by_allele: dict[str, list[int]], support: tuple[float, float], cfg: RealismConfig
+) -> tuple[dict[str, list[int]], dict[str, list[int]]]:
+    """Pool per-allele histograms into size classes, inside and outside `support`."""
+    inside = {k: [0] * cfg.n_bins for k in cfg.size_keys}
+    outside = {k: [0] * cfg.n_bins for k in cfg.size_keys}
+    for allele_bp, hist in by_allele.items():
+        units = int(allele_bp) / UNIT
+        dest = inside if support[0] <= units <= support[1] else outside
+        key = cfg.size_key(units)
+        dest[key] = [a + b for a, b in zip(dest[key], hist, strict=True)]
+    return inside, outside
+
+
 def target_section(targets: dict[str, Any], profile: str) -> dict[str, Any]:
     """The target section for a benchmark profile or an explicit section name."""
     return _section(targets, profile)
@@ -210,7 +241,13 @@ def compare(
                 f"realism.size_split_units gives histogram keys {list(config.size_keys)}, "
                 f"but the target {OFFSET_PMF_KEY} has {sorted(pmf)} (missing {missing})"
             )
-    for size, hist in (metrics.get("span_offset_hist") or {}).items():
+    hists, scope = metrics.get("span_offset_hist") or {}, ""
+    outside: dict[str, list[int]] = {}
+    support, by_allele = allele_support(sec), metrics.get("span_offset_hist_by_allele")
+    if hists and support and by_allele is not None:
+        hists, outside = _split_by_support(by_allele, support, config)
+        scope = f"alleles {support[0]:g}-{support[1]:g} units (real support)"
+    for size, hist in hists.items():
         edges = _dig(sec, (OFFSET_PMF_KEY, size, "bin_lo_bp"))
         if edges is not None and list(edges) != config.bin_lo_bp():
             raise ValueError(
@@ -219,8 +256,17 @@ def compare(
         real = _dig(sec, (OFFSET_PMF_KEY, size, "p"))
         dist = js_distance(hist, real) if real else None
         if dist is not None:
-            rule = f"JS distance <= {config.jsd_max:g}"
+            rule = "; ".join(filter(None, [f"JS distance <= {config.jsd_max:g}", scope]))
             res[f"span_offset_jsd_{size}"] = _check(dist, 0.0, rule, dist <= config.jsd_max)
+        dist = js_distance(outside[size], real) if outside and real else None
+        if dist is not None:
+            rule = f"reported only, not scored: outside {scope}"
+            res[f"span_offset_jsd_{size}_out_of_support"] = {
+                "sim": dist,
+                "target": 0.0,
+                "tolerance": rule,
+                "pass": None,
+            }
     sim = metrics.get("log_ratio_slope")
     real = _dig(sec, ("allelic_ratio", "through_origin_b_per_unit"))
     if sim is not None and real is not None:

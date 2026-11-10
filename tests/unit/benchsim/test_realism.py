@@ -150,6 +150,22 @@ def test_amplicon_products_offpeak_and_ratio(tmp_path: Path, edlib: object) -> N
     assert len(lt) == REALISM.n_bins
 
 
+def test_multi_anchor_read_is_scored_by_its_first_copy(tmp_path: Path, edlib: object) -> None:
+    amp = FLANK_L + _seq(600, 2) + FLANK_R
+    rows = [
+        _row("c1", 1, "concatemer", "+", 0, len(amp)),
+        _row("c2", 1, "smear", "-", 0, len(amp)),  # the rule reads anchors, not the kind
+        _row("f1", 1, "full", "+", 0, len(amp)),
+    ]
+    reads = [("c1", amp + amp), ("c2", revcomp(amp + amp)), ("f1", amp)]
+    m = read_metrics(_fq(tmp_path / "r.fq", reads), rows, {1: amp}, {1: (40, 640)})
+    lt = m["span_offset_hist"][REALISM.size_keys[0]]
+    assert lt[-REALISM.offset_bin_min] == 3  # all on the 600 bp peak, none at +600 bp
+    assert m["span_offset_hist_by_allele"] == {"600": lt}
+    assert m["multi_anchor_frac"] == pytest.approx(2 / 3)
+    assert m["span_off_gt1unit_frac"] == 0.0
+
+
 def test_amplicon_size_split_is_configured(tmp_path: Path, edlib: object) -> None:
     small = replace(REALISM, size_split_units=1)
     m = _amplicon_case(tmp_path, n_short=2, n_long=2, config=small)
@@ -174,6 +190,8 @@ def test_aggregate_medians_rates_pools_counts_fits_slope(tmp_path: Path, edlib: 
     expected = sum(x * y for x, y in zip(xs, ys, strict=True)) / sum(x * x for x in xs)
     assert agg["log_ratio_slope"] == pytest.approx(expected)
     assert sum(agg["span_offset_hist"]["lt55u"]) == 9 + 7
+    by_allele = agg["span_offset_hist_by_allele"]
+    assert set(by_allele) == {"600", "1200"} and sum(map(sum, by_allele.values())) == 9 + 7
     empty = aggregate([])
     assert empty["log_ratio_slope"] is None and empty["error_rate"]["all"] is None
 

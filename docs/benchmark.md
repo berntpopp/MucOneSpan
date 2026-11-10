@@ -520,6 +520,34 @@ The metric definitions are settings as well:
 The bins must match the target file's `bin_lo_bp`, or `realism` fails with an
 error.
 
+Two span-offset rules keep the simulated and real sides symmetric:
+
+- **Multi-anchor reads.** The real profiler finds the motif-1 and motif-9
+  anchors in each read (edlib infix, up to 12 edits, up to 6 hits each). A
+  spanning read's span runs from its first left anchor to the first right
+  anchor after it. Reads with more than one anchor hit are flagged
+  (`multi_anchor_frac_spanning`) but are not excluded from the histogram. A
+  `full + full` concatemer is therefore scored by its first copy, on the allele
+  peak. `realism` applies the same anchor search to each simulated product
+  (anchors are the haplotype's first and last 60 VNTR bp), not the truth
+  `kind`. Before this rule, a simulated concatemer was scored by its read
+  length and landed in the `>= +53 bp` tail. `multi_anchor_frac` is reported
+  but not scored. Its value includes reads where the motif-9 anchor also matches
+  an internal repeat at the 12-edit limit. The profiler counts those reads in
+  the same way.
+- **Allele support.** Unit stutter and length noise grow with allele length.
+  The real libraries cover only the alleles in
+  `per_allele_stutter_and_length_noise[].units` (40 to 83 units). The
+  `span_offset_jsd_<size>` checks therefore score only products of alleles in
+  that range, which `realism` reads from the target file. The other alleles are
+  reported as `span_offset_jsd_<size>_out_of_support`, with `pass` set to
+  `null` because they are not scored. This rule restricts rather than
+  reweights, so no length model is assumed outside the real data. The
+  per-allele histograms are in `span_offset_hist_by_allele`. `span_offset_hist`
+  still pools all alleles, and older metrics without per-allele histograms are
+  scored as before. The range-fraction checks (`span_off_gt1unit_frac` and
+  similar) still use every product.
+
 PRJEB92208 is a **check, not the source of truth**. Its amplicon section
 aggregates 9 libraries; its whole-genome section aggregates 2 HG002 WGS
 libraries with tens of VNTR-spanning reads, which does not represent targeted

@@ -274,6 +274,10 @@ class RealismConfig:
         """Histogram keys below / at-or-above `size_split_units`."""
         return f"lt{self.size_split_units}u", f"ge{self.size_split_units}u"
 
+    def size_key(self, units: float) -> str:
+        """Histogram key of an allele of `units` repeat units."""
+        return self.size_keys[units >= self.size_split_units]
+
     def bin_lo_bp(self) -> list[int]:
         """Lower edge (bp) of each bin; bin ``b`` holds ``(d + bp // 2) // bp == b``."""
         half = self.offset_bin_bp // 2

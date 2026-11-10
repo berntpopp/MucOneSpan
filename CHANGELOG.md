@@ -7,6 +7,19 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+### Fixed
+
+- Realism span-offset scoring now follows the real PRJEB92208 profiler. A
+  simulated read with a repeated motif-1/motif-9 anchor hit (for example a
+  concatemer) is measured from its first left anchor to the next right anchor,
+  as the profiler measures real reads, not by its read length. The
+  `span_offset_jsd_*` checks score only alleles inside the real allele range
+  (`per_allele_stutter_and_length_noise[].units`, 40 to 83 units). The rest is
+  reported as `span_offset_jsd_*_out_of_support` (not scored). New metric
+  outputs: `multi_anchor_frac` (reported only) and `span_offset_hist_by_allele`.
+  On the 30 standard ONT amplicon cases with MucOneUp `ont_r10_sup_amplicon_v3`,
+  span JS falls from 0.162 / 0.181 to 0.086 / 0.107 (< 55 / >= 55 units).
+
 ## [0.18.0] - 2026-10-05
 
 The hybrid engine gains an IGV alignment browser in the HTML report and an
