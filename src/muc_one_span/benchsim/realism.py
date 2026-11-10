@@ -30,13 +30,20 @@ end) spans of spanning reads:
   simulated spanning reads, the targets' denominator for ``span_*`` fractions.
   Their VNTR span is the aligned segment length for ``full`` reads and read
   length minus the haplotype's amplicon flanks otherwise (smear, chimera and
-  concatemer junctions lie inside the VNTR). ``d`` = span minus the nearest
+  concatemer junctions lie inside the VNTR). As in the profiler, a read with
+  more than one hit of either anchor (the VNTR's first / last ``UNIT`` bp, up
+  to ``ANCHOR_MAX_EDITS`` edits; e.g. a ``full + full`` concatemer) spans from
+  its first left anchor to the first right anchor after it, so it is scored by
+  its first copy rather than its read length; ``multi_anchor_frac`` (reported
+  only) is their share of products. ``d`` = span minus the nearest
   allele's VNTR length gives ``span_off_gt1unit_frac`` (|d| >
   ``off_peak_units`` [1.5] units), ``span_between_alleles_frac``,
   ``span_below_short_frac`` and the offset histogram (bins ``(d + bp // 2) //
   bp`` for ``offset_bin_bp`` [15], clamped to [``offset_bin_min``,
   ``offset_bin_max``] [-12, 4], allele size < / >= ``size_split_units`` [55]
-  units) for ``span_offset_pmf_15bp_bins``. ``smear_frac``/``chimera_frac``
+  units) for ``span_offset_pmf_15bp_bins``; ``span_offset_hist_by_allele``
+  (allele VNTR bp -> bins) lets `compare` restrict the histogram to the real
+  allele support. ``smear_frac``/``chimera_frac``
   (truth kinds over products) are reported only; ``offtarget_frac`` is over
   all reads, like ``category_frac["off_target"]``.
 - Allele ratio: on-peak products (|d| <= max(``on_peak_min_bp`` [30 bp],
@@ -87,6 +94,9 @@ UNIT = load_repeat_dictionary().repeat_length_bp  # repeat-unit length (bundled 
 STRANDS = ("+", "-")
 ALIGNED_KINDS = ("full", "fragment")
 PRODUCT_KINDS = ("full", "smear", "chimera", "concatemer")
+# Real-profiler anchor search (realprofile `all_hits`): edlib infix, <= 12 edits, <= 6 hits.
+ANCHOR_MAX_EDITS = 12
+ANCHOR_MAX_HITS = 6
 RATE_KEYS = {
     "mismatch_rate": ("mismatch",),
     "insertion_rate": ("ins",),
@@ -100,6 +110,7 @@ FRACTION_KEYS = (
     "span_off_gt1unit_frac",
     "span_between_alleles_frac",
     "span_below_short_frac",
+    "multi_anchor_frac",
     "spanning_frac",
 )
 COUNT_KEYS = ("ref_bases", "mismatch", "ins", "del")
@@ -188,9 +199,32 @@ def _rates(error_counts: dict[str, Counter[str]]) -> dict[str, Any]:
     }
 
 
+def _anchor_hits(edlib: ModuleType, anchor: str, read: str) -> list[tuple[int, int]]:
+    """Sorted non-overlapping `[start, end)` hits of an anchor in a read (profiler parity)."""
+    hits = []
+    for _ in range(ANCHOR_MAX_HITS):
+        found = edlib.align(anchor, read, mode="HW", task="locations", k=ANCHOR_MAX_EDITS)
+        if found["editDistance"] < 0:
+            break
+        s, e = found["locations"][0]
+        hits.append((s, e + 1))
+        read = read[:s] + "N" * (e + 1 - s) + read[e + 1 :]
+    return sorted(hits)
+
+
+def _multi_anchor_span(edlib: ModuleType, read: str, anchors: tuple[str, str]) -> int | None:
+    """First-left-anchor to next-right-anchor span of a read with a repeated anchor."""
+    left, right = (_anchor_hits(edlib, a, read) for a in anchors)
+    if len(left) < 2 and len(right) < 2:
+        return None
+    ends = [e for s, e in right if left and s >= left[0][1]]
+    return ends[0] - left[0][0] if ends else None
+
+
 def _amplicon(
+    edlib: ModuleType,
     rows: Sequence[ReadTruth],
-    lengths: dict[str, int],
+    seqs: dict[str, str],
     exact: dict[str, int],
     sources: dict[int, str],
     vntr: dict[int, tuple[int, int]],
@@ -202,20 +236,32 @@ def _amplicon(
         return {}  # genomic fragments: no amplicon products
     allele = {h: e - s for h, (s, e) in vntr.items()}
     flanks = {h: len(sources[h]) - n for h, n in allele.items() if h in sources}
+    anchors = {
+        h: (sources[h][s : s + UNIT].upper(), sources[h][e - UNIT : e].upper())
+        for h, (s, e) in vntr.items()
+        if h in sources
+    }
     alleles = sorted(set(allele.values()))
     lo, hi = alleles[0], alleles[-1]
     small, large = cfg.size_keys
     hist = {small: [0] * cfg.n_bins, large: [0] * cfg.n_bins}
+    by_allele = {str(a): [0] * cfg.n_bins for a in alleles}
     bp, off_bp = cfg.offset_bin_bp, cfg.off_peak_units * UNIT
     on_peak: Counter[int] = Counter()
-    off = between = below = 0
+    off = between = below = multi = 0
     for r in products:
-        span = exact.get(r.read_id, lengths[r.read_id] - flanks.get(r.hap, 0))
+        seq = seqs[r.read_id]
+        span = exact.get(r.read_id, len(seq) - flanks.get(r.hap, 0))
+        if r.hap in anchors:  # same span rule as the real profiler, from the read itself
+            read = seq if r.strand == "+" else revcomp(seq)
+            first = _multi_anchor_span(edlib, read, anchors[r.hap])
+            multi += first is not None
+            span = span if first is None else first
         near = min(alleles, key=lambda a: abs(span - a))
         d = span - near
-        key = small if near / UNIT < cfg.size_split_units else large
         b = max(cfg.offset_bin_min, min(cfg.offset_bin_max, (d + bp // 2) // bp))
-        hist[key][b - cfg.offset_bin_min] += 1
+        hist[cfg.size_key(near / UNIT)][b - cfg.offset_bin_min] += 1
+        by_allele[str(near)][b - cfg.offset_bin_min] += 1
         on_peak[near] += abs(d) <= max(cfg.on_peak_min_bp, cfg.on_peak_rel * near)
         off += abs(d) > off_bp
         between += lo + off_bp < span < hi - off_bp
@@ -228,7 +274,9 @@ def _amplicon(
         "span_off_gt1unit_frac": _ratio(off, n),
         "span_between_alleles_frac": _ratio(between, n),
         "span_below_short_frac": _ratio(below, n),
+        "multi_anchor_frac": _ratio(multi, n),
         "span_offset_hist": hist,
+        "span_offset_hist_by_allele": by_allele,
     }
     delta = (hi - lo) / UNIT
     if delta >= 1 and on_peak[lo] and on_peak[hi]:
@@ -243,6 +291,7 @@ def _empty() -> dict[str, Any]:
         "allele_ratio": None,
         "log_ratio_slope": None,
         "span_offset_hist": None,
+        "span_offset_hist_by_allele": None,
     }
 
 
@@ -308,8 +357,7 @@ def read_metrics(
             for key in (r.strand, "both"):
                 c7[key][0] += ok
                 c7[key][1] += 1
-    lengths = {k: len(v) for k, v in seqs.items()}
-    out = _empty() | _amplicon(truth_rows, lengths, exact, sources, vntr, config)
+    out = _empty() | _amplicon(edlib, truth_rows, seqs, exact, sources, vntr, config)
     if any(r.kind == "fragment" for r in truth_rows):
         out["spanning_frac"] = _ratio(spanning, overlap)
     out |= _rates(counts)
@@ -398,6 +446,7 @@ def aggregate(
     pooled; fractions become `{min, median, max, n}` over cases (range +
     median scoring in `compare`); `log_ratio_slope` is the through-origin
     least-squares slope of `log_ratio` on `delta_units` over cases.
+    ``span_offset_hist_by_allele`` is pooled per allele length.
 
     Args:
         cases: Per-case metric dicts from `read_metrics`.
@@ -409,6 +458,7 @@ def aggregate(
     counts: dict[str, Counter[str]] = {s: Counter() for s in (*STRANDS, "all")}
     c7 = {s: [0, 0] for s in (*STRANDS, "both")}
     hist = {k: [0] * config.n_bins for k in config.size_keys}
+    by_allele: dict[str, list[int]] = {}
     points = []
     for case in cases:
         for s, c in case["error_counts"].items():
@@ -418,6 +468,9 @@ def aggregate(
             c7[s][1] += n
         for k, h in (case.get("span_offset_hist") or {}).items():
             hist[k] = [a + b for a, b in zip(hist[k], h, strict=True)]
+        for k, h in (case.get("span_offset_hist_by_allele") or {}).items():
+            pooled = by_allele.get(k, [0] * config.n_bins)
+            by_allele[k] = [a + b for a, b in zip(pooled, h, strict=True)]
         if case.get("allele_ratio"):
             points.append((case["allele_ratio"]["delta_units"], case["allele_ratio"]["log_ratio"]))
     out: dict[str, Any] = {"n_cases": len(cases)}
@@ -429,6 +482,7 @@ def aggregate(
     out["log_ratio_slope"] = _ratio(sum(x * y for x, y in points), sxx)
     out["n_allele_ratio_cases"] = len(points)
     out["span_offset_hist"] = hist
+    out["span_offset_hist_by_allele"] = by_allele
     out["c7_correct"] = {s: _ratio(ok, n) for s, (ok, n) in c7.items()}
     out["error_counts"] = _count_table(counts)
     out["c7_counts"] = c7
