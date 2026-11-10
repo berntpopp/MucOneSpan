@@ -13,6 +13,7 @@ import pytest
 from muc_one_span.benchsim.bench_config import DEFAULT_BENCH_CONFIG, AmountConfig, BenchConfig
 from muc_one_span.benchsim.design import Design, build_split
 from muc_one_span.benchsim.generate import GenerateContext, generate_case, write_manifest
+from muc_one_span.benchsim.muconeup import BUILTIN_PROFILE
 from muc_one_span.config import load_repeat_dictionary
 from muc_one_span.evaluation.models import Event, TruthHaplotype, TruthSample
 
@@ -28,7 +29,7 @@ FASTQ = {
 def _ctx(tmp_path: Path, **kw: Any) -> GenerateContext:
     prof = tmp_path / "profiles"
     prof.mkdir(exist_ok=True)
-    for name in ("ont_r10_sup_amplicon_v1", "ont_r10_genomic_v1", "hifi_amplicon_v1"):
+    for name in BUILTIN_PROFILE.values():
         (prof / f"{name}.json").write_text(
             json.dumps({"schema_version": 1, "name": name, "platform": "ont", "molecules": {}})
         )
@@ -265,7 +266,7 @@ def test_amplicon_amount_uses_artefacts_and_pcr_share(tmp_path: Path) -> None:
         _plain(DEV, event=False), smear=0.25, chimera=0.05, depth=10, pcr="none", concatemer=None
     )  # a pre-set design: the base profile's concatemer rate applies
     ctx = _ctx(tmp_path)
-    base = ctx.profile_dir / "ont_r10_sup_amplicon_v1.json"
+    base = ctx.profile_dir / f"{BUILTIN_PROFILE['ont_amplicon_r10']}.json"
     data = json.loads(base.read_text())
     data["molecules"] = {"concatemer_rate": 0.2}
     base.write_text(json.dumps(data))
@@ -286,6 +287,17 @@ def test_amplicon_amount_uses_artefacts_and_pcr_share(tmp_path: Path) -> None:
         own = generate_case(replace(design, concatemer=0.0, design_id="own-0001"), ctx)
     # The design's concatemer level (0) wins over the base profile's 0.2.
     assert own["requested_amount"] == math.ceil(10 / (0.5 * (1 - 0.25 - 0.05)))
+
+    # v3 unit stutter turns rate * units of the full products into stutter products.
+    data["molecules"] = {"concatemer_rate": 0.0, "unit_stutter_rate": 0.01}
+    base.write_text(json.dumps(data))
+    with (
+        patch(f"{MOD}.run_tool", side_effect=FakeMucOneUp()),
+        patch(f"{MOD}.load_repeat_dictionary", return_value=_rd()),
+    ):
+        st = generate_case(replace(design, design_id="stutter-0001"), ctx)
+    loss = 0.01 * max(st["actual_lengths"])
+    assert st["requested_amount"] == math.ceil(10 / (0.5 * (1 - 0.3) * (1 - loss)))
 
 
 def test_amplicon_amount_is_capped_at_the_minor_share_floor(tmp_path: Path) -> None:
@@ -522,7 +534,7 @@ def test_case_records_simulator_provenance_hashes(tmp_path: Path) -> None:
         patch(f"{MOD}.load_repeat_dictionary", return_value=_rd()),
     ):
         case = generate_case(design, ctx)
-    base = ctx.profile_dir / "ont_r10_sup_amplicon_v1.json"
+    base = ctx.profile_dir / f"{BUILTIN_PROFILE['ont_amplicon_r10']}.json"
     assert case["muconeup_version"] == ctx.muconeup_version
     assert case["base_profile_sha256"] == compute_sha256(base)
     assert case["muconeup_config_sha256"] == compute_sha256(ctx.config)
@@ -549,7 +561,7 @@ def test_resume_refuses_a_case_made_by_another_simulator_setup(tmp_path: Path, c
             ctx.config.write_text(json.dumps({"amplicon_params": {"forward_primer": "TA"}}))
             key = "muconeup_config_sha256"
         elif change == "base_profile":
-            base = ctx.profile_dir / "ont_r10_sup_amplicon_v1.json"
+            base = ctx.profile_dir / f"{BUILTIN_PROFILE['ont_amplicon_r10']}.json"
             base.write_text(base.read_text().replace('"molecules": {}', '"molecules": {"x": 1}'))
         else:
             flank = tmp_path / "flank.fa"

@@ -7,8 +7,24 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+### Changed
+
+- MucSim-Bench uses MucOneUp `ont_r10_sup_amplicon_v4` (per-strand error
+  rates and whole-unit PCR stutter; MucOneUp #208, #210, #213) for `ont_amplicon_r10`
+  and `ont_r10_genomic_v2` (per-strand error rates; MucOneUp #208) for
+  `ont_genomic_targeted`. `hifi_amplicon_v1` is unchanged. `generate` now
+  requires MucOneUp >= 0.53.0. Cases generated earlier used `_v1`; they are not
+  rewritten, and `generate` does not reuse them under the new profiles.
+- The `poor` error level also scales a base profile's per-strand error rates
+  (`errors.strand_rates`), which MucOneUp applies over the overall rates;
+  without this, `poor` would leave v2-v4 error rates unchanged.
+
 ### Fixed
 
+- `generate` sizes amplicon template counts for MucOneUp's whole-unit stutter,
+  which turns `unit_stutter_rate` x units of the full products into stutter
+  products (about 6% at 40 units with v4); cases otherwise fell short of the
+  full-length depth target.
 - Realism span-offset scoring now follows the real PRJEB92208 profiler. A
   simulated read with a repeated motif-1/motif-9 anchor hit (for example a
   concatemer) is measured from its first left anchor to the next right anchor,
@@ -18,7 +34,8 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
   reported as `span_offset_jsd_*_out_of_support` (not scored). New metric
   outputs: `multi_anchor_frac` (reported only) and `span_offset_hist_by_allele`.
   On the 30 standard ONT amplicon cases with MucOneUp `ont_r10_sup_amplicon_v3`,
-  span JS falls from 0.162 / 0.181 to 0.086 / 0.107 (< 55 / >= 55 units).
+  span JS falls from 0.162 / 0.181 to 0.086 / 0.107 (< 55 / >= 55 units);
+  with `ont_r10_sup_amplicon_v4` it is 0.075 / 0.076 (limit 0.1).
 
 ## [0.18.0] - 2026-10-05
 

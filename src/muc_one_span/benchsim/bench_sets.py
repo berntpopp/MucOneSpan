@@ -82,12 +82,12 @@ def _uniform(
 AMPLICON_PROFILES = ("ont_amplicon_r10", "hifi_amplicon")
 GENOMIC_PROFILE = "ont_genomic_targeted"  # no PCR or molecule-artefact step (`profiles`)
 NO_ARTEFACT = (0.0,)
-# Typical amplicon molecule artefacts: the ont_r10_sup_amplicon_v1 MucOneUp profile
+# Typical amplicon molecule artefacts: the ONT amplicon base profile's (BUILTIN_PROFILE)
 # rates, fitted to the PRJEB92208 median smear share (0.2361 of spanning reads).
 TYPICAL_SMEAR = 0.24
 TYPICAL_CHIMERA = 0.023
 # Concatemer rate and off-target fraction of the base profiles, kept by standard and
-# stress: ont_r10_sup_amplicon_v1 sets them; hifi_amplicon_v1 keeps MucOneUp's 0.
+# stress: the ONT amplicon base profile sets them; hifi_amplicon_v1 keeps MucOneUp's 0.
 PROFILE_CONCATEMER = {"ont_amplicon_r10": (0.024,), "hifi_amplicon": NO_ARTEFACT}
 PROFILE_OFFTARGET = {"ont_amplicon_r10": (0.3,), "hifi_amplicon": NO_ARTEFACT}
 # Median PRJEB92208 span_off_gt1unit_frac (packaged realism targets).

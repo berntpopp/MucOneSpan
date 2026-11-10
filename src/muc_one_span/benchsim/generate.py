@@ -195,6 +195,10 @@ def _amount(
     share = pcr_minor_share((counts[0], counts[-1]), design.pcr, cfg)
     share, capped = capped_minor_share(share, cfg)
     rate = design.smear + design.chimera + concatemer
+    # MucOneUp >= 0.52 turns full products into whole-unit stutter with P = rate * units
+    # (capped at 1); size for the longer allele, which loses the most.
+    stutter = float((base_profile.get("molecules") or {}).get("unit_stutter_rate", 0.0))
+    rate = 1.0 - (1.0 - rate) * (1.0 - min(1.0, stutter * max(counts)))
     return amplicon_templates(design.depth, rate, share), capped
 
 

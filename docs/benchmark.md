@@ -17,9 +17,9 @@ rule. Everything is driven by `scripts/benchsim.py`.
 
 | Requirement | Used by | Notes |
 | --- | --- | --- |
-| MucOneUp **>= 0.45.0** (`muconeup`) | `generate` | Called as an external executable, never imported. The version is checked before any case is generated. |
+| MucOneUp **>= 0.53.0** (`muconeup`) | `generate` | Called as an external executable, never imported. The version is checked before any case is generated. |
 | MucOneUp `config.json` | `generate` | `--muconeup-config` or `$MUCONEUP_CONFIG`. |
-| MucOneUp read profiles | `generate` | `--muconeup-profiles <MucOneUp>/muc_one_up/data/read_profiles`. |
+| MucOneUp read profiles | `generate` | `--muconeup-profiles <MucOneUp>/muc_one_up/data/read_profiles`, else the `data/read_profiles` of an importable `muc_one_up` package. It must hold the profiles named below (MucOneUp >= 0.53.0). |
 | pbsim3 (`pbsim`) and `ccs` | `generate` | MucOneUp calls them for read simulation, through the `tools` section of its `config.json`. |
 | minimap2, samtools, bcftools, Clair3 + models | `run` | On `PATH`, as for `muconespan run`; ONT and HiFi models via `--model-ont` / `--model-hifi` or `$CLAIR3_MODEL_ONT` / `$CLAIR3_MODEL_HIFI`. |
 | edlib (`bench` extra) | `realism` | `uv sync --extra bench`, or `make dev` (all extras). edlib 1.3.9.post1 has no Python 3.14 wheel; on 3.14 it builds from the source distribution, which needs a C++ compiler. Without edlib, `realism` fails with a clear error. |
@@ -28,8 +28,8 @@ rule. Everything is driven by `scripts/benchsim.py`.
 
 | Profile | MucOneUp base profile | Status |
 | --- | --- | --- |
-| `ont_amplicon_r10` | `ont_r10_sup_amplicon_v1` | Calibrated against public PRJEB92208 amplicon aggregates. |
-| `ont_genomic_targeted` | `ont_r10_genomic_v1` | Calibrated against public PRJEB92208 whole-genome aggregates. |
+| `ont_amplicon_r10` | `ont_r10_sup_amplicon_v4` | Calibrated against public PRJEB92208 amplicon aggregates, with per-strand error rates and whole-unit PCR stutter. |
+| `ont_genomic_targeted` | `ont_r10_genomic_v2` | Calibrated against public PRJEB92208 whole-genome aggregates, with per-strand error rates. |
 | `hifi_amplicon` | `hifi_amplicon_v1` | **Uncalibrated**: no public PacBio MUC1 data. Realism has no target section for it, so HiFi results show relative engine behaviour only. |
 
 Each design layers artefact, error and PCR levels onto the base profile
@@ -37,7 +37,55 @@ Each design layers artefact, error and PCR levels onto the base profile
 base profile are recorded for every case. The level values come from the
 design's benchmark set (see [Benchmark sets](#benchmark-sets)). PCR bias and
 molecule artefacts (smear, chimera, concatemer, off-target) are not applied to
-`ont_genomic_targeted`.
+`ont_genomic_targeted`. The `poor` error level scales the per-strand rates
+as well as the overall rates.
+
+The base profiles are set in one place, `BUILTIN_PROFILE` in
+`src/muc_one_span/benchsim/muconeup.py`.
+
+### ONT profiles v2 to v4
+
+The ONT amplicon profile moved from `ont_r10_sup_amplicon_v1` to
+`ont_r10_sup_amplicon_v4` and the genomic profile from `ont_r10_genomic_v1` to
+`ont_r10_genomic_v2` (MucOneUp 0.53.0). v1 is still shipped by MucOneUp.
+
+- v2 ([MucOneUp #208](https://github.com/berntpopp/MucOneUp/pull/208), 0.51.0)
+  adds per-strand error rates; everything else is unchanged from v1. Every
+  per-strand rate is within 11% of the PRJEB92208 target; v1 was off by -30% to
+  +39%.
+- v3 ([MucOneUp #210](https://github.com/berntpopp/MucOneUp/pull/210), 0.52.0,
+  amplicon only) is v2 plus whole-unit PCR stutter. Stutter products are truth
+  kind `smear` with detail `unit_stutter:<k>:<a>-<b>`, so realism counts them as
+  smear products. Per-strand error rates are unchanged from v2.
+- v4 ([MucOneUp #213](https://github.com/berntpopp/MucOneUp/pull/213), 0.53.0,
+  amplicon only) refits v3's per-strand rates on a template with real-like C7
+  homopolymer runs and refits the unit stutter against the profiler's own
+  per-allele statistic (0.0016 instead of 0.0024 per unit).
+
+Measured on the MucSim-Bench v4 `standard` set (30 cases per profile, median):
+
+| Metric | v4 | v3 | v2 | v1 | Target |
+| --- | --- | --- | --- | --- | --- |
+| Amplicon mismatch, + / - strand | 0.00800 / 0.00602 | 0.00821 / 0.00588 | 0.00820 / 0.00589 | - | 0.00811 / 0.00606 |
+| Amplicon deletion, + / - strand | 0.01149 / 0.00484 | 0.01223 / 0.00486 | 0.01221 / 0.00486 | - | 0.01138 / 0.00485 |
+| Amplicon total error | - | 0.02240 | 0.02240 | - | 0.02138 |
+| Amplicon span-offset JS, < 55 / >= 55 units, scoring before #93 | 0.168 / 0.141 | 0.162 / 0.181 | 0.186 / 0.187 | 0.222 / 0.214 | <= 0.1 |
+| Amplicon span-offset JS, < 55 / >= 55 units, symmetric scoring (#93) | **0.075 / 0.076** | 0.086 / 0.107 | 0.133 / 0.163 | - | <= 0.1 |
+| Genomic mismatch, - strand | - (no genomic v3/v4) | - | 0.00092 | - | 0.00098 |
+| Genomic insertion, - strand | - (no genomic v3/v4) | - | 0.00085 | - | 0.00089 |
+
+Under the symmetric scoring (MucOneSpan #93: the profiler's first-anchor-pair
+span rule on both sides, span JS scored on alleles inside the real 40-83 unit
+support) v4 passes the span-offset check for both size classes. Still open in
+MucOneUp #131: in the 8 cases whose alleles differ by at least 6 units, v4
+puts 0.041-0.051 of spanning reads between the alleles against 0.016-0.026
+real, and the pooled allelic-ratio slope is -0.023 against -0.056 real.
+
+Cases generated before this change used the `_v1` profiles. Each `case.json`
+records that by its base profile SHA-256 (`base_profile_sha256`) and MucOneUp
+version, and its `profile_variant` names `_v1`. Such cases are kept as they are,
+but `generate` does not reuse them under the new profiles (the base profile hash
+differs), so generate new cases into a fresh `--out-root`.
 
 ## Benchmark sets
 
@@ -62,9 +110,9 @@ Concatemer rate and off-target fraction (`concatemer_levels`,
 no molecule artefact at all. The genomic profile always uses PCR `none` and 0
 artefact levels.
 
-The `standard` smear and chimera rates are those of the calibrated
-`ont_r10_sup_amplicon_v1` MucOneUp profile, fitted to the median PRJEB92208
-smear share. The same PCR artefact rates are assumed for HiFi amplicons.
+The `standard` smear and chimera rates are those of the calibrated ONT
+amplicon base profile (the same in `_v1` to `_v3`), fitted to the median
+PRJEB92208 smear share. The same PCR artefact rates are assumed for HiFi amplicons.
 `offpeak_share_cap` bounds max smear + max chimera per profile (smear + chimera +
 concatemer may not exceed 1, a MucOneUp limit): `standard` uses
 the real median of `span_off_gt1unit_frac` (0.2695), `clean` 0, and `stress`
