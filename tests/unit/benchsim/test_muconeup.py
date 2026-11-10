@@ -3,7 +3,12 @@ from unittest.mock import patch
 
 import pytest
 
-from muc_one_span.benchsim.muconeup import reads_args, require_muconeup, simulate_args
+from muc_one_span.benchsim.muconeup import (
+    BUILTIN_PROFILE,
+    reads_args,
+    require_muconeup,
+    simulate_args,
+)
 
 MOD = "muc_one_span.benchsim.muconeup"
 
@@ -11,8 +16,8 @@ MOD = "muc_one_span.benchsim.muconeup"
 @pytest.mark.parametrize(
     "out,ok",
     [
-        ("muconeup, version 0.45.0\n", True),
-        ("muconeup, version 0.44.5\n", False),
+        ("muconeup, version 0.53.0\n", True),
+        ("muconeup, version 0.52.9\n", False),
         ("muconeup, version 1.2.3\n", True),
     ],
 )
@@ -21,7 +26,7 @@ def test_version_gate(out: str, ok: bool) -> None:
         if ok:
             assert require_muconeup("muconeup") == out.split()[-1]
         else:
-            with pytest.raises(RuntimeError, match=r"0\.45\.0"):
+            with pytest.raises(RuntimeError, match=r"0\.53\.0"):
                 require_muconeup("muconeup")
 
 
@@ -62,7 +67,7 @@ def test_reads_args_per_profile(tmp_path: Path) -> None:
         pcr_preset=None,
     )
     assert amp[3:5] == ["reads", "amplicon"] and "--no-align" in amp
-    assert amp[amp.index("--read-profile") + 1] == "ont_r10_sup_amplicon_v1"
+    assert amp[amp.index("--read-profile") + 1] == BUILTIN_PROFILE["ont_amplicon_r10"]
     assert amp[amp.index("--coverage") + 1] == "900"
     gen = reads_args(
         "mu",
@@ -95,5 +100,5 @@ def test_reads_args_per_profile(tmp_path: Path) -> None:
         flank_fasta=None,
         pcr_preset="no_bias",
     )
-    assert hifi[hifi.index("--read-profile") + 1] == "hifi_amplicon_v1"
+    assert hifi[hifi.index("--read-profile") + 1] == BUILTIN_PROFILE["hifi_amplicon"]
     assert hifi[hifi.index("--pcr-preset") + 1] == "no_bias"

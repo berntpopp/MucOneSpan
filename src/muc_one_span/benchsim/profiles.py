@@ -4,8 +4,8 @@ Rules for transforming base profiles:
 - Smear/Chimera (artefact levels): Set molecules.smear_rate and molecules.chimera_rate;
   not applied to ont_genomic_targeted.
 - Error levels: For profiles with "errors" dict, error="poor" scales mismatch_rate,
-  insertion_rate, and deletion_rate by ``profiles.poor_error_scale`` (stutter
-  unchanged); for profiles without "errors" (HiFi), sets
+  insertion_rate, and deletion_rate, overall and in ``errors.strand_rates``, by
+  ``profiles.poor_error_scale`` (stutter unchanged); for profiles without "errors" (HiFi), sets
   config_overrides.pacbio_params.accuracy_mean = ``profiles.hifi_poor_accuracy_mean``.
   Calibrated levels leave the base untouched.
 - PCR levels: For amplicon profiles (not ont_genomic_targeted), pcr="strong" sets
@@ -86,8 +86,12 @@ def _apply(data: dict[str, Any], design: Design, cfg: ProfileConfig) -> None:
             mol["offtarget_frac"] = design.offtarget
     if design.error == "poor":
         if "errors" in data:
-            for key in ("mismatch_rate", "insertion_rate", "deletion_rate"):
-                data["errors"][key] = data["errors"][key] * cfg.poor_error_scale
+            # MucOneUp applies a strand's ``strand_rates`` (v2 profiles) over the top-level rates.
+            errors = data["errors"]
+            for rates in (errors, *errors.get("strand_rates", {}).values()):
+                for key in ("mismatch_rate", "insertion_rate", "deletion_rate"):
+                    if key in rates:
+                        rates[key] = rates[key] * cfg.poor_error_scale
         else:
             data.setdefault("config_overrides", {}).setdefault("pacbio_params", {})[
                 "accuracy_mean"

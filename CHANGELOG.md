@@ -7,6 +7,25 @@ and this project adheres to [Semantic Versioning](https://semver.org/).
 
 ## [Unreleased]
 
+### Changed
+
+- MucSim-Bench uses MucOneUp `ont_r10_sup_amplicon_v4` (per-strand error
+  rates and whole-unit PCR stutter; MucOneUp #208, #210, #213) for `ont_amplicon_r10`
+  and `ont_r10_genomic_v2` (per-strand error rates; MucOneUp #208) for
+  `ont_genomic_targeted`. `hifi_amplicon_v1` is unchanged. `generate` now
+  requires MucOneUp >= 0.53.0. Cases generated earlier used `_v1`; they are not
+  rewritten, and `generate` does not reuse them under the new profiles.
+- The `poor` error level also scales a base profile's per-strand error rates
+  (`errors.strand_rates`), which MucOneUp applies over the overall rates;
+  without this, `poor` would leave v2-v4 error rates unchanged.
+
+### Fixed
+
+- `generate` sizes amplicon template counts for MucOneUp's whole-unit stutter,
+  which turns `unit_stutter_rate` x units of the full products into stutter
+  products (about 6% at 40 units with v4); cases otherwise fell short of the
+  full-length depth target.
+
 ## [0.18.0] - 2026-10-05
 
 The hybrid engine gains an IGV alignment browser in the HTML report and an
